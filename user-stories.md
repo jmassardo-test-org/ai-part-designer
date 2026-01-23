@@ -1,62 +1,76 @@
 # User Stories
 
-## Milestone 1 - Project Setup
-1. As a developer, I want a clear repository structure so that I can start the project with proper organization.
-2. As a developer, I want a CI/CD pipeline so that code changes are automatically tested and deployed.
+## User Story 1 
+**As a** user who is interested in AI design tools,  
+**I want** to be able to easily navigate the interface,  
+**so that** I can efficiently access the tools I need for my design projects.  
 
-## Milestone 2 - Core Architecture Design
-3. As a developer, I want a high-level architectural diagram so that I can understand component interactions.
-4. As a developer, I want clear communication protocols defined to ensure seamless interaction between services.
+### Tasks:  
+- Design an intuitive main menu.  
+- Include tooltips for all interface elements.  
 
-## Milestone 3 - User Authentication and Authorization
-5. As a user, I want to create an account to access personalized features of the platform.
-6. As a user, I want to have role-based access control for secure and role-specific access.
+### Context:  
+Many users may feel overwhelmed by complicated interfaces. Ensuring ease of navigation will enhance user satisfaction.  
 
-## Milestone 4 - Database Design
-7. As a developer, I want a well-structured database schema so that data is stored and retrieved efficiently.
-8. As an admin, I want an automated backup system so I can prevent data loss in case of unexpected failures.
+### Expected Outcome:  
+Users will find it easier to locate tools, reducing the time spent searching for features.
 
-## Milestone 5 - API Development
-9. As a developer, I want a user management API to handle CRUD operations for users.
-10. As a developer, I want a RESTful API for uploading and processing project specifications.
+## User Story 2 
+**As a** designer working on a collaborative project,  
+**I want** to share my design drafts with team members,  
+**so that** we can offer feedback and make necessary revisions together.  
 
-## Milestone 6 - Frontend Framework Setup
-11. As a developer, I want to set up a React-based frontend framework to develop a modern web application.
-12. As a designer, I want a style guide to ensure consistent UI components.
+### Tasks:  
+- Implement a sharing feature with customizable permissions.  
+- Set up a commenting system for feedback.  
 
-## Milestone 7 - UI/UX Design
-13. As a user, I want an intuitive navigation structure for seamless use of the platform.
-14. As a user, I want wireframes to preview the final design before implementation.
+### Context:  
+Collaboration is key in design. This feature will foster teamwork by allowing real-time discussions on design drafts.
 
-## Milestone 8 - Feature Development: Part Generation
-15. As a user, I want the ability to generate parts from predefined templates for efficiency.
-16. As an advanced user, I want a custom part builder to design parts with specific parameters.
+### Expected Outcome:  
+Increased productivity and improved project alignment as team members can collaborate more effectively.
 
-## Milestone 9 - Feature Development: User Dashboard
-17. As a user, I want a dashboard displaying my project statistics and recent activities.
-18. As a user, I want data visualization (charts/graphs) to easily understand my project progress.
+## User Story 3 
+**As a** new user,  
+**I want** a guided tutorial when I first access the application,  
+**so that** I can quickly learn how to use the features.
 
-## Milestone 10 - Testing and QA
-19. As a QA engineer, I want to conduct unit testing to validate each component's functionality.
-20. As a QA engineer, I want to execute integration tests to ensure system-wide compatibility.
+### Tasks:  
+- Develop an onboarding experience with step-by-step instructions.  
+- Include example projects to illustrate feature use.  
 
-## Milestone 11 - Deployment Preparation
-21. As a dev-ops engineer, I want an environment setup guide to replicate development and production environments.
-22. As a developer, I want a Dockerfile to containerize the application for reliable deployments.
+### Context:  
+New users might struggle without a clear understanding of the software; tutorials can aid their learning curve.
 
-## Milestone 12 - Deployment and Release
-23. As a developer, I want release notes to inform users of changes and new features in updates.
-24. As a sysadmin, I want a rollback strategy for safe recovery in case of deployment failure.
+### Expected Outcome:  
+New users will feel more confident and comfortable using the application after completing the tutorial, potentially reducing drop-off rates.
 
-## Milestone 13 - Post-Deployment Monitoring
-25. As a sysadmin, I want application monitoring tools set up to ensure proper system performance and quick issue identification.
-26. As a sysadmin, I want alerting mechanisms to respond quickly to system failures or high load.
+## Additional User Story 4 
+**As a** user of accessibility tools,  
+**I want** the application to be compatible with screen readers,  
+**so that** I can navigate the design tools independently.  
 
-## Milestone 14 - Feature Enhancements
-27. As a user, I want improvements based on my feedback for a better experience.
-28. As a developer, I want prioritized enhancements for the parts that need immediate fixes or updates.
+### Tasks:  
+- Conduct an accessibility audit of the user interface.  
+- Implement necessary changes to support screen readers.  
 
-## Milestone 15 - Documentation and Training
-29. As a user, I want a user manual to guide me through using the platform effectively.
-30. As a new developer, I want API documentation to understand and use the existing APIs.
-31. As a stakeholder, I want training materials to effectively learn and train others on the system.
+### Context:  
+Ensuring accessibility for all users is essential for inclusivity in design applications.
+
+### Expected Outcome:  
+All users, regardless of their abilities, can interact with the software, promoting a diverse user base.
+
+## Additional User Story 5
+**As a** returning user,  
+**I want** to see a history of my recent projects on the dashboard,  
+**so that** I can quickly resume my work without searching.
+
+### Tasks:  
+- Create a section on the dashboard for recent projects.  
+- Implement a project preview feature.  
+
+### Context:  
+Users often work on multiple projects at once and benefit from easy access to their recent work.
+
+### Expected Outcome:  
+Improved workflow for users who can quickly continue their previous projects.
