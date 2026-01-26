@@ -1,0 +1,296 @@
+/**
+ * Shared With Me Page - View designs shared by other users.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Users,
+  FileBox,
+  Clock,
+  User,
+  Eye,
+  MessageSquare,
+  Edit3,
+  Search,
+  Grid3X3,
+  List,
+  Filter,
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+// =============================================================================
+// Types
+// =============================================================================
+
+interface SharedDesign {
+  id: string;
+  design_id: string;
+  design_name: string;
+  design_thumbnail_url: string | null;
+  shared_by_id: string;
+  shared_by_name: string;
+  shared_by_email: string;
+  permission: 'view' | 'comment' | 'edit';
+  shared_at: string;
+}
+
+// =============================================================================
+// Shared With Me Page Component
+// =============================================================================
+
+export function SharedWithMePage() {
+  const navigate = useNavigate();
+  const { token } = useAuth();
+
+  // State
+  const [shares, setShares] = useState<SharedDesign[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [permissionFilter, setPermissionFilter] = useState<'all' | 'view' | 'comment' | 'edit'>('all');
+
+  // Fetch shared designs
+  const fetchSharedDesigns = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE}/shares/shared-with-me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch shared designs');
+
+      const data = await response.json();
+      setShares(data.items || data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load shared designs');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  // Load on mount
+  useEffect(() => {
+    fetchSharedDesigns();
+  }, [fetchSharedDesigns]);
+
+  // Filter shares
+  const filteredShares = shares.filter(share => {
+    const matchesSearch = 
+      share.design_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      share.shared_by_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      share.shared_by_email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesPermission = permissionFilter === 'all' || share.permission === permissionFilter;
+    
+    return matchesSearch && matchesPermission;
+  });
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  // Get permission badge
+  const getPermissionBadge = (permission: 'view' | 'comment' | 'edit') => {
+    const config = {
+      view: { icon: Eye, label: 'View', color: 'bg-gray-100 text-gray-600' },
+      comment: { icon: MessageSquare, label: 'Comment', color: 'bg-blue-100 text-blue-600' },
+      edit: { icon: Edit3, label: 'Edit', color: 'bg-green-100 text-green-600' },
+    };
+    const { icon: Icon, label, color } = config[permission];
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+        <Icon className="w-3 h-3" />
+        {label}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary-100 rounded-lg">
+            <Users className="w-6 h-6 text-primary-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Shared With Me</h1>
+            <p className="text-sm text-gray-500">
+              {shares.length} design{shares.length !== 1 ? 's' : ''} shared with you
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search designs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Permission Filter */}
+          <div className="relative">
+            <select
+              value={permissionFilter}
+              onChange={(e) => setPermissionFilter(e.target.value as typeof permissionFilter)}
+              className="pl-8 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 appearance-none bg-white"
+            >
+              <option value="all">All permissions</option>
+              <option value="view">View only</option>
+              <option value="comment">Can comment</option>
+              <option value="edit">Can edit</option>
+            </select>
+            <Filter className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow' : ''}`}
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow' : ''}`}
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+          <button onClick={() => setError(null)} className="ml-2 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Loading */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        </div>
+      ) : filteredShares.length === 0 ? (
+        /* Empty State */
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">
+            {searchQuery || permissionFilter !== 'all'
+              ? 'No designs match your filters'
+              : 'No designs have been shared with you yet'}
+          </p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* Grid View */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredShares.map(share => (
+            <div
+              key={share.id}
+              onClick={() => navigate(`/designs/${share.design_id}`)}
+              className="bg-white rounded-lg border hover:shadow-md transition-shadow cursor-pointer group"
+            >
+              <div className="aspect-square bg-gray-100 rounded-t-lg flex items-center justify-center relative">
+                {share.design_thumbnail_url ? (
+                  <img
+                    src={share.design_thumbnail_url}
+                    alt={share.design_name}
+                    className="w-full h-full object-cover rounded-t-lg"
+                  />
+                ) : (
+                  <FileBox className="w-12 h-12 text-gray-300" />
+                )}
+                <div className="absolute top-2 right-2">
+                  {getPermissionBadge(share.permission)}
+                </div>
+              </div>
+              <div className="p-3">
+                <h3 className="font-medium truncate">{share.design_name}</h3>
+                <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                  <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center">
+                    <User className="w-3 h-3 text-gray-500" />
+                  </div>
+                  <span className="truncate">{share.shared_by_name}</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {formatDate(share.shared_at)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* List View */
+        <div className="bg-white rounded-lg border divide-y">
+          {filteredShares.map(share => (
+            <div
+              key={share.id}
+              onClick={() => navigate(`/designs/${share.design_id}`)}
+              className="flex items-center gap-4 p-4 hover:bg-gray-50 cursor-pointer"
+            >
+              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                {share.design_thumbnail_url ? (
+                  <img
+                    src={share.design_thumbnail_url}
+                    alt={share.design_name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <FileBox className="w-8 h-8 text-gray-300" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-gray-900 truncate">{share.design_name}</h3>
+                <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                  <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
+                    <User className="w-2.5 h-2.5 text-gray-500" />
+                  </div>
+                  <span>{share.shared_by_name}</span>
+                  <span className="text-gray-300">•</span>
+                  <span>{share.shared_by_email}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {getPermissionBadge(share.permission)}
+                <span className="text-sm text-gray-400 whitespace-nowrap">
+                  {formatDate(share.shared_at)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

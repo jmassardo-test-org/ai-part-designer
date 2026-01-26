@@ -91,3 +91,14 @@
   - Write user manuals 
   - Update API documentation 
   - Training materials for stakeholders
+
+### Milestone 16 - Redundancy and Disaster Recovery (Sprint 35) ✅
+- **Status:** COMPLETED
+- **Issues:**
+  - ✅ File versioning with restore capability (existing)
+  - ✅ Trash bin with configurable retention (existing + scheduled cleanup)
+  - ✅ Automated backups and verification (existing + new verification task)
+  - ✅ Data integrity checks (new DataIntegrityService)
+  - ✅ User data export API (GDPR compliance)
+  - ✅ Trash deletion notifications (email + UI)
+  - ✅ Frontend TrashPage with expiring items banner

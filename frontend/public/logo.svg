@@ -1,0 +1,47 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="64" height="64" rx="12" fill="#0d1526"/>
+  
+  <!-- Gear (back left) -->
+  <g transform="translate(4, 8)">
+    <!-- Gear body -->
+    <path d="M16 4L20 6V10L24 12V18L20 20V24L16 26L12 24V20L8 18V12L12 10V6L16 4Z" fill="#94a3b8" stroke="#64748b" stroke-width="1"/>
+    <!-- Gear teeth -->
+    <path d="M14 2L18 2L18 5L14 5ZM14 25L18 25L18 28L14 28Z" fill="#94a3b8"/>
+    <path d="M6 8L9 6.5L10.5 9.5L7.5 11ZM22 19L25 17.5L26.5 20.5L23.5 22Z" fill="#94a3b8"/>
+    <path d="M6 22L9 23.5L10.5 20.5L7.5 19ZM22 11L25 12.5L26.5 9.5L23.5 8Z" fill="#94a3b8"/>
+    <!-- Gear center hole -->
+    <circle cx="16" cy="15" r="4" fill="#0d1526"/>
+  </g>
+
+  <!-- Blue blocks (isometric cube stack) -->
+  <!-- Bottom layer - darker blue -->
+  <g transform="translate(24, 28)">
+    <!-- Front face -->
+    <path d="M0 12L16 4L16 20L0 28Z" fill="#2563eb"/>
+    <!-- Top face -->
+    <path d="M0 12L16 4L32 12L16 20Z" fill="#3b82f6"/>
+    <!-- Right face -->
+    <path d="M16 20L32 12L32 28L16 36Z" fill="#1d4ed8"/>
+  </g>
+
+  <!-- Top block - cyan accent -->
+  <g transform="translate(28, 16)">
+    <!-- Front face -->
+    <path d="M0 8L10 3L10 13L0 18Z" fill="#0891b2"/>
+    <!-- Top face -->
+    <path d="M0 8L10 3L20 8L10 13Z" fill="#22d3ee"/>
+    <!-- Right face -->
+    <path d="M10 13L20 8L20 18L10 23Z" fill="#0e7490"/>
+  </g>
+
+  <!-- Connection pins (top right) -->
+  <g fill="#64748b">
+    <circle cx="48" cy="8" r="2"/>
+    <circle cx="54" cy="4" r="2"/>
+    <path d="M48 10L48 16" stroke="#64748b" stroke-width="1.5"/>
+    <path d="M54 6L54 10" stroke="#64748b" stroke-width="1.5"/>
+    <path d="M48 16L44 20" stroke="#64748b" stroke-width="1.5"/>
+    <path d="M54 10L50 14" stroke="#64748b" stroke-width="1.5"/>
+  </g>
+</svg>

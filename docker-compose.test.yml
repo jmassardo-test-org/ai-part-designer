@@ -1,0 +1,92 @@
+# AI Part Designer - Integration Test Environment
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO - S3-compatible storage (cloud-agnostic)
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      - APP_ENV=test
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/test_db
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BACKEND=minio
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_BUCKET=test-bucket
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - SECRET_KEY=test-secret
+      - JWT_SECRET_KEY=test-jwt-secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      - APP_ENV=test
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/test_db
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BACKEND=minio
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_BUCKET=test-bucket
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    command: celery -A app.celery worker --loglevel=info --concurrency=1
