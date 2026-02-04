@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTrash } from './useTrash';
-import type { TrashedItem } from '@/lib/api/trash';
 
 // Mock the trash API
 vi.mock('@/lib/api/trash', () => ({
@@ -25,7 +24,7 @@ vi.mock('@/hooks/use-toast', () => ({
   }),
 }));
 
-import trashApi from '@/lib/api/trash';
+import trashApi, { type TrashedItem } from '@/lib/api/trash';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({

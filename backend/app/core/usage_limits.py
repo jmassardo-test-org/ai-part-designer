@@ -276,52 +276,8 @@ class ConcurrentOperation(Base):
     )
 
 
-class UserBan(Base):
-    """
-    Records of banned users and IPs.
-    """
-    
-    __tablename__ = "user_bans"
-    
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
-    
-    # Can ban by user_id, IP, or both
-    user_id = Column(
-        PGUUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
-    ip_address = Column(String(50), nullable=True, index=True)
-    
-    # Ban details
-    reason = Column(Text, nullable=False)
-    ban_type = Column(
-        String(50),
-        nullable=False,
-    )  # "temporary", "permanent", "shadow"
-    
-    # For temporary bans
-    expires_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Who banned
-    banned_by = Column(PGUUID(as_uuid=True), nullable=True)
-    
-    # Status
-    is_active = Column(Boolean, default=True, nullable=False)
-    lifted_at = Column(DateTime(timezone=True), nullable=True)
-    lifted_by = Column(PGUUID(as_uuid=True), nullable=True)
-    
-    # Violation tracking
-    violation_count = Column(Integer, default=1)
-    violation_history = Column(JSONB, default=list)
-    
-    # Timestamps
-    created_at = Column(
-        DateTime(timezone=True),
-        default=datetime.utcnow,
-        nullable=False,
-    )
+# UserBan is now defined in app.models.rating to avoid duplicate table definitions
+# Import it from there instead of defining here
 
 
 class AbuseReport(Base):

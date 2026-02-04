@@ -16,7 +16,6 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -375,7 +374,11 @@ class ContentModerationService:
     """
     
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        if settings.ANTHROPIC_API_KEY:
+            from anthropic import AsyncAnthropic
+            self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        else:
+            self.client = None
         self._compile_patterns()
     
     def _compile_patterns(self):
@@ -633,24 +636,24 @@ class ContentModerationService:
     
     async def _ai_analyze(self, prompt: str) -> Optional[dict]:
         """Use AI to analyze prompt context."""
+        if not self.client:
+            return None
+        
         try:
-            response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",  # Fast model for screening
+            response = await self.client.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=300,
+                system="You are a strict content moderation system. Respond only with valid JSON.",
                 messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a strict content moderation system. Respond only with valid JSON.",
-                    },
                     {
                         "role": "user",
                         "content": CONTENT_SCREENING_PROMPT.format(prompt=prompt),
                     },
                 ],
-                max_tokens=300,
                 temperature=0,  # Deterministic
             )
             
-            content = response.choices[0].message.content
+            content = response.content[0].text
             
             # Parse JSON from response
             import json

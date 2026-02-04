@@ -1,5 +1,10 @@
 export { LandingPage } from './LandingPage';
+export { ContactPage } from './ContactPage';
 export { DashboardPage } from './DashboardPage';
+export { DemoPage } from './DemoPage';
+export { DocsPage } from './DocsPage';
+export { PrivacyPage } from './PrivacyPage';
+export { TermsPage } from './TermsPage';
 export { TemplatesPage } from './TemplatesPage';
 export { TemplateDetailPage } from './TemplateDetailPage';
 export { GeneratePage } from './GeneratePage';
@@ -8,5 +13,7 @@ export { FilesPage } from './FilesPage';
 export { ProjectsPage } from './ProjectsPage';
 export { SettingsPage } from './SettingsPage';
 export { SharedWithMePage } from './SharedWithMePage';
+export { UsageBillingPage } from './UsageBillingPage';
+export { OrganizationSettingsPage } from './OrganizationSettingsPage';
 export * from './auth';
 export * from './admin';

@@ -18,7 +18,8 @@ from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin_user, get_db
-from app.core.usage_limits import AbuseReport, UserBan, UsageRecord
+from app.core.usage_limits import AbuseReport, UsageRecord
+from app.models.rating import UserBan
 from app.models.user import User
 from app.services.abuse_detection import AbuseDetectionService
 

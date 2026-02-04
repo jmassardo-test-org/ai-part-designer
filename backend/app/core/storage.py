@@ -42,10 +42,10 @@ class StorageClient:
     def __init__(self):
         self._session = aioboto3.Session()
         self._config = {
-            "endpoint_url": settings.STORAGE_ENDPOINT,
-            "aws_access_key_id": settings.STORAGE_ACCESS_KEY,
-            "aws_secret_access_key": settings.STORAGE_SECRET_KEY,
-            "region_name": settings.STORAGE_REGION,
+            "endpoint_url": settings.storage_endpoint,
+            "aws_access_key_id": settings.storage_access_key,
+            "aws_secret_access_key": settings.storage_secret_key,
+            "region_name": settings.storage_region,
         }
         self._bucket_prefix = f"ai-part-designer-{settings.ENVIRONMENT}"
 

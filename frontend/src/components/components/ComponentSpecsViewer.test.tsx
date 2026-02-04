@@ -2,10 +2,11 @@
  * ComponentSpecsViewer Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { componentsApi } from '@/lib/api/components';
 import { ComponentSpecsViewer } from './ComponentSpecsViewer';
 
 // Mock the components API
@@ -52,7 +53,6 @@ vi.mock('@/components/ui/progress', () => ({
   ),
 }));
 
-import { componentsApi } from '@/lib/api/components';
 
 const createQueryClient = () => new QueryClient({
   defaultOptions: {

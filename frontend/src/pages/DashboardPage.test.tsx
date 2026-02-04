@@ -2,11 +2,34 @@
  * Tests for DashboardPage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DashboardPage } from './DashboardPage';
+
+// Mock the ThemeContext
+vi.mock('@/contexts/ThemeContext', () => ({
+  useTheme: () => ({
+    theme: 'dark',
+    resolvedTheme: 'dark',
+    setTheme: vi.fn(),
+    toggleTheme: vi.fn(),
+    isLoading: false,
+  }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock the WebSocketContext
+vi.mock('@/contexts/WebSocketContext', () => ({
+  useWebSocket: () => ({
+    isConnected: false,
+    connectionState: 'disconnected',
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    sendMessage: vi.fn(),
+  }),
+}));
 
 // Mock AuthContext
 const mockUser = {
@@ -126,7 +149,7 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('links to generate page', async () => {
+  it('links to create page', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockDashboardData),
@@ -136,7 +159,7 @@ describe('DashboardPage', () => {
 
     await waitFor(() => {
       const newPartLink = screen.getByRole('link', { name: /new part/i });
-      expect(newPartLink).toHaveAttribute('href', '/generate');
+      expect(newPartLink).toHaveAttribute('href', '/create');
     });
   });
 
@@ -163,8 +186,10 @@ describe('DashboardPage', () => {
     renderDashboardPage();
 
     await waitFor(() => {
-      const projectsLink = screen.getByRole('link', { name: /projects/i });
-      expect(projectsLink).toHaveAttribute('href', '/projects');
+      // Multiple project links may exist
+      const projectsLinks = screen.getAllByRole('link', { name: /projects/i });
+      expect(projectsLinks.length).toBeGreaterThanOrEqual(1);
+      expect(projectsLinks[0]).toHaveAttribute('href', '/projects');
     });
   });
 

@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,6 +8,31 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Industrial CAD Theme - Dark Mode Primary
+        industrial: {
+          bg: {
+            primary: '#0E1A26',    // Deep navy - main background
+            secondary: '#132738',  // Slightly lighter for cards
+            elevated: '#1A3348',   // Elevated surfaces
+            hover: '#1F3D52',      // Hover states
+          },
+          text: {
+            primary: '#F4F7FA',    // High contrast white
+            secondary: '#9FB2C8',  // Muted gray-blue
+            muted: '#6B7F95',      // Very muted
+          },
+          border: {
+            DEFAULT: '#2A3A4A',    // Subtle lines
+            strong: '#3D5269',     // Stronger borders
+          },
+          accent: {
+            ai: '#21C4F3',         // Bright cyan - AI accent
+            blue: '#1F6FDB',       // Trustworthy blue
+            success: '#2EE6C8',    // Confirmations/success
+            warning: '#F59E0B',    // Warnings
+            error: '#E53935',      // Errors
+          },
+        },
         // Brand colors from AssemblematicAI logo
         brand: {
           navy: '#0d1526',      // Dark navy background

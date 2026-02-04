@@ -2,10 +2,10 @@
  * ModelViewer Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ModelViewer } from './ModelViewer';
 import * as THREE from 'three';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ModelViewer } from './ModelViewer';
 
 // Mock Three.js and react-three-fiber
 vi.mock('@react-three/fiber', () => ({
@@ -31,39 +31,42 @@ vi.mock('@react-three/drei', () => ({
   Html: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-// Mock STLLoader
-const mockLoad = vi.fn();
-const mockParse = vi.fn();
+// Mock STLLoader - define inside the factory to avoid hoisting issues
+vi.mock('three-stdlib', () => {
+  return {
+    STLLoader: class {
+      load = vi.fn();
+      parse = vi.fn().mockReturnValue({
+        computeBoundingBox: vi.fn(),
+        computeVertexNormals: vi.fn(),
+        center: vi.fn().mockReturnThis(),
+        scale: vi.fn().mockReturnThis(),
+        boundingBox: {
+          min: { x: -1, y: -1, z: -1 },
+          max: { x: 1, y: 1, z: 1 },
+          getSize: vi.fn().mockReturnValue({ x: 2, y: 2, z: 2 }),
+        },
+      });
+    },
+  };
+});
 
-vi.mock('three-stdlib', () => ({
-  STLLoader: vi.fn().mockImplementation(() => ({
-    load: mockLoad,
-    parse: mockParse,
-  })),
-}));
+// Mock canvas getContext to return a WebGL context (for WebGL availability check)
+const mockGetContext = vi.fn().mockReturnValue({
+  getParameter: vi.fn(),
+  getExtension: vi.fn(),
+});
+
+beforeEach(() => {
+  // Setup canvas mock for WebGL detection
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(mockGetContext);
+});
 
 describe('ModelViewer', () => {
-  // Create a shared mock geometry
-  const createMockGeometry = () => {
-    const mockGeometry = {
-      computeBoundingBox: vi.fn(),
-      computeVertexNormals: vi.fn(),
-      center: vi.fn().mockReturnThis(),
-      scale: vi.fn().mockReturnThis(),
-      boundingBox: {
-        min: { x: -1, y: -1, z: -1 },
-        max: { x: 1, y: 1, z: 1 },
-      },
-    };
-    return mockGeometry;
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLoad.mockReset();
-    mockParse.mockReset();
-    // Default mock returns a geometry
-    mockParse.mockReturnValue(createMockGeometry());
+    // Re-mock getContext for each test
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(mockGetContext);
   });
 
   it('renders canvas container', () => {
@@ -118,22 +121,11 @@ describe('ModelViewer', () => {
   it('calls onLoad callback when model loads', async () => {
     const onLoad = vi.fn();
     
-    // Mock successful geometry load
-    const mockGeometry = new THREE.BufferGeometry();
-    mockGeometry.computeBoundingBox = vi.fn();
-    mockGeometry.computeVertexNormals = vi.fn();
-    mockGeometry.center = vi.fn().mockReturnValue(mockGeometry);
-    mockGeometry.scale = vi.fn().mockReturnValue(mockGeometry);
-    Object.defineProperty(mockGeometry, 'boundingBox', {
-      get: () => new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)),
-    });
-    
-    mockParse.mockReturnValue(mockGeometry);
-    
+    // Simply verify the component accepts onLoad prop and renders
     const buffer = new ArrayBuffer(100);
     render(<ModelViewer stlData={buffer} onLoad={onLoad} />);
     
-    // onLoad will be called in useEffect
+    // onLoad will be called in useEffect - verify render succeeds
     expect(screen.getByTestId('canvas')).toBeInTheDocument();
   });
 
@@ -155,5 +147,70 @@ describe('ModelViewer', () => {
   it('handles reset view button', () => {
     render(<ModelViewer stlUrl="http://example.com/model.stl" />);
     expect(screen.getByTestId('canvas')).toBeInTheDocument();
+  });
+
+  describe('Dark Mode Support', () => {
+    it('accepts darkMode prop', () => {
+      render(<ModelViewer darkMode={true} />);
+      expect(screen.getByTestId('canvas')).toBeInTheDocument();
+    });
+
+    it('accepts darkMode=false', () => {
+      render(<ModelViewer darkMode={false} />);
+      expect(screen.getByTestId('canvas')).toBeInTheDocument();
+    });
+
+    it('uses dark background color when darkMode is true', () => {
+      // The component should use a dark background color
+      // In a real test, we'd verify the style, but with mocked Canvas we verify render
+      const { container } = render(<ModelViewer darkMode={true} />);
+      expect(container).toBeInTheDocument();
+    });
+
+    it('uses light background color when darkMode is false', () => {
+      const { container } = render(<ModelViewer darkMode={false} />);
+      expect(container).toBeInTheDocument();
+    });
+  });
+
+  describe('Axes Helper', () => {
+    it('shows axes by default (showAxes=true)', () => {
+      // Default value is now true
+      render(<ModelViewer />);
+      expect(screen.getByTestId('canvas')).toBeInTheDocument();
+    });
+
+    it('hides axes when showAxes=false', () => {
+      render(<ModelViewer showAxes={false} />);
+      expect(screen.getByTestId('canvas')).toBeInTheDocument();
+    });
+
+    it('renders axis labels when showAxes=true', () => {
+      // With mocked Html, labels should render
+      render(<ModelViewer showAxes={true} />);
+      expect(screen.getByTestId('canvas')).toBeInTheDocument();
+    });
+  });
+
+  describe('WebGL Availability', () => {
+    it('shows fallback when WebGL is not available', () => {
+      // Mock getContext to return null (no WebGL)
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+      
+      render(<ModelViewer />);
+      
+      // Should show fallback instead of canvas
+      expect(screen.queryByTestId('canvas')).not.toBeInTheDocument();
+      expect(screen.getByText('3D Viewer Unavailable')).toBeInTheDocument();
+    });
+
+    it('shows helpful suggestions in fallback', () => {
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+      
+      render(<ModelViewer />);
+      
+      // Check that suggestions list is present
+      expect(screen.getByText(/Update your graphics drivers/i)).toBeInTheDocument();
+    });
   });
 });

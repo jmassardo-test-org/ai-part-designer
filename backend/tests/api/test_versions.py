@@ -117,7 +117,7 @@ class TestListVersions:
         project_factory,
         design_factory,
     ):
-        """Test listing versions for another user's design returns 404."""
+        """Test listing versions for another user's design returns 403."""
         other_user = await user_factory.create(db=db_session)
         project = await project_factory.create(db=db_session, user=other_user)
         design = await design_factory.create(db=db_session, project=project)
@@ -127,7 +127,7 @@ class TestListVersions:
             headers=auth_headers,
         )
         
-        assert response.status_code == 404
+        assert response.status_code == 403
 
     @pytest.mark.asyncio
     async def test_list_versions_pagination(
@@ -189,7 +189,7 @@ class TestGetVersion:
             db=db_session,
             design=design,
             version_number=1,
-            commit_message="Initial version",
+            change_description="Initial version",
         )
         
         response = await client.get(
@@ -230,7 +230,7 @@ class TestGetVersion:
         design_factory,
         version_factory,
     ):
-        """Test getting another user's version returns 404."""
+        """Test getting another user's version returns 403."""
         other_user = await user_factory.create(db=db_session)
         project = await project_factory.create(db=db_session, user=other_user)
         design = await design_factory.create(db=db_session, project=project)
@@ -241,7 +241,7 @@ class TestGetVersion:
             headers=auth_headers,
         )
         
-        assert response.status_code == 404
+        assert response.status_code == 403
 
 
 # =============================================================================
@@ -317,7 +317,7 @@ class TestRestoreVersion:
         design_factory,
         version_factory,
     ):
-        """Test restoring another user's version returns 404."""
+        """Test restoring another user's version returns 403."""
         other_user = await user_factory.create(db=db_session)
         project = await project_factory.create(db=db_session, user=other_user)
         design = await design_factory.create(db=db_session, project=project)
@@ -329,7 +329,7 @@ class TestRestoreVersion:
             json={},
         )
         
-        assert response.status_code == 404
+        assert response.status_code == 403
 
 
 # =============================================================================

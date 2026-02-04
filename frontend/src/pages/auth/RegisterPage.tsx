@@ -9,14 +9,15 @@
  * - Error handling and display
  */
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AxiosError } from 'axios';
+import { Eye, EyeOff, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { z } from 'zod';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
 import { useAuth } from '@/contexts/AuthContext';
-import { AxiosError } from 'axios';
 
 // Password requirements
 const passwordSchema = z
@@ -77,9 +78,9 @@ function PasswordRequirement({
       {met ? (
         <CheckCircle2 className="h-4 w-4 text-green-500" />
       ) : (
-        <XCircle className="h-4 w-4 text-gray-400" />
+        <XCircle className="h-4 w-4 text-gray-400 dark:text-gray-500" />
       )}
-      <span className={met ? 'text-green-700' : 'text-gray-500'}>{text}</span>
+      <span className={met ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}>{text}</span>
     </div>
   );
 }
@@ -136,10 +137,10 @@ export function RegisterPage() {
   return (
     <div className="w-full max-w-md">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create your account</h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
-          <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
+          <Link to="/login" className="text-primary-600 hover:text-primary-700 dark:text-accent-400 dark:hover:text-accent-300 font-medium">
             Sign in
           </Link>
         </p>
@@ -148,7 +149,7 @@ export function RegisterPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Server Error */}
         {serverError && (
-          <div className="flex items-center gap-2 rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+          <div className="flex items-center gap-2 rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-4 text-sm text-red-700 dark:text-red-300">
             <AlertCircle className="h-5 w-5 flex-shrink-0" />
             <span>{serverError}</span>
           </div>
@@ -167,7 +168,7 @@ export function RegisterPage() {
             {...register('display_name')}
           />
           {errors.display_name && (
-            <p className="mt-1.5 text-sm text-red-600">{errors.display_name.message}</p>
+            <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.display_name.message}</p>
           )}
         </div>
 
@@ -184,7 +185,7 @@ export function RegisterPage() {
             {...register('email')}
           />
           {errors.email && (
-            <p className="mt-1.5 text-sm text-red-600">{errors.email.message}</p>
+            <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
           )}
         </div>
 
@@ -204,7 +205,7 @@ export function RegisterPage() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
             >
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
@@ -214,13 +215,13 @@ export function RegisterPage() {
           {password && (
             <div className="mt-3 space-y-2">
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all ${strength.color}`}
                     style={{ width: `${(strength.score / 6) * 100}%` }}
                   />
                 </div>
-                <span className="text-sm font-medium text-gray-600">{strength.label}</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{strength.label}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-1">
@@ -237,7 +238,7 @@ export function RegisterPage() {
           )}
 
           {errors.password && (
-            <p className="mt-1.5 text-sm text-red-600">{errors.password.message}</p>
+            <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
           )}
         </div>
 
@@ -247,25 +248,25 @@ export function RegisterPage() {
             <input
               id="accepted_terms"
               type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 dark:bg-gray-700"
               {...register('accepted_terms')}
             />
           </div>
           <div className="ml-3 text-sm">
-            <label htmlFor="accepted_terms" className="text-gray-600">
+            <label htmlFor="accepted_terms" className="text-gray-600 dark:text-gray-400">
               I agree to the{' '}
-              <a href="/terms" className="text-primary-600 hover:text-primary-700">
+              <a href="/terms" className="text-primary-600 hover:text-primary-700 dark:text-accent-400 dark:hover:text-accent-300">
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a href="/privacy" className="text-primary-600 hover:text-primary-700">
+              <a href="/privacy" className="text-primary-600 hover:text-primary-700 dark:text-accent-400 dark:hover:text-accent-300">
                 Privacy Policy
               </a>
             </label>
           </div>
         </div>
         {errors.accepted_terms && (
-          <p className="text-sm text-red-600">{errors.accepted_terms.message}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{errors.accepted_terms.message}</p>
         )}
 
         {/* Submit Button */}
@@ -284,6 +285,27 @@ export function RegisterPage() {
           )}
         </button>
       </form>
+
+      {/* Divider */}
+      <div className="mt-6">
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-600" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-white dark:bg-industrial-bg-secondary px-2 text-gray-500 dark:text-gray-400">Or sign up with</span>
+          </div>
+        </div>
+
+        {/* Social Sign Up Buttons */}
+        <div className="mt-6">
+          <OAuthButtons
+            mode="grid"
+            onError={(error) => setServerError(error)}
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
     </div>
   );
 }

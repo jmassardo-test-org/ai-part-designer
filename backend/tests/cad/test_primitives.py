@@ -2,13 +2,13 @@
 Tests for CAD primitive shape generation.
 
 These tests verify that all primitive shapes are created correctly
-with proper dimensions, validation, and CadQuery integration.
+with proper dimensions, validation, and Build123d integration.
 """
 
 from __future__ import annotations
 
 import pytest
-import cadquery as cq
+from build123d import Box, Cylinder, Part, Compound
 
 from app.cad.primitives import (
     create_box,
@@ -32,38 +32,38 @@ class TestCreateBox:
         """Test creating a basic box with standard dimensions."""
         box = create_box(100, 50, 25)
         
-        assert isinstance(box, cq.Workplane)
+        assert isinstance(box, (Part, Compound))
         # Verify volume (100 * 50 * 25 = 125000)
-        volume = box.val().Volume()
+        volume = box.volume
         assert abs(volume - 125000) < 0.1
     
     def test_create_box_centered(self):
         """Test that box is centered by default on XY plane."""
         box = create_box(100, 100, 100, centered=True)
         
-        bb = box.val().BoundingBox()
+        bb = box.bounding_box()
         # Should be centered on X and Y
-        assert abs(bb.xmin + 50) < 0.01
-        assert abs(bb.xmax - 50) < 0.01
-        assert abs(bb.ymin + 50) < 0.01
-        assert abs(bb.ymax - 50) < 0.01
+        assert abs(bb.min.X + 50) < 0.01
+        assert abs(bb.max.X - 50) < 0.01
+        assert abs(bb.min.Y + 50) < 0.01
+        assert abs(bb.max.Y - 50) < 0.01
         # Z should start at 0
-        assert abs(bb.zmin) < 0.01
-        assert abs(bb.zmax - 100) < 0.01
+        assert abs(bb.min.Z) < 0.01
+        assert abs(bb.max.Z - 100) < 0.01
     
     def test_create_box_not_centered(self):
         """Test box creation without centering."""
         box = create_box(100, 100, 100, centered=False)
         
-        bb = box.val().BoundingBox()
-        assert abs(bb.xmin) < 0.01
-        assert abs(bb.ymin) < 0.01
+        bb = box.bounding_box()
+        assert abs(bb.min.X) < 0.01
+        assert abs(bb.min.Y) < 0.01
     
     def test_create_box_small_dimensions(self):
         """Test box with very small but valid dimensions."""
         box = create_box(0.1, 0.1, 0.1)
         
-        volume = box.val().Volume()
+        volume = box.volume
         assert abs(volume - 0.001) < 0.0001
     
     def test_create_box_zero_dimension_fails(self):
@@ -92,43 +92,41 @@ class TestCreateCylinder:
         """Test cylinder creation with radius."""
         cyl = create_cylinder(radius=25, height=100)
         
-        assert isinstance(cyl, cq.Workplane)
+        assert isinstance(cyl, (Part, Compound))
         # Volume = π * r² * h = π * 625 * 100
         expected_volume = 3.14159 * 625 * 100
-        actual_volume = cyl.val().Volume()
+        actual_volume = cyl.volume
         assert abs(actual_volume - expected_volume) < 100
     
-    def test_create_cylinder_with_diameter(self):
-        """Test cylinder creation with diameter."""
-        cyl = create_cylinder(diameter=50, height=100)
+    def test_create_cylinder_with_radius_50mm(self):
+        """Test cylinder creation with radius 50mm."""
+        cyl = create_cylinder(radius=50, height=100)
         
-        # Same as radius=25
-        expected_volume = 3.14159 * 625 * 100
-        actual_volume = cyl.val().Volume()
+        # Volume = π * r² * h = π * 2500 * 100
+        expected_volume = 3.14159 * 2500 * 100
+        actual_volume = cyl.volume
         assert abs(actual_volume - expected_volume) < 100
     
     def test_create_cylinder_centered(self):
         """Test that cylinder is centered on XY."""
         cyl = create_cylinder(radius=25, height=100, centered=True)
         
-        bb = cyl.val().BoundingBox()
+        bb = cyl.bounding_box()
         # Should be centered on X and Y
-        assert abs(bb.xmin + 25) < 0.1
-        assert abs(bb.xmax - 25) < 0.1
-        assert abs(bb.ymin + 25) < 0.1
-        assert abs(bb.ymax - 25) < 0.1
+        assert abs(bb.min.X + 25) < 0.1
+        assert abs(bb.max.X - 25) < 0.1
+        assert abs(bb.min.Y + 25) < 0.1
+        assert abs(bb.max.Y - 25) < 0.1
     
-    def test_create_cylinder_no_size_fails(self):
-        """Test that cylinder without radius or diameter fails."""
-        with pytest.raises(ValidationError) as exc_info:
-            create_cylinder(height=100)
-        
-        assert "radius" in str(exc_info.value).lower() or "diameter" in str(exc_info.value).lower()
-    
-    def test_create_cylinder_both_sizes_fails(self):
-        """Test that providing both radius and diameter fails."""
+    def test_create_cylinder_zero_radius_fails(self):
+        """Test that cylinder with zero radius fails."""
         with pytest.raises(ValidationError):
-            create_cylinder(radius=25, diameter=50, height=100)
+            create_cylinder(radius=0, height=100)
+    
+    def test_create_cylinder_negative_height_fails(self):
+        """Test that providing negative height fails."""
+        with pytest.raises(ValidationError):
+            create_cylinder(radius=25, height=-100)
 
 
 # =============================================================================
@@ -142,31 +140,31 @@ class TestCreateSphere:
         """Test sphere creation with radius."""
         sphere = create_sphere(radius=50)
         
-        assert isinstance(sphere, cq.Workplane)
+        assert isinstance(sphere, (Part, Compound))
         # Volume = 4/3 * π * r³
         expected_volume = (4/3) * 3.14159 * (50 ** 3)
-        actual_volume = sphere.val().Volume()
+        actual_volume = sphere.volume
         assert abs(actual_volume - expected_volume) < 1000
     
-    def test_create_sphere_with_diameter(self):
-        """Test sphere creation with diameter."""
-        sphere = create_sphere(diameter=100)
+    def test_create_sphere_with_larger_radius(self):
+        """Test sphere creation with larger radius."""
+        sphere = create_sphere(radius=100)
         
-        # Same as radius=50
-        expected_volume = (4/3) * 3.14159 * (50 ** 3)
-        actual_volume = sphere.val().Volume()
-        assert abs(actual_volume - expected_volume) < 1000
+        # Volume = 4/3 * π * r³
+        expected_volume = (4/3) * 3.14159 * (100 ** 3)
+        actual_volume = sphere.volume
+        assert abs(actual_volume - expected_volume) < 5000
     
     def test_create_sphere_centered_at_origin(self):
         """Test that sphere is centered at origin."""
         sphere = create_sphere(radius=50)
         
-        bb = sphere.val().BoundingBox()
+        bb = sphere.bounding_box()
         # Should be symmetric around origin
-        assert abs(bb.xmin + 50) < 0.1
-        assert abs(bb.xmax - 50) < 0.1
-        assert abs(bb.zmin + 50) < 0.1
-        assert abs(bb.zmax - 50) < 0.1
+        assert abs(bb.min.X + 50) < 0.1
+        assert abs(bb.max.X - 50) < 0.1
+        assert abs(bb.min.Z + 50) < 0.1
+        assert abs(bb.max.Z - 50) < 0.1
     
     def test_create_sphere_zero_radius_fails(self):
         """Test that zero radius fails."""
@@ -183,28 +181,28 @@ class TestCreateCone:
     
     def test_create_cone_basic(self):
         """Test basic cone creation."""
-        cone = create_cone(radius1=50, radius2=0, height=100)
+        cone = create_cone(radius_bottom=50, radius_top=0, height=100)
         
-        assert isinstance(cone, cq.Workplane)
+        assert isinstance(cone, (Part, Compound))
         # Volume = 1/3 * π * h * (r1² + r1*r2 + r2²) for truncated cone
         # For cone (r2=0): 1/3 * π * 100 * 50² = 261799
-        volume = cone.val().Volume()
+        volume = cone.volume
         assert volume > 200000 and volume < 300000
     
     def test_create_truncated_cone(self):
         """Test truncated cone (frustum) creation."""
-        cone = create_cone(radius1=50, radius2=25, height=100)
+        cone = create_cone(radius_bottom=50, radius_top=25, height=100)
         
-        volume = cone.val().Volume()
+        volume = cone.volume
         # Frustum volume should be larger than cone
         assert volume > 300000
     
-    def test_create_cone_using_diameter(self):
-        """Test cone creation using diameter parameters."""
-        cone = create_cone(diameter1=100, diameter2=50, height=100)
+    def test_create_inverted_cone(self):
+        """Test inverted cone creation (narrow at bottom)."""
+        cone = create_cone(radius_bottom=25, radius_top=50, height=100)
         
-        # Same as radius1=50, radius2=25
-        volume = cone.val().Volume()
+        # Same volume as normal truncated cone with same radii
+        volume = cone.volume
         assert volume > 300000
 
 
@@ -219,9 +217,9 @@ class TestCreateTorus:
         """Test basic torus creation."""
         torus = create_torus(major_radius=50, minor_radius=10)
         
-        assert isinstance(torus, cq.Workplane)
+        assert isinstance(torus, (Part, Compound))
         # Volume = 2 * π² * R * r² = 2 * π² * 50 * 100 = ~98696
-        volume = torus.val().Volume()
+        volume = torus.volume
         assert volume > 90000 and volume < 110000
     
     def test_create_torus_minor_equals_major_fails(self):
@@ -241,9 +239,9 @@ class TestCreateWedge:
         """Test basic wedge creation."""
         wedge = create_wedge(length=100, width=50, height=30)
         
-        assert isinstance(wedge, cq.Workplane)
+        assert isinstance(wedge, (Part, Compound))
         # Wedge is like half a box
-        volume = wedge.val().Volume()
+        volume = wedge.volume
         assert volume > 0
     
     def test_create_wedge_negative_dimension_fails(self):
@@ -270,8 +268,8 @@ class TestPrimitiveIntegration:
         result = difference(box, hole)
         
         # Volume should be less than original box
-        box_volume = box.val().Volume()
-        result_volume = result.val().Volume()
+        box_volume = box.volume
+        result_volume = result.volume
         assert result_volume < box_volume
     
     def test_primitives_can_be_exported(self):

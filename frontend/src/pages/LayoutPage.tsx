@@ -6,16 +6,16 @@
 
 import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { LayoutEditor, LayoutPreview3D } from '@/components/layout';
-import type { 
-  ComponentData, 
-  ComponentPlacement, 
-  LayoutDimensions,
-  ValidationResult,
-} from '@/components/layout/types';
-import { apiToLayoutDimensions, apiToPlacement } from '@/components/layout/types';
 import type { LayoutAlgorithm } from '@/components/layout/LayoutToolbar';
+import { 
+  apiToLayoutDimensions, 
+  apiToPlacement,
+  type ComponentData, 
+  type ComponentPlacement, 
+  type LayoutDimensions,
+  type ValidationResult,
+} from '@/components/layout/types';
 import { 
   useLayout, 
   useUpdateLayout, 
@@ -25,6 +25,7 @@ import {
   useValidateLayout,
   useAutoLayout,
 } from '@/hooks/useLayout';
+import { cn } from '@/lib/utils';
 
 type ViewMode = '2d' | '3d' | 'split';
 

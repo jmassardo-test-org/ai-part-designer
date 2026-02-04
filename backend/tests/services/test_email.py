@@ -21,6 +21,9 @@ class TestConsoleEmailBackend:
     @pytest.mark.asyncio
     async def test_send_prints_to_console(self, caplog):
         """Console backend logs email content."""
+        import logging
+        caplog.set_level(logging.INFO)
+        
         backend = ConsoleEmailBackend()
         message = EmailMessage(
             to="test@example.com",

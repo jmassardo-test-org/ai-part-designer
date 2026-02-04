@@ -8,7 +8,7 @@ help:
 	@echo "AI Part Designer - Development Commands"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev              Start all services (requires Ollama running locally)"
+	@echo "  make dev              Start all services (requires ANTHROPIC_API_KEY in .env)"
 	@echo "  make dev-detach       Start all services in background"
 	@echo "  make dev-infra        Start infrastructure only (DB, Redis, MinIO)"
 	@echo ""
@@ -20,6 +20,10 @@ help:
 	@echo "Testing:"
 	@echo "  make test             Run all tests"
 	@echo "  make test-backend     Run backend tests"
+	@echo "  make test-backend-cad     Run CAD v1 tests"
+	@echo "  make test-backend-cad-v2  Run CAD v2 tests (schemas, compiler)"
+	@echo "  make test-backend-cad-all Run all CAD tests (v1 + v2)"
+	@echo "  make test-backend-admin   Run admin API tests"
 	@echo "  make test-frontend    Run frontend tests"
 	@echo "  make test-e2e         Run end-to-end tests"
 	@echo "  make test-coverage    Run tests with coverage report"
@@ -32,9 +36,11 @@ help:
 	@echo "Database:"
 	@echo "  make db-migrate       Run database migrations"
 	@echo "  make db-rollback      Rollback last migration"
-	@echo "  make db-seed          Seed database with templates"
+	@echo "  make db-seed          Seed database with templates + CAD v2 components"
 	@echo "  make db-seed-users    Seed database with test users"
-	@echo "  make db-seed-all      Seed all data (templates + users)"
+	@echo "  make db-seed-starters Seed starter designs for marketplace"
+	@echo "  make db-seed-all      Seed all data (templates + users + starters)"
+	@echo "  make db-seed-large    Seed large dataset (SCALE=small|medium|large)"
 	@echo "  make db-reset         Reset database (WARNING: deletes data)"
 	@echo ""
 	@echo "Build:"
@@ -50,11 +56,38 @@ help:
 # Development
 # ============================================================================
 
-# Full Docker development (all services in containers, Ollama runs locally)
+# Full Docker development (all services in containers)
 dev:
 	@echo "Starting all services..."
-	@echo "Note: Ollama must be running locally (ollama serve)"
-	docker compose up
+	@echo "Note: Ensure ANTHROPIC_API_KEY is set in .env file"
+	docker compose up -d
+	@echo "Waiting for API to be ready..."
+	@until docker compose exec -T api curl -sf http://localhost:8000/api/v1/health > /dev/null 2>&1; do \
+		sleep 2; \
+	done
+	@echo "Running database migrations..."
+	@docker compose exec -T api alembic upgrade head
+	@echo "Seeding database..."
+	@docker compose exec -T api python -m app.seeds.tiers 2>/dev/null || true
+	@docker compose exec -T api python -m app.seeds.templates 2>/dev/null || true
+	@docker compose exec -T api python -m app.seeds.components_v2 2>/dev/null || true
+	@docker compose exec -T api python -m app.seeds.users 2>/dev/null || true
+	@docker compose exec -T api python -m app.seeds.starters 2>/dev/null || true
+	@echo ""
+	@echo "=========================================="
+	@echo "Development Environment Ready!"
+	@echo "=========================================="
+	@echo ""
+	@echo "  Frontend: http://localhost:5173"
+	@echo "  API:      http://localhost:8000"
+	@echo "  API Docs: http://localhost:8000/docs"
+	@echo "  MinIO:    http://localhost:9001"
+	@echo ""
+	@echo "  Test user: demo@example.com / password123"
+	@echo ""
+	@echo "Streaming logs... (Ctrl+C to stop)"
+	@echo ""
+	docker compose logs -f
 
 dev-detach:
 	docker compose up -d
@@ -73,7 +106,8 @@ dev-local: dev-local-check dev-local-infra dev-local-setup
 	@echo "  - PostgreSQL: localhost:5432"
 	@echo "  - Redis: localhost:6379"
 	@echo "  - MinIO: localhost:9000 (console: localhost:9001)"
-	@echo "  - Ollama: localhost:11434"
+	@echo ""
+	@echo "Note: Set ANTHROPIC_API_KEY in .env file"
 	@echo ""
 	@echo "Start the backend with:"
 	@echo "  make dev-backend-local"
@@ -84,9 +118,9 @@ dev-local: dev-local-check dev-local-infra dev-local-setup
 
 dev-local-check:
 	@echo "Checking prerequisites..."
-	@command -v ollama >/dev/null 2>&1 || (echo "Ollama not found. Install from https://ollama.ai" && exit 1)
-	@curl -s http://localhost:11434/api/tags >/dev/null 2>&1 || (echo "Ollama not running. Start with: ollama serve" && exit 1)
-	@echo "✓ Ollama is running"
+	@test -f .env || (echo "No .env file found. Copy .env.example to .env and add your ANTHROPIC_API_KEY" && exit 1)
+	@grep -q "ANTHROPIC_API_KEY=sk-ant" .env || echo "Warning: ANTHROPIC_API_KEY may not be set in .env"
+	@echo "✓ Environment configured"
 
 dev-local-infra:
 	@echo "Starting infrastructure services..."
@@ -142,8 +176,20 @@ test-backend-local:
 	cd backend && poetry run pytest -v
 
 test-backend-cad:
-	@echo "Running CAD-specific tests..."
+	@echo "Running CAD v1 tests..."
 	docker exec ai-part-designer-api python -m pytest tests/cad/ -v
+
+test-backend-cad-v2:
+	@echo "Running CAD v2 tests (schemas, compiler, components)..."
+	docker exec ai-part-designer-api python -m pytest tests/cad_v2/ -v
+
+test-backend-cad-all:
+	@echo "Running all CAD tests (v1 + v2)..."
+	docker exec ai-part-designer-api python -m pytest tests/cad/ tests/cad_v2/ -v
+
+test-backend-admin:
+	@echo "Running admin API tests..."
+	docker exec ai-part-designer-api python -m pytest tests/api/test_admin.py -v
 
 test-e2e:
 	cd frontend && npx playwright test --project=chromium
@@ -197,22 +243,44 @@ typecheck-worker:
 # ============================================================================
 
 db-migrate:
-	cd backend && poetry run alembic upgrade head
+	docker compose exec api alembic upgrade head
 
 db-rollback:
-	cd backend && poetry run alembic downgrade -1
+	docker compose exec api alembic downgrade -1
 
 db-revision:
-	cd backend && poetry run alembic revision --autogenerate -m "$(msg)"
+	docker compose exec api alembic revision --autogenerate -m "$(msg)"
 
 db-seed:
-	cd backend && poetry run python -m app.seeds.templates
+	docker compose exec api python -m app.seeds.tiers
+	docker compose exec api python -m app.seeds.templates
+	docker compose exec api python -m app.seeds.components_v2
 
 db-seed-users:
-	cd backend && poetry run python -m app.seeds.users
+	docker compose exec api python -m app.seeds.users
 
-db-seed-all: db-seed db-seed-users
-	@echo "All seed data loaded successfully"
+db-seed-starters:
+	@echo "Seeding starter designs for marketplace..."
+	docker compose exec api python -m app.seeds.starters
+
+db-seed-all: db-seed db-seed-users db-seed-starters
+	@echo "All seed data loaded successfully (including CAD v2 components and starters)"
+
+# Large-scale seeding for admin panel testing
+# Usage: make db-seed-large SCALE=medium
+# Scales: small (500 users), medium (2000 users), large (10000 users)
+SCALE ?= small
+db-seed-large: db-seed
+	@echo "Seeding large dataset (scale: $(SCALE))..."
+	docker compose exec api python -m app.seeds.large_scale --scale $(SCALE) -y
+
+db-seed-large-check:
+	@echo "Checking if database is seeded..."
+	docker compose exec api python -m app.seeds.large_scale --check
+
+db-seed-large-clean:
+	@echo "Cleaning seed data..."
+	docker compose exec api python -m app.seeds.large_scale --clean
 
 db-reset:
 	docker compose down -v

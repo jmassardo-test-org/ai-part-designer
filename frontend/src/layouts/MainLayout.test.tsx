@@ -2,10 +2,10 @@
  * MainLayout Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MainLayout } from './MainLayout';
 
 // Mock AuthContext
@@ -52,6 +52,31 @@ vi.mock('@/components/ui', () => ({
   SkipLink: () => <a data-testid="skip-link" href="#main-content">Skip</a>,
 }));
 
+// Mock NotificationCenter
+vi.mock('@/components/notifications', () => ({
+  NotificationCenter: () => <div data-testid="notification-center">Notifications</div>,
+}));
+
+// Mock ThemeToggle
+vi.mock('@/components/ui/ThemeToggle', () => ({
+  ThemeToggle: ({ showDropdown, size }: any) => (
+    <button data-testid="theme-toggle" data-dropdown={showDropdown} data-size={size}>
+      Theme Toggle
+    </button>
+  ),
+}));
+
+// Mock WebSocketContext
+vi.mock('@/contexts/WebSocketContext', () => ({
+  useWebSocket: () => ({
+    isConnected: false,
+    connectionState: 'disconnected',
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    sendMessage: vi.fn(),
+  }),
+}));
+
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -73,10 +98,10 @@ describe('MainLayout', () => {
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/dashboard" element={<div data-testid="dashboard">Dashboard</div>} />
-            <Route path="/templates" element={<div data-testid="templates">Templates</div>} />
-            <Route path="/files" element={<div data-testid="files">Files</div>} />
+            <Route path="/marketplace" element={<div data-testid="marketplace">Marketplace</div>} />
+            <Route path="/starters" element={<div data-testid="starters">Starters</div>} />
             <Route path="/projects" element={<div data-testid="projects">Projects</div>} />
-            <Route path="/shared" element={<div data-testid="shared">Shared</div>} />
+            <Route path="/lists" element={<div data-testid="lists">Lists</div>} />
             <Route path="/settings" element={<div data-testid="settings">Settings</div>} />
           </Route>
         </Routes>
@@ -104,18 +129,18 @@ describe('MainLayout', () => {
     
     // Navigation links are hidden on mobile, so we check for all instances
     expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Templates').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Files').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Marketplace').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Starters').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Projects').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Shared').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('My Lists').length).toBeGreaterThan(0);
   });
 
   it('highlights active navigation link', () => {
-    renderWithRouter('/templates');
+    renderWithRouter('/starters');
     
-    const templatesLinks = screen.getAllByText('Templates');
+    const startersLinks = screen.getAllByText('Starters');
     // At least one should have the active class
-    const hasActive = templatesLinks.some(link => 
+    const hasActive = startersLinks.some(link => 
       link.classList.contains('text-primary-600') || 
       link.className.includes('text-primary-600')
     );
@@ -124,16 +149,17 @@ describe('MainLayout', () => {
 
   it('renders Create button', () => {
     renderWithRouter();
-    expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument();
+    // Create button was removed in US-56006 for cleaner navbar
+    // Users access creation via chat page or dashboard
+    expect(screen.getByTestId('theme-toggle')).toBeInTheDocument();
   });
 
-  it('navigates to generate page on Create click', async () => {
-    const user = userEvent.setup();
+  it('renders theme toggle in navbar', () => {
     renderWithRouter();
     
-    await user.click(screen.getByRole('button', { name: /create/i }));
-    
-    expect(mockNavigate).toHaveBeenCalledWith('/generate');
+    const themeToggle = screen.getByTestId('theme-toggle');
+    expect(themeToggle).toBeInTheDocument();
+    expect(themeToggle).toHaveAttribute('data-dropdown', 'true');
   });
 
   it('renders JobQueue component', () => {

@@ -5,7 +5,6 @@
  * sorting, and export functionality.
  */
 
-import { useState, useMemo, useCallback } from 'react';
 import {
   Plus,
   Trash2,
@@ -20,6 +19,7 @@ import {
   Clock,
   AlertCircle,
 } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -139,10 +139,10 @@ function EditableCell({
 
   return (
     <div
-      className={`group cursor-pointer hover:bg-gray-50 rounded px-2 py-1 -mx-2 -my-1 ${className}`}
+      className={`group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1 -mx-2 -my-1 ${className}`}
       onClick={() => setIsEditing(true)}
     >
-      <span className={value ? '' : 'text-gray-400 italic'}>
+      <span className={value ? 'dark:text-gray-100' : 'text-gray-400 italic'}>
         {value ?? placeholder}
       </span>
       <Edit2 className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 inline ml-2" />
@@ -284,17 +284,17 @@ export function BOMTable({
   };
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h3 className="font-semibold text-gray-900">Bill of Materials</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Bill of Materials</h3>
           
           {/* Category filter */}
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="text-sm border border-gray-300 rounded-lg px-2 py-1"
+            className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 dark:bg-gray-700 dark:text-gray-100"
           >
             <option value="">All Categories</option>
             {categories.map((cat) => (
@@ -319,7 +319,7 @@ export function BOMTable({
           <button
             onClick={handleExportCSV}
             disabled={isExporting}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-100 disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
             {isExporting ? 'Exporting...' : 'Export CSV'}
@@ -328,26 +328,26 @@ export function BOMTable({
       </div>
 
       {/* Summary cards */}
-      <div className="px-4 py-3 border-b border-gray-100 grid grid-cols-4 gap-4">
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 grid grid-cols-4 gap-4">
         <div className="flex items-center gap-2">
           <Package className="w-5 h-5 text-gray-400" />
           <div>
-            <p className="text-sm text-gray-500">Items</p>
-            <p className="font-semibold">{summary.total_items}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Items</p>
+            <p className="font-semibold dark:text-gray-100">{summary.total_items}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Package className="w-5 h-5 text-gray-400" />
           <div>
-            <p className="text-sm text-gray-500">Total Qty</p>
-            <p className="font-semibold">{summary.total_quantity}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Qty</p>
+            <p className="font-semibold dark:text-gray-100">{summary.total_quantity}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <DollarSign className="w-5 h-5 text-gray-400" />
           <div>
-            <p className="text-sm text-gray-500">Total Cost</p>
-            <p className="font-semibold">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Cost</p>
+            <p className="font-semibold dark:text-gray-100">
               {formatCurrency(summary.total_cost, summary.currency)}
             </p>
           </div>
@@ -355,8 +355,8 @@ export function BOMTable({
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-gray-400" />
           <div>
-            <p className="text-sm text-gray-500">Max Lead Time</p>
-            <p className="font-semibold">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Max Lead Time</p>
+            <p className="font-semibold dark:text-gray-100">
               {summary.longest_lead_time ? `${summary.longest_lead_time} days` : '-'}
             </p>
           </div>
@@ -367,10 +367,10 @@ export function BOMTable({
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 text-left text-sm text-gray-600">
+            <tr className="bg-gray-50 dark:bg-gray-700 text-left text-sm text-gray-600 dark:text-gray-300">
               <th className="px-4 py-3 font-medium">#</th>
               <th
-                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                 onClick={() => handleSort('part_number')}
               >
                 <div className="flex items-center gap-1">
@@ -379,7 +379,7 @@ export function BOMTable({
                 </div>
               </th>
               <th
-                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                 onClick={() => handleSort('description')}
               >
                 <div className="flex items-center gap-1">
@@ -388,7 +388,7 @@ export function BOMTable({
                 </div>
               </th>
               <th
-                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                 onClick={() => handleSort('category')}
               >
                 <div className="flex items-center gap-1">
@@ -397,7 +397,7 @@ export function BOMTable({
                 </div>
               </th>
               <th
-                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 text-right"
+                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-right"
                 onClick={() => handleSort('quantity')}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -406,7 +406,7 @@ export function BOMTable({
                 </div>
               </th>
               <th
-                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 text-right"
+                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-right"
                 onClick={() => handleSort('unit_cost')}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -415,7 +415,7 @@ export function BOMTable({
                 </div>
               </th>
               <th
-                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 text-right"
+                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-right"
                 onClick={() => handleSort('total_cost')}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -425,7 +425,7 @@ export function BOMTable({
               </th>
               <th className="px-4 py-3 font-medium">Vendor</th>
               <th
-                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 text-right"
+                className="px-4 py-3 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-right"
                 onClick={() => handleSort('lead_time_days')}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -437,18 +437,18 @@ export function BOMTable({
               <th className="px-4 py-3 font-medium w-10"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {displayedItems.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
-                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <td colSpan={11} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
                   No BOM items found
                 </td>
               </tr>
             ) : (
               displayedItems.map((item, index) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
+                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
                   <td className="px-4 py-3 text-sm">
                     <EditableCell
                       value={item.part_number}
@@ -456,11 +456,11 @@ export function BOMTable({
                       placeholder="—"
                     />
                   </td>
-                  <td className="px-4 py-3 text-sm max-w-xs">
+                  <td className="px-4 py-3 text-sm max-w-xs dark:text-gray-100">
                     <div className="truncate" title={item.description}>
                       {item.description}
                     </div>
-                    <div className="text-xs text-gray-400">{item.component_name}</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">{item.component_name}</div>
                   </td>
                   <td className="px-4 py-3">
                     <CategoryBadge category={item.category} />
@@ -480,10 +480,10 @@ export function BOMTable({
                       placeholder="—"
                     />
                   </td>
-                  <td className="px-4 py-3 text-sm text-right font-medium">
+                  <td className="px-4 py-3 text-sm text-right font-medium dark:text-gray-100">
                     {formatCurrency(item.total_cost, item.currency)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                     {item.vendor_name || '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-right">
@@ -519,13 +519,13 @@ export function BOMTable({
       </div>
 
       {/* Footer with totals */}
-      <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-        <span className="text-sm text-gray-600">
+      <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-between">
+        <span className="text-sm text-gray-600 dark:text-gray-300">
           Showing {displayedItems.length} of {items.length} items
         </span>
         <div className="text-right">
-          <span className="text-sm text-gray-600">Grand Total: </span>
-          <span className="font-semibold text-gray-900">
+          <span className="text-sm text-gray-600 dark:text-gray-300">Grand Total: </span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">
             {formatCurrency(summary.total_cost, summary.currency)}
           </span>
         </div>

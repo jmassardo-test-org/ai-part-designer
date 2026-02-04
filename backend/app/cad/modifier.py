@@ -4,6 +4,8 @@ CAD Modification Service.
 Provides high-level operations for modifying uploaded CAD files,
 including transformations, feature additions, and file combining.
 
+Migrated from CadQuery to Build123d.
+
 Example:
     >>> from app.cad.modifier import CADModifier
     >>> modifier = CADModifier()
@@ -19,7 +21,11 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-import cadquery as cq
+from build123d import (
+    Part, Solid, Location, Vector, Axis, Plane,
+    import_step, import_stl, export_step, export_stl,
+    fillet as b3d_fillet, chamfer as b3d_chamfer,
+)
 from OCP.STEPControl import STEPControl_Reader
 from OCP.IFSelect import IFSelect_RetDone
 from OCP.BRep import BRep_Builder
@@ -38,7 +44,7 @@ from app.cad.operations import (
     difference,
     intersection,
 )
-from app.cad.export import export_step, export_stl, ExportQuality
+from app.cad.export import export_step as app_export_step, export_stl as app_export_stl, ExportQuality
 from app.cad.exceptions import GeometryError, ValidationError, ImportError
 
 logger = logging.getLogger(__name__)
@@ -139,34 +145,32 @@ class ModifyOperation:
 class ModifyResult:
     """Result of a modification operation."""
     
-    shape: cq.Workplane
+    shape: Part
     operations_applied: list[str]
     warnings: list[str]
     geometry_info: dict[str, Any]
     
     @classmethod
-    def from_shape(cls, shape: cq.Workplane, operations: list[str]) -> "ModifyResult":
+    def from_shape(cls, shape: Part, operations: list[str]) -> "ModifyResult":
         """Create result from a shape."""
         # Calculate geometry info
-        solid = shape.val()
-        
         geometry_info = {
-            "volume": round(solid.Volume(), 3),
-            "area": round(solid.Area(), 3),
+            "volume": round(shape.volume, 3),
+            "area": round(shape.area, 3),
         }
         
         # Get bounding box
         try:
-            bbox = solid.BoundingBox()
+            bbox = shape.bounding_box()
             geometry_info["bounding_box"] = {
-                "x": round(bbox.xmax - bbox.xmin, 3),
-                "y": round(bbox.ymax - bbox.ymin, 3),
-                "z": round(bbox.zmax - bbox.zmin, 3),
+                "x": round(bbox.max.X - bbox.min.X, 3),
+                "y": round(bbox.max.Y - bbox.min.Y, 3),
+                "z": round(bbox.max.Z - bbox.min.Z, 3),
             }
             geometry_info["center"] = {
-                "x": round((bbox.xmin + bbox.xmax) / 2, 3),
-                "y": round((bbox.ymin + bbox.ymax) / 2, 3),
-                "z": round((bbox.zmin + bbox.zmax) / 2, 3),
+                "x": round((bbox.min.X + bbox.max.X) / 2, 3),
+                "y": round((bbox.min.Y + bbox.max.Y) / 2, 3),
+                "z": round((bbox.min.Z + bbox.max.Z) / 2, 3),
             }
         except Exception:
             pass
@@ -184,6 +188,7 @@ class CADModifier:
     High-level service for modifying CAD geometry.
     
     Loads CAD files, applies modification operations, and exports results.
+    Uses Build123d Part objects instead of CadQuery Workplanes.
     """
     
     def __init__(self):
@@ -200,15 +205,15 @@ class CADModifier:
             OperationType.ADD_HOLE: self._apply_add_hole,
         }
     
-    def load_step(self, file_path: Path) -> cq.Workplane:
+    def load_step(self, file_path: Path) -> Part:
         """
-        Load a STEP file into a CadQuery Workplane.
+        Load a STEP file into a Build123d Part.
         
         Args:
             file_path: Path to STEP file
         
         Returns:
-            CadQuery Workplane containing the geometry
+            Build123d Part containing the geometry
         
         Raises:
             ImportError: If file cannot be loaded
@@ -217,17 +222,16 @@ class CADModifier:
             raise ImportError(f"File not found: {file_path}")
         
         try:
-            # Use CadQuery's importStep
-            result = cq.importers.importStep(str(file_path))
+            result = import_step(str(file_path))
             logger.info(f"Loaded STEP file: {file_path}")
-            return cq.Workplane(obj=result)
+            return result
         except Exception as e:
             logger.error(f"Failed to load STEP file: {e}")
             raise ImportError(f"Failed to load STEP file: {e}")
     
-    def load_stl(self, file_path: Path) -> cq.Workplane:
+    def load_stl(self, file_path: Path) -> Part:
         """
-        Load an STL file into a CadQuery Workplane.
+        Load an STL file into a Build123d Part.
         
         Note: STL files lose precision and parametric data.
         
@@ -235,22 +239,22 @@ class CADModifier:
             file_path: Path to STL file
         
         Returns:
-            CadQuery Workplane containing the mesh geometry
+            Build123d Part containing the mesh geometry
         """
         if not file_path.exists():
             raise ImportError(f"File not found: {file_path}")
         
         try:
-            result = cq.importers.importShape(cq.importers.ImportTypes.STL, str(file_path))
+            result = import_stl(str(file_path))
             logger.info(f"Loaded STL file: {file_path}")
-            return cq.Workplane(obj=result)
+            return result
         except Exception as e:
             logger.error(f"Failed to load STL file: {e}")
             raise ImportError(f"Failed to load STL file: {e}")
     
     def apply_operations(
         self,
-        shape: cq.Workplane,
+        shape: Part,
         operations: list[ModifyOperation],
     ) -> ModifyResult:
         """
@@ -303,9 +307,9 @@ class CADModifier:
     
     def combine_shapes(
         self,
-        shapes: list[cq.Workplane],
+        shapes: list[Part],
         operation: str = "union",
-    ) -> cq.Workplane:
+    ) -> Part:
         """
         Combine multiple shapes using boolean operations.
         
@@ -330,7 +334,7 @@ class CADModifier:
     
     def export(
         self,
-        shape: cq.Workplane,
+        shape: Part,
         output_path: Path,
         format: str = "step",
         quality: ExportQuality = ExportQuality.STANDARD,
@@ -348,9 +352,11 @@ class CADModifier:
             Path to exported file
         """
         if format.lower() == "step":
-            export_step(shape, output_path)
+            data = app_export_step(shape)
+            output_path.write_bytes(data)
         elif format.lower() == "stl":
-            export_stl(shape, output_path, quality)
+            data = app_export_stl(shape, quality=quality)
+            output_path.write_bytes(data)
         else:
             raise ValidationError(f"Unsupported export format: {format}")
         
@@ -360,7 +366,7 @@ class CADModifier:
     # Operation Handlers
     # =========================================================================
     
-    def _apply_translate(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_translate(self, shape: Part, params: dict) -> Part:
         """Apply translation."""
         return translate(
             shape,
@@ -369,17 +375,17 @@ class CADModifier:
             z=params.get("z", 0),
         )
     
-    def _apply_rotate(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_rotate(self, shape: Part, params: dict) -> Part:
         """Apply rotation."""
         angle = params["angle"]
         axis_name = params.get("axis", "Z").upper()
         
         axis_map = {
-            "X": (1, 0, 0),
-            "Y": (0, 1, 0),
-            "Z": (0, 0, 1),
+            "X": Axis.X,
+            "Y": Axis.Y,
+            "Z": Axis.Z,
         }
-        axis = axis_map.get(axis_name, (0, 0, 1))
+        axis = axis_map.get(axis_name, Axis.Z)
         
         center = (
             params.get("center_x", 0),
@@ -389,13 +395,12 @@ class CADModifier:
         
         return rotate(shape, angle, axis=axis, center=center)
     
-    def _apply_scale(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_scale(self, shape: Part, params: dict) -> Part:
         """Apply uniform scaling."""
         return scale(shape, params["factor"])
     
-    def _apply_scale_axis(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_scale_axis(self, shape: Part, params: dict) -> Part:
         """Apply non-uniform scaling per axis."""
-        # Non-uniform scaling requires more complex transformation
         from OCP.gp import gp_GTrsf, gp_Mat
         from OCP.BRepBuilderAPI import BRepBuilderAPI_GTransform
         
@@ -415,14 +420,18 @@ class CADModifier:
         )
         trsf.SetVectorialPart(mat)
         
-        transformer = BRepBuilderAPI_GTransform(shape.val().wrapped, trsf, True)
-        return cq.Workplane(obj=cq.Shape(transformer.Shape()))
+        # Apply to underlying wrapped shape
+        transformer = BRepBuilderAPI_GTransform(shape.wrapped, trsf, True)
+        
+        # Return as Part
+        from build123d import Shape
+        return Part(Shape(transformer.Shape()).wrapped)
     
-    def _apply_mirror(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_mirror(self, shape: Part, params: dict) -> Part:
         """Apply mirror transformation."""
         return mirror(shape, params["plane"])
     
-    def _apply_fillet(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_fillet(self, shape: Part, params: dict) -> Part:
         """Apply fillet to edges."""
         return fillet(
             shape,
@@ -430,7 +439,7 @@ class CADModifier:
             edges=params.get("edges", "all"),
         )
     
-    def _apply_chamfer(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_chamfer(self, shape: Part, params: dict) -> Part:
         """Apply chamfer to edges."""
         return chamfer(
             shape,
@@ -438,7 +447,7 @@ class CADModifier:
             edges=params.get("edges", "all"),
         )
     
-    def _apply_shell(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_shell(self, shape: Part, params: dict) -> Part:
         """Apply shell (hollow out)."""
         return shell(
             shape,
@@ -446,7 +455,7 @@ class CADModifier:
             faces_to_remove=params.get("faces"),
         )
     
-    def _apply_add_hole(self, shape: cq.Workplane, params: dict) -> cq.Workplane:
+    def _apply_add_hole(self, shape: Part, params: dict) -> Part:
         """Add a hole to the shape."""
         return add_hole(
             shape,

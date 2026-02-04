@@ -4,17 +4,21 @@
  * Layout for authenticated pages with header and navigation.
  */
 
+import { User, LogOut, Settings, Shield, Plus, Trash2, WifiOff, RefreshCw } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, LogOut, Settings, Shield, Plus, Trash2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { LogoLight, LogoIcon } from '@/components/brand';
 import { JobQueue } from '@/components/jobs';
 import { MobileNav } from '@/components/navigation';
+import { NotificationCenter } from '@/components/notifications';
 import { SkipLink } from '@/components/ui';
-import { useState, useRef, useEffect } from 'react';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 
 export function MainLayout() {
   const { user, logout } = useAuth();
+  const { connected, fallbackMode, reconnect } = useWebSocket();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,12 +48,12 @@ export function MainLayout() {
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-industrial-bg-primary">
       {/* Skip Link for accessibility */}
       <SkipLink />
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white dark:bg-industrial-bg-secondary border-b border-gray-200 dark:border-industrial-border-DEFAULT">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Mobile Nav (hamburger menu) */}
@@ -67,49 +71,59 @@ export function MainLayout() {
             <nav className="hidden md:flex items-center gap-6" data-tour="navigation">
               <Link
                 to="/dashboard"
-                className={`font-medium ${isActive('/dashboard') ? 'text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`font-medium ${isActive('/dashboard') ? 'text-primary-600 dark:text-accent-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'}`}
               >
                 Dashboard
               </Link>
               <Link
-                to="/templates"
-                className={`font-medium ${isActive('/templates') ? 'text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
-                data-tour="templates"
+                to="/marketplace"
+                className={`font-medium ${isActive('/marketplace') ? 'text-primary-600 dark:text-accent-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'}`}
+                data-tour="marketplace"
               >
-                Templates
+                Marketplace
               </Link>
               <Link
-                to="/files"
-                className={`font-medium ${isActive('/files') ? 'text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
+                to="/starters"
+                className={`font-medium ${isActive('/starters') ? 'text-primary-600 dark:text-accent-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'}`}
+                data-tour="starters"
               >
-                Files
+                Starters
               </Link>
               <Link
                 to="/projects"
-                className={`font-medium ${isActive('/projects') ? 'text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`font-medium ${isActive('/projects') ? 'text-primary-600 dark:text-accent-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'}`}
               >
                 Projects
               </Link>
               <Link
-                to="/shared"
-                className={`font-medium ${isActive('/shared') ? 'text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
-                data-tour="shared"
+                to="/lists"
+                className={`font-medium ${isActive('/lists') ? 'text-primary-600 dark:text-accent-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'}`}
+                data-tour="lists"
               >
-                Shared
+                My Lists
               </Link>
             </nav>
 
-            {/* Right side: Create, Jobs, User */}
+            {/* Right side: Theme, Notifications, Jobs, User */}
             <div className="flex items-center gap-3">
-              {/* Create Button */}
-              <button
-                onClick={() => navigate('/create')}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                data-tour="create"
-              >
-                <Plus className="w-4 h-4" />
-                Create
-              </button>
+              {/* Connection Status (only show when disconnected/fallback) */}
+              {fallbackMode && (
+                <button
+                  onClick={reconnect}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+                  title="Real-time updates unavailable. Click to retry."
+                >
+                  <WifiOff className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Offline</span>
+                  <RefreshCw className="h-3 w-3" />
+                </button>
+              )}
+
+              {/* Theme Toggle */}
+              <ThemeToggle showDropdown size="sm" />
+
+              {/* Notifications */}
+              <NotificationCenter />
 
               {/* Job Queue */}
               <JobQueue />
@@ -118,13 +132,13 @@ export function MainLayout() {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-full"
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-full"
                   aria-expanded={isMenuOpen}
                   aria-haspopup="true"
                   data-tour="user-menu"
                 >
-                  <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary-600" />
+                  <div className="h-8 w-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                    <User className="h-5 w-5 text-primary-600 dark:text-primary-400" />
                   </div>
                   <span className="hidden sm:block font-medium">
                     {user?.display_name || 'User'}
@@ -134,17 +148,17 @@ export function MainLayout() {
                 {/* Dropdown Menu */}
                 {isMenuOpen && (
                   <div 
-                    className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 py-1 z-50"
+                    className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-100 dark:border-gray-700 py-1 z-50"
                     role="menu"
                     aria-orientation="vertical"
                   >
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{user?.display_name}</p>
-                      <p className="text-sm text-gray-500 truncate">{user?.email}</p>
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.display_name}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
                     </div>
                     <Link
                       to="/settings"
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
                       onClick={() => setIsMenuOpen(false)}
                       role="menuitem"
                     >
@@ -153,7 +167,7 @@ export function MainLayout() {
                     </Link>
                     <Link
                       to="/trash"
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
                       onClick={() => setIsMenuOpen(false)}
                       role="menuitem"
                     >
@@ -163,7 +177,7 @@ export function MainLayout() {
                     {isAdmin && (
                       <Link
                         to="/admin"
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
                         onClick={() => setIsMenuOpen(false)}
                         role="menuitem"
                       >
@@ -173,7 +187,7 @@ export function MainLayout() {
                     )}
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
                       role="menuitem"
                     >
                       <LogOut className="h-4 w-4" />

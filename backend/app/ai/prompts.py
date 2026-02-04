@@ -56,7 +56,7 @@ class PromptTemplate:
             **kwargs: Values to substitute in user_template
         
         Returns:
-            List of message dicts for OpenAI API
+            List of message dicts for Claude API
         """
         messages = [
             {"role": "system", "content": self.system_prompt}

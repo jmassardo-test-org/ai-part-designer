@@ -2,21 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================================
+   Industrial CAD Theme - CSS Custom Properties
+   ============================================================================= */
+
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(17, 24, 39, 1);
-  background-color: #ffffff;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Brand CSS variables */
+  /* Light Mode Colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-elevated: #ffffff;
+  --color-bg-hover: #f1f5f9;
+  
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  
+  --color-accent-ai: #0891b2;
+  --color-accent-blue: #2563eb;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  
+  /* Surface for cards/modals */
+  --color-surface: #ffffff;
+  --color-surface-hover: #f8fafc;
+  
+  color-scheme: light;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+}
+
+/* Dark Mode - Industrial CAD Theme (Default) */
+.dark {
+  /* Deep Industrial Navy Palette */
+  --color-bg-primary: #0E1A26;
+  --color-bg-secondary: #132738;
+  --color-bg-elevated: #1A3348;
+  --color-bg-hover: #1F3D52;
+  
+  --color-text-primary: #F4F7FA;
+  --color-text-secondary: #9FB2C8;
+  --color-text-muted: #6B7F95;
+  
+  --color-border: #2A3A4A;
+  --color-border-strong: #3D5269;
+  
+  /* AI Accent - Bright Cyan */
+  --color-accent-ai: #21C4F3;
+  --color-accent-blue: #1F6FDB;
+  --color-success: #2EE6C8;
+  --color-warning: #F59E0B;
+  --color-error: #E53935;
+  
+  /* Surface for cards/modals */
+  --color-surface: #132738;
+  --color-surface-hover: #1A3348;
+  
+  color-scheme: dark;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+}
+
+/* Legacy brand variables for backwards compatibility */
+:root {
   --brand-navy: #0d1526;
   --brand-cyan: #22d3ee;
   --brand-blue: #3b82f6;
@@ -24,9 +83,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    color: rgba(255, 255, 255, 0.87);
-    background-color: var(--brand-navy);
+  :root:not(.light) {
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
   }
 }
 
@@ -34,10 +93,16 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
-/* Custom utility classes */
+/* =============================================================================
+   Custom Utility Classes - Theme Aware
+   ============================================================================= */
+
 @layer components {
+  /* Buttons */
   .btn {
     @apply inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
@@ -47,15 +112,19 @@ body {
   }
 
   .btn-secondary {
-    @apply btn bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300;
+    @apply btn bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600;
   }
 
   .btn-outline {
-    @apply btn border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50;
+    @apply btn border-2 border-gray-400 bg-transparent text-gray-900 hover:bg-gray-100 hover:border-gray-500 dark:border-gray-500 dark:text-gray-100 dark:hover:bg-gray-800;
   }
 
   .btn-ghost {
-    @apply btn bg-transparent text-gray-700 hover:bg-gray-100;
+    @apply btn bg-transparent text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800;
+  }
+
+  .btn-accent {
+    @apply btn bg-accent-500 text-white hover:bg-accent-600 active:bg-accent-700;
   }
 
   .btn-sm {
@@ -70,15 +139,147 @@ body {
     @apply h-12 px-6 text-base;
   }
 
+  /* Form Elements */
   .input {
-    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply border-gray-300 bg-white text-gray-900 placeholder:text-gray-400;
+    @apply dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:ring-offset-gray-900;
   }
 
   .label {
-    @apply text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+    @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+    @apply text-gray-700 dark:text-gray-300;
   }
 
+  /* Cards */
   .card {
-    @apply rounded-lg border border-gray-200 bg-white shadow-sm;
+    @apply rounded-lg border shadow-sm;
+    @apply border-gray-200 bg-white;
+    @apply dark:border-gray-700 dark:bg-gray-800;
+  }
+
+  .card-elevated {
+    @apply rounded-lg border shadow-md;
+    @apply border-gray-200 bg-white;
+    @apply dark:border-gray-600 dark:bg-gray-700;
+  }
+
+  /* Industrial Theme Specific */
+  .industrial-surface {
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+  }
+
+  .industrial-text {
+    color: var(--color-text-primary);
+  }
+
+  .industrial-text-secondary {
+    color: var(--color-text-secondary);
+  }
+
+  .industrial-border {
+    border-color: var(--color-border);
+  }
+
+  /* AI Accent Glow Effect */
+  .ai-glow {
+    @apply dark:shadow-[0_0_15px_rgba(33,196,243,0.3)];
+  }
+
+  .ai-glow-strong {
+    @apply dark:shadow-[0_0_25px_rgba(33,196,243,0.5)];
+  }
+
+  /* Focus States with AI Accent */
+  .focus-ai {
+    @apply focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900;
+  }
+
+  /* Auth Card - Force light mode styles regardless of theme */
+  .auth-card .input {
+    @apply border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 !important;
+  }
+
+  .auth-card .btn-outline {
+    @apply border-2 border-gray-400 bg-white text-gray-900 hover:bg-gray-100 hover:border-gray-500 !important;
+  }
+
+  .auth-card .label {
+    @apply text-gray-700 !important;
+  }
+
+  /* =============================================================================
+     Theme-Aware Utility Classes
+     ============================================================================= */
+
+  /* Surface backgrounds - use these instead of bg-white */
+  .surface {
+    @apply bg-white dark:bg-gray-800;
+  }
+
+  .surface-secondary {
+    @apply bg-gray-50 dark:bg-gray-900;
+  }
+
+  .surface-elevated {
+    @apply bg-white dark:bg-gray-700;
+  }
+
+  .surface-hover {
+    @apply hover:bg-gray-50 dark:hover:bg-gray-700;
+  }
+
+  .surface-muted {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+
+  /* Text colors */
+  .text-heading {
+    @apply text-gray-900 dark:text-gray-100;
+  }
+
+  .text-body {
+    @apply text-gray-700 dark:text-gray-300;
+  }
+
+  .text-muted {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  .text-subtle {
+    @apply text-gray-400 dark:text-gray-500;
+  }
+
+  /* Borders */
+  .border-default {
+    @apply border-gray-200 dark:border-gray-700;
+  }
+
+  .border-strong {
+    @apply border-gray-300 dark:border-gray-600;
+  }
+
+  .border-subtle {
+    @apply border-gray-100 dark:border-gray-800;
+  }
+
+  /* Dividers */
+  .divide-default {
+    @apply divide-gray-200 dark:divide-gray-700;
+  }
+
+  /* Interactive elements */
+  .interactive {
+    @apply bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700;
+  }
+
+  .interactive-muted {
+    @apply bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700;
+  }
+
+  /* Status badges */
+  .badge-neutral {
+    @apply bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300;
   }
 }

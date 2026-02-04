@@ -2,13 +2,17 @@
 Template model for pre-built CAD templates.
 """
 
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, Float, Integer, String, Text, ARRAY
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.rating import TemplateRating, TemplateFeedback, TemplateComment
 
 
 class Template(Base, TimestampMixin):
@@ -90,7 +94,8 @@ class Template(Base, TimestampMixin):
         default=dict,
     )
     
-    # CadQuery script for generating the part
+    # Build123d script for generating the part
+    # Note: Database column is still 'cadquery_script' for backwards compatibility
     cadquery_script: Mapped[str] = mapped_column(
         Text,
         nullable=False,
@@ -134,6 +139,24 @@ class Template(Base, TimestampMixin):
         nullable=False,
         default=True,
     )
+    
+    # User-created templates
+    is_public: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
+    
+    source_design_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=True,
+    )
 
     # Analytics
     use_count: Mapped[int] = mapped_column(
@@ -145,6 +168,26 @@ class Template(Base, TimestampMixin):
     avg_rating: Mapped[float | None] = mapped_column(
         Float,
         nullable=True,
+    )
+    
+    # Community relationships
+    ratings: Mapped[list["TemplateRating"]] = relationship(
+        "TemplateRating",
+        back_populates="template",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    feedback: Mapped[list["TemplateFeedback"]] = relationship(
+        "TemplateFeedback",
+        back_populates="template",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    comments: Mapped[list["TemplateComment"]] = relationship(
+        "TemplateComment",
+        back_populates="template",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

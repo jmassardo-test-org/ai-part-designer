@@ -5,9 +5,9 @@
  * Redirects non-admin users to the dashboard.
  */
 
+import { Loader2, ShieldX } from 'lucide-react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, ShieldX } from 'lucide-react';
 
 export function AdminRoute() {
   const { user, isLoading, isAuthenticated } = useAuth();

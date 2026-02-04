@@ -13,7 +13,6 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from openai import AsyncOpenAI
 from pdf2image import convert_from_path
 from PIL import Image
 from pydantic import BaseModel
@@ -48,8 +47,8 @@ MAX_PAGES_TO_ANALYZE = 10
 TARGET_IMAGE_WIDTH = 1200  # pixels
 IMAGE_QUALITY = 85  # JPEG quality
 
-# GPT-4V model
-VISION_MODEL = "gpt-4o"
+# Claude model for vision
+VISION_MODEL = settings.ANTHROPIC_MODEL
 
 
 # =============================================================================
@@ -266,7 +265,11 @@ class DatasheetParserService:
     """Service to extract mechanical specifications from PDF datasheets."""
     
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        if settings.ANTHROPIC_API_KEY:
+            from anthropic import AsyncAnthropic
+            self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        else:
+            self.client = None
     
     async def parse_datasheet(
         self,
@@ -337,28 +340,29 @@ class DatasheetParserService:
         image_b64 = image_to_base64(resized)
         
         try:
-            response = await self.client.chat.completions.create(
+            response = await self.client.messages.create(
                 model=VISION_MODEL,
+                max_tokens=500,
                 messages=[
                     {
                         "role": "user",
                         "content": [
                             {"type": "text", "text": COMPONENT_IDENTIFICATION_PROMPT},
                             {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_b64}",
-                                    "detail": "low",
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/jpeg",
+                                    "data": image_b64,
                                 },
                             },
                         ],
                     }
                 ],
-                max_tokens=500,
                 temperature=0.1,
             )
             
-            content = response.choices[0].message.content
+            content = response.content[0].text
             
             # Parse JSON from response
             json_match = re.search(r'\{[^{}]*\}', content, re.DOTALL)
@@ -376,28 +380,29 @@ class DatasheetParserService:
         image_b64 = image_to_base64(resized)
         
         try:
-            response = await self.client.chat.completions.create(
+            response = await self.client.messages.create(
                 model=VISION_MODEL,
+                max_tokens=2000,
                 messages=[
                     {
                         "role": "user",
                         "content": [
                             {"type": "text", "text": DIMENSION_EXTRACTION_PROMPT},
                             {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_b64}",
-                                    "detail": "high",
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/jpeg",
+                                    "data": image_b64,
                                 },
                             },
                         ],
                     }
                 ],
-                max_tokens=2000,
                 temperature=0.1,
             )
             
-            content = response.choices[0].message.content
+            content = response.content[0].text
             
             # Parse JSON from response
             json_match = re.search(r'\{.*\}', content, re.DOTALL)

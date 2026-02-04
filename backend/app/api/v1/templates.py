@@ -2,11 +2,28 @@
 Template API endpoints.
 
 Provides template browsing, parameter customization, and generation.
+
+DEPRECATED: This module is deprecated as of v2.0.
+Use the new Starters system (/api/v2/starters) for design templates.
+
+Migration guide:
+- Browse templates → Browse starters (GET /api/v2/starters)
+- Generate from template → Remix starter (POST /api/v2/starters/{id}/remix)
+- View template detail → View starter detail (GET /api/v2/starters/{id})
+
+The starters system provides:
+- User-created and community starter designs
+- Full EnclosureSpec schema (not just parameters)
+- Remix/fork model with attribution
+- Better discoverability and organization
+
+These endpoints will be removed in a future version.
 """
 
 from __future__ import annotations
 
 import logging
+import warnings
 import tempfile
 from pathlib import Path
 from typing import Annotated, Any
@@ -27,7 +44,14 @@ from app.cad.export import export_step, export_stl
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "The templates API (v1) is deprecated. Use starters API (v2) at /api/v2/starters instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+router = APIRouter(deprecated=True)
 
 
 # =============================================================================
@@ -57,8 +81,13 @@ class TemplateListItem(BaseModel):
     category: str
     description: str | None
     min_tier: str
+    tier_required: str  # Alias for frontend compatibility
     thumbnail_url: str | None
     use_count: int
+    usage_count: int  # Alias for frontend compatibility
+    tags: list[str]
+    parameters: list[dict[str, Any]]  # Flattened parameter list for frontend
+    is_featured: bool
 
 
 class TemplateDetail(BaseModel):
@@ -70,10 +99,14 @@ class TemplateDetail(BaseModel):
     category: str
     description: str | None
     min_tier: str
+    tier_required: str  # Alias for frontend compatibility
     thumbnail_url: str | None
     preview_url: str | None
-    parameters: dict[str, ParameterDefinition]
+    parameters: list[dict[str, Any]]  # Flattened parameter list for frontend
     use_count: int
+    usage_count: int  # Alias for frontend compatibility
+    tags: list[str]
+    is_featured: bool
 
 
 class TemplateListResponse(BaseModel):
@@ -116,6 +149,46 @@ class PreviewRequest(BaseModel):
     """Request for template preview with custom parameters."""
     
     parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class TemplateCreateRequest(BaseModel):
+    """Request to create a custom template."""
+    
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=2000)
+    category: str = Field(..., min_length=1, max_length=50)
+    subcategory: str | None = Field(None, max_length=50)
+    parameters: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Parameter definitions with type, label, default, min, max, etc.",
+    )
+    default_values: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Default values for parameters",
+    )
+    tags: list[str] = Field(default_factory=list, max_length=10)
+    is_public: bool = Field(default=False, description="Whether the template is publicly visible")
+
+
+class TemplateFromDesignRequest(BaseModel):
+    """Request to create a template from a design."""
+    
+    design_id: UUID = Field(..., description="ID of the design to create template from")
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=2000)
+    category: str = Field(default="custom", min_length=1, max_length=50)
+    tags: list[str] = Field(default_factory=list)
+
+
+class TemplateCreateResponse(BaseModel):
+    """Response after creating a template."""
+    
+    id: UUID
+    name: str
+    slug: str
+    category: str
+    description: str | None
+    created_at: str
 
 
 # =============================================================================
@@ -176,11 +249,21 @@ async def list_templates(
     templates = result.scalars().all()
     
     # Filter by user tier if authenticated
-    user_tier = current_user.subscription_tier if current_user else "free"
+    # Admin users can see all templates regardless of tier
+    user_tier = current_user.tier if current_user else "free"
+    is_admin = current_user.role == "admin" if current_user else False
     
     template_list = []
     for tmpl in templates:
-        if tmpl.is_accessible_by_tier(user_tier):
+        # Admins bypass tier restrictions
+        if is_admin or tmpl.is_accessible_by_tier(user_tier):
+            # Convert parameters dict to list format for frontend
+            params_list = []
+            if tmpl.parameters:
+                for name, config in tmpl.parameters.items():
+                    param = {"name": name, **config} if isinstance(config, dict) else {"name": name}
+                    params_list.append(param)
+            
             template_list.append(TemplateListItem(
                 id=tmpl.id,
                 name=tmpl.name,
@@ -188,8 +271,13 @@ async def list_templates(
                 category=tmpl.category,
                 description=tmpl.description,
                 min_tier=tmpl.min_tier,
+                tier_required=tmpl.min_tier,
                 thumbnail_url=tmpl.thumbnail_url,
-                use_count=tmpl.use_count,
+                use_count=tmpl.use_count or 0,
+                usage_count=tmpl.use_count or 0,
+                tags=tmpl.tags or [],
+                parameters=params_list,
+                is_featured=tmpl.is_featured or False,
             ))
     
     return TemplateListResponse(
@@ -227,27 +315,24 @@ async def get_template(
         )
     
     # Check tier access
-    user_tier = current_user.subscription_tier if current_user else "free"
+    user_tier = current_user.tier if current_user else "free"
     if not template.is_accessible_by_tier(user_tier):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"This template requires {template.min_tier} tier",
         )
     
-    # Convert parameters to ParameterDefinition
-    params = {}
-    for name, defn in template.parameters.items():
-        params[name] = ParameterDefinition(
-            type=defn.get("type", "string"),
-            label=defn.get("label", name),
-            description=defn.get("description"),
-            default=defn.get("default"),
-            min=defn.get("min"),
-            max=defn.get("max"),
-            unit=defn.get("unit"),
-            options=defn.get("options"),
-            required=defn.get("required", True),
-        )
+    # Convert parameters dict to list format for frontend
+    # Merge default_values into each parameter
+    params_list = []
+    default_values = template.default_values or {}
+    if template.parameters:
+        for name, config in template.parameters.items():
+            param = {"name": name, **config} if isinstance(config, dict) else {"name": name}
+            # Add default value from default_values if not already set
+            if "default" not in param or param["default"] is None:
+                param["default"] = default_values.get(name, param.get("min", 0))
+            params_list.append(param)
     
     return TemplateDetail(
         id=template.id,
@@ -256,10 +341,14 @@ async def get_template(
         category=template.category,
         description=template.description,
         min_tier=template.min_tier,
+        tier_required=template.min_tier,
         thumbnail_url=template.thumbnail_url,
         preview_url=template.preview_url,
-        parameters=params,
-        use_count=template.use_count,
+        parameters=params_list,
+        use_count=template.use_count or 0,
+        usage_count=template.use_count or 0,
+        tags=template.tags or [],
+        is_featured=template.is_featured or False,
     )
 
 
@@ -296,7 +385,7 @@ async def generate_template(
         )
     
     # Check tier access
-    if not template.is_accessible_by_tier(current_user.subscription_tier):
+    if not template.is_accessible_by_tier(current_user.tier):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"This template requires {template.min_tier} tier",
@@ -333,9 +422,11 @@ async def generate_template(
             output_path = Path(tmp.name)
         
         if request.format == "step":
-            export_step(shape, output_path)
+            data = export_step(shape)
+            output_path.write_bytes(data)
         else:
-            export_stl(shape, output_path, quality=request.quality)
+            data = export_stl(shape, quality=request.quality)
+            output_path.write_bytes(data)
         
         # Increment usage count
         template.usage_count += 1
@@ -413,7 +504,8 @@ async def preview_template(
         with tempfile.NamedTemporaryFile(suffix=".stl", delete=False) as tmp:
             output_path = Path(tmp.name)
         
-        export_stl(shape, output_path, quality="low")
+        data = export_stl(shape, quality="draft")
+        output_path.write_bytes(data)
         
         return FileResponse(
             output_path,
@@ -464,3 +556,231 @@ async def list_categories(
         })
     
     return category_data
+
+
+@router.get(
+    "/my-templates",
+    response_model=TemplateListResponse,
+    summary="List user's templates",
+    description="Get templates created by the current user.",
+)
+async def list_my_templates(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TemplateListResponse:
+    """
+    List templates created by the current user.
+    """
+    query = (
+        select(Template)
+        .where(Template.created_by_user_id == current_user.id)
+        .where(Template.is_active == True)
+        .order_by(Template.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    
+    result = await db.execute(query)
+    templates = result.scalars().all()
+    
+    # Get total count
+    count_query = (
+        select(Template.id)
+        .where(Template.created_by_user_id == current_user.id)
+        .where(Template.is_active == True)
+    )
+    count_result = await db.execute(count_query)
+    total = len(count_result.all())
+    
+    template_list = [
+        TemplateListItem(
+            id=tmpl.id,
+            name=tmpl.name,
+            slug=tmpl.slug,
+            category=tmpl.category,
+            description=tmpl.description,
+            min_tier=tmpl.min_tier,
+            thumbnail_url=tmpl.thumbnail_url,
+            use_count=tmpl.use_count,
+        )
+        for tmpl in templates
+    ]
+    
+    return TemplateListResponse(
+        templates=template_list,
+        total=total,
+        categories=[],
+    )
+
+
+@router.post(
+    "",
+    response_model=TemplateCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create template",
+    description="Create a new custom template.",
+)
+async def create_template(
+    request: TemplateCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TemplateCreateResponse:
+    """
+    Create a new custom template.
+    
+    Templates can be kept private or made public for other users.
+    """
+    import re
+    from uuid import uuid4
+    
+    # Generate slug from name
+    base_slug = re.sub(r'[^a-z0-9]+', '-', request.name.lower()).strip('-')
+    slug = f"{base_slug}-{str(uuid4())[:8]}"
+    
+    template = Template(
+        name=request.name,
+        slug=slug,
+        description=request.description,
+        category=request.category,
+        subcategory=request.subcategory,
+        parameters=request.parameters,
+        default_values=request.default_values,
+        tags=request.tags,
+        min_tier="free",
+        is_featured=False,
+        is_active=True,
+        is_public=request.is_public,
+        created_by_user_id=current_user.id,
+        cadquery_script="# Custom template - script to be defined",
+    )
+    
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+    
+    logger.info(f"Template created: {template.id} by user {current_user.id}")
+    
+    return TemplateCreateResponse(
+        id=template.id,
+        name=template.name,
+        slug=template.slug,
+        category=template.category,
+        description=template.description,
+        created_at=template.created_at.isoformat(),
+    )
+
+
+@router.post(
+    "/from-design",
+    response_model=TemplateCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create template from design",
+    description="Create a template from an existing design.",
+)
+async def create_template_from_design(
+    request: TemplateFromDesignRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TemplateCreateResponse:
+    """
+    Create a template from an existing design.
+    
+    Extracts parameters and configuration from the design.
+    """
+    import re
+    from uuid import uuid4
+    from app.models.design import Design
+    from app.models.project import Project
+    
+    # Get the design
+    design_query = (
+        select(Design, Project)
+        .join(Project, Design.project_id == Project.id)
+        .where(Design.id == request.design_id)
+        .where(Design.deleted_at.is_(None))
+    )
+    result = await db.execute(design_query)
+    row = result.one_or_none()
+    
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Design not found",
+        )
+    
+    design, project = row
+    
+    # Check ownership
+    if project.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to create a template from this design",
+        )
+    
+    # Extract parameters from design extra_data
+    design_data = design.extra_data or {}
+    parameters = {}
+    default_values = {}
+    
+    # Extract dimensions as parameters
+    dimensions = design_data.get("dimensions", {})
+    for key, value in dimensions.items():
+        if isinstance(value, (int, float)):
+            parameters[key] = {
+                "type": "number",
+                "label": key.replace("_", " ").title(),
+                "unit": "mm",
+                "min": value * 0.1,  # Allow 10% - 500% of original
+                "max": value * 5,
+                "step": 0.1 if value < 10 else 1,
+            }
+            default_values[key] = value
+    
+    # Generate slug
+    base_slug = re.sub(r'[^a-z0-9]+', '-', request.name.lower()).strip('-')
+    slug = f"{base_slug}-{str(uuid4())[:8]}"
+    
+    # Build CadQuery script placeholder with original parameters
+    script = f"""# Template created from design: {design.name}
+# Original description: {design.description or 'N/A'}
+# Source: {design.source_type}
+
+# Parameters are passed as 'params' dict
+# Available parameters: {list(default_values.keys())}
+
+# TODO: Implement parametric CAD generation
+"""
+    
+    template = Template(
+        name=request.name,
+        slug=slug,
+        description=request.description or design.description,
+        category=request.category,
+        parameters=parameters,
+        default_values=default_values,
+        tags=request.tags,
+        min_tier="free",
+        is_featured=False,
+        is_active=True,
+        is_public=False,
+        created_by_user_id=current_user.id,
+        source_design_id=design.id,
+        cadquery_script=script,
+    )
+    
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+    
+    logger.info(f"Template created from design: {template.id} from {design.id} by user {current_user.id}")
+    
+    return TemplateCreateResponse(
+        id=template.id,
+        name=template.name,
+        slug=template.slug,
+        category=template.category,
+        description=template.description,
+        created_at=template.created_at.isoformat(),
+    )

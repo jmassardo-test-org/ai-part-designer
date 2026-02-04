@@ -23,6 +23,7 @@ from enum import Enum
 from typing import Any
 
 from app.ai.client import get_ai_client
+from app.ai.exceptions import AIConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -148,19 +149,48 @@ class PartUnderstanding:
         understanding.user_messages = data.get("user_messages", [])
         
         if data.get("classification"):
-            understanding.classification = PartClassification(**data["classification"])
+            try:
+                understanding.classification = PartClassification(**data["classification"])
+            except (TypeError, KeyError) as e:
+                logger.warning(f"Failed to parse classification: {e}")
+                understanding.classification = None
         
         for k, v in data.get("dimensions", {}).items():
-            understanding.dimensions[k] = ExtractedDimension(**v)
+            try:
+                if isinstance(v, dict) and "name" in v and "value" in v:
+                    understanding.dimensions[k] = ExtractedDimension(**v)
+                elif isinstance(v, (int, float)):
+                    # Handle raw numeric values - convert to ExtractedDimension
+                    understanding.dimensions[k] = ExtractedDimension(
+                        name=k, value=float(v), unit="mm", confidence=1.0, source="stored"
+                    )
+                else:
+                    logger.warning(f"Skipping invalid dimension {k}: {v}")
+            except (TypeError, KeyError) as e:
+                logger.warning(f"Failed to parse dimension {k}: {e}")
         
-        understanding.features = [ExtractedFeature(**f) for f in data.get("features", [])]
+        for f in data.get("features", []):
+            try:
+                understanding.features.append(ExtractedFeature(**f))
+            except (TypeError, KeyError) as e:
+                logger.warning(f"Failed to parse feature: {e}")
         understanding.constraints = data.get("constraints", [])
         understanding.hardware_references = data.get("hardware_references", [])
         understanding.missing_critical = data.get("missing_critical", [])
         understanding.ambiguities = data.get("ambiguities", [])
         understanding.assumptions = data.get("assumptions", [])
-        understanding.questions = [ClarificationQuestion(**q) for q in data.get("questions", [])]
-        understanding.state = ReasoningState(data.get("state", "classifying"))
+        
+        for q in data.get("questions", []):
+            try:
+                understanding.questions.append(ClarificationQuestion(**q))
+            except (TypeError, KeyError) as e:
+                logger.warning(f"Failed to parse question: {e}")
+        
+        try:
+            understanding.state = ReasoningState(data.get("state", "classifying"))
+        except ValueError:
+            understanding.state = ReasoningState.CLASSIFYING
+            
         understanding.completeness_score = data.get("completeness_score", 0.0)
         
         return understanding
@@ -227,7 +257,15 @@ Extract ALL dimensions mentioned. For each dimension:
 - CONVERT TO MILLIMETERS (the "value" field must be in mm)
 - "unit" field should always be "mm"
 
-Also extract features like holes, fillets, chamfers, slots.
+=== HOLES ARE FEATURES, NOT DIMENSIONS ===
+A "hole", "center hole", or "hole through" is a FEATURE, not a dimension.
+- Put holes in the "features" array with feature_type="hole"
+- Include the hole diameter in parameters: {{"diameter": value_in_mm}}
+- Do NOT set inner_diameter for a hole (inner_diameter is for hollow pipes/tubes)
+
+Example: "cylinder with 10mm center hole"
+- dimensions: [{{"name": "diameter", ...}}, {{"name": "height", ...}}]
+- features: [{{"feature_type": "hole", "description": "center hole", "parameters": {{"diameter": 10}}, "location": "center", "count": 1}}]
 
 Respond with JSON only:
 {{
@@ -359,10 +397,14 @@ DIMENSION_HINTS = {
 - thickness: Z dimension (the thin direction)
 """,
     "cylinder": """
-- diameter: Outer diameter
-- inner_diameter: Inner diameter if hollow
+- diameter: Outer diameter of the cylinder
 - height: Height/length of cylinder
-- wall_thickness: If hollow
+- inner_diameter: ONLY for hollow tubes/pipes where the entire inside is hollow
+- wall_thickness: ONLY if making a hollow tube/pipe
+
+IMPORTANT: A "center hole" or "hole in the center" is a FEATURE (see features below), NOT inner_diameter.
+- inner_diameter makes the ENTIRE cylinder hollow like a pipe
+- A "hole" is a feature that cuts through the solid material
 """,
     "mount": """
 - base_length: Length of mounting base
@@ -501,6 +543,9 @@ async def classify_part(user_input: str) -> PartClassification:
         logger.info(f"Classified as: {classification.category}/{classification.subcategory} ({classification.confidence})")
         return classification
         
+    except AIConnectionError:
+        # Re-raise connection errors - these need to bubble up
+        raise
     except Exception as e:
         logger.error(f"Classification failed: {e}")
         return PartClassification(category="custom", confidence=0.3)
@@ -527,6 +572,17 @@ async def extract_dimensions(
     
     logger.info("Pass 2: Extracting dimensions and features...")
     
+    # Detect if user mentioned imperial units - used for sanity checking later
+    user_input_lower = user_input.lower()
+    user_mentioned_inches = any(
+        pattern in user_input_lower 
+        for pattern in ('inch', 'inches', '"', "''", ' in ', ' in,', ' in.')
+    )
+    user_mentioned_feet = any(
+        pattern in user_input_lower 
+        for pattern in ('foot', 'feet', "'", ' ft ', ' ft,', ' ft.')
+    )
+    
     try:
         # Use complete_json for JSON response format
         content = await client.complete_json(messages, temperature=0.2)
@@ -534,13 +590,32 @@ async def extract_dimensions(
         
         dimensions = {}
         for dim in data.get("dimensions", []):
+            # Handle both proper format {"name": "x", "value": 10} 
+            # and malformed {"x": 10} responses from AI
+            if isinstance(dim, dict) and "name" in dim:
+                # Proper format
+                raw_name = dim["name"]
+                value = dim["value"]
+                unit = dim.get("unit", "mm").lower().strip()
+            elif isinstance(dim, dict) and len(dim) >= 1:
+                # Malformed: AI returned {"diameter": 50} instead of {"name": "diameter", "value": 50}
+                # Try to extract from first key-value pair
+                first_key = next(iter(dim))
+                if first_key not in ("name", "value", "unit", "confidence", "source"):
+                    raw_name = first_key
+                    value = dim[first_key]
+                    unit = dim.get("unit", "mm") if isinstance(dim.get("unit"), str) else "mm"
+                    unit = unit.lower().strip()
+                    logger.warning(f"Recovered malformed dimension: {raw_name}={value}")
+                else:
+                    logger.warning(f"Skipping malformed dimension entry: {dim}")
+                    continue
+            else:
+                logger.warning(f"Skipping invalid dimension entry: {dim}")
+                continue
+                
             # Normalize dimension name to canonical form
-            raw_name = dim["name"]
             canonical_name = _normalize_dimension_name(raw_name)
-            
-            # Get value and unit
-            value = dim["value"]
-            unit = dim.get("unit", "mm").lower().strip()
             
             # Convert to mm if not already (safety net in case AI didn't convert)
             if unit in ("in", "inch", "inches"):
@@ -552,6 +627,48 @@ async def extract_dimensions(
             elif unit in ("ft", "feet", "foot"):
                 value = value * 304.8
                 unit = "mm"
+            
+            # SANITY CHECK: Detect likely unconverted values
+            # If user explicitly mentioned inches but the value is very small,
+            # the AI likely failed to convert (e.g., returned 2 instead of 50.8 for "2 inches")
+            if unit == "mm" and user_mentioned_inches:
+                # Parse numeric values from user input to check for matches
+                import re
+                # Find all numbers in the user input that might be inch measurements
+                # Pattern matches: "2 inches", "2 inch", "2\"", "2 in"
+                inch_patterns = re.findall(
+                    r'(\d+(?:\.\d+)?)\s*(?:inch|inches|"|in\b)', 
+                    user_input_lower
+                )
+                for inch_val_str in inch_patterns:
+                    inch_val = float(inch_val_str)
+                    expected_mm = inch_val * 25.4
+                    # If current value matches the raw inch number (not converted)
+                    # and is significantly different from expected mm value
+                    if abs(value - inch_val) < 1.0 and expected_mm > value * 1.5:
+                        logger.warning(
+                            f"Detected unconverted inch value for {canonical_name}: "
+                            f"{value} should be {expected_mm}mm"
+                        )
+                        value = expected_mm
+                        break
+            
+            if unit == "mm" and user_mentioned_feet:
+                import re
+                feet_patterns = re.findall(
+                    r'(\d+(?:\.\d+)?)\s*(?:foot|feet|\'|ft\b)', 
+                    user_input_lower
+                )
+                for feet_val_str in feet_patterns:
+                    feet_val = float(feet_val_str)
+                    expected_mm = feet_val * 304.8
+                    if abs(value - feet_val) < 1.0 and expected_mm > value * 1.5:
+                        logger.warning(
+                            f"Detected unconverted feet value for {canonical_name}: "
+                            f"{value} should be {expected_mm}mm"
+                        )
+                        value = expected_mm
+                        break
             
             dimensions[canonical_name] = ExtractedDimension(
                 name=canonical_name,
@@ -571,6 +688,19 @@ async def extract_dimensions(
             )
             for f in data.get("features", [])
         ]
+        
+        # SAFEGUARD: If there's a center hole feature, remove any inner_diameter dimension
+        # (the AI sometimes confuses "center hole" with hollow cylinder)
+        has_center_hole_feature = any(
+            f.feature_type == "hole" and ("center" in f.location.lower() or "center" in f.description.lower())
+            for f in features
+        )
+        if has_center_hole_feature and "inner_diameter" in dimensions:
+            logger.warning(
+                "Removing conflicting inner_diameter dimension - "
+                "center hole is a feature, not a hollow cylinder"
+            )
+            del dimensions["inner_diameter"]
         
         hardware = data.get("hardware_references", [])
         constraints = data.get("constraints", [])

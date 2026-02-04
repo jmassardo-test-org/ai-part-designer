@@ -20,7 +20,7 @@ TEMPLATE_SEEDS = [
     # ENCLOSURES
     # =============================================
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Rounded Box Enclosure",
         "slug": "rounded-box-enclosure",
         "description": "A customizable rectangular enclosure with rounded edges, perfect for electronics projects. Includes options for wall thickness, fillet radius, and mounting tabs.",
@@ -90,53 +90,58 @@ TEMPLATE_SEEDS = [
             "mounting_tabs": "none",
         },
         "cadquery_script": '''
-import cadquery as cq
+from build123d import BuildPart, Box, Cylinder, Location, Mode, Align, fillet, Axis
 
 def create_enclosure(length, width, height, wall_thickness, fillet_radius, include_lid, mounting_tabs):
-    """Generate a rounded box enclosure."""
+    """Generate a rounded box enclosure using Build123d."""
     
-    # Outer shell
-    outer = (
-        cq.Workplane("XY")
-        .box(length, width, height)
-        .edges("|Z")
-        .fillet(fillet_radius)
-    )
-    
-    # Inner cavity
-    inner = (
-        cq.Workplane("XY")
-        .box(
+    with BuildPart() as builder:
+        # Outer shell
+        Box(length, width, height, align=(Align.CENTER, Align.CENTER, Align.CENTER))
+        
+        # Apply fillet to vertical edges
+        try:
+            vertical_edges = builder.edges().filter_by(Axis.Z)
+            if vertical_edges:
+                fillet(vertical_edges, fillet_radius)
+        except Exception:
+            pass
+        
+        # Inner cavity (subtract)
+        Box(
             length - 2 * wall_thickness,
             width - 2 * wall_thickness,
-            height - wall_thickness
-        )
-        .translate((0, 0, wall_thickness / 2))
-    )
+            height - wall_thickness,
+            align=(Align.CENTER, Align.CENTER, Align.CENTER),
+            mode=Mode.SUBTRACT
+        ).locate(Location((0, 0, wall_thickness / 2)))
     
-    # Cut inner from outer
-    box = outer.cut(inner)
+    box = builder.part
     
     # Add mounting tabs if requested
     if mounting_tabs == "corners":
-        tab = cq.Workplane("XY").box(10, 10, wall_thickness)
-        tab = tab.faces(">Z").hole(3)
         for x, y in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
             pos_x = x * (length / 2 + 5)
             pos_y = y * (width / 2 + 5)
-            box = box.union(tab.translate((pos_x, pos_y, -height / 2 + wall_thickness / 2)))
+            with BuildPart() as tab_builder:
+                Box(10, 10, wall_thickness, align=(Align.CENTER, Align.CENTER, Align.CENTER))
+                Cylinder(1.5, wall_thickness, align=(Align.CENTER, Align.CENTER, Align.CENTER), mode=Mode.SUBTRACT)
+            tab = tab_builder.part.moved(Location((pos_x, pos_y, -height / 2 + wall_thickness / 2)))
+            box = box.fuse(tab)
     
     result = {"body": box}
     
     # Create lid if requested
     if include_lid:
-        lid = (
-            cq.Workplane("XY")
-            .box(length, width, wall_thickness)
-            .edges("|Z")
-            .fillet(fillet_radius)
-        )
-        result["lid"] = lid
+        with BuildPart() as lid_builder:
+            Box(length, width, wall_thickness, align=(Align.CENTER, Align.CENTER, Align.CENTER))
+            try:
+                vertical_edges = lid_builder.edges().filter_by(Axis.Z)
+                if vertical_edges:
+                    fillet(vertical_edges, fillet_radius)
+            except Exception:
+                pass
+        result["lid"] = lid_builder.part
     
     return result
 
@@ -153,7 +158,7 @@ result = create_enclosure(
 ''',
     },
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Raspberry Pi Case",
         "slug": "raspberry-pi-case",
         "description": "Enclosure designed specifically for Raspberry Pi boards. Supports Pi 3B, 3B+, 4B, and 5 with customizable ventilation and GPIO access.",
@@ -204,7 +209,7 @@ result = create_enclosure(
     # MECHANICAL PARTS
     # =============================================
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Parametric Gear",
         "slug": "parametric-gear",
         "description": "Involute spur gear with customizable module, tooth count, pressure angle, and bore. Suitable for 3D printing or machining.",
@@ -269,7 +274,7 @@ result = create_enclosure(
         "cadquery_script": "# Parametric gear script placeholder",
     },
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Shaft Coupler",
         "slug": "shaft-coupler",
         "description": "Flexible shaft coupling for connecting two rotating shafts. Supports rigid, flexible, and jaw-type configurations.",
@@ -322,7 +327,7 @@ result = create_enclosure(
     # BRACKETS & MOUNTS
     # =============================================
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "L-Bracket",
         "slug": "l-bracket",
         "description": "Universal L-shaped mounting bracket with customizable dimensions and hole patterns. Perfect for structural connections.",
@@ -391,7 +396,7 @@ result = create_enclosure(
         "cadquery_script": "# L-bracket script placeholder",
     },
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Phone/Tablet Stand",
         "slug": "phone-tablet-stand",
         "description": "Adjustable stand for phones and tablets with customizable angle and device width. Includes cable routing option.",
@@ -440,7 +445,7 @@ result = create_enclosure(
     # FASTENERS
     # =============================================
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Custom Spacer",
         "slug": "custom-spacer",
         "description": "Cylindrical or hexagonal spacer/standoff with customizable height and thread options.",
@@ -498,7 +503,7 @@ result = create_enclosure(
     # CONTAINERS
     # =============================================
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Stackable Storage Bin",
         "slug": "stackable-storage-bin",
         "description": "Modular stackable storage container with optional dividers and label area.",
@@ -558,7 +563,7 @@ result = create_enclosure(
     # CONNECTORS
     # =============================================
     {
-        "id": str(uuid4()),
+        "id": uuid4(),
         "name": "Pipe Connector",
         "slug": "pipe-connector",
         "description": "Parametric pipe connector supporting various configurations: straight, elbow, tee, and cross.",

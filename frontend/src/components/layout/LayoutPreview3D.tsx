@@ -4,8 +4,6 @@
  * Three.js-based 3D visualization of component layout within enclosure.
  */
 
-import { useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
 import { 
   OrbitControls, 
   PerspectiveCamera, 
@@ -13,6 +11,8 @@ import {
   Environment,
   Html,
 } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { useRef, useState } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import type { ComponentPlacement, LayoutDimensions } from './types';

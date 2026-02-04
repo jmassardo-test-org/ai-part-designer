@@ -2,12 +2,12 @@
  * Tests for RegisterPage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
-import { RegisterPage } from '@/pages/auth/RegisterPage';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { RegisterPage } from '@/pages/auth/RegisterPage';
 
 // Mock the auth API
 vi.mock('@/lib/auth', () => ({

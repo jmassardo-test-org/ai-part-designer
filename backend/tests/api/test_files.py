@@ -424,28 +424,50 @@ class TestFileDownload:
         test_user,
         auth_headers,
         file_factory,
-        temp_dir,
+        tmp_path,
     ):
         """Test successful file download."""
-        file = await file_factory.create(db=db_session, user=test_user)
+        from app.main import app
+        from app.core.config import get_settings, Settings
         
-        # Create the actual file on disk
-        file_path = temp_dir / file.storage_path
+        # Create file record using factory
+        file = await file_factory.create(
+            db=db_session,
+            user=test_user,
+            mime_type="text/plain",
+            file_type="document",
+            cad_format=None,
+            status="ready",
+        )
+        
+        # Create the actual file on disk using the factory's storage_path
+        file_path = tmp_path / file.storage_path
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_content = b"Test file content for download"
         file_path.write_bytes(file_content)
         
-        with patch("app.api.v1.files.get_settings") as mock_settings:
-            mock_settings.return_value.UPLOAD_DIR = str(temp_dir)
-            
+        # Override the settings dependency
+        original_settings = get_settings()
+        
+        def override_settings():
+            # Create a copy of settings with overridden UPLOAD_DIR
+            settings_dict = original_settings.model_dump()
+            settings_dict["UPLOAD_DIR"] = str(tmp_path)
+            return Settings(**settings_dict)
+        
+        app.dependency_overrides[get_settings] = override_settings
+        try:
             response = await client.get(
                 f"/api/v1/files/{file.id}/download",
                 headers=auth_headers,
             )
-        
-        assert response.status_code == 200
-        assert response.content == file_content
-        assert "attachment" in response.headers.get("content-disposition", "")
+            
+            assert response.status_code == 200
+            assert response.content == file_content
+        finally:
+            # Remove the override
+            if get_settings in app.dependency_overrides:
+                del app.dependency_overrides[get_settings]
 
     @pytest.mark.asyncio
     async def test_download_file_not_found(

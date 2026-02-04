@@ -2,11 +2,11 @@
  * Tests for AuthContext.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import type { ReactNode } from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 // Mock the auth API and token storage
 const mockLogin = vi.fn();

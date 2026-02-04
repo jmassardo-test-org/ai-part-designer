@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testUser, login, waitForLoading, generateTestData } from './fixtures';
-import path from 'path';
+import { testUser, login, waitForLoading } from './fixtures';
 
 /**
  * E2E Tests for File Upload to Export Flow.

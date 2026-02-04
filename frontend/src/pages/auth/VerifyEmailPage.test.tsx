@@ -2,11 +2,11 @@
  * Tests for VerifyEmailPage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AxiosError } from 'axios';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VerifyEmailPage } from './VerifyEmailPage';
 
 // Mock auth API

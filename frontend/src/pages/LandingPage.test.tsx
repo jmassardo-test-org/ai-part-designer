@@ -2,10 +2,33 @@
  * Tests for LandingPage component.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi } from 'vitest';
 import { LandingPage } from './LandingPage';
+
+// Mock the ThemeContext
+vi.mock('@/contexts/ThemeContext', () => ({
+  useTheme: () => ({
+    theme: 'dark',
+    resolvedTheme: 'dark',
+    setTheme: vi.fn(),
+    toggleTheme: vi.fn(),
+    isLoading: false,
+  }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock the WebSocketContext
+vi.mock('@/contexts/WebSocketContext', () => ({
+  useWebSocket: () => ({
+    isConnected: false,
+    connectionState: 'disconnected',
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    sendMessage: vi.fn(),
+  }),
+}));
 
 // Mock brand components
 vi.mock('@/components/brand', () => ({
@@ -58,7 +81,7 @@ describe('LandingPage', () => {
   it('shows watch demo button', () => {
     renderLandingPage();
 
-    expect(screen.getByRole('button', { name: /watch demo/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /watch demo/i })).toHaveAttribute('href', '/demo');
   });
 
   it('displays how it works section', () => {
@@ -105,10 +128,13 @@ describe('LandingPage', () => {
   it('displays footer links', () => {
     renderLandingPage();
 
-    expect(screen.getByRole('link', { name: /terms/i })).toHaveAttribute('href', '/terms');
-    expect(screen.getByRole('link', { name: /privacy/i })).toHaveAttribute('href', '/privacy');
+    // Terms and Privacy link to their respective pages
+    expect(screen.getByRole('link', { name: /^terms$/i })).toHaveAttribute('href', '/terms');
+    expect(screen.getByRole('link', { name: /^privacy$/i })).toHaveAttribute('href', '/privacy');
+    // Documentation links to /docs
     expect(screen.getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/docs');
-    expect(screen.getByRole('link', { name: /contact/i })).toHaveAttribute('href', '/contact');
+    // Contact links to /contact
+    expect(screen.getByRole('link', { name: /^contact$/i })).toHaveAttribute('href', '/contact');
   });
 
   it('shows copyright notice', () => {

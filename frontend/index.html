@@ -1,15 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AssemblematicAI</title>
+    <title>AssemblematicAI - AI-Powered 3D Part Designer</title>
     <meta name="description" content="Design 3D parts with natural language. AI-powered CAD generation for manufacturing and 3D printing." />
     <meta name="theme-color" content="#0d1526" />
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AssemblematicAI - AI-Powered 3D Part Designer" />
+    <meta property="og:description" content="Design 3D parts with natural language. AI-powered CAD generation for manufacturing and 3D printing." />
+    <meta property="og:image" content="/logo.png" />
+    <meta property="og:site_name" content="AssemblematicAI" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AssemblematicAI - AI-Powered 3D Part Designer" />
+    <meta name="twitter:description" content="Design 3D parts with natural language. AI-powered CAD generation for manufacturing and 3D printing." />
+    <meta name="twitter:image" content="/logo.png" />
+    
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Script to prevent flash of wrong theme -->
+    <script>
+      (function() {
+        const theme = localStorage.getItem('assemblematic-ai-theme') || 'dark';
+        const resolved = theme === 'system' 
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : theme;
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(resolved);
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

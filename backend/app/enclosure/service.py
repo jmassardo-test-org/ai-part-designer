@@ -2,7 +2,9 @@
 Enclosure Generation Service
 
 Core service for generating enclosures around reference components
-using AI-powered CadQuery code generation.
+using AI-powered Build123d code generation.
+
+Migrated from CadQuery to Build123d.
 """
 
 from __future__ import annotations
@@ -13,11 +15,15 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-import cadquery as cq
+from build123d import (
+    Part, Box, Cylinder, BuildPart, Location, Axis,
+    Mode, Align, export_step, export_stl,
+)
+import build123d as b3d
 
 from app.ai.providers import get_ai_provider
 from app.ai.exceptions import AIGenerationError
-from app.cad.export import export_step, export_stl
+from app.cad.export import export_step as app_export_step, export_stl as app_export_stl
 from app.cad.exceptions import CADError
 from app.schemas.component_specs import (
     Dimensions,
@@ -55,9 +61,9 @@ logger = logging.getLogger(__name__)
 class GeneratedEnclosure:
     """Internal result of enclosure code generation."""
     
-    base: cq.Workplane
-    lid: cq.Workplane | None
-    cadquery_code: str
+    base: Part
+    lid: Part | None
+    build123d_code: str
     standoffs: list[Standoff]
     cutouts: list[Cutout]
     warnings: list[str] = field(default_factory=list)
@@ -67,7 +73,7 @@ class EnclosureGenerationService:
     """
     Service for generating enclosures around components.
     
-    Uses AI to generate CadQuery code based on component specifications,
+    Uses AI to generate Build123d code based on component specifications,
     then executes the code to produce the CAD geometry.
     """
     
@@ -96,7 +102,7 @@ class EnclosureGenerationService:
         
         Raises:
             AIGenerationError: If AI code generation fails
-            CADError: If CadQuery execution fails
+            CADError: If Build123d execution fails
         """
         start_time = time.time()
         job_id = uuid.uuid4()
@@ -147,23 +153,23 @@ class EnclosureGenerationService:
             )
             messages = prompt_builder.build_messages()
             
-            # Step 7: Generate CadQuery code via AI
-            cadquery_code = await self._generate_code(messages)
-            logger.debug("Generated CadQuery code")
+            # Step 7: Generate Build123d code via AI
+            build123d_code = await self._generate_code(messages)
+            logger.debug("Generated Build123d code")
             
-            # Step 8: Execute CadQuery code
-            base, lid = self._execute_code(cadquery_code)
-            logger.debug("Executed CadQuery code successfully")
+            # Step 8: Execute Build123d code
+            base, lid = self._execute_code(build123d_code)
+            logger.debug("Executed Build123d code successfully")
             
             # Step 9: Export to files
-            step_data = export_step(base)
-            stl_data = export_stl(base)
+            step_data = app_export_step(base)
+            stl_data = app_export_stl(base)
             
             lid_step_data = None
             lid_stl_data = None
             if lid is not None and options.generate_lid_separately:
-                lid_step_data = export_step(lid)
-                lid_stl_data = export_stl(lid)
+                lid_step_data = app_export_step(lid)
+                lid_stl_data = app_export_stl(lid)
             
             # Step 10: Build result
             generation_time = (time.time() - start_time) * 1000
@@ -181,7 +187,7 @@ class EnclosureGenerationService:
                     )
                     for c in components
                 ],
-                cadquery_code=cadquery_code,
+                cadquery_code=build123d_code,  # Keep field name for compatibility
                 generation_time_ms=generation_time,
                 warnings=warnings,
             )
@@ -366,7 +372,7 @@ class EnclosureGenerationService:
         self,
         messages: list[dict[str, str]],
     ) -> str:
-        """Generate CadQuery code using AI."""
+        """Generate Build123d code using AI."""
         provider = get_ai_provider()
         
         try:
@@ -394,16 +400,24 @@ class EnclosureGenerationService:
     def _execute_code(
         self,
         code: str,
-    ) -> tuple[cq.Workplane, cq.Workplane | None]:
+    ) -> tuple[Part, Part | None]:
         """
-        Execute generated CadQuery code.
+        Execute generated Build123d code.
         
         Returns:
-            Tuple of (base, lid) workplanes
+            Tuple of (base, lid) Parts
         """
-        # Create execution namespace
+        # Create execution namespace with Build123d
         namespace = {
-            "cq": cq,
+            "b3d": b3d,
+            "Part": Part,
+            "Box": Box,
+            "Cylinder": Cylinder,
+            "BuildPart": BuildPart,
+            "Location": Location,
+            "Axis": Axis,
+            "Mode": Mode,
+            "Align": Align,
             "__builtins__": {
                 "range": range,
                 "len": len,
@@ -437,13 +451,13 @@ class EnclosureGenerationService:
             # Handle different return types
             if isinstance(result, tuple) and len(result) == 2:
                 base, lid = result
-            elif isinstance(result, cq.Workplane):
+            elif isinstance(result, Part):
                 base = result
                 lid = None
             else:
                 raise CADError(
                     f"generate_enclosure() must return (base, lid) tuple "
-                    f"or single Workplane, got {type(result)}"
+                    f"or single Part, got {type(result)}"
                 )
             
             return base, lid

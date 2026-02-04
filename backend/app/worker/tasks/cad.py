@@ -9,6 +9,13 @@ import logging
 
 from celery import shared_task
 
+from app.worker.ws_utils import (
+    send_job_progress,
+    send_job_complete,
+    send_job_failed,
+    send_job_started,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,6 +31,7 @@ def generate_from_template(
     template_id: str,
     parameters: dict[str, Any],
     output_formats: list[str] | None = None,
+    user_id: str | None = None,
 ) -> dict:
     """
     Generate CAD model from template with parameters.
@@ -33,6 +41,7 @@ def generate_from_template(
         template_id: Template to use for generation
         parameters: Parameter values to apply
         output_formats: Formats to generate (default: ["step", "stl"])
+        user_id: User ID for WebSocket updates
     
     Returns:
         Dict with file URLs and geometry info
@@ -42,6 +51,10 @@ def generate_from_template(
     import asyncio
     
     output_formats = output_formats or ["step", "stl"]
+    
+    # Send job started notification
+    if user_id:
+        send_job_started(user_id, job_id, "cad_generation")
     
     async def run():
         async with async_session_maker() as session:
@@ -63,6 +76,10 @@ def generate_from_template(
             )
             await session.commit()
             
+            # Send WebSocket progress update
+            if user_id:
+                send_job_progress(user_id, job_id, 10, "running", "Loading template")
+            
             # Validate parameters
             validation = template.validate_parameters(parameters)
             if not validation["valid"]:
@@ -76,18 +93,77 @@ def generate_from_template(
             )
             await session.commit()
             
-            # TODO: Actual CadQuery execution
-            # result = execute_cadquery_script(template.cadquery_script, parameters)
+            if user_id:
+                send_job_progress(user_id, job_id, 30, "running", "Generating CAD model")
+            
+            # Execute CadQuery generation
+            from app.cad.templates import generate_from_template as generate_template_cad
+            
+            try:
+                cad_result = generate_template_cad(template.slug, parameters)
+            except Exception as cad_error:
+                logger.error(f"CadQuery execution failed: {cad_error}")
+                raise ValueError(f"CAD generation failed: {cad_error}")
             
             # Generate output formats
             await job_repo.update(
                 UUID(job_id),
-                progress=70,
-                progress_message="Converting formats",
+                progress=50,
+                progress_message="Exporting CAD formats",
             )
             await session.commit()
             
-            # TODO: Format conversion and upload
+            if user_id:
+                send_job_progress(user_id, job_id, 50, "running", "Exporting CAD formats")
+            
+            # Export to requested formats and upload to storage
+            from app.core.storage import storage_client, StorageBucket
+            from app.cad.export import export_model
+            import tempfile
+            from pathlib import Path
+            
+            file_urls = {}
+            geometry_info = {}
+            
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                
+                # Export each format
+                for fmt in output_formats:
+                    export_path = temp_path / f"model.{fmt}"
+                    export_model(cad_result, export_path, format=fmt)
+                    
+                    if export_path.exists():
+                        storage_key = f"designs/{job_id}/model.{fmt}"
+                        content_type = "application/step" if fmt == "step" else f"model/{fmt}"
+                        
+                        await storage_client.upload_file(
+                            bucket=StorageBucket.EXPORTS,
+                            key=storage_key,
+                            file=export_path.read_bytes(),
+                            content_type=content_type,
+                        )
+                        
+                        # Generate presigned URL for download
+                        file_urls[fmt] = await storage_client.generate_presigned_download_url(
+                            bucket=StorageBucket.EXPORTS,
+                            key=storage_key,
+                            expires_in=86400,  # 24 hours
+                        )
+                
+                # Get geometry info from the solid
+                if hasattr(cad_result, 'val') and hasattr(cad_result.val(), 'Volume'):
+                    solid = cad_result.val()
+                    bbox = cad_result.val().BoundingBox()
+                    geometry_info = {
+                        "bounding_box": {
+                            "x": round(bbox.xlen, 2),
+                            "y": round(bbox.ylen, 2),
+                            "z": round(bbox.zlen, 2),
+                        },
+                        "volume": round(solid.Volume(), 2),
+                        "is_manifold": True,
+                    }
             
             # Generate thumbnail
             await job_repo.update(
@@ -97,14 +173,18 @@ def generate_from_template(
             )
             await session.commit()
             
+            if user_id:
+                send_job_progress(user_id, job_id, 90, "running", "Generating thumbnail")
+            
+            # Build result with actual data
             result = {
-                "file_url": f"s3://designs/{job_id}/model.step",
-                "thumbnail_url": f"s3://thumbnails/{job_id}/thumb.png",
-                "formats": {fmt: f"s3://designs/{job_id}/model.{fmt}" for fmt in output_formats},
-                "geometry_info": {
-                    "bounding_box": {"x": 100, "y": 50, "z": 30},
-                    "volume": 150000,
-                    "surface_area": 23000,
+                "template_id": template_id,
+                "template_slug": template.slug,
+                "parameters": parameters,
+                "files": file_urls,
+                "geometry_info": geometry_info or {
+                    "bounding_box": {"x": 0, "y": 0, "z": 0},
+                    "volume": 0,
                     "is_manifold": True,
                 },
             }
@@ -119,6 +199,10 @@ def generate_from_template(
             )
             await session.commit()
             
+            # Send WebSocket completion notification
+            if user_id:
+                send_job_complete(user_id, job_id, result)
+            
             logger.info(f"CAD generation complete for job {job_id}")
             return result
     
@@ -126,6 +210,10 @@ def generate_from_template(
         return asyncio.run(run())
     except Exception as e:
         logger.error(f"CAD generation failed: {e}")
+        
+        # Send WebSocket failure notification
+        if user_id:
+            send_job_failed(user_id, job_id, str(e), type(e).__name__)
         
         # Update job as failed
         async def mark_failed():

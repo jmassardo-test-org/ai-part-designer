@@ -31,6 +31,7 @@ from app.core.security import (
 from app.core.auth import get_current_user, blacklist_token
 from app.models import User
 from app.repositories import UserRepository
+from app.services.security_audit import SecurityAuditService, SecurityEventType
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,8 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int = Field(description="Access token expiry in seconds")
+    mfa_required: bool = False
+    mfa_token: str | None = None  # Temporary token for MFA verification
 
 
 class UserResponse(BaseModel):
@@ -304,7 +307,29 @@ async def login(
             detail="Account is not active",
         )
     
-    # Generate tokens
+    # Check if MFA is enabled
+    if user.mfa_enabled and user.mfa_secret:
+        # Generate a temporary MFA token instead of full access
+        mfa_token = create_access_token(
+            user_id=user.id,
+            email=user.email,
+            role=user.role,
+            tier=getattr(user, "tier", "free"),
+            additional_claims={"mfa_pending": True},
+        )
+        
+        logger.info(f"MFA required for user: {user.email}")
+        
+        return TokenResponse(
+            access_token="",  # No access token until MFA verified
+            refresh_token="",
+            token_type="bearer",
+            expires_in=0,
+            mfa_required=True,
+            mfa_token=mfa_token,
+        )
+    
+    # Generate tokens (no MFA)
     access_token = create_access_token(
         user_id=user.id,
         email=user.email,
@@ -325,6 +350,116 @@ async def login(
         refresh_token=refresh_token,
         token_type="bearer",
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        mfa_required=False,
+    )
+
+
+class MFALoginRequest(BaseModel):
+    """MFA verification for login."""
+    
+    mfa_token: str = Field(description="Temporary MFA token from login")
+    code: str = Field(min_length=6, max_length=8, description="TOTP code or backup code")
+
+
+@router.post(
+    "/login/mfa",
+    response_model=TokenResponse,
+    summary="Complete MFA login",
+    description="Complete login by verifying MFA code.",
+)
+async def login_mfa(
+    request: MFALoginRequest,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> TokenResponse:
+    """
+    Complete login with MFA verification.
+    
+    After initial login returns mfa_required=True, use this endpoint
+    with the mfa_token and a valid TOTP code to complete authentication.
+    """
+    import pyotp
+    
+    # Decode the MFA token
+    try:
+        payload = verify_token(request.mfa_token, TokenType.ACCESS)
+        if not payload.get("mfa_pending"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid MFA token",
+            )
+        user_id = UUID(payload["sub"])
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired MFA token",
+        )
+    
+    # Get user
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(user_id)
+    
+    if not user or not user.mfa_enabled or not user.mfa_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MFA is not enabled for this account",
+        )
+    
+    code = request.code.strip()
+    code_valid = False
+    backup_code_used = False
+    
+    # Try TOTP verification (6 digits)
+    if len(code) == 6 and code.isdigit():
+        totp = pyotp.TOTP(user.mfa_secret)
+        code_valid = totp.verify(code, valid_window=1)
+    
+    # Try backup code (8 characters)
+    if not code_valid and user.mfa_backup_codes:
+        for i, code_entry in enumerate(user.mfa_backup_codes):
+            if code_entry.get("used"):
+                continue
+            if verify_password(code.upper(), code_entry["hash"]):
+                code_valid = True
+                backup_code_used = True
+                # Mark backup code as used
+                user.mfa_backup_codes[i]["used"] = True
+                user.mfa_backup_codes[i]["used_at"] = datetime.utcnow().isoformat()
+                break
+    
+    if not code_valid:
+        logger.warning(f"Failed MFA verification for user: {user.email}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid verification code",
+        )
+    
+    # Generate full access tokens
+    access_token = create_access_token(
+        user_id=user.id,
+        email=user.email,
+        role=user.role,
+        tier=getattr(user, "tier", "free"),
+    )
+    
+    refresh_token, _ = create_refresh_token(user.id)
+    
+    # Update last login
+    user.last_login_at = datetime.utcnow()
+    await db.commit()
+    
+    if backup_code_used:
+        remaining = sum(1 for c in user.mfa_backup_codes if not c.get("used", False))
+        logger.info(f"User {user.email} used backup code. {remaining} remaining.")
+    
+    logger.info(f"User logged in with MFA: {user.email}")
+    
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        mfa_required=False,
     )
 
 
@@ -610,6 +745,20 @@ async def reset_password(
     user.password_hash = hash_password(request.new_password)
     await db.commit()
     
+    # Log password reset completion to audit log
+    security_audit = SecurityAuditService(db)
+    await security_audit.log_event(
+        event_type=SecurityEventType.PASSWORD_RESET_COMPLETED,
+        user_id=user.id,
+        resource_type="user",
+        resource_id=user.id,
+        details={
+            "user_email": user.email,
+            "method": "token",
+        },
+    )
+    await db.commit()
+    
     # Blacklist all existing tokens for this user
     await blacklist_all_user_tokens(user.id)
     
@@ -660,3 +809,52 @@ async def get_me(
         created_at=current_user.created_at,
         email_verified_at=current_user.email_verified_at,
     )
+
+
+# =============================================================================
+# Development Endpoints (Non-Production Only)
+# =============================================================================
+
+class DevVerifyRequest(BaseModel):
+    """Request to force-verify a user in development."""
+    email: EmailStr
+
+
+@router.post(
+    "/dev/verify-user",
+    status_code=status.HTTP_200_OK,
+    summary="[DEV ONLY] Force verify a user",
+    description="Development endpoint to force-verify a user. Disabled in production.",
+    include_in_schema=False,  # Hide from OpenAPI docs
+)
+async def dev_verify_user(
+    request: DevVerifyRequest,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """
+    Force-verify a user for testing purposes.
+    Only available when ENVIRONMENT is 'development' or 'test'.
+    """
+    if settings.ENVIRONMENT not in ("development", "test", "local"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not found",
+        )
+    
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_email(request.email)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    user.status = "active"
+    user.email_verified_at = datetime.utcnow()
+    await db.commit()
+    
+    logger.info(f"[DEV] User force-verified: {user.email}")
+    
+    return {"message": f"User {user.email} verified successfully"}

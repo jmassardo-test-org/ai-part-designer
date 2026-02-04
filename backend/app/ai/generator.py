@@ -4,7 +4,7 @@ End-to-end CAD generation from natural language.
 Uses a reasoning-first approach:
 1. Understand - Deep analysis of what the user wants
 2. Plan - Create a step-by-step build plan  
-3. Generate - Execute the plan with CadQuery code
+3. Generate - Execute the plan with Build123d code
 4. Validate - Verify the result matches intent
 
 Example:
@@ -24,14 +24,222 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import cadquery as cq
+# Build123d imports
+from build123d import (
+    Align,
+    Axis,
+    Box,
+    BuildPart,
+    Cylinder,
+    Sphere,
+    Cone,
+    Location,
+    Locations,
+    Mode,
+    Part,
+    Plane,
+    add,
+    fillet,
+    chamfer,
+    extrude,
+    Hole,
+    Torus,
+)
 
 from app.ai.codegen import generate_cadquery_code, CodeGenerationResult
 from app.ai.exceptions import AIValidationError
 from app.ai.reasoning import reason_and_plan, PartIntent, BuildPlan, generate_step_code, validate_result
 from app.cad.export import export_step, export_stl, ExportQuality
+from app.ai.parser import CADParameters, ShapeType, FeatureType
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# CADGenerator - Parametric Shape Generation (Build123d)
+# =============================================================================
+
+class CADGenerator:
+    """
+    Generates Build123d shapes from structured CADParameters.
+    
+    Supports basic primitives (box, cylinder, sphere, cone, torus, wedge)
+    and common features (holes, fillets, chamfers).
+    
+    Example:
+        >>> params = CADParameters(shape=ShapeType.BOX, dimensions={"length": 100, "width": 50, "height": 30})
+        >>> generator = CADGenerator()
+        >>> shape = generator.generate(params)
+    """
+    
+    def generate(self, params: CADParameters) -> Part:
+        """
+        Generate a Build123d Part from parameters.
+        
+        Args:
+            params: Structured CAD parameters
+            
+        Returns:
+            Build123d Part with the generated shape
+        """
+        # Generate base shape
+        shape = self._generate_base_shape(params)
+        
+        # Apply features
+        shape = self._apply_features(shape, params)
+        
+        return shape
+    
+    def _generate_base_shape(self, params: CADParameters) -> Part:
+        """Generate the base primitive shape using Build123d."""
+        dims = params.dimensions
+        shape_type = params.shape
+        
+        if shape_type == ShapeType.BOX:
+            with BuildPart() as part:
+                Box(dims["length"], dims["width"], dims["height"])
+            return part.part
+        
+        elif shape_type == ShapeType.CYLINDER:
+            radius = dims.get("radius") or dims.get("diameter", 50) / 2
+            height = dims["height"]
+            with BuildPart() as part:
+                Cylinder(radius, height)
+            return part.part
+        
+        elif shape_type == ShapeType.SPHERE:
+            radius = dims.get("radius") or dims.get("diameter", 50) / 2
+            with BuildPart() as part:
+                Sphere(radius)
+            return part.part
+        
+        elif shape_type == ShapeType.CONE:
+            radius1 = dims.get("radius1") or dims.get("radius") or dims.get("diameter", 50) / 2
+            radius2 = dims.get("radius2", 0)  # Top radius, 0 for pointed cone
+            height = dims["height"]
+            with BuildPart() as part:
+                Cone(radius1, radius2, height)
+            return part.part
+        
+        elif shape_type == ShapeType.TORUS:
+            major_radius = dims["major_radius"]
+            minor_radius = dims["minor_radius"]
+            with BuildPart() as part:
+                Torus(major_radius, minor_radius)
+            return part.part
+        
+        elif shape_type == ShapeType.WEDGE:
+            length = dims["length"]
+            width = dims["width"]
+            height = dims["height"]
+            # Create wedge using Build123d loft
+            from build123d import BuildSketch, Rectangle, loft
+            with BuildPart() as part:
+                with BuildSketch() as base:
+                    Rectangle(length, width)
+                with BuildSketch(Plane.XY.offset(height)) as top:
+                    Rectangle(length, 0.01)  # Very thin at top
+                loft()
+            return part.part
+        
+        elif shape_type == ShapeType.ENCLOSURE:
+            # Treat enclosure as a box for the base shape
+            with BuildPart() as part:
+                Box(dims["length"], dims["width"], dims["height"])
+            return part.part
+        
+        else:
+            # Default to box
+            logger.warning(f"Unknown shape type {shape_type}, defaulting to box")
+            with BuildPart() as part:
+                Box(
+                    dims.get("length", 100),
+                    dims.get("width", 100),
+                    dims.get("height", 100),
+                )
+            return part.part
+    
+    def _apply_features(self, shape: Part, params: CADParameters) -> Part:
+        """Apply features (holes, fillets, chamfers) to the shape using Build123d."""
+        for feature in params.features:
+            shape = self._apply_feature(shape, feature, params)
+        return shape
+    
+    def _apply_feature(self, shape: Part, feature: Any, params: CADParameters) -> Part:
+        """Apply a single feature to the shape using Build123d."""
+        feature_params = feature.parameters
+        
+        if feature.type == FeatureType.FILLET:
+            radius = feature_params.get("radius", 1.0)
+            try:
+                with BuildPart() as part:
+                    add(shape)
+                    fillet(part.edges(), radius)
+                return part.part
+            except Exception:
+                logger.warning("Full fillet failed, skipping")
+                return shape
+        
+        elif feature.type == FeatureType.CHAMFER:
+            size = feature_params.get("size", 1.0)
+            try:
+                with BuildPart() as part:
+                    add(shape)
+                    chamfer(part.edges(), size)
+                return part.part
+            except Exception:
+                logger.warning("Chamfer failed, skipping")
+                return shape
+        
+        elif feature.type == FeatureType.HOLE:
+            diameter = feature_params.get("diameter", 10)
+            depth = feature_params.get("depth")
+            radius = diameter / 2
+            
+            with BuildPart() as part:
+                add(shape)
+                # Get the top face and add hole at center
+                with BuildPart(mode=Mode.SUBTRACT):
+                    Cylinder(radius, depth if depth else 1000)  # Through-all if no depth
+            return part.part
+        
+        elif feature.type == FeatureType.SLOT:
+            length = feature_params.get("length", 20)
+            width = feature_params.get("width", 5)
+            depth = feature_params.get("depth", 5)
+            # Simplified slot as rectangular cutout
+            with BuildPart() as part:
+                add(shape)
+                with BuildPart(mode=Mode.SUBTRACT):
+                    Box(length, width, depth)
+            return part.part
+        
+        elif feature.type == FeatureType.POCKET:
+            length = feature_params.get("length", 20)
+            width = feature_params.get("width", 20)
+            depth = feature_params.get("depth", 5)
+            with BuildPart() as part:
+                add(shape)
+                with BuildPart(mode=Mode.SUBTRACT):
+                    Box(length, width, depth)
+            return part.part
+        
+        elif feature.type == FeatureType.BOSS:
+            diameter = feature_params.get("diameter", 10)
+            height = feature_params.get("height", 5)
+            radius = diameter / 2
+            # Get bounding box to find top
+            bbox = shape.bounding_box()
+            top_z = bbox.max.Z
+            with BuildPart() as part:
+                add(shape)
+                with Locations([Location((0, 0, top_z))]):
+                    Cylinder(radius, height, align=(Align.CENTER, Align.CENTER, Align.MIN))
+            return part.part
+        
+        else:
+            logger.warning(f"Unknown feature type: {feature.type}")
+            return shape
 
 
 @dataclass
@@ -44,8 +252,8 @@ class GenerationResult:
     
     # Generation info
     description: str
-    shape: cq.Workplane | None = None
-    generated_code: str | None = None  # The AI-generated CadQuery code
+    shape: Part | None = None
+    generated_code: str | None = None  # The AI-generated Build123d code
     
     # Reasoning info
     intent: PartIntent | None = None
@@ -116,6 +324,7 @@ async def generate_from_description(
     stl_quality: ExportQuality | str = ExportQuality.STANDARD,
     job_id: str | None = None,
     use_reasoning: bool = True,
+    precomputed_intent: "PartIntent | None" = None,
 ) -> GenerationResult:
     """
     Generate CAD file from natural language description.
@@ -134,6 +343,7 @@ async def generate_from_description(
         stl_quality: Quality preset for STL export
         job_id: Optional job ID for tracking
         use_reasoning: Use reasoning pipeline (default True)
+        precomputed_intent: Pre-computed PartIntent to skip reasoning step
     
     Returns:
         GenerationResult with geometry and export files
@@ -154,9 +364,19 @@ async def generate_from_description(
     validation_result = None
     
     # =========================================================================
-    # STEP 1: Reasoning - Understand and Plan
+    # STEP 1: Reasoning - Understand and Plan (skip if precomputed)
     # =========================================================================
-    if use_reasoning:
+    if precomputed_intent:
+        # Use precomputed intent from conversation understanding
+        intent = precomputed_intent
+        logger.info(
+            f"Using precomputed intent: part_type={intent.part_type}, "
+            f"dims={intent.overall_dimensions}"
+        )
+        # Add assumptions as warnings
+        if intent.assumptions_made:
+            warnings.extend([f"Assumption: {a}" for a in intent.assumptions_made])
+    elif use_reasoning:
         reasoning_start = time.monotonic()
         try:
             intent, build_plan = await reason_and_plan(description)

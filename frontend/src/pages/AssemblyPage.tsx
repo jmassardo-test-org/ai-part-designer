@@ -4,8 +4,6 @@
  * View and edit assemblies with 3D viewer, component tree, and BOM.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft,
   Plus,
@@ -17,8 +15,10 @@ import {
   Trash2,
   Save,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AssemblyViewer, BOMTable } from '@/components/assembly';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 

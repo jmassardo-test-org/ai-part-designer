@@ -250,7 +250,8 @@ async def get_current_user(
         )
     
     user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(UUID(user_id))
+    # Eagerly load subscription to access tier property without N+1 queries
+    user = await user_repo.get_by_id(UUID(user_id), load_relations=["subscription"])
     
     if user is None:
         raise HTTPException(

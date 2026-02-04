@@ -1,12 +1,10 @@
 # AI Part Designer - Local Development
 # Run with: docker compose up
 #
-# For Ollama (FREE local AI):
-#   1. Install Ollama: https://ollama.ai
-#   2. Pull model: ollama pull llama3.2
-#   3. Start Ollama: ollama serve
-#   4. Set AI_PROVIDER=ollama in .env
-#   5. Run: docker compose up
+# Claude (Anthropic) AI Configuration:
+#   1. Get API key from: https://console.anthropic.com/
+#   2. Set ANTHROPIC_API_KEY in .env
+#   3. Run: docker compose up
 
 services:
   # ============================================================================
@@ -72,7 +70,13 @@ services:
       /bin/sh -c "
       mc alias set minio http://minio:9000 minioadmin minioadmin;
       mc mb minio/ai-part-designer-dev --ignore-existing;
+      mc mb minio/ai-part-designer-development-uploads --ignore-existing;
+      mc mb minio/ai-part-designer-development-designs --ignore-existing;
+      mc mb minio/ai-part-designer-development-exports --ignore-existing;
+      mc mb minio/ai-part-designer-development-thumbnails --ignore-existing;
+      mc mb minio/ai-part-designer-development-temp --ignore-existing;
       mc anonymous set download minio/ai-part-designer-dev/public;
+      mc anonymous set download minio/ai-part-designer-development-thumbnails;
       exit 0;
       "
 
@@ -106,15 +110,10 @@ services:
       - SECRET_KEY=development-secret-key-change-in-production
       - JWT_SECRET_KEY=jwt-development-secret
       - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
-      # AI Provider (openai, ollama, anthropic, azure)
-      - AI_PROVIDER=${AI_PROVIDER:-ollama}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-not-used}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      # AI Provider (anthropic/Claude is the only supported provider)
+      - AI_PROVIDER=anthropic
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
-      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
     volumes:
       - ./backend:/app
       - backend_cache:/app/.cache
@@ -159,11 +158,9 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - AWS_REGION=us-east-1
-      # AI Provider - default to Ollama for local dev
-      - AI_PROVIDER=${AI_PROVIDER:-ollama}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-not-used}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      # AI Provider - Claude (Anthropic)
+      - AI_PROVIDER=anthropic
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./backend:/app
       - worker_cache:/app/.cache

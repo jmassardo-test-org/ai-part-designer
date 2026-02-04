@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.config import get_settings, Settings
+from app.core.storage import storage_client, StorageBucket
 from app.models.file import (
     File as FileModel,
     CAD_EXTENSIONS,
@@ -184,7 +185,7 @@ async def upload_file(
     File size limits apply based on subscription tier.
     """
     # Get user tier and size limit
-    tier = current_user.subscription_tier or "free"
+    tier = current_user.tier or "free"
     size_limit = FILE_SIZE_LIMITS.get(tier, FILE_SIZE_LIMITS["free"])
     
     # Check file size
@@ -249,21 +250,27 @@ async def upload_file(
     db.add(file_record)
     await db.flush()
     
-    # TODO: Upload to object storage (S3/MinIO)
-    # In production:
-    # await storage_client.upload(
-    #     bucket=file_record.storage_bucket,
-    #     key=storage_path,
-    #     data=file_content,
-    #     content_type=file.content_type,
-    # )
-    
-    # For now, write to local filesystem (dev only)
-    upload_dir = Path(settings.UPLOAD_DIR) / f"users/{current_user.id}/{file_id}"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    with open(upload_dir / safe_filename, "wb") as f:
-        f.write(file_content)
+    # Upload to object storage (S3/MinIO)
+    try:
+        await storage_client.upload_file(
+            bucket=StorageBucket.UPLOADS,
+            key=storage_path,
+            file=file_content,
+            content_type=file.content_type or "application/octet-stream",
+            metadata={
+                "user_id": str(current_user.id),
+                "original_filename": file.filename or "file",
+                "checksum": checksum,
+            },
+        )
+        logger.debug(f"Uploaded {storage_path} to MinIO")
+    except Exception as e:
+        logger.warning(f"MinIO upload failed, falling back to local: {e}")
+        # Fallback to local filesystem for development
+        upload_dir = Path(settings.UPLOAD_DIR) / f"users/{current_user.id}/{file_id}"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        with open(upload_dir / safe_filename, "wb") as f:
+            f.write(file_content)
     
     # Mark as ready (skip processing for now)
     file_record.mark_ready()
@@ -401,7 +408,7 @@ async def get_storage_quota(
     used_bytes = row[1] or 0
     
     # Get limit based on tier
-    tier = user.subscription_tier or "free"
+    tier = user.tier or "free"
     # Storage limits (example values)
     storage_limits = {
         "free": 100 * 1024 * 1024,       # 100 MB
@@ -505,34 +512,48 @@ async def download_file(
             detail="File not found",
         )
     
-    # TODO: Stream from object storage
-    # In production:
-    # stream = await storage_client.get_object_stream(
-    #     bucket=file_record.storage_bucket,
-    #     key=file_record.storage_path,
-    # )
-    
-    # For now, read from local filesystem (dev only)
-    file_path = Path(settings.UPLOAD_DIR) / file_record.storage_path
-    
-    if not file_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File content not found",
+    # Try to download from object storage (S3/MinIO)
+    try:
+        file_content = await storage_client.download_file(
+            bucket=StorageBucket.UPLOADS,
+            key=file_record.storage_path,
         )
-    
-    def iterfile():
-        with open(file_path, "rb") as f:
-            yield from f
-    
-    return StreamingResponse(
-        iterfile(),
-        media_type=file_record.mime_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{file_record.original_filename}"',
-            "Content-Length": str(file_record.size_bytes),
-        },
-    )
+        logger.debug(f"Downloaded {file_record.storage_path} from MinIO")
+        
+        async def iter_bytes():
+            yield file_content
+        
+        return StreamingResponse(
+            iter_bytes(),
+            media_type=file_record.mime_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{file_record.original_filename}"',
+                "Content-Length": str(file_record.size_bytes),
+            },
+        )
+    except Exception as e:
+        logger.warning(f"MinIO download failed, trying local filesystem: {e}")
+        # Fallback to local filesystem for development
+        file_path = Path(settings.UPLOAD_DIR) / file_record.storage_path
+        
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="File content not found",
+            )
+        
+        def iterfile():
+            with open(file_path, "rb") as f:
+                yield from f
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type=file_record.mime_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{file_record.original_filename}"',
+                "Content-Length": str(file_record.size_bytes),
+            },
+        )
 
 
 @router.delete(
@@ -580,3 +601,120 @@ async def delete_file(
         status="deleted",
         message="File moved to trash",
     )
+
+
+# =============================================================================
+# Presigned URL Endpoints
+# =============================================================================
+
+class PresignedUploadResponse(BaseModel):
+    """Response containing presigned upload URL."""
+    url: str = Field(description="Presigned upload URL")
+    fields: dict = Field(description="Form fields to include in upload")
+    key: str = Field(description="Object key to upload to")
+    expires_in: int = Field(description="URL expiration in seconds")
+
+
+class PresignedDownloadResponse(BaseModel):
+    """Response containing presigned download URL."""
+    url: str = Field(description="Presigned download URL")
+    expires_in: int = Field(description="URL expiration in seconds")
+
+
+@router.post(
+    "/presigned-upload",
+    response_model=PresignedUploadResponse,
+    summary="Get presigned upload URL",
+    description="Get a presigned URL for direct upload to storage.",
+)
+async def get_presigned_upload_url(
+    filename: str = Query(..., description="Filename to upload"),
+    content_type: str = Query("application/octet-stream", description="MIME type"),
+    current_user: User = Depends(get_current_user),
+) -> PresignedUploadResponse:
+    """
+    Get a presigned URL for direct file upload to storage.
+    
+    Allows clients to upload directly to S3/MinIO without going through the API.
+    """
+    file_id = uuid4()
+    safe_filename = sanitize_filename(filename)
+    key = f"users/{current_user.id}/{file_id}/{safe_filename}"
+    expires_in = 3600  # 1 hour
+    
+    try:
+        presigned = await storage_client.generate_presigned_upload_url(
+            bucket=StorageBucket.UPLOADS,
+            key=key,
+            expires_in=expires_in,
+            content_type=content_type,
+        )
+        return PresignedUploadResponse(
+            url=presigned["url"],
+            fields=presigned["fields"],
+            key=key,
+            expires_in=expires_in,
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate presigned upload URL: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate upload URL",
+        )
+
+
+@router.get(
+    "/{file_id}/presigned-download",
+    response_model=PresignedDownloadResponse,
+    summary="Get presigned download URL",
+    description="Get a presigned URL for direct download from storage.",
+    responses={
+        404: {"description": "File not found"},
+    },
+)
+async def get_presigned_download_url(
+    file_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PresignedDownloadResponse:
+    """
+    Get a presigned URL for direct file download from storage.
+    
+    Allows clients to download directly from S3/MinIO without going through the API.
+    """
+    query = select(FileModel).where(
+        and_(
+            FileModel.id == file_id,
+            FileModel.user_id == current_user.id,
+            FileModel.is_deleted == False,
+        )
+    )
+    result = await db.execute(query)
+    file_record = result.scalar_one_or_none()
+    
+    if not file_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+    
+    expires_in = 3600  # 1 hour
+    
+    try:
+        url = await storage_client.generate_presigned_download_url(
+            bucket=StorageBucket.UPLOADS,
+            key=file_record.storage_path,
+            expires_in=expires_in,
+            filename=file_record.original_filename,
+        )
+        return PresignedDownloadResponse(
+            url=url,
+            expires_in=expires_in,
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate presigned download URL: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate download URL",
+        )
+

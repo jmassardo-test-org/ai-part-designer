@@ -2,9 +2,9 @@
  * AssemblyViewer Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssemblyViewer } from './AssemblyViewer';
 
 // Mock Three.js and react-three-fiber
@@ -25,9 +25,9 @@ vi.mock('@react-three/drei', () => ({
   Html: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock('three-stdlib', () => ({
-  STLLoader: vi.fn().mockImplementation(() => ({
-    load: vi.fn((_, onLoad) => {
+vi.mock('three-stdlib', () => {
+  class MockSTLLoader {
+    load = vi.fn((_, onLoad) => {
       // Simulate successful load with mock geometry
       setTimeout(() => {
         onLoad({
@@ -36,9 +36,10 @@ vi.mock('three-stdlib', () => ({
           dispose: vi.fn(),
         });
       }, 0);
-    }),
-  })),
-}));
+    });
+  }
+  return { STLLoader: MockSTLLoader };
+});
 
 describe('AssemblyViewer', () => {
   const mockComponents = [

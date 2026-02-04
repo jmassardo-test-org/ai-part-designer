@@ -100,6 +100,68 @@ OPENAI_API_KEY=sk-your-api-key
 | pro@example.com | pro123 | Pro |
 | admin@assemblematicai.com | admin123! | Admin |
 
+### OAuth Configuration (Google & GitHub Login)
+
+To enable "Login with Google" and "Login with GitHub" in local development:
+
+#### Google OAuth Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create a new project or select an existing one
+3. Go to "APIs & Services" → "Credentials"
+4. Click "Create Credentials" → "OAuth Client ID"
+5. Select "Web application" as application type
+6. Configure:
+   - **Name**: AssemblematicAI (Development)
+   - **Authorized JavaScript origins**: 
+     - `http://localhost:5173`
+     - `http://localhost:8000`
+   - **Authorized redirect URIs**:
+     - `http://localhost:8000/api/v1/auth/oauth/google/callback`
+     - `http://localhost:5173/auth/callback/google`
+7. Copy the Client ID and Client Secret
+
+#### GitHub OAuth Setup
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click "New OAuth App"
+3. Configure:
+   - **Application name**: AssemblematicAI (Development)
+   - **Homepage URL**: `http://localhost:5173`
+   - **Authorization callback URL**: `http://localhost:8000/api/v1/auth/oauth/github/callback`
+4. Register the application
+5. Generate a new client secret
+6. Copy the Client ID and Client Secret
+
+#### Configure Environment Variables
+
+Add these to your `.env` file in the `backend/` directory:
+
+```bash
+# Google OAuth
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# OAuth redirect base (must match your frontend URL)
+OAUTH_REDIRECT_BASE=http://localhost:8000
+FRONTEND_URL=http://localhost:5173
+```
+
+#### Troubleshooting OAuth
+
+| Issue | Solution |
+|-------|----------|
+| "redirect_uri_mismatch" | Ensure callback URLs in provider match exactly with `OAUTH_REDIRECT_BASE` |
+| "OAuth not configured" | Check that both `CLIENT_ID` and `CLIENT_SECRET` are set |
+| Infinite redirect loop | Clear browser cookies and check `FRONTEND_URL` setting |
+| "Invalid state" error | Session cookies may be blocked; try incognito mode |
+
+> **Production Note**: For production, update the callback URLs to use `https://assemblematic.ai` and set `OAUTH_REDIRECT_BASE=https://api.assemblematic.ai`
+
 For detailed setup instructions, see the [Development Setup Guide](docs/development-setup-guide.md).
 
 ---
@@ -112,13 +174,25 @@ For detailed setup instructions, see the [Development Setup Guide](docs/developm
 | **Backend** | Python 3.11 + FastAPI |
 | **Database** | PostgreSQL 15 (RDS/Cloud SQL/Azure DB/self-hosted) |
 | **Queue** | Celery + Redis |
-| **CAD Engine** | CadQuery + OpenCASCADE |
-| **AI/ML** | OpenAI GPT-4 + LangChain |
+| **CAD Engine** | Build123d + OpenCASCADE (STEP export) |
+| **AI/ML** | Claude (Anthropic) + Declarative Schema Pipeline |
 | **Storage** | S3/GCS/Azure Blob/MinIO (abstracted) |
 | **Infrastructure** | Kubernetes (EKS/GKE/AKS/k3s) + Terraform |
 | **Monitoring** | OpenTelemetry + Prometheus + Grafana |
 
 > **Cloud-Agnostic**: See [ADR-013](docs/adrs/adr-013-cloud-agnostic-architecture.md) for our multi-cloud strategy.
+
+### CAD v2 Architecture
+
+The CAD generation system uses a **declarative schema** approach:
+
+1. **AI Intent Extraction** - Claude extracts design requirements from natural language
+2. **Schema Generation** - AI outputs validated JSON conforming to Pydantic schemas
+3. **Schema Validation** - Pydantic validates before CAD execution
+4. **Deterministic Compilation** - Schema compiles to Build123d geometry
+5. **Export** - STEP/STL files for manufacturing and 3D printing
+
+See [ADR-016: Declarative CAD Schema](docs/adrs/adr-016-declarative-cad-schema.md) for details.
 
 ---
 
@@ -157,6 +231,11 @@ For detailed setup instructions, see the [Development Setup Guide](docs/developm
 - [ADR-011: Monitoring](docs/adrs/adr-011-monitoring-observability.md)
 - [ADR-012: Content Moderation](docs/adrs/adr-012-content-moderation.md)
 - [ADR-015: Security Architecture](docs/adrs/adr-015-security-architecture.md)
+- [ADR-016: Declarative CAD Schema](docs/adrs/adr-016-declarative-cad-schema.md) ⭐ **NEW**
+
+### 🔧 CAD v2 System
+- [Sprint Plan: CAD v2 Refactor](docs/sprint-planning-cad-v2-refactor.md) ⭐ **NEW**
+- [Component Library Scope](docs/cad-v2-component-library-scope.md) ⭐ **NEW**
 
 ### 🔐 Security
 - [Security Checklist](docs/security-checklist.md) ⭐ **NEW**

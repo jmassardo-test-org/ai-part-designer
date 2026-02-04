@@ -2,7 +2,9 @@
 CAD Dimension Extractor
 
 Extracts dimensions and features from STEP and STL files.
-Uses CadQuery/OCP for STEP files and numpy-stl for STL analysis.
+Uses Build123d/OCP for STEP files and numpy-stl for STL analysis.
+
+Migrated from CadQuery to Build123d.
 """
 
 import math
@@ -34,22 +36,22 @@ CURVATURE_THRESHOLD = 0.1  # threshold for detecting curved regions
 
 
 # =============================================================================
-# STEP File Extractor (using CadQuery/OCP)
+# STEP File Extractor (using Build123d/OCP)
 # =============================================================================
 
 class STEPExtractor:
-    """Extract dimensions and features from STEP files using CadQuery."""
+    """Extract dimensions and features from STEP files using Build123d."""
     
     def __init__(self):
-        self._cq_available = False
+        self._b3d_available = False
         try:
-            import cadquery as cq
+            import build123d as b3d
             from OCP.BRepAdaptor import BRepAdaptor_Surface
             from OCP.GeomAbs import GeomAbs_Cylinder
-            self._cq_available = True
-            self._cq = cq
+            self._b3d_available = True
+            self._b3d = b3d
         except ImportError:
-            print("CadQuery not available. STEP extraction disabled.")
+            print("Build123d not available. STEP extraction disabled.")
     
     def extract(self, step_path: Path) -> CADExtraction:
         """
@@ -58,23 +60,23 @@ class STEPExtractor:
         Returns:
             CADExtraction with bounding box and detected holes
         """
-        if not self._cq_available:
-            return self._create_empty_result("CadQuery not installed")
+        if not self._b3d_available:
+            return self._create_empty_result("Build123d not installed")
         
         try:
-            # Import the STEP file
-            result = self._cq.importers.importStep(str(step_path))
+            # Import the STEP file using Build123d
+            result = self._b3d.import_step(str(step_path))
             
             # Get bounding box
-            bbox = result.val().BoundingBox()
+            bbox = result.bounding_box()
             
             bounding_box = BoundingBox(
-                min_x=bbox.xmin,
-                min_y=bbox.ymin,
-                min_z=bbox.zmin,
-                max_x=bbox.xmax,
-                max_y=bbox.ymax,
-                max_z=bbox.zmax,
+                min_x=bbox.min.X,
+                min_y=bbox.min.Y,
+                min_z=bbox.min.Z,
+                max_x=bbox.max.X,
+                max_y=bbox.max.Y,
+                max_z=bbox.max.Z,
                 unit=LengthUnit.MM,
             )
             
@@ -86,7 +88,7 @@ class STEPExtractor:
             
             # Estimate volume
             try:
-                volume = result.val().Volume()
+                volume = result.volume
             except Exception:
                 volume = None
             
@@ -103,7 +105,7 @@ class STEPExtractor:
     
     def _detect_holes(self, result) -> list[MountingHole]:
         """Detect cylindrical holes that could be mounting holes."""
-        if not self._cq_available:
+        if not self._b3d_available:
             return []
         
         holes = []
@@ -114,7 +116,8 @@ class STEPExtractor:
             from OCP.TopAbs import TopAbs_FACE
             from OCP.TopExp import TopExp_Explorer
             
-            shape = result.val().wrapped
+            # Get the underlying OCP shape
+            shape = result.wrapped
             
             # Iterate through all faces
             explorer = TopExp_Explorer(shape, TopAbs_FACE)

@@ -23,6 +23,7 @@ celery_app = Celery(
         "app.worker.tasks.export",
         "app.worker.tasks.analytics",
         "app.worker.tasks.maintenance",
+        "app.worker.tasks.extraction",
     ],
 )
 

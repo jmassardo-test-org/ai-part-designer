@@ -38,12 +38,12 @@ class LayoutCreateRequest(BaseModel):
     project_id: UUID
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    internal_width: float = Field(default=100.0, gt=0)
-    internal_depth: float = Field(default=100.0, gt=0)
-    internal_height: float = Field(default=50.0, gt=0)
-    auto_dimensions: bool = True
-    grid_size: float = Field(default=5.0, gt=0)
-    clearance_margin: float = Field(default=5.0, ge=0)
+    enclosure_length: float = Field(default=100.0, gt=0)
+    enclosure_width: float = Field(default=100.0, gt=0)
+    enclosure_height: float = Field(default=50.0, gt=0)
+    auto_arrange: bool = True
+    min_spacing_x: float = Field(default=5.0, gt=0)
+    min_spacing_y: float = Field(default=5.0, ge=0)
 
 
 class LayoutUpdateRequest(BaseModel):
@@ -51,12 +51,12 @@ class LayoutUpdateRequest(BaseModel):
     
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     description: Optional[str] = None
-    internal_width: Optional[float] = Field(default=None, gt=0)
-    internal_depth: Optional[float] = Field(default=None, gt=0)
-    internal_height: Optional[float] = Field(default=None, gt=0)
-    auto_dimensions: Optional[bool] = None
-    grid_size: Optional[float] = Field(default=None, gt=0)
-    clearance_margin: Optional[float] = Field(default=None, ge=0)
+    enclosure_length: Optional[float] = Field(default=None, gt=0)
+    enclosure_width: Optional[float] = Field(default=None, gt=0)
+    enclosure_height: Optional[float] = Field(default=None, gt=0)
+    auto_arrange: Optional[bool] = None
+    min_spacing_x: Optional[float] = Field(default=None, gt=0)
+    min_spacing_y: Optional[float] = Field(default=None, ge=0)
     status: Optional[str] = None
 
 
@@ -118,12 +118,12 @@ class LayoutResponse(BaseModel):
     name: str
     description: Optional[str] = None
     status: str
-    internal_width: float
-    internal_depth: float
-    internal_height: float
-    auto_dimensions: bool
-    grid_size: float
-    clearance_margin: float
+    enclosure_length: float
+    enclosure_width: float
+    enclosure_height: float
+    auto_arrange: bool
+    min_spacing_x: float
+    min_spacing_y: float
     component_count: int = 0
     created_at: str
     updated_at: str
@@ -199,12 +199,12 @@ async def create_layout(
         project_id=request.project_id,
         name=request.name,
         description=request.description,
-        internal_width=request.internal_width,
-        internal_depth=request.internal_depth,
-        internal_height=request.internal_height,
-        auto_dimensions=request.auto_dimensions,
-        grid_size=request.grid_size,
-        clearance_margin=request.clearance_margin,
+        enclosure_length=request.enclosure_length,
+        enclosure_width=request.enclosure_width,
+        enclosure_height=request.enclosure_height,
+        auto_arrange=request.auto_arrange,
+        min_spacing_x=request.min_spacing_x,
+        min_spacing_y=request.min_spacing_y,
     )
     
     db.add(layout)
@@ -217,12 +217,12 @@ async def create_layout(
         name=layout.name,
         description=layout.description,
         status=layout.status,
-        internal_width=layout.internal_width,
-        internal_depth=layout.internal_depth,
-        internal_height=layout.internal_height,
-        auto_dimensions=layout.auto_dimensions,
-        grid_size=layout.grid_size,
-        clearance_margin=layout.clearance_margin,
+        enclosure_length=layout.enclosure_length,
+        enclosure_width=layout.enclosure_width,
+        enclosure_height=layout.enclosure_height,
+        auto_arrange=layout.auto_arrange,
+        min_spacing_x=layout.min_spacing_x,
+        min_spacing_y=layout.min_spacing_y,
         component_count=0,
         created_at=layout.created_at.isoformat(),
         updated_at=layout.updated_at.isoformat(),
@@ -273,12 +273,12 @@ async def list_layouts(
             name=layout.name,
             description=layout.description,
             status=layout.status,
-            internal_width=layout.internal_width,
-            internal_depth=layout.internal_depth,
-            internal_height=layout.internal_height,
-            auto_dimensions=layout.auto_dimensions,
-            grid_size=layout.grid_size,
-            clearance_margin=layout.clearance_margin,
+            enclosure_length=layout.enclosure_length,
+            enclosure_width=layout.enclosure_width,
+            enclosure_height=layout.enclosure_height,
+            auto_arrange=layout.auto_arrange,
+            min_spacing_x=layout.min_spacing_x,
+            min_spacing_y=layout.min_spacing_y,
             component_count=count,
             created_at=layout.created_at.isoformat(),
             updated_at=layout.updated_at.isoformat(),
@@ -356,12 +356,12 @@ async def get_layout(
         name=layout.name,
         description=layout.description,
         status=layout.status,
-        internal_width=layout.internal_width,
-        internal_depth=layout.internal_depth,
-        internal_height=layout.internal_height,
-        auto_dimensions=layout.auto_dimensions,
-        grid_size=layout.grid_size,
-        clearance_margin=layout.clearance_margin,
+        enclosure_length=layout.enclosure_length,
+        enclosure_width=layout.enclosure_width,
+        enclosure_height=layout.enclosure_height,
+        auto_arrange=layout.auto_arrange,
+        min_spacing_x=layout.min_spacing_x,
+        min_spacing_y=layout.min_spacing_y,
         component_count=len(placement_responses),
         created_at=layout.created_at.isoformat(),
         updated_at=layout.updated_at.isoformat(),
@@ -418,12 +418,12 @@ async def update_layout(
         name=layout.name,
         description=layout.description,
         status=layout.status,
-        internal_width=layout.internal_width,
-        internal_depth=layout.internal_depth,
-        internal_height=layout.internal_height,
-        auto_dimensions=layout.auto_dimensions,
-        grid_size=layout.grid_size,
-        clearance_margin=layout.clearance_margin,
+        enclosure_length=layout.enclosure_length,
+        enclosure_width=layout.enclosure_width,
+        enclosure_height=layout.enclosure_height,
+        auto_arrange=layout.auto_arrange,
+        min_spacing_x=layout.min_spacing_x,
+        min_spacing_y=layout.min_spacing_y,
         component_count=count,
         created_at=layout.created_at.isoformat(),
         updated_at=layout.updated_at.isoformat(),
@@ -754,11 +754,11 @@ async def validate_layout(
         max_y = p.y + (p.depth or 0)
         max_z = p.z + (p.height or 0)
         
-        if max_x > layout.internal_width:
+        if max_x > layout.enclosure_length:
             errors.append(f"Component at placement {p.id} extends past right boundary")
-        if max_y > layout.internal_depth:
+        if max_y > layout.enclosure_width:
             errors.append(f"Component at placement {p.id} extends past back boundary")
-        if max_z > layout.internal_height:
+        if max_z > layout.enclosure_height:
             warnings.append(f"Component at placement {p.id} exceeds enclosure height")
         
         # Check collisions with other placements
@@ -766,11 +766,11 @@ async def validate_layout(
             if i >= j:
                 continue
             
-            if p.intersects(other, margin=layout.clearance_margin):
+            if p.intersects(other, margin=layout.min_spacing_x):
                 collisions.append({
                     "placement_1": str(p.id),
                     "placement_2": str(other.id),
-                    "margin_violated": layout.clearance_margin,
+                    "margin_violated": layout.min_spacing_x,
                 })
                 errors.append(
                     f"Components at placements {p.id} and {other.id} collide"
@@ -832,8 +832,8 @@ async def auto_layout(
     
     # Simple packed layout algorithm
     placements = []
-    current_x = layout.clearance_margin
-    current_y = layout.clearance_margin
+    current_x = layout.min_spacing_x
+    current_y = layout.min_spacing_y
     row_height = 0
     max_x = 0
     max_y = 0
@@ -847,10 +847,10 @@ async def auto_layout(
         height = dims.get("height") or 20
         
         # Check if fits in current row
-        if current_x + width + layout.clearance_margin > layout.internal_width:
+        if current_x + width + layout.min_spacing_x > layout.enclosure_length:
             # Start new row
-            current_x = layout.clearance_margin
-            current_y += row_height + layout.clearance_margin
+            current_x = layout.min_spacing_x
+            current_y += row_height + layout.min_spacing_y
             row_height = 0
         
         # Place component
@@ -871,7 +871,7 @@ async def auto_layout(
         ))
         
         # Update position for next component
-        current_x += width + layout.clearance_margin
+        current_x += width + layout.min_spacing_x
         row_height = max(row_height, depth)
         
         # Track max dimensions
@@ -881,8 +881,8 @@ async def auto_layout(
     
     # Suggested dimensions
     suggested_dimensions = {
-        "width": max_x + layout.clearance_margin,
-        "depth": max_y + layout.clearance_margin,
+        "width": max_x + layout.min_spacing_x,
+        "depth": max_y + layout.min_spacing_y,
         "height": max_z + 10,  # Add some headroom
     }
     

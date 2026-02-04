@@ -142,14 +142,14 @@ export function LogoDark(props: LogoProps) {
   return <Logo {...props} />;
 }
 
-// Logo for light backgrounds
+// Logo for light backgrounds - now theme-aware
 export function LogoLight({ className, ...props }: LogoProps) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <LogoIcon size={sizes[props.size || 'md'].icon} />
       {props.showText !== false && props.variant !== 'icon' && (
         <span className={cn('font-bold', sizes[props.size || 'md'].text)}>
-          <span className="text-slate-900">Assemblematic</span>
+          <span className="text-slate-900 dark:text-white">Assemblematic</span>
           <span className="text-brand-cyan">AI</span>
         </span>
       )}

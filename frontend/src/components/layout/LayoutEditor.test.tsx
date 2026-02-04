@@ -2,8 +2,8 @@
  * LayoutEditor Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LayoutEditor } from './LayoutEditor';
 
 // Create refs to store callback props

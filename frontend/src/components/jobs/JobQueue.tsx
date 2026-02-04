@@ -1,9 +1,8 @@
 /**
  * Job Queue Component - Shows active jobs in header.
+ * Uses WebSocket for real-time job progress updates.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Activity,
   CheckCircle,
@@ -12,8 +11,13 @@ import {
   Loader2,
   Box,
   FileBox,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -39,6 +43,7 @@ interface Job {
 export function JobQueue() {
   const { token } = useAuth();
   const navigate = useNavigate();
+  const { connected, subscribe, subscribeToRoom } = useWebSocket();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -67,12 +72,80 @@ export function JobQueue() {
     }
   }, [token]);
 
-  // Poll for updates
+  // Subscribe to WebSocket job updates
+  useEffect(() => {
+    if (!connected) return;
+
+    // Subscribe to job room for real-time updates
+    subscribeToRoom('jobs');
+
+    // Handle job progress updates
+    const unsubProgress = subscribe('job_progress', (message) => {
+      const { job_id, progress, status, message: statusMessage } = message as {
+        job_id: string;
+        progress: number;
+        status: string;
+        message?: string;
+      };
+      
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === job_id
+            ? { ...job, progress, status: status as Job['status'] }
+            : job
+        )
+      );
+    });
+
+    // Handle job completion
+    const unsubComplete = subscribe('job_complete', (message) => {
+      const { job_id, result } = message as { job_id: string; result?: Record<string, unknown> };
+      
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === job_id
+            ? { ...job, status: 'completed', progress: 100, completed_at: new Date().toISOString() }
+            : job
+        )
+      );
+    });
+
+    // Handle job failure
+    const unsubFailed = subscribe('job_failed', (message) => {
+      const { job_id, error } = message as { job_id: string; error: string };
+      
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === job_id
+            ? { ...job, status: 'failed', error_message: error }
+            : job
+        )
+      );
+    });
+
+    // Handle new job added
+    const unsubNewJob = subscribe('job_created', (message) => {
+      const newJob = message.job as Job;
+      if (newJob) {
+        setJobs((prev) => [newJob, ...prev]);
+      }
+    });
+
+    return () => {
+      unsubProgress();
+      unsubComplete();
+      unsubFailed();
+      unsubNewJob();
+    };
+  }, [connected, subscribe, subscribeToRoom]);
+
+  // Poll for updates (less frequently when WebSocket is connected)
   useEffect(() => {
     fetchJobs();
-    const interval = setInterval(fetchJobs, 5000); // Poll every 5 seconds
+    const pollInterval = connected ? 30000 : 5000; // 30s with WS, 5s without
+    const interval = setInterval(fetchJobs, pollInterval);
     return () => clearInterval(interval);
-  }, [fetchJobs]);
+  }, [fetchJobs, connected]);
 
   // Get active job count
   const activeCount = jobs.filter(j => j.status === 'pending' || j.status === 'processing').length;
@@ -143,7 +216,7 @@ export function JobQueue() {
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+        className="relative p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
         aria-label="View active jobs"
       >
         <Activity className="w-5 h-5" />
@@ -164,9 +237,9 @@ export function JobQueue() {
           />
 
           {/* Panel */}
-          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
-            <div className="flex items-center justify-between p-3 border-b">
-              <h3 className="font-medium">Active Jobs</h3>
+          <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-50">
+            <div className="flex items-center justify-between p-3 border-b dark:border-gray-700">
+              <h3 className="font-medium dark:text-gray-100">Active Jobs</h3>
               {activeCount > 0 && (
                 <span className="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full">
                   {activeCount} running
@@ -179,8 +252,8 @@ export function JobQueue() {
                 <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
               </div>
             ) : jobs.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">
-                <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+                <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
                 <p className="text-sm">No active jobs</p>
               </div>
             ) : (
@@ -193,15 +266,15 @@ export function JobQueue() {
                   return (
                     <div
                       key={job.id}
-                      className="p-3 hover:bg-gray-50 cursor-pointer"
+                      className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
                       onClick={() => {
                         setIsOpen(false);
                         navigate(`/jobs/${job.id}`);
                       }}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <JobIcon className="w-4 h-4 text-gray-600" />
+                        <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                          <JobIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
@@ -214,18 +287,18 @@ export function JobQueue() {
                               }`}
                             />
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                             {formatTimeAgo(job.created_at)}
                           </p>
                           {job.status === 'processing' && (
                             <div className="mt-2">
-                              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                              <div className="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-primary-600 transition-all duration-300"
                                   style={{ width: `${job.progress}%` }}
                                 />
                               </div>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 {job.progress}% complete
                               </p>
                             </div>
@@ -244,13 +317,13 @@ export function JobQueue() {
             )}
 
             {/* Footer */}
-            <div className="border-t p-2">
+            <div className="border-t dark:border-gray-700 p-2">
               <button
                 onClick={() => {
                   setIsOpen(false);
                   navigate('/jobs');
                 }}
-                className="w-full text-center text-sm text-primary-600 hover:text-primary-700 py-2"
+                className="w-full text-center text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 py-2"
               >
                 View all jobs
               </button>

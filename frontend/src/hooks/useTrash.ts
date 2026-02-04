@@ -2,15 +2,15 @@
  * Hook for managing trash operations.
  */
 
-import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import trashApi, { 
   TrashedItem, 
   TrashListResponse, 
   TrashSettings, 
   TrashStats 
 } from '@/lib/api/trash';
-import { useToast } from '@/hooks/use-toast';
 
 export interface UseTrashOptions {
   page?: number;

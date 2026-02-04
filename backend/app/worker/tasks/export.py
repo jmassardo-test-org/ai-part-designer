@@ -53,13 +53,68 @@ def convert_format(
             )
             await session.commit()
             
-            # TODO: Actual format conversion using CadQuery/OpenCASCADE
+            # Actual format conversion using CadQuery
+            from app.core.storage import storage_client, StorageBucket
+            from app.cad.export import convert_cad_format
+            import tempfile
+            from pathlib import Path
             
-            result = {
-                "output_url": f"s3://exports/{job_id}/model.{target_format}",
-                "format": target_format,
-                "source_url": source_url,
-            }
+            try:
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_path = Path(temp_dir)
+                    
+                    # Download source file from storage
+                    source_key = source_url.replace("s3://exports/", "")
+                    source_content = await storage_client.download_file(
+                        bucket=StorageBucket.EXPORTS,
+                        key=source_key,
+                    )
+                    
+                    # Determine source format from URL
+                    source_format = source_url.split(".")[-1].lower()
+                    source_file = temp_path / f"source.{source_format}"
+                    source_file.write_bytes(source_content)
+                    
+                    # Convert to target format
+                    output_file = temp_path / f"model.{target_format}"
+                    convert_cad_format(source_file, output_file, target_format)
+                    
+                    if not output_file.exists():
+                        raise ValueError(f"Conversion failed: output file not created")
+                    
+                    # Upload converted file
+                    output_key = f"exports/{job_id}/model.{target_format}"
+                    content_type = {
+                        "step": "application/step",
+                        "stl": "model/stl",
+                        "obj": "model/obj",
+                        "3mf": "model/3mf",
+                        "iges": "application/iges",
+                    }.get(target_format.lower(), "application/octet-stream")
+                    
+                    await storage_client.upload_file(
+                        bucket=StorageBucket.EXPORTS,
+                        key=output_key,
+                        file=output_file.read_bytes(),
+                        content_type=content_type,
+                    )
+                    
+                    # Generate download URL
+                    download_url = await storage_client.generate_presigned_download_url(
+                        bucket=StorageBucket.EXPORTS,
+                        key=output_key,
+                        expires_in=86400,
+                    )
+                
+                result = {
+                    "output_url": download_url,
+                    "output_key": output_key,
+                    "format": target_format,
+                    "source_url": source_url,
+                }
+            except Exception as conv_error:
+                logger.error(f"Format conversion error: {conv_error}")
+                raise ValueError(f"Format conversion failed: {conv_error}")
             
             await job_repo.update(
                 UUID(job_id),

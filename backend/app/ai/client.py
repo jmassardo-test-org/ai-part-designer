@@ -1,5 +1,5 @@
 """
-OpenAI client wrapper with retry logic, rate limiting, and error handling.
+Anthropic Claude client wrapper with retry logic, rate limiting, and error handling.
 
 Example:
     >>> from app.ai.client import get_ai_client
@@ -15,10 +15,7 @@ import asyncio
 import logging
 import time
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any
-
-import openai
-from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError, APITimeoutError
+from typing import Any
 
 from app.core.config import get_settings
 from app.ai.exceptions import (
@@ -28,15 +25,12 @@ from app.ai.exceptions import (
     AIError,
 )
 
-if TYPE_CHECKING:
-    from openai.types.chat import ChatCompletion
-
 logger = logging.getLogger(__name__)
 
 
-class OpenAIClient:
+class ClaudeClient:
     """
-    Async OpenAI client with retry logic and rate limiting.
+    Async Anthropic Claude client with retry logic and rate limiting.
     
     Features:
     - Exponential backoff for rate limits
@@ -45,14 +39,14 @@ class OpenAIClient:
     - Configurable model and parameters
     
     Example:
-        >>> client = OpenAIClient()
+        >>> client = ClaudeClient()
         >>> response = await client.complete([
         ...     {"role": "system", "content": "You are a CAD engineer."},
         ...     {"role": "user", "content": "Create a box 100mm x 50mm x 30mm"}
         ... ])
     """
     
-    DEFAULT_TIMEOUT = 30.0  # seconds
+    DEFAULT_TIMEOUT = 60.0  # seconds
     MAX_RETRIES = 3
     BASE_DELAY = 1.0  # seconds
     MAX_DELAY = 60.0  # seconds
@@ -65,35 +59,39 @@ class OpenAIClient:
         max_retries: int | None = None,
     ):
         """
-        Initialize OpenAI client.
+        Initialize Claude client.
         
         Args:
-            api_key: OpenAI API key (default: from settings)
+            api_key: Anthropic API key (default: from settings)
             model: Model to use (default: from settings)
             timeout: Request timeout in seconds
             max_retries: Maximum retry attempts for rate limits
         """
         settings = get_settings()
         
-        self.api_key = api_key or settings.OPENAI_API_KEY
-        self.model = model or settings.OPENAI_MODEL
-        self.max_tokens = settings.OPENAI_MAX_TOKENS
+        self.api_key = api_key or settings.ANTHROPIC_API_KEY
+        self.model = model or settings.ANTHROPIC_MODEL
+        self.max_tokens = settings.AI_MAX_TOKENS
         self.timeout = timeout or self.DEFAULT_TIMEOUT
         self.max_retries = max_retries or self.MAX_RETRIES
         
         if not self.api_key:
-            logger.warning("OpenAI API key not configured - AI features disabled")
+            logger.warning("Anthropic API key not configured - AI features disabled")
             self._client = None
         else:
-            self._client = AsyncOpenAI(
-                api_key=self.api_key,
-                timeout=self.timeout,
-                max_retries=0,  # We handle retries ourselves
-            )
+            try:
+                from anthropic import AsyncAnthropic
+                self._client = AsyncAnthropic(
+                    api_key=self.api_key,
+                    timeout=self.timeout,
+                )
+            except ImportError:
+                logger.error("anthropic package not installed - run: pip install anthropic")
+                self._client = None
         
         # Usage tracking
-        self._total_prompt_tokens = 0
-        self._total_completion_tokens = 0
+        self._total_input_tokens = 0
+        self._total_output_tokens = 0
         self._request_count = 0
     
     @property
@@ -105,9 +103,9 @@ class OpenAIClient:
     def usage_stats(self) -> dict[str, int]:
         """Get cumulative usage statistics."""
         return {
-            "prompt_tokens": self._total_prompt_tokens,
-            "completion_tokens": self._total_completion_tokens,
-            "total_tokens": self._total_prompt_tokens + self._total_completion_tokens,
+            "input_tokens": self._total_input_tokens,
+            "output_tokens": self._total_output_tokens,
+            "total_tokens": self._total_input_tokens + self._total_output_tokens,
             "request_count": self._request_count,
         }
     
@@ -126,78 +124,104 @@ class OpenAIClient:
         Args:
             messages: List of message dicts with 'role' and 'content'
             model: Override default model
-            temperature: Sampling temperature (0-2)
+            temperature: Sampling temperature (0-1)
             max_tokens: Maximum tokens in response
-            response_format: Response format specification (e.g., {"type": "json_object"})
+            response_format: Response format specification (used for JSON mode hint)
         
         Returns:
             Response content as string
         
         Raises:
-            AIConnectionError: Failed to connect to OpenAI
+            AIConnectionError: Failed to connect to Anthropic
             AIRateLimitError: Rate limit exceeded after retries
             AITimeoutError: Request timed out
             AIError: Other AI-related errors
         """
         if not self._client:
             raise AIConnectionError(
-                "OpenAI client not configured - set OPENAI_API_KEY",
-                provider="openai",
+                "Claude client not configured - set ANTHROPIC_API_KEY",
+                provider="anthropic",
             )
         
         model = model or self.model
         max_tokens = max_tokens or self.max_tokens
         
-        # Build request kwargs
-        kwargs: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if response_format:
-            kwargs["response_format"] = response_format
+        # Convert messages to Anthropic format (separate system message)
+        system_message = None
+        chat_messages = []
+        
+        for msg in messages:
+            if msg["role"] == "system":
+                system_message = msg["content"]
+            else:
+                chat_messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"],
+                })
+        
+        # If JSON format requested, add hint to system message
+        if response_format and response_format.get("type") == "json_object":
+            json_hint = "\n\nIMPORTANT: Respond with valid JSON only. No markdown, no explanations."
+            if system_message:
+                system_message = system_message + json_hint
+            else:
+                system_message = "You are a helpful assistant." + json_hint
+        
+        # Ensure we have at least a default system message
+        if system_message is None:
+            system_message = "You are a helpful CAD engineering assistant."
+        
+        # Anthropic API requires at least one user message
+        # If we only have a system message (no chat_messages), create a user message
+        if not chat_messages:
+            chat_messages = [{"role": "user", "content": "Please process the request described in the system instructions."}]
         
         # Retry loop with exponential backoff
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
+                from anthropic import RateLimitError, APIConnectionError, APITimeoutError, APIError
+                
                 start_time = time.monotonic()
                 
-                response: ChatCompletion = await self._client.chat.completions.create(
-                    **kwargs
+                response = await self._client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    system=system_message,
+                    messages=chat_messages,
+                    temperature=temperature,
                 )
                 
                 elapsed = time.monotonic() - start_time
                 
                 # Track usage
-                if response.usage:
-                    self._total_prompt_tokens += response.usage.prompt_tokens
-                    self._total_completion_tokens += response.usage.completion_tokens
+                if hasattr(response, 'usage'):
+                    self._total_input_tokens += response.usage.input_tokens
+                    self._total_output_tokens += response.usage.output_tokens
                 self._request_count += 1
                 
                 # Log successful request
                 logger.info(
-                    "OpenAI request completed",
+                    "Claude request completed",
                     extra={
                         "model": model,
-                        "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                        "completion_tokens": response.usage.completion_tokens if response.usage else 0,
+                        "input_tokens": response.usage.input_tokens if hasattr(response, 'usage') else 0,
+                        "output_tokens": response.usage.output_tokens if hasattr(response, 'usage') else 0,
                         "elapsed_seconds": round(elapsed, 2),
                         "attempt": attempt + 1,
                     },
                 )
                 
                 # Extract content
-                content = response.choices[0].message.content
+                content = response.content[0].text
                 if content is None:
-                    raise AIError("Empty response from OpenAI")
+                    raise AIError("Empty response from Claude")
                 
                 return content
                 
             except RateLimitError as e:
                 last_error = e
-                retry_after = self._get_retry_after(e, attempt)
+                retry_after = self._get_retry_after(attempt)
                 
                 if attempt < self.max_retries:
                     logger.warning(
@@ -211,24 +235,30 @@ class OpenAIClient:
                         cause=e,
                     )
             
-            except APIConnectionError as e:
-                raise AIConnectionError(
-                    f"Failed to connect to OpenAI: {e}",
-                    provider="openai",
+            except APITimeoutError as e:
+                raise AITimeoutError(
+                    f"Claude request timed out after {self.timeout}s",
+                    timeout_seconds=self.timeout,
                     cause=e,
                 )
             
-            except APITimeoutError as e:
-                raise AITimeoutError(
-                    f"OpenAI request timed out after {self.timeout}s",
-                    timeout_seconds=self.timeout,
+            except APIConnectionError as e:
+                raise AIConnectionError(
+                    f"Failed to connect to Anthropic: {e}",
+                    provider="anthropic",
                     cause=e,
                 )
             
             except APIError as e:
                 raise AIError(
-                    f"OpenAI API error: {e}",
-                    details={"status_code": e.status_code if hasattr(e, "status_code") else None},
+                    f"Anthropic API error: {e}",
+                    details={"status_code": getattr(e, "status_code", None)},
+                    cause=e,
+                )
+            
+            except Exception as e:
+                raise AIError(
+                    f"Unexpected error calling Claude: {e}",
                     cause=e,
                 )
         
@@ -243,8 +273,6 @@ class OpenAIClient:
         """
         Send chat completion request expecting JSON response.
         
-        Uses OpenAI's JSON mode to ensure valid JSON output.
-        
         Args:
             messages: List of message dicts
             **kwargs: Additional arguments for complete()
@@ -258,105 +286,115 @@ class OpenAIClient:
             **kwargs,
         )
     
-    def _get_retry_after(self, error: RateLimitError, attempt: int) -> float:
-        """Calculate retry delay with exponential backoff."""
-        # Try to get retry-after from headers
-        if hasattr(error, "response") and error.response:
-            headers = error.response.headers
-            retry_after = headers.get("retry-after")
-            if retry_after:
-                try:
-                    return min(float(retry_after), self.MAX_DELAY)
-                except ValueError:
-                    pass
-        
-        # Exponential backoff: 1s, 2s, 4s, 8s, ...
-        delay = self.BASE_DELAY * (2 ** attempt)
-        return min(delay, self.MAX_DELAY)
-
-
-class ProviderClient:
-    """
-    AI client that wraps the multi-provider abstraction.
-    
-    Provides the same interface as OpenAIClient but uses whatever
-    provider is configured (OpenAI, Ollama, Anthropic, etc.).
-    """
-    
-    def __init__(self):
-        from app.ai.providers import get_ai_provider
-        self._provider = get_ai_provider()
-    
-    @property
-    def is_configured(self) -> bool:
-        """Check if the underlying provider is configured."""
-        return self._provider.is_configured
-    
-    async def complete(
+    async def complete_with_vision(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         *,
+        model: str | None = None,
         temperature: float = 0.3,
-        response_format: dict | None = None,
         max_tokens: int | None = None,
-        **kwargs,
     ) -> str:
         """
-        Send chat completion request.
+        Send chat completion request with image content.
+        
+        Claude supports vision natively with base64 images or URLs.
         
         Args:
-            messages: List of message dicts with role and content
-            temperature: Sampling temperature (0.0 to 1.0)
-            response_format: Response format (e.g. {"type": "json_object"})
+            messages: List of message dicts (can include image content)
+            model: Override default model
+            temperature: Sampling temperature (0-1)
             max_tokens: Maximum tokens in response
         
         Returns:
             Response content as string
         """
-        return await self._provider.complete(
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format=response_format,
-        )
+        if not self._client:
+            raise AIConnectionError(
+                "Claude client not configured - set ANTHROPIC_API_KEY",
+                provider="anthropic",
+            )
+        
+        model = model or self.model
+        max_tokens = max_tokens or self.max_tokens
+        
+        # Convert messages to Anthropic format
+        system_message = None
+        chat_messages = []
+        
+        for msg in messages:
+            if msg["role"] == "system":
+                system_message = msg["content"]
+            else:
+                chat_messages.append(msg)
+        
+        if system_message is None:
+            system_message = "You are a helpful CAD engineering assistant with vision capabilities."
+        
+        try:
+            response = await self._client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system_message,
+                messages=chat_messages,
+                temperature=temperature,
+            )
+            
+            self._request_count += 1
+            if hasattr(response, 'usage'):
+                self._total_input_tokens += response.usage.input_tokens
+                self._total_output_tokens += response.usage.output_tokens
+            
+            return response.content[0].text
+            
+        except Exception as e:
+            raise AIError(f"Claude vision request failed: {e}", cause=e)
     
-    async def complete_json(
-        self,
-        messages: list[dict[str, str]],
-        **kwargs,
-    ) -> str:
-        """
-        Send chat completion request expecting JSON response.
-        
-        Args:
-            messages: List of message dicts
-            **kwargs: Additional arguments for complete()
-        
-        Returns:
-            JSON response as string
-        """
-        return await self.complete(
-            messages,
-            response_format={"type": "json_object"},
-            **kwargs,
-        )
+    def _get_retry_after(self, attempt: int) -> float:
+        """Calculate retry delay with exponential backoff."""
+        # Exponential backoff: 1s, 2s, 4s, 8s, ...
+        delay = self.BASE_DELAY * (2 ** attempt)
+        return min(delay, self.MAX_DELAY)
+    
+    async def health_check(self) -> bool:
+        """Check if the Claude API is reachable."""
+        if not self._client:
+            return False
+        try:
+            # Simple test message
+            await self._client.messages.create(
+                model=self.model,
+                max_tokens=10,
+                messages=[{"role": "user", "content": "Hi"}],
+            )
+            return True
+        except Exception:
+            return False
 
 
-_cached_client: ProviderClient | None = None
+# Singleton client instance
+_cached_client: ClaudeClient | None = None
 
 
 @lru_cache
-def get_ai_client() -> ProviderClient:
+def get_ai_client() -> ClaudeClient:
     """
-    Get cached AI client instance using the configured provider.
+    Get cached AI client instance.
     
     Returns:
-        ProviderClient that wraps the configured AI provider
+        ClaudeClient instance
     """
-    return ProviderClient()
+    return ClaudeClient()
 
 
-# Re-export provider function for convenience
-from app.ai.providers import get_ai_provider, AIProvider
+def reset_client() -> None:
+    """Reset client instance (useful for testing)."""
+    global _cached_client
+    _cached_client = None
+    get_ai_client.cache_clear()
 
-__all__ = ["OpenAIClient", "ProviderClient", "get_ai_client", "get_ai_provider", "AIProvider"]
+
+__all__ = [
+    "ClaudeClient",
+    "get_ai_client",
+    "reset_client",
+]

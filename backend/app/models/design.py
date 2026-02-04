@@ -3,7 +3,7 @@ Design domain models: Design, DesignVersion, DesignShare
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from app.models.template import Template
     from app.models.job import Job
     from app.models.user import User
+    from app.models.annotation import DesignAnnotation
+    from app.models.design_context import DesignContext
+    from app.models.marketplace import DesignSave
 
 
 class Design(Base, TimestampMixin, SoftDeleteMixin):
@@ -62,9 +65,28 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         index=True,
     )
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     template_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    remixed_from_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("designs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Copy tracking (distinct from remix - for user's own copies)
+    copied_from_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("designs.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -124,6 +146,53 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         default=0,
     )
+    
+    # Marketplace stats
+    save_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    remix_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    
+    # Marketplace discoverability
+    category: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        index=True,
+    )
+    featured_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    
+    # Starter design flag
+    is_starter: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+    )
+    
+    # Thumbnail for design preview
+    thumbnail_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+    
+    # Enclosure specification (CAD v2)
+    enclosure_spec: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
 
     # Full-text search vector
     search_vector: Mapped[str | None] = mapped_column(
@@ -136,8 +205,26 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         "Project",
         back_populates="designs",
     )
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="designs",
+        lazy="joined",
+    )
     template: Mapped["Template | None"] = relationship(
         "Template",
+        lazy="joined",
+    )
+    # Self-referential relationships for copy/remix tracking
+    copied_from: Mapped["Design | None"] = relationship(
+        "Design",
+        foreign_keys=[copied_from_id],
+        remote_side="Design.id",
+        lazy="joined",
+    )
+    remixed_from: Mapped["Design | None"] = relationship(
+        "Design",
+        foreign_keys=[remixed_from_id],
+        remote_side="Design.id",
         lazy="joined",
     )
     versions: Mapped[list["DesignVersion"]] = relationship(
@@ -156,6 +243,23 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="design",
         lazy="dynamic",
     )
+    saves: Mapped[list["DesignSave"]] = relationship(
+        "DesignSave",
+        back_populates="design",
+        lazy="dynamic",
+    )
+    annotations: Mapped[list["DesignAnnotation"]] = relationship(
+        "DesignAnnotation",
+        back_populates="design",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    context: Mapped[Optional["DesignContext"]] = relationship(
+        "DesignContext",
+        back_populates="design",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     # Indexes
     __table_args__ = (
@@ -165,6 +269,10 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
               postgresql_where="deleted_at IS NULL"),
         Index("idx_designs_extra_data", "extra_data", postgresql_using="gin"),
         Index("idx_designs_search", "search_vector", postgresql_using="gin"),
+        Index("idx_designs_starter", "is_starter",
+              postgresql_where="deleted_at IS NULL AND is_starter = TRUE"),
+        Index("idx_designs_enclosure_spec", "enclosure_spec", postgresql_using="gin",
+              postgresql_where="enclosure_spec IS NOT NULL"),
     )
 
     def __repr__(self) -> str:

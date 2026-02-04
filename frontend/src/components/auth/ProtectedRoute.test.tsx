@@ -2,9 +2,9 @@
  * Tests for ProtectedRoute component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 // Create a mock for the auth context

@@ -2,9 +2,9 @@
  * LayoutPreview3D Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LayoutPreview3D } from './LayoutPreview3D';
 
 // Mock Three.js and react-three-fiber

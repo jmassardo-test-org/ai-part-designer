@@ -90,8 +90,9 @@ class Assembly(Base, TimestampMixin, SoftDeleteMixin):
         nullable=True,
     )
 
-    # Extra data (JSONB)
+    # Metadata (JSONB) - stored as 'metadata' in database
     extra_data: Mapped[dict] = mapped_column(
+        "metadata",
         JSONB,
         nullable=False,
         default=dict,
@@ -126,19 +127,19 @@ class Assembly(Base, TimestampMixin, SoftDeleteMixin):
     components: Mapped[list["AssemblyComponent"]] = relationship(
         "AssemblyComponent",
         back_populates="assembly",
-        lazy="dynamic",
+        lazy="selectin",
         cascade="all, delete-orphan",
     )
     component_relationships: Mapped[list["ComponentRelationship"]] = relationship(
         "ComponentRelationship",
         back_populates="assembly",
-        lazy="dynamic",
+        lazy="selectin",
         cascade="all, delete-orphan",
     )
     bom_items: Mapped[list["BOMItem"]] = relationship(
         "BOMItem",
         back_populates="assembly",
-        lazy="dynamic",
+        lazy="selectin",
         cascade="all, delete-orphan",
     )
 
@@ -154,7 +155,7 @@ class Assembly(Base, TimestampMixin, SoftDeleteMixin):
     @property
     def component_count(self) -> int:
         """Count of components in assembly."""
-        return len(list(self.components))
+        return len(self.components)
 
     @property
     def total_quantity(self) -> int:
@@ -252,8 +253,9 @@ class AssemblyComponent(Base, TimestampMixin):
         nullable=True,
     )  # Hex color like "#FF5500"
 
-    # Additional extra data
-    extra_data: Mapped[dict] = mapped_column(
+    # Additional component metadata (mapped to 'metadata' column)
+    component_metadata: Mapped[dict] = mapped_column(
+        "metadata",  # Column name in database
         JSONB,
         nullable=False,
         default=dict,

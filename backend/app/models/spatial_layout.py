@@ -102,41 +102,41 @@ class SpatialLayout(Base, TimestampMixin):
         default="draft",
     )  # draft, validated, finalized
 
-    # Internal dimensions (calculated or user-specified)
-    internal_width: Mapped[float] = mapped_column(
+    # Enclosure dimensions (matches database columns)
+    enclosure_length: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         default=100.0,
     )  # X-axis, mm
-    internal_depth: Mapped[float] = mapped_column(
+    enclosure_width: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         default=100.0,
     )  # Y-axis, mm
-    internal_height: Mapped[float] = mapped_column(
+    enclosure_height: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         default=50.0,
     )  # Z-axis, mm
 
-    # Whether dimensions are auto-calculated
-    auto_dimensions: Mapped[bool] = mapped_column(
+    # Whether auto-arrangement is enabled
+    auto_arrange: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
     )
 
-    # Layout settings
-    grid_size: Mapped[float] = mapped_column(
+    # Minimum spacing between components
+    min_spacing_x: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         default=5.0,
-    )  # Snap-to-grid size, mm
-    clearance_margin: Mapped[float] = mapped_column(
+    )  # Min X spacing, mm
+    min_spacing_y: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         default=5.0,
-    )  # Min clearance between components, mm
+    )  # Min Y spacing, mm
 
     # Relationships
     project: Mapped["Project"] = relationship(
@@ -160,8 +160,8 @@ class SpatialLayout(Base, TimestampMixin):
 
     @property
     def dimensions_tuple(self) -> tuple[float, float, float]:
-        """Get internal dimensions as (width, depth, height) tuple."""
-        return (self.internal_width, self.internal_depth, self.internal_height)
+        """Get enclosure dimensions as (length, width, height) tuple."""
+        return (self.enclosure_length, self.enclosure_width, self.enclosure_height)
 
     @property
     def component_count(self) -> int:

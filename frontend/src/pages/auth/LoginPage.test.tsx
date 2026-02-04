@@ -2,12 +2,12 @@
  * Tests for LoginPage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
-import { LoginPage } from '@/pages/auth/LoginPage';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { LoginPage } from '@/pages/auth/LoginPage';
 
 // Mock the auth API
 vi.mock('@/lib/auth', () => ({

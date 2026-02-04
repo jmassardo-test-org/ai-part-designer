@@ -158,11 +158,13 @@ class DesignFactory:
         *,
         project: "Project | None" = None,
         project_id: UUID | None = None,
+        user: "User | None" = None,
+        user_id: UUID | None = None,
         name: str | None = None,
         description: str | None = None,
         source_type: str = "ai_generated",
         status: str = "ready",
-        metadata: dict | None = None,
+        extra_data: dict | None = None,
         **kwargs: Any,
     ) -> "Design":
         """Create and persist a Design instance."""
@@ -175,16 +177,23 @@ class DesignFactory:
         elif project is not None:
             project_id = project.id
         
+        # Get user_id from project if not provided
+        if user_id is None and user is not None:
+            user_id = user.id
+        elif user_id is None and project is not None:
+            user_id = project.user_id
+        
         n = Counter.next("design")
         
         design = Design(
             id=kwargs.get("id", uuid4()),
             project_id=project_id,
+            user_id=user_id,
             name=name or f"Test Design {n}",
             description=description or f"Test design description {n}",
             source_type=source_type,
             status=status,
-            metadata=metadata or {
+            extra_data=extra_data or {
                 "dimensions": {"x": 100, "y": 50, "z": 25},
                 "volume": 125000,
             },
@@ -446,9 +455,11 @@ class DesignVersionFactory:
         design: "Design | None" = None,
         design_id: UUID | None = None,
         version_number: int = 1,
-        file_path: str | None = None,
-        commit_message: str | None = None,
+        file_url: str | None = None,
+        change_description: str | None = None,
         geometry_info: dict | None = None,
+        parameters: dict | None = None,
+        file_formats: dict | None = None,
         **kwargs: Any,
     ) -> "DesignVersion":
         """Create and persist a DesignVersion instance."""
@@ -465,13 +476,15 @@ class DesignVersionFactory:
             id=kwargs.get("id", uuid4()),
             design_id=design_id,
             version_number=version_number,
-            file_path=file_path or f"designs/{design_id}/v{version_number}/model.step",
-            commit_message=commit_message or f"Version {version_number}",
+            file_url=file_url or f"s3://designs/{design_id}/v{version_number}/model.step",
+            change_description=change_description or f"Version {version_number}",
             geometry_info=geometry_info or {
                 "volume": 125000,
                 "surfaceArea": 23000,
                 "boundingBox": {"x": 100, "y": 50, "z": 25},
             },
+            parameters=parameters or {},
+            file_formats=file_formats or {"step": f"s3://designs/{design_id}/v{version_number}/model.step"},
             **{k: v for k, v in kwargs.items() if k != "id"},
         )
         
@@ -479,6 +492,80 @@ class DesignVersionFactory:
         await db.commit()
         await db.refresh(version)
         return version
+
+
+# =============================================================================
+# Conversation Factory
+# =============================================================================
+
+class ConversationFactory:
+    """Factory for creating Conversation instances."""
+    
+    @staticmethod
+    async def create(
+        db: "AsyncSession",
+        *,
+        user: "User | None" = None,
+        user_id: UUID | None = None,
+        title: str | None = None,
+        status: str = "completed",
+        result_job_id: str | None = None,
+        result_data: dict[str, Any] | None = None,
+        intent_data: dict[str, Any] | None = None,
+        use_default_result: bool = True,
+        **kwargs: Any,
+    ) -> "Conversation":
+        """Create and persist a Conversation instance.
+        
+        Args:
+            db: Database session
+            user: User instance
+            user_id: User ID (alternative to user)
+            title: Conversation title
+            status: Conversation status
+            result_job_id: Result job ID
+            result_data: Result data dict. Pass None explicitly to create conversation without result.
+            intent_data: Intent data dict
+            use_default_result: If True and result_data is not provided, use defaults.
+                               Set to False when you want result_data=None.
+            **kwargs: Additional fields
+        """
+        from app.models.conversation import Conversation
+        
+        # Create user if not provided
+        if user is None and user_id is None:
+            user = await UserFactory.create(db)
+            user_id = user.id
+        elif user is not None:
+            user_id = user.id
+        
+        n = Counter.next("conversation")
+        
+        # Handle result_data - only use defaults if result_data is None AND use_default_result is True
+        if result_data is None and use_default_result and "result_data" not in kwargs:
+            result_data = {
+                "shape": "box",
+                "dimensions": {"length": 100, "width": 50, "height": 25},
+                "downloads": {"step": "/path/to/file.step", "stl": "/path/to/file.stl"},
+            }
+        
+        conversation = Conversation(
+            id=kwargs.get("id", uuid4()),
+            user_id=user_id,
+            title=title or f"Test Conversation {n}",
+            status=status,
+            result_job_id=result_job_id or str(uuid4()),
+            result_data=result_data,
+            intent_data=intent_data or {
+                "description": "A test design",
+            },
+            **{k: v for k, v in kwargs.items() if k != "id"},
+        )
+        
+        db.add(conversation)
+        await db.commit()
+        await db.refresh(conversation)
+        return conversation
 
 
 # =============================================================================
@@ -493,4 +580,5 @@ def reset_factories() -> None:
 # Type hints for imports
 if TYPE_CHECKING:
     from app.models import Design, File, Job, Project, Template, User
+    from app.models.conversation import Conversation
     from app.models.design import DesignVersion

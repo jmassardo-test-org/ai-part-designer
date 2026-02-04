@@ -2,10 +2,10 @@
  * Tests for GeneratePage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeneratePage } from './GeneratePage';
 
 // Mock AuthContext
@@ -89,6 +89,9 @@ describe('GeneratePage', () => {
       geometry_info: { volume: 1000, bounding_box: { x: 10, y: 10, z: 10 } },
       shape: 'Box',
       confidence: 95,
+      dimensions: { length: 100, width: 50, height: 30 },
+      warnings: [],
+      timing: { parse_ms: 10, generate_ms: 100, export_ms: 50, total_ms: 160 },
     });
 
     (getPreviewData as ReturnType<typeof vi.fn>).mockResolvedValue(new ArrayBuffer(100));
@@ -237,6 +240,8 @@ describe('GeneratePage', () => {
       shape: 'Box',
       confidence: 95,
       dimensions: { length: 100, width: 50, height: 30 },
+      warnings: [],
+      timing: { parse_ms: 10, generate_ms: 100, export_ms: 50, total_ms: 160 },
     });
 
     (getPreviewData as ReturnType<typeof vi.fn>).mockResolvedValue(new ArrayBuffer(100));
@@ -266,6 +271,8 @@ describe('GeneratePage', () => {
       shape: 'Box',
       confidence: 95,
       dimensions: { length: 100, width: 50, height: 30 },
+      warnings: [],
+      timing: { parse_ms: 10, generate_ms: 100, export_ms: 50, total_ms: 160 },
     });
 
     (getPreviewData as ReturnType<typeof vi.fn>).mockResolvedValue(new ArrayBuffer(100));

@@ -3,8 +3,6 @@
  * Allows users to customize template parameters and preview/generate parts.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Download, 
@@ -14,15 +12,18 @@ import {
   RefreshCw,
   Info,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Sparkles
 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ModelViewer } from '@/components/viewer';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Types
 interface TemplateParameter {
   name: string;
-  type: 'float' | 'int' | 'bool' | 'string' | 'choice';
+  type: 'float' | 'int' | 'number' | 'bool' | 'boolean' | 'string' | 'choice' | 'select';
   label: string;
   description?: string;
   default: number | string | boolean;
@@ -30,6 +31,7 @@ interface TemplateParameter {
   max?: number;
   step?: number;
   choices?: string[];
+  options?: string[];
   unit?: string;
 }
 
@@ -185,6 +187,45 @@ export function TemplateDetailPage() {
     }
   };
 
+  // Generate a natural language prompt from current parameters
+  const generatePromptFromTemplate = useCallback((): string => {
+    if (!template) return '';
+    
+    const paramDescriptions = template.parameters.map((param) => {
+      const value = parameters[param.name];
+      const unit = param.unit || '';
+      
+      switch (param.type) {
+        case 'float':
+        case 'int':
+        case 'number':
+          return `${param.label}: ${value}${unit}`;
+        case 'bool':
+        case 'boolean':
+          return value ? `with ${param.label.toLowerCase()}` : `without ${param.label.toLowerCase()}`;
+        default:
+          return `${param.label}: ${value}`;
+      }
+    }).filter(Boolean);
+    
+    return `Create a ${template.name.toLowerCase()}: ${paramDescriptions.join(', ')}. ${template.description}`;
+  }, [template, parameters]);
+
+  // Navigate to Generate page with template context
+  const handleCustomizeWithAI = () => {
+    if (!template) return;
+    
+    navigate('/generate', {
+      state: {
+        templateName: template.name,
+        templateSlug: template.slug,
+        templateDescription: template.description,
+        parameters: parameters,
+        suggestedPrompt: generatePromptFromTemplate(),
+      }
+    });
+  };
+
   // Update a parameter value
   const updateParameter = (name: string, value: number | string | boolean) => {
     setParameters((prev) => ({ ...prev, [name]: value }));
@@ -197,6 +238,7 @@ export function TemplateDetailPage() {
     switch (param.type) {
       case 'float':
       case 'int':
+      case 'number':
         return (
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -207,7 +249,7 @@ export function TemplateDetailPage() {
                 step={param.step ?? (param.type === 'int' ? 1 : 0.1)}
                 value={value as number}
                 onChange={(e) => updateParameter(param.name, parseFloat(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
               />
               <input
                 type="number"
@@ -216,36 +258,38 @@ export function TemplateDetailPage() {
                 step={param.step ?? (param.type === 'int' ? 1 : 0.1)}
                 value={value as number}
                 onChange={(e) => updateParameter(param.name, parseFloat(e.target.value))}
-                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-right"
+                className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
               {param.unit && (
-                <span className="text-sm text-gray-500 w-8">{param.unit}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400 w-8">{param.unit}</span>
               )}
             </div>
           </div>
         );
       
       case 'bool':
+      case 'boolean':
         return (
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={value as boolean}
               onChange={(e) => updateParameter(param.name, e.target.checked)}
-              className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+              className="h-4 w-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500"
             />
-            <span className="text-sm text-gray-700">Enabled</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">Enabled</span>
           </label>
         );
       
       case 'choice':
+      case 'select':
         return (
           <select
             value={value as string}
             onChange={(e) => updateParameter(param.name, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
-            {param.choices?.map((choice) => (
+            {(param.choices || param.options || []).map((choice) => (
               <option key={choice} value={choice}>
                 {choice}
               </option>
@@ -259,7 +303,7 @@ export function TemplateDetailPage() {
             type="text"
             value={value as string}
             onChange={(e) => updateParameter(param.name, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
         );
       
@@ -280,7 +324,7 @@ export function TemplateDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <p className="text-gray-600 mb-4">{error}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
         <button
           onClick={() => navigate('/templates')}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
@@ -299,7 +343,7 @@ export function TemplateDetailPage() {
       <div className="mb-6">
         <button
           onClick={() => navigate('/templates')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Templates
@@ -307,15 +351,15 @@ export function TemplateDetailPage() {
         
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{template.name}</h1>
-            <p className="mt-1 text-gray-600">{template.description}</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{template.name}</h1>
+            <p className="mt-1 text-gray-600 dark:text-gray-400">{template.description}</p>
           </div>
           
           <div className="flex items-center gap-3">
             <button
               onClick={handlePreview}
               disabled={previewLoading}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300"
             >
               {previewLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -323,6 +367,15 @@ export function TemplateDetailPage() {
                 <RefreshCw className="h-4 w-4" />
               )}
               Refresh Preview
+            </button>
+            
+            {/* Customize with AI button */}
+            <button
+              onClick={handleCustomizeWithAI}
+              className="flex items-center gap-2 px-4 py-2 border border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20"
+            >
+              <Sparkles className="h-4 w-4" />
+              Customize with AI
             </button>
             
             <div className="relative group">
@@ -340,18 +393,18 @@ export function TemplateDetailPage() {
               </button>
               
               {/* Download dropdown */}
-              <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                 <button
                   onClick={() => handleGenerate('step')}
                   disabled={generating}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-t-lg"
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg text-gray-700 dark:text-gray-300"
                 >
                   Download STEP
                 </button>
                 <button
                   onClick={() => handleGenerate('stl')}
                   disabled={generating}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-b-lg"
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 rounded-b-lg text-gray-700 dark:text-gray-300"
                 >
                   Download STL
                 </button>
@@ -379,13 +432,13 @@ export function TemplateDetailPage() {
       <div className="grid lg:grid-cols-5 gap-6">
         {/* Parameters Panel */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             {/* Panel header */}
             <button
               onClick={() => setExpandedParams(!expandedParams)}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              <h2 className="font-semibold text-gray-900">Parameters</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Parameters</h2>
               {expandedParams ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
               ) : (
@@ -395,11 +448,11 @@ export function TemplateDetailPage() {
             
             {/* Parameters list */}
             {expandedParams && (
-              <div className="border-t border-gray-200 divide-y divide-gray-100">
-                {template.parameters.map((param) => (
+              <div className="border-t border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                {(template.parameters || []).map((param) => (
                   <div key={param.name} className="p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <label className="font-medium text-gray-900 text-sm">
+                      <label className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                         {param.label}
                       </label>
                       {param.description && (
@@ -427,20 +480,20 @@ export function TemplateDetailPage() {
               });
               setParameters(defaults);
             }}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Reset to Defaults
           </button>
 
           {/* Tags */}
-          {template.tags.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="font-medium text-gray-900 mb-3 text-sm">Tags</h3>
+          {(template.tags || []).length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3 text-sm">Tags</h3>
               <div className="flex flex-wrap gap-2">
-                {template.tags.map((tag) => (
+                {(template.tags || []).map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                    className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded"
                   >
                     {tag}
                   </span>
@@ -452,13 +505,13 @@ export function TemplateDetailPage() {
 
         {/* 3D Viewer */}
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="h-[500px] relative">
               {previewLoading && !previewData ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                   <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin text-primary-600 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Generating preview...</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Generating preview...</p>
                   </div>
                 </div>
               ) : previewData ? (
@@ -469,10 +522,10 @@ export function TemplateDetailPage() {
                   backgroundColor="#f9fafb"
                 />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                   <div className="text-center">
                     <Eye className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600">Preview will appear here</p>
+                    <p className="text-gray-600 dark:text-gray-400">Preview will appear here</p>
                     <button
                       onClick={handlePreview}
                       className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
@@ -494,17 +547,17 @@ export function TemplateDetailPage() {
           
           {/* Quick info */}
           <div className="mt-4 grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-              <p className="text-2xl font-bold text-gray-900">{template.parameters.length}</p>
-              <p className="text-xs text-gray-500">Parameters</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{template.parameters.length}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Parameters</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-              <p className="text-2xl font-bold text-gray-900 capitalize">{template.category}</p>
-              <p className="text-xs text-gray-500">Category</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 capitalize">{template.category}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Category</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-              <p className="text-2xl font-bold text-gray-900">{template.usage_count.toLocaleString()}</p>
-              <p className="text-xs text-gray-500">Uses</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{template.usage_count.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Uses</p>
             </div>
           </div>
         </div>

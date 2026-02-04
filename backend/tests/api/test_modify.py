@@ -35,7 +35,7 @@ class TestModifyFile:
         file = await file_factory.create(db=db_session, user=user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/modify",
+            f"/api/v1/cad/{file.id}/modify",
             json={
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
             },
@@ -52,7 +52,7 @@ class TestModifyFile:
     ):
         """Test modifying non-existent file."""
         response = await client.post(
-            f"/api/v1/cad/files/{uuid4()}/modify",
+            f"/api/v1/cad/{uuid4()}/modify",
             headers=auth_headers,
             json={
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
@@ -76,7 +76,7 @@ class TestModifyFile:
         other_file = await file_factory.create(db=db_session, user=other_user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{other_file.id}/modify",
+            f"/api/v1/cad/{other_file.id}/modify",
             headers=auth_headers,
             json={
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
@@ -98,7 +98,7 @@ class TestModifyFile:
         file = await file_factory.create(db=db_session, user=test_user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/modify",
+            f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
             json={
                 "operations": [{"type": "invalid_operation", "params": {}}],
@@ -121,7 +121,7 @@ class TestModifyFile:
         file = await file_factory.create(db=db_session, user=test_user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/modify",
+            f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
             json={
                 "operations": [],  # Empty
@@ -146,7 +146,7 @@ class TestModifyFile:
         operations = [{"type": "translate", "params": {"x": 1}} for _ in range(21)]
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/modify",
+            f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
             json={"operations": operations},
         )
@@ -172,7 +172,7 @@ class TestModifyFile:
         )
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/modify",
+            f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
             json={
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
@@ -211,7 +211,7 @@ class TestOperationTypes:
         # We're just testing that the API accepts this format
         # Actual execution would require file content
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/preview",
+            f"/api/v1/cad/{file.id}/preview",
             headers=auth_headers,
             json={"operations": [operation]},
         )
@@ -237,7 +237,7 @@ class TestOperationTypes:
         }
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/preview",
+            f"/api/v1/cad/{file.id}/preview",
             headers=auth_headers,
             json={"operations": [operation]},
         )
@@ -262,7 +262,7 @@ class TestOperationTypes:
         }
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/preview",
+            f"/api/v1/cad/{file.id}/preview",
             headers=auth_headers,
             json={"operations": [operation]},
         )
@@ -290,7 +290,7 @@ class TestPreviewModifications:
         file = await file_factory.create(db=db_session, user=user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/preview",
+            f"/api/v1/cad/{file.id}/preview",
             json={"operations": [{"type": "scale", "params": {"factor": 2.0}}]},
         )
         
@@ -305,7 +305,7 @@ class TestPreviewModifications:
     ):
         """Test previewing non-existent file."""
         response = await client.post(
-            f"/api/v1/cad/files/{uuid4()}/preview",
+            f"/api/v1/cad/{uuid4()}/preview",
             headers=auth_headers,
             json={"operations": [{"type": "scale", "params": {"factor": 2.0}}]},
         )
@@ -325,7 +325,7 @@ class TestPreviewModifications:
         file = await file_factory.create(db=db_session, user=test_user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/preview",
+            f"/api/v1/cad/{file.id}/preview",
             headers=auth_headers,
             json={
                 "operations": [{"type": "unknown_op", "params": {}}],
@@ -360,7 +360,7 @@ class TestCombineFiles:
         file2 = await file_factory.create(db=db_session, user=user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file1.id}/combine",
+            f"/api/v1/cad/{file1.id}/combine",
             json={
                 "file_ids": [str(file2.id)],
                 "operation": "union",
@@ -382,7 +382,7 @@ class TestCombineFiles:
         file = await file_factory.create(db=db_session, user=test_user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/combine",
+            f"/api/v1/cad/{file.id}/combine",
             headers=auth_headers,
             json={
                 "file_ids": [str(uuid4())],  # Non-existent file
@@ -408,7 +408,7 @@ class TestCombineFiles:
         their_file = await file_factory.create(db=db_session, user=other_user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{my_file.id}/combine",
+            f"/api/v1/cad/{my_file.id}/combine",
             headers=auth_headers,
             json={
                 "file_ids": [str(their_file.id)],
@@ -431,7 +431,7 @@ class TestCombineFiles:
         file = await file_factory.create(db=db_session, user=test_user)
         
         response = await client.post(
-            f"/api/v1/cad/files/{file.id}/combine",
+            f"/api/v1/cad/{file.id}/combine",
             headers=auth_headers,
             json={
                 "file_ids": [],  # Empty
@@ -461,7 +461,7 @@ class TestGeometryInfo:
         user = await user_factory.create(db=db_session)
         file = await file_factory.create(db=db_session, user=user)
         
-        response = await client.get(f"/api/v1/cad/files/{file.id}/geometry")
+        response = await client.get(f"/api/v1/cad/{file.id}/geometry")
         
         assert response.status_code == 401
 
@@ -474,7 +474,7 @@ class TestGeometryInfo:
     ):
         """Test getting geometry info for non-existent file."""
         response = await client.get(
-            f"/api/v1/cad/files/{uuid4()}/geometry",
+            f"/api/v1/cad/{uuid4()}/geometry",
             headers=auth_headers,
         )
         
@@ -495,7 +495,7 @@ class TestGeometryInfo:
         other_file = await file_factory.create(db=db_session, user=other_user)
         
         response = await client.get(
-            f"/api/v1/cad/files/{other_file.id}/geometry",
+            f"/api/v1/cad/{other_file.id}/geometry",
             headers=auth_headers,
         )
         
@@ -522,7 +522,7 @@ class TestGeometryInfo:
         )
         
         response = await client.get(
-            f"/api/v1/cad/files/{file.id}/geometry",
+            f"/api/v1/cad/{file.id}/geometry",
             headers=auth_headers,
         )
         

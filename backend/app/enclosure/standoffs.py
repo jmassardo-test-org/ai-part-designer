@@ -3,6 +3,8 @@ Mounting Standoff Generator
 
 Generates mounting standoffs for PCB/component mounting
 based on hole specifications.
+
+Migrated from CadQuery to Build123d.
 """
 
 from __future__ import annotations
@@ -11,7 +13,10 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
-import cadquery as cq
+from build123d import (
+    Box, BuildPart, Cylinder, Location, Part,
+    Axis, Mode, Align, fillet, chamfer,
+)
 
 from app.schemas.component_specs import (
     MountingHole,
@@ -190,59 +195,66 @@ class StandoffGenerator:
         self,
         standoff: Standoff,
         floor_offset: float = 0.0,
-    ) -> cq.Workplane:
+    ) -> Part:
         """
-        Generate CadQuery geometry for a single standoff.
+        Generate Build123d geometry for a single standoff.
         
         Args:
             standoff: Standoff specification
             floor_offset: Z offset from origin (floor thickness)
         
         Returns:
-            CadQuery Workplane with standoff geometry
+            Build123d Part with standoff geometry
         """
-        # Start from floor level
-        result = (
-            cq.Workplane("XY")
-            .workplane(offset=floor_offset)
-            .center(standoff.x, standoff.y)
-        )
+        with BuildPart() as builder:
+            # Create outer shape based on boss style
+            if standoff.boss_style == BossStyle.SQUARE:
+                Box(
+                    standoff.outer_diameter,
+                    standoff.outer_diameter,
+                    standoff.height,
+                    align=(Align.CENTER, Align.CENTER, Align.MIN)
+                ).locate(Location((standoff.x, standoff.y, floor_offset)))
+                
+                # Add fillets on vertical edges
+                try:
+                    vertical_edges = builder.edges().filter_by(Axis.Z)
+                    if vertical_edges:
+                        fillet(vertical_edges, standoff.outer_diameter * 0.1)
+                except Exception:
+                    pass
+            else:
+                # Cylindrical (default)
+                Cylinder(
+                    standoff.outer_diameter / 2,
+                    standoff.height,
+                    align=(Align.CENTER, Align.CENTER, Align.MIN)
+                ).locate(Location((standoff.x, standoff.y, floor_offset)))
+            
+            # Add fillet at base
+            try:
+                bottom_edges = builder.edges().filter_by(lambda e: e.center().Z < floor_offset + 1)
+                if bottom_edges:
+                    fillet(bottom_edges, 0.5)
+            except Exception:
+                pass
+            
+            # Create inner hole if not solid
+            if standoff.inner_diameter > 0:
+                Cylinder(
+                    standoff.inner_diameter / 2,
+                    standoff.height,
+                    align=(Align.CENTER, Align.CENTER, Align.MIN),
+                    mode=Mode.SUBTRACT
+                ).locate(Location((standoff.x, standoff.y, floor_offset)))
         
-        # Create outer cylinder based on boss style
-        if standoff.boss_style == BossStyle.SQUARE:
-            result = result.rect(
-                standoff.outer_diameter,
-                standoff.outer_diameter,
-            ).extrude(standoff.height)
-            # Add fillets on vertical edges
-            result = result.edges("|Z").fillet(standoff.outer_diameter * 0.1)
-        else:
-            # Cylindrical (default)
-            result = (
-                result
-                .circle(standoff.outer_diameter / 2)
-                .extrude(standoff.height)
-            )
-        
-        # Add fillet at base
-        result = result.edges("<Z").fillet(0.5)
-        
-        # Create inner hole if not solid
-        if standoff.inner_diameter > 0:
-            result = (
-                result
-                .faces(">Z")
-                .workplane()
-                .hole(standoff.inner_diameter, standoff.height)
-            )
-        
-        return result
+        return builder.part
     
     def generate_all_standoffs(
         self,
         standoffs: list[Standoff],
         floor_offset: float = 0.0,
-    ) -> cq.Workplane:
+    ) -> Part | None:
         """
         Generate geometry for all standoffs combined.
         
@@ -251,18 +263,18 @@ class StandoffGenerator:
             floor_offset: Z offset from origin
         
         Returns:
-            Combined CadQuery Workplane with all standoffs
+            Combined Build123d Part with all standoffs, or None if empty
         """
         if not standoffs:
-            return cq.Workplane("XY")
+            return None
         
         # Generate first standoff
         result = self.generate_standoff_geometry(standoffs[0], floor_offset)
         
-        # Union with remaining standoffs
+        # Fuse with remaining standoffs
         for standoff in standoffs[1:]:
             new_standoff = self.generate_standoff_geometry(standoff, floor_offset)
-            result = result.union(new_standoff)
+            result = result.fuse(new_standoff)
         
         return result
     
@@ -272,7 +284,7 @@ class StandoffGenerator:
         position: Position3D,
         boss_height: float = 8.0,
         floor_offset: float = 0.0,
-    ) -> cq.Workplane:
+    ) -> Part:
         """
         Generate a boss specifically designed for heat-set inserts.
         
@@ -288,7 +300,7 @@ class StandoffGenerator:
             floor_offset: Z offset from origin
         
         Returns:
-            CadQuery Workplane with boss geometry
+            Build123d Part with boss geometry
         """
         thread = hole.thread_size or ThreadSize.M3
         
@@ -303,27 +315,36 @@ class StandoffGenerator:
         x = position.x + hole.x
         y = position.y + hole.y
         
-        # Create main boss
-        result = (
-            cq.Workplane("XY")
-            .workplane(offset=floor_offset)
-            .center(x, y)
-            .circle(boss_od / 2)
-            .extrude(boss_height)
-        )
+        with BuildPart() as builder:
+            # Create main boss cylinder
+            Cylinder(
+                boss_od / 2,
+                boss_height,
+                align=(Align.CENTER, Align.CENTER, Align.MIN)
+            ).locate(Location((x, y, floor_offset)))
+            
+            # Add base fillet
+            try:
+                bottom_edges = builder.edges().filter_by(lambda e: e.center().Z < floor_offset + 1)
+                if bottom_edges:
+                    fillet(bottom_edges, 1.0)
+            except Exception:
+                pass
+            
+            # Create pilot hole
+            Cylinder(
+                pilot / 2,
+                boss_height,
+                align=(Align.CENTER, Align.CENTER, Align.MIN),
+                mode=Mode.SUBTRACT
+            ).locate(Location((x, y, floor_offset)))
+            
+            # Add chamfer at top for insert alignment
+            try:
+                top_edges = builder.edges().filter_by(lambda e: e.center().Z > floor_offset + boss_height - 1)
+                if top_edges:
+                    chamfer(top_edges, 0.5)
+            except Exception:
+                pass
         
-        # Add base fillet
-        result = result.edges("<Z").fillet(1.0)
-        
-        # Create pilot hole
-        result = (
-            result
-            .faces(">Z")
-            .workplane()
-            .hole(pilot, boss_height)
-        )
-        
-        # Add chamfer at top for insert alignment
-        result = result.faces(">Z").edges().chamfer(0.5)
-        
-        return result
+        return builder.part

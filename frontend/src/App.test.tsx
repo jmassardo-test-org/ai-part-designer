@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import * as React from 'react';
+import { MemoryRouter, Outlet } from 'react-router-dom';
+import { describe, it, expect, vi } from 'vitest';
 import App from './App';
 
 // Mock all page components
@@ -42,6 +43,10 @@ vi.mock('./pages/TemplateDetailPage', () => ({
 
 vi.mock('./pages/GeneratePage', () => ({
   GeneratePage: () => <div data-testid="generate-page">Generate Page</div>,
+}));
+
+vi.mock('./pages/CreatePage', () => ({
+  CreatePage: () => <div data-testid="create-page">Create Page</div>,
 }));
 
 vi.mock('./pages/FilesPage', () => ({
@@ -110,9 +115,10 @@ vi.mock('./components/onboarding', () => ({
   OnboardingProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// Need to import React for the mocked components
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+// Mock WebSocket context
+vi.mock('./contexts/WebSocketContext', () => ({
+  WebSocketProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
 // Update mocks to use Outlet for nested routes
 vi.mock('./components/auth/ProtectedRoute', () => ({
@@ -188,9 +194,9 @@ describe('App', () => {
       expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
     });
 
-    it('renders generate page', () => {
-      renderWithRouter('/generate');
-      expect(screen.getByTestId('generate-page')).toBeInTheDocument();
+    it('renders create page', () => {
+      renderWithRouter('/create');
+      expect(screen.getByTestId('create-page')).toBeInTheDocument();
     });
 
     it('renders templates page', () => {

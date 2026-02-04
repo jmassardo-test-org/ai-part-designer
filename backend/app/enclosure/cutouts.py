@@ -3,6 +3,8 @@ Connector Cutout Generator
 
 Generates cutouts for connectors on enclosure walls
 based on connector specifications.
+
+Migrated from CadQuery to Build123d.
 """
 
 from __future__ import annotations
@@ -11,7 +13,11 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
-import cadquery as cq
+from build123d import (
+    Box, BuildPart, Cylinder, Location, Part,
+    Axis, Mode, Align, BuildSketch, Rectangle, Circle,
+    extrude, Plane, Vector,
+)
 
 from app.schemas.component_specs import (
     Connector,
@@ -168,9 +174,9 @@ class CutoutGenerator:
         cutout: Cutout,
         enclosure_dims: tuple[float, float, float],
         wall_thickness: float,
-    ) -> cq.Workplane:
+    ) -> Part:
         """
-        Generate CadQuery geometry for a single cutout.
+        Generate Build123d geometry for a single cutout.
         
         This creates a solid that can be subtracted from the enclosure.
         
@@ -180,108 +186,75 @@ class CutoutGenerator:
             wall_thickness: Wall thickness
         
         Returns:
-            CadQuery Workplane with cutout solid
+            Build123d Part with cutout solid
         """
         length, width, height = enclosure_dims
         half_l = length / 2
         half_w = width / 2
         
-        # Create rectangle with rounded corners
-        def rounded_rect(w: float, h: float, r: float) -> cq.Workplane:
-            """Create a rounded rectangle sketch."""
-            if r <= 0:
-                return cq.Workplane("XY").rect(w, h)
-            
-            # Clamp radius to half the smaller dimension
-            r = min(r, w / 2, h / 2)
-            
-            return (
-                cq.Workplane("XY")
-                .rect(w - 2 * r, h)
-                .union(cq.Workplane("XY").rect(w, h - 2 * r))
-                .union(cq.Workplane("XY").center(-w/2 + r, -h/2 + r).circle(r))
-                .union(cq.Workplane("XY").center(w/2 - r, -h/2 + r).circle(r))
-                .union(cq.Workplane("XY").center(-w/2 + r, h/2 - r).circle(r))
-                .union(cq.Workplane("XY").center(w/2 - r, h/2 - r).circle(r))
-            )
+        # Cutout extends through wall with extra depth
+        cutout_depth = wall_thickness * 2
         
-        # Position and orient based on face
-        if cutout.face == Face.FRONT:
-            # Front face: -Y, looking toward +Y
-            result = (
-                cq.Workplane("XZ")
-                .workplane(offset=-half_w)
-                .center(cutout.center_x, cutout.center_y)
-                .rect(cutout.width, cutout.height)
-                .extrude(wall_thickness * 2)
-            )
-            
-        elif cutout.face == Face.BACK:
-            # Back face: +Y, looking toward -Y
-            result = (
-                cq.Workplane("XZ")
-                .workplane(offset=half_w)
-                .center(cutout.center_x, cutout.center_y)
-                .rect(cutout.width, cutout.height)
-                .extrude(-wall_thickness * 2)
-            )
-            
-        elif cutout.face == Face.LEFT:
-            # Left face: -X, looking toward +X
-            result = (
-                cq.Workplane("YZ")
-                .workplane(offset=-half_l)
-                .center(cutout.center_x, cutout.center_y)
-                .rect(cutout.width, cutout.height)
-                .extrude(wall_thickness * 2)
-            )
-            
-        elif cutout.face == Face.RIGHT:
-            # Right face: +X, looking toward -X
-            result = (
-                cq.Workplane("YZ")
-                .workplane(offset=half_l)
-                .center(cutout.center_x, cutout.center_y)
-                .rect(cutout.width, cutout.height)
-                .extrude(-wall_thickness * 2)
-            )
-            
-        elif cutout.face == Face.TOP:
-            # Top face: +Z
-            result = (
-                cq.Workplane("XY")
-                .workplane(offset=height)
-                .center(cutout.center_x, cutout.center_y)
-                .rect(cutout.width, cutout.height)
-                .extrude(-wall_thickness * 2)
-            )
-            
-        elif cutout.face == Face.BOTTOM:
-            # Bottom face: -Z
-            result = (
-                cq.Workplane("XY")
-                .workplane(offset=0)
-                .center(cutout.center_x, cutout.center_y)
-                .rect(cutout.width, cutout.height)
-                .extrude(wall_thickness * 2)
-            )
-        else:
-            # Default to front
-            result = (
-                cq.Workplane("XZ")
-                .center(cutout.center_x, cutout.center_y)
-                .rect(cutout.width, cutout.height)
-                .extrude(wall_thickness * 2)
-            )
+        with BuildPart() as builder:
+            # Create rectangle at appropriate position based on face
+            if cutout.face == Face.FRONT:
+                # Front face: -Y, looking toward +Y
+                # Cutout in XZ plane at -width/2
+                Box(
+                    cutout.width, cutout_depth, cutout.height,
+                    align=(Align.CENTER, Align.MIN, Align.CENTER)
+                ).locate(Location((cutout.center_x, -half_w, cutout.center_y)))
+                
+            elif cutout.face == Face.BACK:
+                # Back face: +Y, looking toward -Y
+                Box(
+                    cutout.width, cutout_depth, cutout.height,
+                    align=(Align.CENTER, Align.MAX, Align.CENTER)
+                ).locate(Location((cutout.center_x, half_w, cutout.center_y)))
+                
+            elif cutout.face == Face.LEFT:
+                # Left face: -X, looking toward +X
+                Box(
+                    cutout_depth, cutout.width, cutout.height,
+                    align=(Align.MIN, Align.CENTER, Align.CENTER)
+                ).locate(Location((-half_l, cutout.center_x, cutout.center_y)))
+                
+            elif cutout.face == Face.RIGHT:
+                # Right face: +X, looking toward -X
+                Box(
+                    cutout_depth, cutout.width, cutout.height,
+                    align=(Align.MAX, Align.CENTER, Align.CENTER)
+                ).locate(Location((half_l, cutout.center_x, cutout.center_y)))
+                
+            elif cutout.face == Face.TOP:
+                # Top face: +Z
+                Box(
+                    cutout.width, cutout.height, cutout_depth,
+                    align=(Align.CENTER, Align.CENTER, Align.MAX)
+                ).locate(Location((cutout.center_x, cutout.center_y, height)))
+                
+            elif cutout.face == Face.BOTTOM:
+                # Bottom face: -Z
+                Box(
+                    cutout.width, cutout.height, cutout_depth,
+                    align=(Align.CENTER, Align.CENTER, Align.MIN)
+                ).locate(Location((cutout.center_x, cutout.center_y, 0)))
+                
+            else:
+                # Default to front
+                Box(
+                    cutout.width, cutout_depth, cutout.height,
+                    align=(Align.CENTER, Align.CENTER, Align.CENTER)
+                ).locate(Location((cutout.center_x, 0, cutout.center_y)))
         
-        return result
+        return builder.part
     
     def generate_all_cutouts(
         self,
         cutouts: list[Cutout],
         enclosure_dims: tuple[float, float, float],
         wall_thickness: float,
-    ) -> cq.Workplane:
+    ) -> Part | None:
         """
         Generate combined geometry for all cutouts.
         
@@ -291,22 +264,22 @@ class CutoutGenerator:
             wall_thickness: Wall thickness
         
         Returns:
-            Combined CadQuery Workplane with all cutout solids
+            Combined Build123d Part with all cutout solids, or None if empty
         """
         if not cutouts:
-            return cq.Workplane("XY")
+            return None
         
         # Generate first cutout
         result = self.generate_cutout_geometry(
             cutouts[0], enclosure_dims, wall_thickness
         )
         
-        # Union with remaining cutouts
+        # Fuse with remaining cutouts
         for cutout in cutouts[1:]:
             new_cutout = self.generate_cutout_geometry(
                 cutout, enclosure_dims, wall_thickness
             )
-            result = result.union(new_cutout)
+            result = result.fuse(new_cutout)
         
         return result
 

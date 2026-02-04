@@ -1,5 +1,5 @@
 """
-Boolean and transformation operations for CadQuery shapes.
+Boolean and transformation operations for Build123d shapes.
 
 Provides operations to combine, modify, and transform 3D geometry.
 
@@ -15,7 +15,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import cadquery as cq
+from build123d import (
+    Part,
+    Location,
+    Axis,
+    fillet as b3d_fillet,
+    chamfer as b3d_chamfer,
+    Plane,
+)
+from OCP.gp import gp_Trsf, gp_Pnt, gp_Ax1, gp_Dir
+from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
+from OCP.TopAbs import TopAbs_SOLID
+from OCP.BRep import BRep_Builder
+from OCP.TopoDS import TopoDS_Compound
+from OCP.BRepAlgoAPI import BRepAlgoAPI_Fuse, BRepAlgoAPI_Cut, BRepAlgoAPI_Common
 
 from app.cad.exceptions import GeometryError, ValidationError
 
@@ -27,7 +40,7 @@ if TYPE_CHECKING:
 # Boolean Operations
 # =============================================================================
 
-def union(*shapes: cq.Workplane) -> cq.Workplane:
+def union(*shapes: Part) -> Part:
     """
     Combine multiple shapes into one (boolean union).
     
@@ -43,7 +56,7 @@ def union(*shapes: cq.Workplane) -> cq.Workplane:
     Example:
         >>> from app.cad.primitives import create_box
         >>> box1 = create_box(50, 50, 50)
-        >>> box2 = create_box(50, 50, 50).translate((25, 0, 0))
+        >>> box2 = create_box(50, 50, 50).move(Location((25, 0, 0)))
         >>> combined = union(box1, box2)
     """
     if len(shapes) < 2:
@@ -51,12 +64,12 @@ def union(*shapes: cq.Workplane) -> cq.Workplane:
     
     result = shapes[0]
     for shape in shapes[1:]:
-        result = result.union(shape)
+        result = result.fuse(shape)
     
     return result
 
 
-def difference(base: cq.Workplane, *tools: cq.Workplane) -> cq.Workplane:
+def difference(base: Part, *tools: Part) -> Part:
     """
     Subtract tools from base shape (boolean difference).
     
@@ -85,7 +98,7 @@ def difference(base: cq.Workplane, *tools: cq.Workplane) -> cq.Workplane:
     
     # Validate result
     try:
-        volume = result.val().Volume()
+        volume = result.volume
         if volume <= 0:
             raise GeometryError(
                 "Boolean difference resulted in empty geometry",
@@ -99,7 +112,7 @@ def difference(base: cq.Workplane, *tools: cq.Workplane) -> cq.Workplane:
     return result
 
 
-def intersection(*shapes: cq.Workplane) -> cq.Workplane:
+def intersection(*shapes: Part) -> Part:
     """
     Return the common volume of shapes (boolean intersection).
     
@@ -128,7 +141,7 @@ def intersection(*shapes: cq.Workplane) -> cq.Workplane:
     
     # Validate result
     try:
-        volume = result.val().Volume()
+        volume = result.volume
         if volume <= 0:
             raise GeometryError(
                 "Shapes have no common volume",
@@ -147,11 +160,11 @@ def intersection(*shapes: cq.Workplane) -> cq.Workplane:
 # =============================================================================
 
 def translate(
-    shape: cq.Workplane,
+    shape: Part,
     x: float = 0,
     y: float = 0,
     z: float = 0,
-) -> cq.Workplane:
+) -> Part:
     """
     Move a shape by the specified offset.
     
@@ -169,15 +182,15 @@ def translate(
         >>> box = create_box(10, 10, 10)
         >>> moved = translate(box, x=50, z=25)
     """
-    return shape.translate((x, y, z))
+    return shape.move(Location((x, y, z)))
 
 
 def rotate(
-    shape: cq.Workplane,
+    shape: Part,
     angle: float,
     axis: tuple[float, float, float] = (0, 0, 1),
     center: tuple[float, float, float] = (0, 0, 0),
-) -> cq.Workplane:
+) -> Part:
     """
     Rotate a shape around an axis.
     
@@ -195,10 +208,21 @@ def rotate(
         >>> box = create_box(100, 50, 30)
         >>> rotated = rotate(box, 45)  # 45° around Z axis
     """
-    return shape.rotate(center, axis, angle)
+    # Use OCP for rotation around arbitrary axis
+    import math
+    
+    trsf = gp_Trsf()
+    ax = gp_Ax1(
+        gp_Pnt(center[0], center[1], center[2]),
+        gp_Dir(axis[0], axis[1], axis[2])
+    )
+    trsf.SetRotation(ax, math.radians(angle))
+    
+    transformer = BRepBuilderAPI_Transform(shape.wrapped, trsf, True)
+    return Part(transformer.Shape())
 
 
-def scale(shape: cq.Workplane, factor: float) -> cq.Workplane:
+def scale(shape: Part, factor: float) -> Part:
     """
     Uniformly scale a shape.
     
@@ -216,7 +240,7 @@ def scale(shape: cq.Workplane, factor: float) -> cq.Workplane:
         >>> from app.cad.primitives import create_box
         >>> box = create_box(10, 10, 10)
         >>> big_box = scale(box, 2.0)
-        >>> big_box.val().Volume()  # 8x original (2³)
+        >>> big_box.volume  # 8x original (2³)
         8000.0
     """
     if factor <= 0:
@@ -228,21 +252,17 @@ def scale(shape: cq.Workplane, factor: float) -> cq.Workplane:
     if factor == 1.0:
         return shape
     
-    # Use OCP for scaling transformation
-    from OCP.gp import gp_Trsf, gp_Pnt
-    from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
-    
     trsf = gp_Trsf()
     trsf.SetScale(gp_Pnt(0, 0, 0), factor)
     
-    transformer = BRepBuilderAPI_Transform(shape.val().wrapped, trsf, True)
-    return cq.Workplane(obj=cq.Shape(transformer.Shape()))
+    transformer = BRepBuilderAPI_Transform(shape.wrapped, trsf, True)
+    return Part(transformer.Shape())
 
 
 def mirror(
-    shape: cq.Workplane,
+    shape: Part,
     plane: str = "XY",
-) -> cq.Workplane:
+) -> Part:
     """
     Mirror a shape across a plane.
     
@@ -259,11 +279,11 @@ def mirror(
     plane = plane.upper()
     
     if plane == "XY":
-        return shape.mirror("XY")
+        return shape.mirror(Plane.XY)
     elif plane == "XZ":
-        return shape.mirror("XZ")
+        return shape.mirror(Plane.XZ)
     elif plane == "YZ":
-        return shape.mirror("YZ")
+        return shape.mirror(Plane.YZ)
     else:
         raise ValidationError(
             f"Invalid mirror plane: {plane}",
@@ -276,10 +296,10 @@ def mirror(
 # =============================================================================
 
 def fillet(
-    shape: cq.Workplane,
+    shape: Part,
     radius: float,
     edges: str = "all",
-) -> cq.Workplane:
+) -> Part:
     """
     Apply fillet (rounded edge) to edges.
     
@@ -300,6 +320,8 @@ def fillet(
         >>> box = create_box(50, 50, 50)
         >>> rounded = fillet(box, 5)  # 5mm fillet on all edges
     """
+    from build123d import fillet as b3d_fillet
+    
     if radius <= 0:
         raise ValidationError(
             "Fillet radius must be positive",
@@ -308,9 +330,12 @@ def fillet(
     
     try:
         if edges == "all":
-            return shape.edges().fillet(radius)
+            # Use module-level fillet function to avoid type issues with Box/Cylinder
+            return b3d_fillet(shape.edges(), radius)
         else:
-            return shape.edges(edges).fillet(radius)
+            # Parse edge selector
+            selected_edges = _select_edges(shape, edges)
+            return b3d_fillet(selected_edges, radius)
     except Exception as e:
         raise GeometryError(
             f"Fillet operation failed (radius may be too large): {e}",
@@ -319,10 +344,10 @@ def fillet(
 
 
 def chamfer(
-    shape: cq.Workplane,
+    shape: Part,
     distance: float,
     edges: str = "all",
-) -> cq.Workplane:
+) -> Part:
     """
     Apply chamfer (beveled edge) to edges.
     
@@ -343,6 +368,8 @@ def chamfer(
         >>> box = create_box(50, 50, 50)
         >>> beveled = chamfer(box, 3)  # 3mm chamfer on all edges
     """
+    from build123d import chamfer as b3d_chamfer
+    
     if distance <= 0:
         raise ValidationError(
             "Chamfer distance must be positive",
@@ -351,9 +378,11 @@ def chamfer(
     
     try:
         if edges == "all":
-            return shape.edges().chamfer(distance)
+            # Use module-level chamfer function to avoid type issues with Box/Cylinder
+            return b3d_chamfer(shape.edges(), distance)
         else:
-            return shape.edges(edges).chamfer(distance)
+            selected_edges = _select_edges(shape, edges)
+            return b3d_chamfer(selected_edges, distance)
     except Exception as e:
         raise GeometryError(
             f"Chamfer operation failed: {e}",
@@ -362,12 +391,14 @@ def chamfer(
 
 
 def shell(
-    shape: cq.Workplane,
+    shape: Part,
     thickness: float,
     faces_to_remove: str | None = None,
-) -> cq.Workplane:
+) -> Part:
     """
     Hollow out a solid, creating a shell with specified wall thickness.
+    
+    Uses Build123d's offset function to create hollow geometry.
     
     Args:
         shape: Solid shape to shell
@@ -386,14 +417,22 @@ def shell(
         >>> box = create_box(50, 50, 50)
         >>> hollow = shell(box, 2, ">Z")  # Open-top box with 2mm walls
     """
+    from build123d import offset
+    
     if thickness == 0:
         raise ValidationError("Shell thickness cannot be zero")
     
     try:
+        # Build123d uses offset() for shell operations
+        # Negative offset creates inward shell (walls inside original)
+        # Positive offset creates outward shell (walls outside original)
+        offset_amount = -abs(thickness) if thickness > 0 else abs(thickness)
+        
         if faces_to_remove:
-            return shape.faces(faces_to_remove).shell(thickness)
+            open_faces = _select_faces(shape, faces_to_remove)
+            return offset(shape, offset_amount, openings=open_faces)
         else:
-            return shape.shell(thickness)
+            return offset(shape, offset_amount)
     except Exception as e:
         raise GeometryError(
             f"Shell operation failed: {e}",
@@ -406,12 +445,12 @@ def shell(
 # =============================================================================
 
 def add_hole(
-    shape: cq.Workplane,
+    shape: Part,
     diameter: float,
     depth: float | None = None,
     position: tuple[float, float] = (0, 0),
     face: str = ">Z",
-) -> cq.Workplane:
+) -> Part:
     """
     Add a cylindrical hole to a shape.
     
@@ -428,19 +467,111 @@ def add_hole(
     Example:
         >>> from app.cad.primitives import create_box
         >>> box = create_box(50, 50, 20)
-        >>> box_with_hole = add_hole(box, 10, depth=15)  # M10 hole, 15mm deep
+        >>> box_with_hole = add_hole(box, 10, depth=15)  # 10mm diameter hole, 15mm deep
     """
     if diameter <= 0:
         raise ValidationError("Hole diameter must be positive")
     
+    from build123d import Cylinder as B3dCylinder, Location, Align
+    
     radius = diameter / 2
     
-    # Select face and position
-    workplane = shape.faces(face).workplane().center(position[0], position[1])
-    
+    # Get the bounding box to determine hole depth if not specified
+    bb = shape.bounding_box()
     if depth is None:
-        # Through hole
-        return workplane.hole(diameter)
+        depth = bb.size.Z + 2  # Through all plus margin
+    
+    # Create hole cylinder aligned at bottom (MIN Z)
+    # This makes positioning easier - hole extends upward from its base
+    hole = B3dCylinder(radius, depth, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    
+    # Position the hole based on face selector
+    if face == ">Z":
+        # Hole from top face going down
+        hole = hole.move(Location((position[0], position[1], bb.max.Z - depth)))
+    elif face == "<Z":
+        # Hole from bottom face going up (but start below to ensure clean cut)
+        hole = hole.move(Location((position[0], position[1], bb.min.Z - 1)))
     else:
-        # Blind hole
-        return workplane.hole(diameter, depth)
+        # Default to top face
+        hole = hole.move(Location((position[0], position[1], bb.max.Z - depth)))
+    
+    return shape.cut(hole)
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def _select_edges(shape: Part, selector: str):
+    """
+    Select edges based on a selector string.
+    
+    Args:
+        shape: Shape to select edges from
+        selector: Edge selector (">Z", "<Z", "|Z", etc.)
+    
+    Returns:
+        List of selected edges
+    """
+    all_edges = shape.edges()
+    
+    if selector.startswith(">"):
+        axis = selector[1]
+        if axis == "Z":
+            return all_edges.filter_by(Axis.Z).sort_by(Axis.Z)[-1:]
+        elif axis == "Y":
+            return all_edges.filter_by(Axis.Y).sort_by(Axis.Y)[-1:]
+        elif axis == "X":
+            return all_edges.filter_by(Axis.X).sort_by(Axis.X)[-1:]
+    elif selector.startswith("<"):
+        axis = selector[1]
+        if axis == "Z":
+            return all_edges.filter_by(Axis.Z).sort_by(Axis.Z)[:1]
+        elif axis == "Y":
+            return all_edges.filter_by(Axis.Y).sort_by(Axis.Y)[:1]
+        elif axis == "X":
+            return all_edges.filter_by(Axis.X).sort_by(Axis.X)[:1]
+    elif selector.startswith("|"):
+        axis = selector[1]
+        if axis == "Z":
+            return all_edges.filter_by(Axis.Z)
+        elif axis == "Y":
+            return all_edges.filter_by(Axis.Y)
+        elif axis == "X":
+            return all_edges.filter_by(Axis.X)
+    
+    return all_edges
+
+
+def _select_faces(shape: Part, selector: str):
+    """
+    Select faces based on a selector string.
+    
+    Args:
+        shape: Shape to select faces from
+        selector: Face selector (">Z", "<Z", etc.)
+    
+    Returns:
+        List of selected faces
+    """
+    all_faces = shape.faces()
+    
+    if selector.startswith(">"):
+        axis = selector[1]
+        if axis == "Z":
+            return all_faces.sort_by(Axis.Z)[-1:]
+        elif axis == "Y":
+            return all_faces.sort_by(Axis.Y)[-1:]
+        elif axis == "X":
+            return all_faces.sort_by(Axis.X)[-1:]
+    elif selector.startswith("<"):
+        axis = selector[1]
+        if axis == "Z":
+            return all_faces.sort_by(Axis.Z)[:1]
+        elif axis == "Y":
+            return all_faces.sort_by(Axis.Y)[:1]
+        elif axis == "X":
+            return all_faces.sort_by(Axis.X)[:1]
+    
+    return all_faces

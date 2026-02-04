@@ -353,6 +353,7 @@ async def create_sample_data(
             design = Design(
                 id=uuid4(),
                 project_id=project.id,
+                user_id=user.id,
                 name=design_data["name"],
                 description=design_data["description"],
                 source_type=design_data["source_type"],

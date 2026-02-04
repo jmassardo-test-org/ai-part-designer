@@ -1,0 +1,1449 @@
+"""
+CAD template generators.
+
+Each template is a parameterized function that generates CAD geometry.
+Templates are registered in the TEMPLATE_REGISTRY for lookup by slug.
+
+This module has been migrated from CadQuery to Build123d.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Callable, Protocol
+
+from build123d import (
+    Box, BuildPart, Cylinder, Location, Part, Sphere, Cone, Torus,
+    Axis, Mode, Align, Plane, add, fillet, chamfer, extrude,
+    Sketch, Circle, Rectangle, RectangleRounded, Pos, SlotCenterToCenter,
+    mirror, BuildSketch, loft, offset, sweep, make_face, make_hull,
+    Polyline, Locations, GridLocations, PolarLocations, import_step,
+    export_step, export_stl
+)
+import math
+
+
+class TemplateGenerator(Protocol):
+    """Protocol for template generator functions."""
+
+    def __call__(self, **params: Any) -> Part:
+        """Generate CAD geometry from parameters."""
+        ...
+
+
+# Registry of all available template generators
+TEMPLATE_REGISTRY: dict[str, TemplateGenerator] = {}
+
+
+def register_template(slug: str):
+    """Decorator to register a template generator function."""
+    def decorator(func: TemplateGenerator) -> TemplateGenerator:
+        TEMPLATE_REGISTRY[slug] = func
+        return func
+    return decorator
+
+
+def get_template_generator(slug: str) -> TemplateGenerator | None:
+    """Get template generator by slug."""
+    return TEMPLATE_REGISTRY.get(slug)
+
+
+def generate_from_template(slug: str, parameters: dict[str, Any]) -> Part:
+    """
+    Generate CAD geometry from template.
+    
+    Args:
+        slug: Template identifier
+        parameters: Template parameters
+        
+    Returns:
+        Generated Build123d Part
+        
+    Raises:
+        ValueError: If template not found
+    """
+    generator = get_template_generator(slug)
+    if generator is None:
+        raise ValueError(f"Template not found: {slug}")
+    return generator(**parameters)
+
+
+# =============================================================================
+# Project Box Template
+# =============================================================================
+
+@dataclass
+class ProjectBoxParams:
+    """Parameters for project box template."""
+    
+    # Outer dimensions
+    length: float = 100.0  # mm
+    width: float = 60.0
+    height: float = 40.0
+    
+    # Wall properties
+    wall_thickness: float = 2.0
+    
+    # Corner options
+    corner_radius: float = 3.0
+    corner_style: str = "rounded"  # rounded, chamfered, sharp
+    
+    # Lid options
+    lid_style: str = "overlap"  # overlap, inset, snap
+    lid_height: float = 10.0
+    lid_tolerance: float = 0.3
+    
+    # Screw posts
+    screw_posts: bool = True
+    screw_post_diameter: float = 6.0
+    screw_hole_diameter: float = 3.0
+    screw_post_height: float = 0.0  # 0 = auto (height - lid_height - 2)
+    
+    # Ventilation
+    ventilation_slots: bool = False
+    slot_width: float = 2.0
+    slot_length: float = 20.0
+    slot_count: int = 3
+    
+    # Cable entry
+    cable_hole: bool = False
+    cable_hole_diameter: float = 8.0
+    cable_hole_position: str = "back"  # back, left, right
+
+
+@register_template("project-box")
+def generate_project_box(
+    length: float = 100.0,
+    width: float = 60.0,
+    height: float = 40.0,
+    wall_thickness: float = 2.0,
+    corner_radius: float = 3.0,
+    corner_style: str = "rounded",
+    lid_style: str = "overlap",
+    lid_height: float = 10.0,
+    lid_tolerance: float = 0.3,
+    screw_posts: bool = True,
+    screw_post_diameter: float = 6.0,
+    screw_hole_diameter: float = 3.0,
+    screw_post_height: float = 0.0,
+    ventilation_slots: bool = False,
+    slot_width: float = 2.0,
+    slot_length: float = 20.0,
+    slot_count: int = 3,
+    cable_hole: bool = False,
+    cable_hole_diameter: float = 8.0,
+    cable_hole_position: str = "back",
+    **_kwargs,  # Ignore extra params
+) -> cq.Workplane:
+    """
+    Generate a parameterized project box/enclosure.
+    
+    Creates a two-part box (base and lid) suitable for electronics projects.
+    
+    Returns:
+        Assembly of base and lid as a single workplane
+    """
+    # Calculate internal dimensions
+    inner_length = length - 2 * wall_thickness
+    inner_width = width - 2 * wall_thickness
+    base_height = height - lid_height
+    
+    # Auto screw post height
+    if screw_post_height <= 0:
+        screw_post_height = base_height - wall_thickness - 2
+    
+    # Create base outer shell
+    if corner_style == "rounded" and corner_radius > 0:
+        base = (
+            cq.Workplane("XY")
+            .box(length, width, base_height, centered=(True, True, False))
+            .edges("|Z")
+            .fillet(corner_radius)
+        )
+    elif corner_style == "chamfered" and corner_radius > 0:
+        base = (
+            cq.Workplane("XY")
+            .box(length, width, base_height, centered=(True, True, False))
+            .edges("|Z")
+            .chamfer(corner_radius)
+        )
+    else:
+        base = (
+            cq.Workplane("XY")
+            .box(length, width, base_height, centered=(True, True, False))
+        )
+    
+    # Hollow out the base
+    base = (
+        base
+        .faces(">Z")
+        .workplane()
+        .rect(inner_length, inner_width)
+        .cutBlind(-(base_height - wall_thickness))
+    )
+    
+    # Add screw posts
+    if screw_posts:
+        post_offset = wall_thickness + screw_post_diameter / 2 + 1
+        post_positions = [
+            (-length / 2 + post_offset, -width / 2 + post_offset),
+            (-length / 2 + post_offset, width / 2 - post_offset),
+            (length / 2 - post_offset, -width / 2 + post_offset),
+            (length / 2 - post_offset, width / 2 - post_offset),
+        ]
+        
+        for x, y in post_positions:
+            # Add post
+            post = (
+                cq.Workplane("XY")
+                .center(x, y)
+                .circle(screw_post_diameter / 2)
+                .extrude(screw_post_height)
+            )
+            base = base.union(post)
+            
+            # Add screw hole
+            hole = (
+                cq.Workplane("XY")
+                .center(x, y)
+                .circle(screw_hole_diameter / 2)
+                .extrude(screw_post_height)
+            )
+            base = base.cut(hole)
+    
+    # Add ventilation slots
+    if ventilation_slots and slot_count > 0:
+        slot_spacing = (inner_length - slot_length) / 2
+        slot_start_y = -((slot_count - 1) * (slot_width + 2)) / 2
+        
+        for i in range(slot_count):
+            y_pos = slot_start_y + i * (slot_width + 2)
+            slot = (
+                cq.Workplane("XY")
+                .workplane(offset=base_height - wall_thickness / 2)
+                .center(0, y_pos)
+                .slot2D(slot_length, slot_width)
+                .cutThruAll()
+            )
+            base = base.cut(slot)
+    
+    # Add cable hole
+    if cable_hole:
+        hole_z = base_height / 2
+        if cable_hole_position == "back":
+            hole = (
+                cq.Workplane("XZ")
+                .workplane(offset=-width / 2)
+                .center(0, hole_z)
+                .circle(cable_hole_diameter / 2)
+                .extrude(wall_thickness + 1)
+            )
+        elif cable_hole_position == "left":
+            hole = (
+                cq.Workplane("YZ")
+                .workplane(offset=-length / 2)
+                .center(0, hole_z)
+                .circle(cable_hole_diameter / 2)
+                .extrude(wall_thickness + 1)
+            )
+        else:  # right
+            hole = (
+                cq.Workplane("YZ")
+                .workplane(offset=length / 2 - wall_thickness - 1)
+                .center(0, hole_z)
+                .circle(cable_hole_diameter / 2)
+                .extrude(wall_thickness + 1)
+            )
+        base = base.cut(hole)
+    
+    # Create lid
+    lid_inner_length = inner_length - lid_tolerance * 2
+    lid_inner_width = inner_width - lid_tolerance * 2
+    
+    if lid_style == "overlap":
+        # Lid sits on top with lip that goes inside
+        lip_depth = min(5.0, lid_height - wall_thickness)
+        
+        if corner_style == "rounded" and corner_radius > 0:
+            lid = (
+                cq.Workplane("XY")
+                .workplane(offset=base_height)
+                .box(length, width, lid_height, centered=(True, True, False))
+                .edges("|Z")
+                .fillet(corner_radius)
+            )
+        else:
+            lid = (
+                cq.Workplane("XY")
+                .workplane(offset=base_height)
+                .box(length, width, lid_height, centered=(True, True, False))
+            )
+        
+        # Create inner lip
+        lip = (
+            cq.Workplane("XY")
+            .workplane(offset=base_height - lip_depth)
+            .box(lid_inner_length, lid_inner_width, lip_depth, centered=(True, True, False))
+        )
+        lid = lid.union(lip)
+        
+        # Add screw holes in lid if posts enabled
+        if screw_posts:
+            post_offset = wall_thickness + screw_post_diameter / 2 + 1
+            for x, y in [
+                (-length / 2 + post_offset, -width / 2 + post_offset),
+                (-length / 2 + post_offset, width / 2 - post_offset),
+                (length / 2 - post_offset, -width / 2 + post_offset),
+                (length / 2 - post_offset, width / 2 - post_offset),
+            ]:
+                hole = (
+                    cq.Workplane("XY")
+                    .workplane(offset=base_height)
+                    .center(x, y)
+                    .circle(screw_hole_diameter / 2 + 0.5)  # Clearance hole
+                    .extrude(lid_height)
+                )
+                lid = lid.cut(hole)
+    else:
+        # Simple flat lid
+        if corner_style == "rounded" and corner_radius > 0:
+            lid = (
+                cq.Workplane("XY")
+                .workplane(offset=base_height)
+                .box(length, width, lid_height, centered=(True, True, False))
+                .edges("|Z")
+                .fillet(corner_radius)
+            )
+        else:
+            lid = (
+                cq.Workplane("XY")
+                .workplane(offset=base_height)
+                .box(length, width, lid_height, centered=(True, True, False))
+            )
+    
+    # Combine base and lid
+    result = base.union(lid)
+    
+    return result
+
+
+# =============================================================================
+# Mounting Bracket Template
+# =============================================================================
+
+@register_template("mounting-bracket")
+def generate_mounting_bracket(
+    width: float = 50.0,
+    height: float = 30.0,
+    depth: float = 20.0,
+    thickness: float = 3.0,
+    hole_diameter: float = 5.0,
+    hole_count: int = 2,
+    fillet_radius: float = 2.0,
+    bracket_style: str = "L",  # L, U, Z
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a parameterized mounting bracket.
+    
+    Args:
+        width: Width of the bracket
+        height: Height of the vertical portion
+        depth: Depth of the horizontal portion
+        thickness: Material thickness
+        hole_diameter: Mounting hole diameter
+        hole_count: Number of holes per leg
+        fillet_radius: Fillet on inside corner
+        bracket_style: Shape (L, U, Z)
+    """
+    if bracket_style == "L":
+        # L-bracket: vertical + horizontal
+        bracket = (
+            cq.Workplane("XZ")
+            .moveTo(0, 0)
+            .lineTo(depth, 0)
+            .lineTo(depth, thickness)
+            .lineTo(thickness, thickness)
+            .lineTo(thickness, height)
+            .lineTo(0, height)
+            .close()
+            .extrude(width)
+        )
+        
+        # Add fillet on inside corner
+        if fillet_radius > 0:
+            bracket = bracket.edges("|Y").edges("<Z and >X").fillet(fillet_radius)
+        
+        # Add holes in horizontal leg
+        hole_spacing = (width - hole_diameter * 2) / (hole_count + 1)
+        for i in range(hole_count):
+            y = hole_diameter + (i + 1) * hole_spacing
+            bracket = (
+                bracket
+                .faces("<Z")
+                .workplane()
+                .center(depth / 2, y - width / 2)
+                .hole(hole_diameter)
+            )
+        
+        # Add holes in vertical leg
+        for i in range(hole_count):
+            y = hole_diameter + (i + 1) * hole_spacing
+            bracket = (
+                bracket
+                .faces(">X")
+                .workplane()
+                .center(y - width / 2, height / 2)
+                .hole(hole_diameter)
+            )
+    
+    elif bracket_style == "U":
+        # U-bracket: two vertical legs
+        bracket = (
+            cq.Workplane("XZ")
+            .moveTo(0, 0)
+            .lineTo(depth, 0)
+            .lineTo(depth, height)
+            .lineTo(depth - thickness, height)
+            .lineTo(depth - thickness, thickness)
+            .lineTo(thickness, thickness)
+            .lineTo(thickness, height)
+            .lineTo(0, height)
+            .close()
+            .extrude(width)
+        )
+    
+    else:  # Z-bracket
+        bracket = (
+            cq.Workplane("XZ")
+            .moveTo(0, 0)
+            .lineTo(depth, 0)
+            .lineTo(depth, thickness)
+            .lineTo(thickness, thickness)
+            .lineTo(thickness, height - thickness)
+            .lineTo(depth, height - thickness)
+            .lineTo(depth, height)
+            .lineTo(0, height)
+            .lineTo(0, height - thickness)
+            .lineTo(depth - thickness, height - thickness)
+            .lineTo(depth - thickness, thickness)
+            .lineTo(0, thickness)
+            .close()
+            .extrude(width)
+        )
+    
+    return bracket
+
+
+# =============================================================================
+# Standoff Template
+# =============================================================================
+
+@register_template("standoff")
+def generate_standoff(
+    height: float = 10.0,
+    outer_diameter: float = 8.0,
+    inner_diameter: float = 3.2,
+    head_diameter: float = 12.0,
+    head_height: float = 2.0,
+    thread_type: str = "none",  # none, m3, m4, m5
+    hex_socket: bool = False,
+    hex_size: float = 5.0,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a parameterized standoff/spacer.
+    
+    Args:
+        height: Total height of standoff body
+        outer_diameter: Outer diameter of body
+        inner_diameter: Inner hole diameter
+        head_diameter: Diameter of head/flange (0 for none)
+        head_height: Height of head
+        thread_type: Thread specification
+        hex_socket: Add hex socket in top
+        hex_size: Hex socket size (across flats)
+    """
+    # Create body
+    standoff = (
+        cq.Workplane("XY")
+        .circle(outer_diameter / 2)
+        .extrude(height)
+    )
+    
+    # Add head if specified
+    if head_diameter > outer_diameter:
+        head = (
+            cq.Workplane("XY")
+            .circle(head_diameter / 2)
+            .extrude(head_height)
+        )
+        standoff = standoff.union(head)
+    
+    # Add center hole
+    standoff = (
+        standoff
+        .faces(">Z")
+        .workplane()
+        .hole(inner_diameter, height + head_height)
+    )
+    
+    # Add hex socket
+    if hex_socket:
+        hex_depth = min(height / 2, 5.0)
+        standoff = (
+            standoff
+            .faces(">Z")
+            .workplane()
+            .polygon(6, hex_size)
+            .cutBlind(-hex_depth)
+        )
+    
+    return standoff
+
+
+# =============================================================================
+# Cable Gland Template
+# =============================================================================
+
+@register_template("cable-gland")
+def generate_cable_gland(
+    body_diameter: float = 20.0,
+    body_height: float = 15.0,
+    thread_diameter: float = 16.0,
+    thread_height: float = 8.0,
+    cable_diameter: float = 6.0,
+    hex_size: float = 22.0,
+    seal_groove: bool = True,
+    groove_diameter: float = 18.0,
+    groove_width: float = 2.0,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a cable gland body.
+    
+    Args:
+        body_diameter: Main body diameter
+        body_height: Height of body (above panel)
+        thread_diameter: Thread outer diameter
+        thread_height: Thread length
+        cable_diameter: Cable passage hole diameter
+        hex_size: Hex nut size for tightening
+        seal_groove: Add O-ring groove
+        groove_diameter: O-ring groove diameter
+        groove_width: O-ring groove width
+    """
+    total_height = body_height + thread_height
+    
+    # Create hex body
+    gland = (
+        cq.Workplane("XY")
+        .polygon(6, hex_size)
+        .extrude(body_height)
+    )
+    
+    # Add thread portion (cylindrical)
+    thread = (
+        cq.Workplane("XY")
+        .workplane(offset=-thread_height)
+        .circle(thread_diameter / 2)
+        .extrude(thread_height)
+    )
+    gland = gland.union(thread)
+    
+    # Cable hole through center
+    gland = (
+        gland
+        .faces(">Z")
+        .workplane()
+        .hole(cable_diameter, total_height)
+    )
+    
+    # Add O-ring groove
+    if seal_groove:
+        groove_z = -thread_height + 2
+        groove = (
+            cq.Workplane("XY")
+            .workplane(offset=groove_z)
+            .circle(groove_diameter / 2)
+            .circle(groove_diameter / 2 - groove_width)
+            .extrude(groove_width)
+        )
+        gland = gland.cut(groove)
+    
+    return gland
+
+
+# =============================================================================
+# Rounded Box Enclosure Template
+# =============================================================================
+
+@register_template("rounded-box-enclosure")
+def generate_rounded_box_enclosure(
+    length: float = 100.0,
+    width: float = 60.0,
+    height: float = 30.0,
+    wall_thickness: float = 2.0,
+    fillet_radius: float = 3.0,
+    include_lid: bool = True,
+    mounting_tabs: str = "none",  # none, corners, sides
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a rounded box enclosure with optional lid and mounting tabs.
+    
+    Args:
+        length: Outer length
+        width: Outer width  
+        height: Outer height (excluding lid)
+        wall_thickness: Wall thickness
+        fillet_radius: Corner fillet radius
+        include_lid: Whether to include a lid
+        mounting_tabs: Tab placement (none, corners, sides)
+    """
+    # Create outer shell
+    box = (
+        cq.Workplane("XY")
+        .box(length, width, height, centered=(True, True, False))
+    )
+    
+    # Apply fillets if radius > 0
+    if fillet_radius > 0:
+        box = box.edges("|Z").fillet(min(fillet_radius, min(length, width) / 4))
+    
+    # Hollow out
+    inner_length = length - 2 * wall_thickness
+    inner_width = width - 2 * wall_thickness
+    inner_height = height - wall_thickness
+    
+    box = (
+        box.faces(">Z")
+        .workplane()
+        .rect(inner_length, inner_width)
+        .cutBlind(-inner_height)
+    )
+    
+    # Add mounting tabs
+    if mounting_tabs == "corners":
+        tab_size = 10.0
+        tab_thickness = wall_thickness
+        hole_diameter = 3.0
+        
+        for x_sign, y_sign in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+            pos_x = x_sign * (length / 2 + tab_size / 2 - 1)
+            pos_y = y_sign * (width / 2 + tab_size / 2 - 1)
+            
+            tab = (
+                cq.Workplane("XY")
+                .box(tab_size, tab_size, tab_thickness, centered=(True, True, False))
+                .translate((pos_x, pos_y, 0))
+            )
+            tab = tab.faces(">Z").workplane().hole(hole_diameter)
+            box = box.union(tab)
+    
+    elif mounting_tabs == "sides":
+        tab_width = 15.0
+        tab_depth = 8.0
+        tab_thickness = wall_thickness
+        hole_diameter = 3.0
+        
+        # Left and right sides
+        for x_sign in [1, -1]:
+            pos_x = x_sign * (length / 2 + tab_depth / 2 - 1)
+            tab = (
+                cq.Workplane("XY")
+                .box(tab_depth, tab_width, tab_thickness, centered=(True, True, False))
+                .translate((pos_x, 0, 0))
+            )
+            tab = tab.faces(">Z").workplane().hole(hole_diameter)
+            box = box.union(tab)
+    
+    # Create lid
+    if include_lid:
+        lid_height = wall_thickness * 1.5
+        lid_lip = wall_thickness
+        
+        lid = (
+            cq.Workplane("XY")
+            .workplane(offset=height + 2)  # Gap for visualization
+            .box(length, width, lid_height, centered=(True, True, False))
+        )
+        
+        if fillet_radius > 0:
+            lid = lid.edges("|Z").fillet(min(fillet_radius, min(length, width) / 4))
+        
+        # Add lip to lid
+        lip = (
+            cq.Workplane("XY")
+            .workplane(offset=height + 2 - lid_lip)
+            .box(inner_length - 0.5, inner_width - 0.5, lid_lip, centered=(True, True, False))
+        )
+        lid = lid.union(lip)
+        box = box.union(lid)
+    
+    return box
+
+
+# =============================================================================
+# Raspberry Pi Case Template
+# =============================================================================
+
+# Pi dimensions (length x width x height) - board only
+PI_DIMENSIONS = {
+    "3B": (85.0, 56.0, 17.0),
+    "3B+": (85.0, 56.0, 17.0),
+    "4B": (85.0, 56.0, 17.0),
+    "5": (85.0, 56.0, 20.0),
+}
+
+
+@register_template("raspberry-pi-case")
+def generate_raspberry_pi_case(
+    pi_model: str = "4B",
+    vent_style: str = "hexagon",  # none, slots, hexagon, mesh
+    include_fan_mount: bool = True,
+    gpio_access: bool = True,
+    wall_thickness: float = 2.0,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a Raspberry Pi case.
+    
+    Args:
+        pi_model: Pi model (3B, 3B+, 4B, 5)
+        vent_style: Ventilation style
+        include_fan_mount: Include 40mm fan mount
+        gpio_access: Include GPIO access slot
+        wall_thickness: Wall thickness
+    """
+    # Get Pi dimensions
+    pi_length, pi_width, pi_height = PI_DIMENSIONS.get(pi_model, PI_DIMENSIONS["4B"])
+    
+    # Add clearance
+    clearance = 2.0
+    inner_length = pi_length + clearance
+    inner_width = pi_width + clearance
+    inner_height = pi_height + clearance * 2
+    
+    # Outer dimensions
+    length = inner_length + 2 * wall_thickness
+    width = inner_width + 2 * wall_thickness
+    height = inner_height + wall_thickness
+    
+    # Create base shell
+    case = (
+        cq.Workplane("XY")
+        .box(length, width, height, centered=(True, True, False))
+        .edges("|Z")
+        .fillet(3.0)
+    )
+    
+    # Hollow out
+    case = (
+        case.faces(">Z")
+        .workplane()
+        .rect(inner_length, inner_width)
+        .cutBlind(-(inner_height))
+    )
+    
+    # Add ventilation
+    if vent_style == "slots":
+        slot_count = 5
+        slot_length = 30.0
+        slot_width = 2.0
+        slot_spacing = 5.0
+        
+        for i in range(slot_count):
+            y_offset = (i - slot_count // 2) * slot_spacing
+            case = (
+                case.faces(">Z")
+                .workplane(offset=-wall_thickness / 2)
+                .center(0, y_offset)
+                .slot2D(slot_length, slot_width)
+                .cutThruAll()
+            )
+    
+    elif vent_style == "hexagon":
+        # Simplified hexagon pattern - just add some hex cutouts
+        hex_size = 8.0
+        hex_spacing = 10.0
+        for row in range(-2, 3):
+            for col in range(-3, 4):
+                x = col * hex_spacing
+                y = row * hex_spacing + (col % 2) * hex_spacing / 2
+                if abs(x) < length / 2 - 15 and abs(y) < width / 2 - 15:
+                    case = (
+                        case.faces(">Z")
+                        .workplane()
+                        .center(x, y)
+                        .polygon(6, hex_size)
+                        .cutThruAll()
+                    )
+    
+    # Add GPIO access slot
+    if gpio_access:
+        gpio_length = 52.0
+        gpio_width = 6.0
+        case = (
+            case.faces("<Y")
+            .workplane()
+            .center(0, height / 2)
+            .rect(gpio_length, gpio_width)
+            .cutThruAll()
+        )
+    
+    # Add fan mount holes (40mm fan)
+    if include_fan_mount:
+        fan_hole_spacing = 32.0  # 40mm fan hole spacing
+        fan_hole_diameter = 3.2
+        
+        for x_sign, y_sign in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+            x = x_sign * fan_hole_spacing / 2
+            y = y_sign * fan_hole_spacing / 2
+            case = (
+                case.faces(">Z")
+                .workplane()
+                .center(x, y)
+                .hole(fan_hole_diameter)
+            )
+    
+    # Add port cutouts (simplified - USB, HDMI, power)
+    # USB ports on one end
+    usb_width = 15.0
+    usb_height = 8.0
+    case = (
+        case.faces(">X")
+        .workplane()
+        .center(0, 0)
+        .rect(usb_width, usb_height)
+        .cutThruAll()
+    )
+    
+    return case
+
+
+# =============================================================================
+# Parametric Gear Template
+# =============================================================================
+
+@register_template("parametric-gear")
+def generate_parametric_gear(
+    module: float = 2.0,
+    teeth: int = 20,
+    pressure_angle: float = 20.0,
+    face_width: float = 10.0,
+    bore_diameter: float = 8.0,
+    include_keyway: bool = False,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a parametric involute spur gear.
+    
+    Uses simplified gear tooth profile suitable for 3D printing.
+    
+    Args:
+        module: Gear module (tooth size)
+        teeth: Number of teeth
+        pressure_angle: Pressure angle in degrees
+        face_width: Gear thickness
+        bore_diameter: Center bore diameter
+        include_keyway: Include keyway slot
+    """
+    import math
+    
+    # Calculate gear dimensions
+    pitch_diameter = module * teeth
+    addendum = module
+    dedendum = 1.25 * module
+    outer_diameter = pitch_diameter + 2 * addendum
+    root_diameter = pitch_diameter - 2 * dedendum
+    
+    # Create gear blank
+    gear = (
+        cq.Workplane("XY")
+        .circle(outer_diameter / 2)
+        .extrude(face_width)
+    )
+    
+    # Create tooth spaces (simplified - using circular cuts)
+    tooth_angle = 360.0 / teeth
+    space_width = math.pi * module / 2
+    
+    for i in range(teeth):
+        angle_rad = math.radians(i * tooth_angle)
+        
+        # Position of tooth space on pitch circle
+        x = (pitch_diameter / 2) * math.cos(angle_rad)
+        y = (pitch_diameter / 2) * math.sin(angle_rad)
+        
+        # Create wedge-shaped tooth space
+        space = (
+            cq.Workplane("XY")
+            .center(x * 1.1, y * 1.1)  # Slightly outside pitch circle
+            .circle(space_width / 2)
+            .extrude(face_width)
+        )
+        gear = gear.cut(space)
+    
+    # Add center bore
+    gear = (
+        gear.faces(">Z")
+        .workplane()
+        .hole(bore_diameter, face_width)
+    )
+    
+    # Add keyway if requested
+    if include_keyway:
+        keyway_width = bore_diameter / 4
+        keyway_depth = keyway_width / 2
+        keyway = (
+            cq.Workplane("XY")
+            .center(bore_diameter / 2 + keyway_depth / 2, 0)
+            .rect(keyway_depth, keyway_width)
+            .extrude(face_width)
+        )
+        gear = gear.cut(keyway)
+    
+    return gear
+
+
+# =============================================================================
+# Shaft Coupler Template
+# =============================================================================
+
+@register_template("shaft-coupler")
+def generate_shaft_coupler(
+    shaft_diameter_1: float = 5.0,
+    shaft_diameter_2: float = 8.0,
+    coupler_type: str = "flexible",  # rigid, flexible, jaw
+    length: float = 25.0,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a shaft coupler.
+    
+    Args:
+        shaft_diameter_1: First shaft diameter
+        shaft_diameter_2: Second shaft diameter
+        coupler_type: Type of coupler
+        length: Overall length
+    """
+    # Outer diameter based on larger shaft
+    max_shaft = max(shaft_diameter_1, shaft_diameter_2)
+    outer_diameter = max_shaft * 2.5
+    
+    half_length = length / 2
+    
+    # Create basic cylinder
+    coupler = (
+        cq.Workplane("XY")
+        .circle(outer_diameter / 2)
+        .extrude(length)
+    )
+    
+    # First shaft bore
+    coupler = (
+        coupler.faces("<Z")
+        .workplane()
+        .hole(shaft_diameter_1, half_length + 2)
+    )
+    
+    # Second shaft bore
+    coupler = (
+        coupler.faces(">Z")
+        .workplane()
+        .hole(shaft_diameter_2, half_length + 2)
+    )
+    
+    # Add clamping slots for both ends
+    slot_depth = outer_diameter / 2 + 1
+    slot_width = 1.5
+    
+    # Slot for first side
+    slot1 = (
+        cq.Workplane("XZ")
+        .center(0, half_length / 2)
+        .rect(slot_width, half_length)
+        .extrude(slot_depth)
+    )
+    coupler = coupler.cut(slot1)
+    
+    # Slot for second side
+    slot2 = (
+        cq.Workplane("XZ")
+        .center(0, length - half_length / 2)
+        .rect(slot_width, half_length)
+        .extrude(slot_depth)
+    )
+    coupler = coupler.cut(slot2)
+    
+    if coupler_type == "flexible":
+        # Add helical cut for flexibility - simplified alternating slots
+        helix_width = 2.0
+        
+        # Just add simple radial slots at different angles
+        import math
+        for i in range(4):
+            z_pos = half_length / 4 + i * (half_length / 3)
+            angle_rad = math.radians(i * 90)
+            
+            # Calculate slot position
+            slot_x = (outer_diameter / 4) * math.cos(angle_rad)
+            slot_y = (outer_diameter / 4) * math.sin(angle_rad)
+            
+            # Create slot as a small box
+            flex_slot = (
+                cq.Workplane("XY")
+                .workplane(offset=z_pos)
+                .center(slot_x, slot_y)
+                .rect(outer_diameter / 2, helix_width)
+                .extrude(helix_width)
+            )
+            coupler = coupler.cut(flex_slot)
+    
+    return coupler
+
+
+# =============================================================================
+# L-Bracket Template
+# =============================================================================
+
+@register_template("l-bracket")
+def generate_l_bracket(
+    arm_length_1: float = 50.0,
+    arm_length_2: float = 50.0,
+    width: float = 25.0,
+    thickness: float = 3.0,
+    hole_diameter: float = 5.0,
+    holes_per_arm: int = 2,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate an L-bracket with mounting holes.
+    
+    Args:
+        arm_length_1: Length of first arm
+        arm_length_2: Length of second arm
+        width: Width of bracket
+        thickness: Material thickness
+        hole_diameter: Mounting hole diameter
+        holes_per_arm: Number of holes per arm
+    """
+    # Create L-shape profile
+    bracket = (
+        cq.Workplane("XZ")
+        .moveTo(0, 0)
+        .lineTo(arm_length_1, 0)
+        .lineTo(arm_length_1, thickness)
+        .lineTo(thickness, thickness)
+        .lineTo(thickness, arm_length_2)
+        .lineTo(0, arm_length_2)
+        .close()
+        .extrude(width)
+    )
+    
+    # Add fillet on inside corner
+    fillet_radius = thickness
+    try:
+        bracket = bracket.edges("|Y").edges("%CIRCLE").fillet(fillet_radius)
+    except Exception:
+        pass  # Fillet may fail on some geometries
+    
+    # Add holes in horizontal arm
+    hole_margin = hole_diameter * 1.5
+    hole_spacing = (arm_length_1 - 2 * hole_margin) / max(1, holes_per_arm - 1)
+    
+    for i in range(holes_per_arm):
+        x = hole_margin + i * hole_spacing if holes_per_arm > 1 else arm_length_1 / 2
+        bracket = (
+            bracket.faces("<Z")
+            .workplane()
+            .center(x - arm_length_1 / 2, 0)
+            .hole(hole_diameter)
+        )
+    
+    # Add holes in vertical arm
+    hole_spacing_v = (arm_length_2 - thickness - 2 * hole_margin) / max(1, holes_per_arm - 1)
+    
+    for i in range(holes_per_arm):
+        z = thickness + hole_margin + i * hole_spacing_v if holes_per_arm > 1 else arm_length_2 / 2
+        bracket = (
+            bracket.faces(">X")
+            .workplane()
+            .center(0, z - arm_length_2 / 2)
+            .hole(hole_diameter)
+        )
+    
+    return bracket
+
+
+# =============================================================================
+# Phone/Tablet Stand Template
+# =============================================================================
+
+@register_template("phone-tablet-stand")
+def generate_phone_tablet_stand(
+    device_width: float = 80.0,
+    viewing_angle: float = 60.0,
+    cable_slot: bool = True,
+    base_style: str = "solid",  # solid, hollow, weighted
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a phone/tablet stand.
+    
+    Args:
+        device_width: Width of device to hold
+        viewing_angle: Viewing angle in degrees
+        cable_slot: Include cable routing slot
+        base_style: Base style (solid, hollow, weighted)
+    """
+    import math
+    
+    # Calculate dimensions based on angle
+    angle_rad = math.radians(viewing_angle)
+    back_height = 80.0
+    base_depth = back_height * math.cos(angle_rad) + 20
+    lip_height = 15.0
+    thickness = 4.0
+    
+    # Create back support
+    stand = (
+        cq.Workplane("XZ")
+        .moveTo(0, 0)
+        .lineTo(base_depth, 0)
+        .lineTo(base_depth, thickness)
+        .lineTo(thickness, thickness)
+        .lineTo(thickness + back_height * math.cos(angle_rad), back_height * math.sin(angle_rad))
+        .lineTo(back_height * math.cos(angle_rad), back_height * math.sin(angle_rad))
+        .close()
+        .extrude(device_width)
+    )
+    
+    # Add front lip
+    lip = (
+        cq.Workplane("XZ")
+        .moveTo(0, 0)
+        .lineTo(thickness * 2, 0)
+        .lineTo(thickness * 2, lip_height)
+        .lineTo(thickness, lip_height)
+        .lineTo(thickness, thickness)
+        .lineTo(0, thickness)
+        .close()
+        .extrude(device_width)
+    )
+    stand = stand.union(lip)
+    
+    # Add cable slot
+    if cable_slot:
+        slot_width = 15.0
+        slot_height = 8.0
+        slot = (
+            cq.Workplane("XZ")
+            .workplane(offset=device_width / 2)
+            .center(thickness, lip_height / 2)
+            .rect(thickness * 2, slot_height)
+            .extrude(-slot_width / 2)
+            .mirror("XZ")
+        )
+        stand = stand.cut(slot)
+    
+    # Hollow out base if requested
+    if base_style == "hollow":
+        hollow = (
+            cq.Workplane("XY")
+            .workplane(offset=thickness)
+            .center(base_depth / 2, device_width / 2)
+            .rect(base_depth - thickness * 3, device_width - thickness * 2)
+            .extrude(-thickness + 1)
+        )
+        stand = stand.cut(hollow)
+    
+    return stand
+
+
+# =============================================================================
+# Custom Spacer Template
+# =============================================================================
+
+@register_template("custom-spacer")
+def generate_custom_spacer(
+    outer_diameter: float = 8.0,
+    inner_diameter: float = 3.2,
+    height: float = 10.0,
+    shape: str = "round",  # round, hex
+    threaded: bool = False,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a custom spacer/standoff.
+    
+    Args:
+        outer_diameter: Outer diameter
+        inner_diameter: Inner hole diameter
+        height: Spacer height
+        shape: Shape (round or hex)
+        threaded: Include thread representation
+    """
+    # Create outer profile
+    if shape == "hex":
+        spacer = (
+            cq.Workplane("XY")
+            .polygon(6, outer_diameter)
+            .extrude(height)
+        )
+    else:
+        spacer = (
+            cq.Workplane("XY")
+            .circle(outer_diameter / 2)
+            .extrude(height)
+        )
+    
+    # Add center hole
+    spacer = (
+        spacer.faces(">Z")
+        .workplane()
+        .hole(inner_diameter, height)
+    )
+    
+    # Add thread representation (cosmetic grooves)
+    if threaded:
+        thread_pitch = 0.5 if inner_diameter < 4 else 0.8
+        num_grooves = int(height / thread_pitch)
+        
+        for i in range(min(num_grooves, 20)):  # Limit for performance
+            z = i * thread_pitch + thread_pitch / 2
+            if z < height - 1:
+                groove = (
+                    cq.Workplane("XY")
+                    .workplane(offset=z)
+                    .circle(inner_diameter / 2 + 0.2)
+                    .circle(inner_diameter / 2)
+                    .extrude(thread_pitch / 3)
+                )
+                spacer = spacer.cut(groove)
+    
+    return spacer
+
+
+# =============================================================================
+# Stackable Storage Bin Template
+# =============================================================================
+
+@register_template("stackable-storage-bin")
+def generate_stackable_storage_bin(
+    length: float = 100.0,
+    width: float = 80.0,
+    height: float = 50.0,
+    dividers: int = 1,
+    label_slot: bool = True,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a stackable storage bin.
+    
+    Args:
+        length: Outer length
+        width: Outer width
+        height: Outer height
+        dividers: Number of internal dividers
+        label_slot: Include label slot on front
+    """
+    wall_thickness = 2.0
+    base_thickness = 2.0
+    stack_lip = 3.0
+    
+    # Create outer shell
+    bin_outer = (
+        cq.Workplane("XY")
+        .box(length, width, height, centered=(True, True, False))
+    )
+    
+    # Add draft angle to sides (slight taper for stacking)
+    # Simplified: we'll add a stacking lip instead
+    
+    # Hollow out
+    inner_length = length - 2 * wall_thickness
+    inner_width = width - 2 * wall_thickness
+    inner_height = height - base_thickness
+    
+    bin_hollow = (
+        cq.Workplane("XY")
+        .workplane(offset=base_thickness)
+        .box(inner_length, inner_width, inner_height, centered=(True, True, False))
+    )
+    bin_body = bin_outer.cut(bin_hollow)
+    
+    # Add stacking lip (raised edge at top)
+    lip = (
+        cq.Workplane("XY")
+        .workplane(offset=height)
+        .rect(length - wall_thickness, width - wall_thickness)
+        .rect(inner_length, inner_width)
+        .extrude(stack_lip)
+    )
+    bin_body = bin_body.union(lip)
+    
+    # Add dividers
+    if dividers > 0:
+        divider_thickness = 1.5
+        divider_spacing = inner_length / (dividers + 1)
+        
+        for i in range(dividers):
+            x = -inner_length / 2 + (i + 1) * divider_spacing
+            divider = (
+                cq.Workplane("XY")
+                .workplane(offset=base_thickness)
+                .center(x, 0)
+                .box(divider_thickness, inner_width - 1, inner_height - 5, centered=(True, True, False))
+            )
+            bin_body = bin_body.union(divider)
+    
+    # Add label slot
+    if label_slot:
+        slot_width = length * 0.6
+        slot_height = 12.0
+        slot_depth = 1.0
+        
+        label = (
+            cq.Workplane("XZ")
+            .workplane(offset=-width / 2)
+            .center(0, height - slot_height / 2 - 5)
+            .rect(slot_width, slot_height)
+            .extrude(slot_depth)
+        )
+        bin_body = bin_body.cut(label)
+    
+    return bin_body
+
+
+# =============================================================================
+# Pipe Connector Template
+# =============================================================================
+
+@register_template("pipe-connector")
+def generate_pipe_connector(
+    pipe_od: float = 25.0,
+    connector_type: str = "elbow_90",  # straight, elbow_90, elbow_45, tee, cross
+    wall_thickness: float = 3.0,
+    socket_depth: float = 15.0,
+    **_kwargs,
+) -> cq.Workplane:
+    """
+    Generate a pipe connector/fitting.
+    
+    Args:
+        pipe_od: Pipe outer diameter
+        connector_type: Type of connector
+        wall_thickness: Wall thickness
+        socket_depth: Socket/insertion depth
+    """
+    socket_id = pipe_od + 0.5  # Clearance for pipe
+    connector_od = socket_id + 2 * wall_thickness
+    
+    if connector_type == "straight":
+        # Straight coupling
+        total_length = socket_depth * 2 + 10
+        
+        connector = (
+            cq.Workplane("XY")
+            .circle(connector_od / 2)
+            .extrude(total_length)
+        )
+        
+        # Bore through
+        connector = connector.faces(">Z").workplane().hole(socket_id, total_length)
+        
+    elif connector_type == "elbow_90":
+        # 90-degree elbow
+        bend_radius = connector_od
+        
+        # Create as two cylinders joined
+        leg1 = (
+            cq.Workplane("XY")
+            .circle(connector_od / 2)
+            .extrude(socket_depth + bend_radius)
+        )
+        leg1 = leg1.faces(">Z").workplane().hole(socket_id, socket_depth + bend_radius)
+        
+        leg2 = (
+            cq.Workplane("XZ")
+            .workplane(offset=socket_depth + bend_radius - connector_od / 2)
+            .center(connector_od / 2, 0)
+            .circle(connector_od / 2)
+            .extrude(socket_depth + bend_radius)
+        )
+        leg2 = leg2.faces(">Y").workplane().hole(socket_id, socket_depth + bend_radius)
+        
+        connector = leg1.union(leg2)
+        
+    elif connector_type == "elbow_45":
+        # Simplified 45-degree elbow - approximate with cylinder
+        leg_length = socket_depth + connector_od / 2
+        
+        leg1 = (
+            cq.Workplane("XY")
+            .circle(connector_od / 2)
+            .extrude(leg_length)
+        )
+        leg1 = leg1.faces(">Z").workplane().hole(socket_id, leg_length)
+        
+        # Second leg at 45 degrees
+        leg2 = (
+            cq.Workplane("XY")
+            .transformed(rotate=(45, 0, 0))
+            .workplane(offset=leg_length - connector_od / 2)
+            .circle(connector_od / 2)
+            .extrude(leg_length)
+        )
+        
+        connector = leg1.union(leg2)
+        
+    elif connector_type == "tee":
+        # T-connector
+        main_length = socket_depth * 2 + connector_od
+        
+        # Main pipe
+        main = (
+            cq.Workplane("XY")
+            .circle(connector_od / 2)
+            .extrude(main_length)
+        )
+        main = main.faces(">Z").workplane().hole(socket_id, main_length)
+        
+        # Branch
+        branch = (
+            cq.Workplane("XZ")
+            .workplane(offset=main_length / 2)
+            .circle(connector_od / 2)
+            .extrude(socket_depth + connector_od / 2)
+        )
+        branch = branch.faces(">Y").workplane().hole(socket_id, socket_depth + connector_od / 2)
+        
+        connector = main.union(branch)
+        
+    else:  # cross
+        # Cross connector (4-way)
+        arm_length = socket_depth + connector_od / 2
+        
+        # Vertical
+        vert = (
+            cq.Workplane("XY")
+            .circle(connector_od / 2)
+            .extrude(arm_length * 2)
+        )
+        vert = vert.faces(">Z").workplane().hole(socket_id, arm_length * 2)
+        
+        # Horizontal
+        horiz = (
+            cq.Workplane("XZ")
+            .workplane(offset=arm_length)
+            .circle(connector_od / 2)
+            .extrude(arm_length)
+            .mirror("XZ")
+        )
+        horiz = horiz.faces(">Y").workplane().hole(socket_id, arm_length * 2)
+        
+        connector = vert.union(horiz)
+    
+    return connector

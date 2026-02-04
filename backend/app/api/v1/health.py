@@ -30,7 +30,7 @@ class ReadinessResponse(BaseModel):
     """Readiness check response with dependency status."""
     
     status: str
-    checks: dict[str, bool]
+    checks: dict[str, bool | str | None]
     timestamp: str
 
 
@@ -96,11 +96,22 @@ async def readiness_check(
     try:
         from app.ai.providers import get_ai_provider
         provider = get_ai_provider()
-        checks["ai"] = provider.is_configured
-        checks["ai_provider"] = provider.name
-    except Exception:
+        if provider.is_configured:
+            # Actually check if we can reach the provider
+            ai_healthy = await provider.health_check()
+            checks["ai"] = ai_healthy
+            checks["ai_provider"] = provider.name
+            checks["ai_model"] = getattr(provider, "model", None)
+            if not ai_healthy:
+                checks["ai_error"] = f"{provider.name} is not reachable"
+        else:
+            checks["ai"] = False
+            checks["ai_provider"] = provider.name
+            checks["ai_error"] = f"{provider.name} is not configured"
+    except Exception as e:
         checks["ai"] = False
         checks["ai_provider"] = None
+        checks["ai_error"] = str(e)
     
     # Overall status
     all_critical_ok = checks.get("database", False)  # DB is critical

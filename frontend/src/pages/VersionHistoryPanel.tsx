@@ -2,7 +2,6 @@
  * Version History Panel - Slide-out panel showing design version history.
  */
 
-import { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Clock,
@@ -15,6 +14,7 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { DesignVersion } from '@/types';
 

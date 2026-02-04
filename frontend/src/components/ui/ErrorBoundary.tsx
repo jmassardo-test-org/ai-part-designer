@@ -8,8 +8,8 @@
  * - Error logging
  */
 
-import { Component, ReactNode, ErrorInfo } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { Component, ReactNode, ErrorInfo, useState, useEffect } from 'react';
 
 // =============================================================================
 // Types
@@ -152,7 +152,7 @@ export function NotFoundPage() {
         <div className="flex justify-center gap-3">
           <button
             onClick={() => window.history.back()}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 border-2 border-gray-400 text-gray-900 rounded-lg hover:bg-gray-100 hover:border-gray-500 font-medium"
           >
             Go Back
           </button>
@@ -218,6 +218,3 @@ export function OfflineIndicator() {
     </div>
   );
 }
-
-// Helper for useState (since this is a class component file)
-import { useState, useEffect } from 'react';

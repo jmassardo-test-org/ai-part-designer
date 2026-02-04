@@ -468,3 +468,250 @@ class TestCategories:
         
         # Should only have one "mechanical" entry
         assert data["categories"].count("mechanical") == 1
+
+
+# =============================================================================
+# Create Template Tests
+# =============================================================================
+
+class TestCreateTemplate:
+    """Tests for template creation endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_create_template_success(
+        self,
+        client: AsyncClient,
+        test_user,
+        auth_headers,
+    ):
+        """Test creating a new template successfully."""
+        response = await client.post(
+            "/api/v1/templates",
+            headers=auth_headers,
+            json={
+                "name": "My Custom Box",
+                "description": "A custom box template",
+                "category": "enclosures",
+                "tags": ["box", "custom", "3d-printable"],
+                "parameters": {
+                    "length": {"type": "number", "label": "Length", "min": 10, "max": 500},
+                    "width": {"type": "number", "label": "Width", "min": 10, "max": 500},
+                },
+                "default_values": {"length": 100, "width": 50},
+                "is_public": False,
+            },
+        )
+        
+        assert response.status_code == 201
+        data = response.json()
+        
+        assert data["name"] == "My Custom Box"
+        assert data["category"] == "enclosures"
+        assert "slug" in data
+        assert "my-custom-box" in data["slug"]
+
+    @pytest.mark.asyncio
+    async def test_create_template_requires_auth(
+        self,
+        client: AsyncClient,
+    ):
+        """Test that template creation requires authentication."""
+        response = await client.post(
+            "/api/v1/templates",
+            json={
+                "name": "Test Template",
+                "category": "custom",
+            },
+        )
+        
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_create_template_name_required(
+        self,
+        client: AsyncClient,
+        test_user,
+        auth_headers,
+    ):
+        """Test that template name is required."""
+        response = await client.post(
+            "/api/v1/templates",
+            headers=auth_headers,
+            json={
+                "description": "A template without name",
+                "category": "custom",
+            },
+        )
+        
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_create_template_category_required(
+        self,
+        client: AsyncClient,
+        test_user,
+        auth_headers,
+    ):
+        """Test that template category is required."""
+        response = await client.post(
+            "/api/v1/templates",
+            headers=auth_headers,
+            json={
+                "name": "Template Without Category",
+            },
+        )
+        
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_create_template_unique_slug_generated(
+        self,
+        client: AsyncClient,
+        test_user,
+        auth_headers,
+    ):
+        """Test that unique slugs are generated for templates with same name."""
+        # Create first template
+        response1 = await client.post(
+            "/api/v1/templates",
+            headers=auth_headers,
+            json={"name": "My Template", "category": "custom"},
+        )
+        assert response1.status_code == 201
+        
+        # Create second template with same name
+        response2 = await client.post(
+            "/api/v1/templates",
+            headers=auth_headers,
+            json={"name": "My Template", "category": "custom"},
+        )
+        assert response2.status_code == 201
+        
+        # Slugs should be different
+        data1 = response1.json()
+        data2 = response2.json()
+        assert data1["slug"] != data2["slug"]
+
+
+# =============================================================================
+# Create Template From Design Tests
+# =============================================================================
+
+class TestCreateTemplateFromDesign:
+    """Tests for creating templates from existing designs."""
+
+    @pytest.mark.asyncio
+    async def test_create_from_design_success(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers,
+        project_factory,
+        design_factory,
+    ):
+        """Test creating a template from an existing design."""
+        # Create project and design for the user
+        from tests.factories import ProjectFactory, DesignFactory
+        
+        project = await ProjectFactory.create(db=db_session, user=test_user)
+        design = await DesignFactory.create(
+            db=db_session,
+            project=project,
+            name="Original Design",
+            extra_data={
+                "dimensions": {
+                    "length": 100,
+                    "width": 60,
+                    "height": 40,
+                }
+            },
+        )
+        
+        response = await client.post(
+            "/api/v1/templates/from-design",
+            headers=auth_headers,
+            json={
+                "design_id": str(design.id),
+                "name": "Template From Design",
+                "description": "A template created from my design",
+                "category": "custom",
+                "tags": ["converted", "design"],
+            },
+        )
+        
+        assert response.status_code == 201
+        data = response.json()
+        
+        assert data["name"] == "Template From Design"
+        assert data["category"] == "custom"
+
+    @pytest.mark.asyncio
+    async def test_create_from_design_not_found(
+        self,
+        client: AsyncClient,
+        test_user,
+        auth_headers,
+    ):
+        """Test creating template from non-existent design."""
+        from uuid import uuid4
+        
+        response = await client.post(
+            "/api/v1/templates/from-design",
+            headers=auth_headers,
+            json={
+                "design_id": str(uuid4()),
+                "name": "Template",
+                "category": "custom",
+            },
+        )
+        
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_create_from_design_not_owner(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers,
+        user_factory,
+    ):
+        """Test creating template from another user's design."""
+        from tests.factories import UserFactory, ProjectFactory, DesignFactory
+        
+        # Create another user's design
+        other_user = await UserFactory.create(db=db_session)
+        other_project = await ProjectFactory.create(db=db_session, user=other_user)
+        other_design = await DesignFactory.create(db=db_session, project=other_project)
+        
+        response = await client.post(
+            "/api/v1/templates/from-design",
+            headers=auth_headers,
+            json={
+                "design_id": str(other_design.id),
+                "name": "Stolen Template",
+                "category": "custom",
+            },
+        )
+        
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_create_from_design_requires_auth(
+        self,
+        client: AsyncClient,
+    ):
+        """Test that creating from design requires authentication."""
+        from uuid import uuid4
+        
+        response = await client.post(
+            "/api/v1/templates/from-design",
+            json={
+                "design_id": str(uuid4()),
+                "name": "Template",
+                "category": "custom",
+            },
+        )
+        
+        assert response.status_code == 401

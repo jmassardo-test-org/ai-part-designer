@@ -5,8 +5,8 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
 import type { EnclosureGenerationOptions } from '@/components/enclosure';
+import api from '@/lib/api';
 import { layoutKeys } from './useLayout';
 
 // Types

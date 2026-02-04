@@ -22,7 +22,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.ai.client import OpenAIClient, get_ai_client
+from app.ai.client import ClaudeClient, get_ai_client
 from app.ai.prompts import DIMENSION_EXTRACTION_PROMPT
 from app.ai.exceptions import AIParseError, AIValidationError
 
@@ -258,7 +258,7 @@ class DescriptionParser:
     """
     Parses natural language descriptions into CAD parameters.
     
-    Uses OpenAI to extract structured parameters from free-form text,
+    Uses Claude to extract structured parameters from free-form text,
     then validates and normalizes the output.
     """
     
@@ -284,12 +284,12 @@ class DescriptionParser:
         "x": "length",
     }
     
-    def __init__(self, client: OpenAIClient | None = None):
+    def __init__(self, client: ClaudeClient | None = None):
         """
         Initialize parser.
         
         Args:
-            client: OpenAI client (default: singleton from get_ai_client)
+            client: Claude client (default: singleton from get_ai_client)
         """
         self.client = client or get_ai_client()
     

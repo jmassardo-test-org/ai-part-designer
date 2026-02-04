@@ -38,7 +38,7 @@ class AIConnectionError(AIError):
         self,
         message: str = "Failed to connect to AI provider",
         *,
-        provider: str = "openai",
+        provider: str = "anthropic",
         **kwargs,
     ):
         super().__init__(message, **kwargs)
@@ -87,12 +87,16 @@ class AITimeoutError(AIError):
         message: str = "AI request timed out",
         *,
         timeout_seconds: float | None = None,
+        provider: str | None = None,
         **kwargs,
     ):
         super().__init__(message, **kwargs)
         self.timeout_seconds = timeout_seconds
+        self.provider = provider
         if timeout_seconds:
             self.details["timeout_seconds"] = timeout_seconds
+        if provider:
+            self.details["provider"] = provider
 
 
 class AIValidationError(AIError):

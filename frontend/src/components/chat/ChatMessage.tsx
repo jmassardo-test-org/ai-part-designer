@@ -2,7 +2,7 @@
  * Chat message component for conversation UI.
  */
 
-import { useMemo } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { 
   User, 
   Bot, 
@@ -14,8 +14,8 @@ import {
   Clipboard,
   Settings
 } from 'lucide-react';
+import { useMemo } from 'react';
 import type { Message } from '@/lib/conversations';
-import { formatDistanceToNow } from 'date-fns';
 
 interface ChatMessageProps {
   message: Message;
@@ -43,7 +43,7 @@ export function ChatMessage({ message, onDownload, onOptionSelect }: ChatMessage
     content = content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     
     // Convert _italic_ to <em>
-    content = content.replace(/_([^_]+)_/g, '<em class="text-gray-500">$1</em>');
+    content = content.replace(/_([^_]+)_/g, '<em class="text-gray-500 dark:text-gray-400">$1</em>');
     
     // Convert newlines to <br>
     content = content.replace(/\n/g, '<br>');
@@ -80,11 +80,11 @@ export function ChatMessage({ message, onDownload, onOptionSelect }: ChatMessage
   }, [isUser, message.message_type]);
   
   const bgColor = useMemo(() => {
-    if (isUser) return 'bg-blue-50';
-    if (message.message_type === 'error') return 'bg-red-50';
-    if (message.message_type === 'result') return 'bg-green-50';
-    if (message.message_type === 'clarification') return 'bg-amber-50';
-    return 'bg-gray-50';
+    if (isUser) return 'bg-blue-50 dark:bg-blue-900/30';
+    if (message.message_type === 'error') return 'bg-red-50 dark:bg-red-900/30';
+    if (message.message_type === 'result') return 'bg-green-50 dark:bg-green-900/30';
+    if (message.message_type === 'clarification') return 'bg-amber-50 dark:bg-amber-900/30';
+    return 'bg-gray-50 dark:bg-gray-700/50';
   }, [isUser, message.message_type]);
   
   // Extract options from clarification questions
@@ -103,13 +103,13 @@ export function ChatMessage({ message, onDownload, onOptionSelect }: ChatMessage
 
   return (
     <div className={`flex gap-2.5 p-3 ${bgColor} rounded-lg`}>
-      <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isUser ? 'bg-blue-100' : 'bg-gray-200'}`}>
+      <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isUser ? 'bg-blue-100 dark:bg-blue-900' : 'bg-gray-200 dark:bg-gray-700'}`}>
         <Icon className={`w-4 h-4 ${iconColor} ${message.message_type === 'progress' ? 'animate-spin' : ''}`} />
       </div>
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-medium text-xs text-gray-900">
+          <span className="font-medium text-xs text-gray-900 dark:text-gray-100">
             {isUser ? 'You' : isSystem ? 'System' : 'AI Assistant'}
           </span>
           {formattedTime && (
@@ -118,7 +118,7 @@ export function ChatMessage({ message, onDownload, onOptionSelect }: ChatMessage
         </div>
         
         <div 
-          className="text-gray-700 text-sm leading-relaxed"
+          className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed"
           dangerouslySetInnerHTML={{ __html: formattedContent }}
         />
         
@@ -129,7 +129,7 @@ export function ChatMessage({ message, onDownload, onOptionSelect }: ChatMessage
               <button
                 key={index}
                 onClick={() => onOptionSelect(option)}
-                className="px-2.5 py-1 text-xs bg-white border border-gray-300 rounded-full hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                className="px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
               >
                 {option}
               </button>

@@ -29,14 +29,14 @@ class TestHealthEndpoints:
     @pytest.mark.asyncio
     async def test_readiness_check(self, client: AsyncClient):
         """Test readiness check endpoint."""
-        # Mock dependencies
-        with patch("app.api.v1.health.async_session_maker") as mock_db:
+        # Mock dependencies - patch at the source module
+        with patch("app.core.database.async_session_maker") as mock_db:
             mock_session = AsyncMock()
             mock_session.execute = AsyncMock()
             mock_db.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_db.return_value.__aexit__ = AsyncMock()
             
-            with patch("app.api.v1.health.get_redis") as mock_redis:
+            with patch("app.core.cache.get_redis") as mock_redis:
                 mock_redis_client = AsyncMock()
                 mock_redis_client.ping = AsyncMock()
                 mock_redis.return_value = mock_redis_client
@@ -62,3 +62,15 @@ class TestHealthEndpoints:
         assert "version" in data
         assert "environment" in data
         assert "features" in data
+    
+    @pytest.mark.asyncio
+    async def test_health_returns_correct_app_name(self, client: AsyncClient):
+        """Test that health endpoint returns AssemblematicAI branding."""
+        response = await client.get("/api/v1/info")
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Should contain the new brand name
+        assert "name" in data
+        assert "Assemblematic" in data["name"] or "assemblematic" in data["name"].lower()

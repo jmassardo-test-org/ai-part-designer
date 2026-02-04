@@ -5,13 +5,13 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import type { LayoutAlgorithm } from '@/components/layout/LayoutToolbar';
 import type { 
   LayoutResponse, 
   PlacementResponse,
   ValidationResult,
 } from '@/components/layout/types';
-import type { LayoutAlgorithm } from '@/components/layout/LayoutToolbar';
+import api from '@/lib/api';
 
 // Query keys
 export const layoutKeys = {

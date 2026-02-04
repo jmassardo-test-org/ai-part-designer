@@ -23,8 +23,8 @@ export const adminUser = {
  */
 export async function login(page: Page, email: string, password: string): Promise<void> {
   await page.goto('/login');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
+  await page.fill('#email', email);
+  await page.fill('#password', password);
   await page.click('button[type="submit"]');
   
   // Wait for redirect to dashboard
@@ -62,10 +62,10 @@ export async function register(
   displayName: string
 ): Promise<void> {
   await page.goto('/register');
-  await page.fill('input[name="display_name"]', displayName);
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
-  await page.check('input[name="accepted_terms"]');
+  await page.fill('#display_name', displayName);
+  await page.fill('#email', email);
+  await page.fill('#password', password);
+  await page.check('#accepted_terms');
   await page.click('button[type="submit"]');
 }
 

@@ -27,18 +27,16 @@ class TestGenerateEndpoint:
         """Test successful CAD generation."""
         mock_result = GenerationResult(
             description="Create a box 100x50x30mm",
-            parameters=CADParameters(
-                shape=ShapeType.BOX,
-                dimensions={"length": 100, "width": 50, "height": 30},
-                confidence=0.9,
-            ),
+            shape_type="box",
+            confidence=0.9,
+            dimensions={"length": 100, "width": 50, "height": 30},
             shape=MagicMock(),
             step_data=b"step content",
             stl_data=b"stl content",
             step_path=Path("/tmp/box.step"),
             stl_path=Path("/tmp/box.stl"),
-            parse_time_ms=100,
-            generate_time_ms=50,
+            reasoning_time_ms=100,
+            generation_time_ms=50,
             export_time_ms=200,
             total_time_ms=350,
             job_id="test-job-123",
@@ -49,10 +47,10 @@ class TestGenerateEndpoint:
             mock_gen.return_value = mock_result
             
             with patch("app.core.config.get_settings") as mock_settings:
-                mock_settings.return_value.OPENAI_API_KEY = "test-key"
+                mock_settings.return_value.ANTHROPIC_API_KEY = "test-key"
                 
                 response = await client.post(
-                    "/api/v1/generate/",
+                    "/api/v1/generate",
                     json={"description": "Create a box 100x50x30mm"},
                 )
         
@@ -68,27 +66,27 @@ class TestGenerateEndpoint:
         assert "stl" in data["downloads"]
     
     @pytest.mark.asyncio
-    async def test_generate_no_api_key(self, client: AsyncClient):
-        """Test error when OpenAI API key not configured."""
-        with patch("app.core.config.get_settings") as mock_settings:
-            mock_settings.return_value.OPENAI_API_KEY = None
+    async def test_generate_no_ai_provider(self, client: AsyncClient):
+        """Test error when AI provider not configured."""
+        with patch("app.ai.providers.get_ai_provider") as mock_provider:
+            mock_provider.side_effect = ValueError("No AI provider configured")
             
             response = await client.post(
-                "/api/v1/generate/",
+                "/api/v1/generate",
                 json={"description": "Create a box"},
             )
         
         assert response.status_code == 503
-        assert "not configured" in response.json()["detail"].lower()
+        assert "configured" in response.json()["detail"].lower()
     
     @pytest.mark.asyncio
     async def test_generate_invalid_quality(self, client: AsyncClient):
         """Test error for invalid STL quality."""
         with patch("app.core.config.get_settings") as mock_settings:
-            mock_settings.return_value.OPENAI_API_KEY = "test-key"
+            mock_settings.return_value.ANTHROPIC_API_KEY = "test-key"
             
             response = await client.post(
-                "/api/v1/generate/",
+                "/api/v1/generate",
                 json={
                     "description": "Create a box",
                     "stl_quality": "invalid_quality",
@@ -102,7 +100,7 @@ class TestGenerateEndpoint:
     async def test_generate_empty_description(self, client: AsyncClient):
         """Test validation error for empty description."""
         response = await client.post(
-            "/api/v1/generate/",
+            "/api/v1/generate",
             json={"description": ""},
         )
         
@@ -113,7 +111,7 @@ class TestGenerateEndpoint:
     async def test_generate_short_description(self, client: AsyncClient):
         """Test validation error for too-short description."""
         response = await client.post(
-            "/api/v1/generate/",
+            "/api/v1/generate",
             json={"description": "ab"},  # Less than min_length=3
         )
         
@@ -141,11 +139,12 @@ class TestParseEndpoint:
             parse_time_ms=80,
         )
         
-        with patch("app.api.v1.generate.parse_description", new_callable=AsyncMock) as mock_parse:
+        # Mock the parse_description in the correct location (app.ai.parser)
+        with patch("app.ai.parser.parse_description", new_callable=AsyncMock) as mock_parse:
             mock_parse.return_value = mock_result
             
             with patch("app.core.config.get_settings") as mock_settings:
-                mock_settings.return_value.OPENAI_API_KEY = "test-key"
+                mock_settings.return_value.ANTHROPIC_API_KEY = "test-key"
                 
                 response = await client.post(
                     "/api/v1/generate/parse",
@@ -276,3 +275,166 @@ class TestDownloadEndpoint:
         
         # FastAPI returns 422 for invalid path parameter values
         assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_download_invalid_job_id_format(self, simple_client: AsyncClient):
+        """Test 400 for invalid job ID format (path traversal protection)."""
+        response = await simple_client.get(
+            "/api/v1/generate/../../../etc/passwd/download/stl"
+        )
+        
+        # Should be rejected either as 400 or 422
+        assert response.status_code in (400, 422)
+
+    @pytest.mark.asyncio
+    async def test_download_with_auth_user_mismatch(
+        self, 
+        client: AsyncClient, 
+        auth_headers: dict,
+        db_session,
+    ):
+        """Test 403 when user tries to download another user's job."""
+        from uuid import uuid4
+        from app.models.job import Job
+        from app.models.user import User
+        
+        # Create another user's job
+        other_user_id = uuid4()
+        job_id = uuid4()
+        
+        job = Job(
+            id=job_id,
+            user_id=other_user_id,  # Different user
+            job_type="generation",
+            status="completed",
+            input_params={"description": "test"},
+            result={"shape": "box"},
+        )
+        db_session.add(job)
+        await db_session.commit()
+        
+        response = await client.get(
+            f"/api/v1/generate/{job_id}/download/stl",
+            headers=auth_headers,
+        )
+        
+        assert response.status_code == 403
+        assert "denied" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_download_file_expired_message(self, simple_client: AsyncClient):
+        """Test that expired file message is helpful."""
+        import uuid
+        job_id = str(uuid.uuid4())
+        
+        response = await simple_client.get(
+            f"/api/v1/generate/{job_id}/download/stl"
+        )
+        
+        assert response.status_code == 404
+        detail = response.json()["detail"]
+        assert "expired" in detail.lower() or "not found" in detail.lower()
+
+
+class TestAssemblyPartDownloadSecurity:
+    """Security tests for assembly part download endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_assembly_download_path_traversal_blocked(self, simple_client: AsyncClient):
+        """Test that path traversal attempts are blocked."""
+        import uuid
+        job_id = str(uuid.uuid4())
+        
+        # Try path traversal via part_name
+        response = await simple_client.get(
+            f"/api/v1/generate/{job_id}/download/step/..%2F..%2Fetc%2Fpasswd"
+        )
+        
+        # Should be rejected as invalid part name
+        assert response.status_code == 400
+        assert "invalid" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_assembly_download_invalid_part_name_chars(self, simple_client: AsyncClient):
+        """Test that special characters in part_name are rejected."""
+        import uuid
+        job_id = str(uuid.uuid4())
+        
+        # Try with special characters
+        invalid_names = [
+            "../malicious",
+            "part;rm -rf",
+            "part<script>",
+            "part%00null",
+            "part/subdir",
+        ]
+        
+        for part_name in invalid_names:
+            response = await simple_client.get(
+                f"/api/v1/generate/{job_id}/download/step/{part_name}"
+            )
+            assert response.status_code == 400, f"Should reject part_name: {part_name}"
+
+    @pytest.mark.asyncio
+    async def test_assembly_download_valid_part_name_format(self, simple_client: AsyncClient):
+        """Test that valid part names are accepted (but file not found is OK)."""
+        import uuid
+        job_id = str(uuid.uuid4())
+        
+        # Valid part names (will 404 because file doesn't exist, but shouldn't 400)
+        valid_names = [
+            "enclosure_base",
+            "lid-top",
+            "Part1",
+            "mount_bracket_v2",
+        ]
+        
+        for part_name in valid_names:
+            response = await simple_client.get(
+                f"/api/v1/generate/{job_id}/download/step/{part_name}"
+            )
+            # Should be 404 (not found) not 400 (bad request)
+            assert response.status_code == 404, f"Valid part name {part_name} should pass validation"
+
+    @pytest.mark.asyncio
+    async def test_assembly_download_invalid_job_id(self, simple_client: AsyncClient):
+        """Test that invalid job IDs are rejected."""
+        response = await simple_client.get(
+            "/api/v1/generate/not-a-uuid/download/step/base_part"
+        )
+        
+        assert response.status_code == 400
+        assert "invalid" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_assembly_download_auth_check(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session,
+    ):
+        """Test that authenticated users can only download their own assembly parts."""
+        from uuid import uuid4
+        from app.models.job import Job
+        
+        other_user_id = uuid4()
+        job_id = uuid4()
+        
+        job = Job(
+            id=job_id,
+            user_id=other_user_id,
+            job_type="generation",
+            status="completed",
+            input_params={"description": "test assembly"},
+            result={"shape": "enclosure"},
+        )
+        db_session.add(job)
+        await db_session.commit()
+        
+        response = await client.get(
+            f"/api/v1/generate/{job_id}/download/step/enclosure_base",
+            headers=auth_headers,
+        )
+        
+        assert response.status_code == 403
+        assert "denied" in response.json()["detail"].lower()

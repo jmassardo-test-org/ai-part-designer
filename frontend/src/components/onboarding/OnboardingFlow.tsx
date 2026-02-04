@@ -6,11 +6,9 @@
  * - Step-by-step feature tour
  * - Interactive tooltips highlighting UI elements
  * - Skip option
- * - Track completion in user profile
+ * - Track completion in user profile via API
  */
 
-import { useState, useEffect, useCallback, ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import {
   ChevronRight,
   ChevronLeft,
@@ -24,8 +22,11 @@ import {
   Check,
   Play,
 } from 'lucide-react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { onboardingApi } from '@/lib/api/onboarding';
 
 // =============================================================================
 // Types
@@ -52,7 +53,7 @@ interface OnboardingStep {
 const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to AI Part Designer! 🎉',
+    title: 'Welcome to AssemblematicAI! 🎉',
     description:
       "We're excited to have you! Let's take a quick tour to help you create amazing 3D parts with AI.",
     icon: <Sparkles className="w-12 h-12 text-primary-500" />,
@@ -148,20 +149,33 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Check if user needs onboarding
+  // Check if user needs onboarding via API
   useEffect(() => {
-    if (user && !hasCheckedOnboarding) {
-      const onboardingComplete = localStorage.getItem(`onboarding_complete_${user.id}`);
-      if (!onboardingComplete) {
-        // Show welcome modal for new users
-        setIsOnboarding(true);
+    const checkOnboarding = async () => {
+      if (user && !hasCheckedOnboarding) {
+        try {
+          const status = await onboardingApi.getStatus();
+          if (!status.completed) {
+            setCurrentStep(status.current_step);
+            setIsOnboarding(true);
+          }
+        } catch (error) {
+          // Fallback to localStorage for development/testing
+          const onboardingComplete = localStorage.getItem(`onboarding_complete_${user.id}`);
+          if (!onboardingComplete) {
+            setIsOnboarding(true);
+          }
+        }
+        setHasCheckedOnboarding(true);
       }
-      setHasCheckedOnboarding(true);
-    }
+    };
+    
+    checkOnboarding();
   }, [user, hasCheckedOnboarding]);
 
-  const endOnboarding = useCallback(() => {
+  const endOnboarding = useCallback(async () => {
     setIsOnboarding(false);
     setCurrentStep(0);
     if (user) {
@@ -169,7 +183,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     }
   }, [user]);
 
-  const nextStep = useCallback(() => {
+  const nextStep = useCallback(async () => {
     const step = ONBOARDING_STEPS[currentStep];
     
     // Navigate if action has path
@@ -178,8 +192,22 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     }
     
     if (currentStep < ONBOARDING_STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
+      const newStep = currentStep + 1;
+      setCurrentStep(newStep);
+      
+      // Track step completion via API
+      try {
+        await onboardingApi.completeStep(newStep);
+      } catch (error) {
+        console.error('Failed to track onboarding step:', error);
+      }
     } else {
+      // Complete final step
+      try {
+        await onboardingApi.completeStep(ONBOARDING_STEPS.length);
+      } catch (error) {
+        console.error('Failed to complete onboarding:', error);
+      }
       endOnboarding();
     }
   }, [currentStep, navigate, endOnboarding]);
@@ -190,8 +218,16 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     }
   }, [currentStep]);
 
-  const skipOnboarding = useCallback(() => {
-    endOnboarding();
+  const skipOnboarding = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await onboardingApi.skip();
+    } catch (error) {
+      console.error('Failed to skip onboarding:', error);
+    } finally {
+      setIsLoading(false);
+      endOnboarding();
+    }
   }, [endOnboarding]);
 
   return (
@@ -245,7 +281,7 @@ function OnboardingModal({
 
       {/* Modal */}
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-in zoom-in-95 duration-200"
+        className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-title"
@@ -254,7 +290,7 @@ function OnboardingModal({
         {!isLastStep && (
           <button
             onClick={onSkip}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-sm"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
           >
             Skip tour
           </button>
@@ -268,13 +304,13 @@ function OnboardingModal({
           {/* Title */}
           <h2
             id="onboarding-title"
-            className="text-2xl font-bold text-gray-900 mb-3"
+            className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3"
           >
             {step.title}
           </h2>
 
           {/* Description */}
-          <p className="text-gray-600 mb-8 max-w-md mx-auto">
+          <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
             {step.description}
           </p>
 
@@ -288,8 +324,8 @@ function OnboardingModal({
                   i === currentStep
                     ? 'bg-primary-600 w-6'
                     : i < currentStep
-                    ? 'bg-primary-300'
-                    : 'bg-gray-300'
+                    ? 'bg-primary-300 dark:bg-primary-600/50'
+                    : 'bg-gray-300 dark:bg-gray-600'
                 }`}
                 aria-label={`Step ${i + 1}`}
               />
@@ -304,8 +340,8 @@ function OnboardingModal({
             disabled={isFirstStep}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
               isFirstStep
-                ? 'text-gray-300 cursor-not-allowed'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -344,13 +380,21 @@ function OnboardingModal({
 // Restart Onboarding Hook
 // =============================================================================
 
-export function useOnboarding() {
+export function useOnboardingRestart() {
   const { user } = useAuth();
 
-  const restartOnboarding = useCallback(() => {
+  const restartOnboarding = useCallback(async () => {
     if (user) {
-      localStorage.removeItem(`onboarding_complete_${user.id}`);
-      window.location.reload();
+      try {
+        await onboardingApi.reset();
+        localStorage.removeItem(`onboarding_complete_${user.id}`);
+        window.location.reload();
+      } catch (error) {
+        console.error('Failed to reset onboarding:', error);
+        // Fallback to localStorage reset
+        localStorage.removeItem(`onboarding_complete_${user.id}`);
+        window.location.reload();
+      }
     }
   }, [user]);
 

@@ -2,7 +2,6 @@
  * Files Page - File Manager with Grid/List View and Version History.
  */
 
-import { useState, useEffect, useCallback } from 'react';
 import {
   Grid3X3,
   List,
@@ -17,10 +16,14 @@ import {
   RefreshCw,
   FolderOpen,
   X,
+  Globe,
+  GlobeOff,
 } from 'lucide-react';
+import { PublishToMarketplaceDialog } from '@/components/marketplace/PublishToMarketplaceDialog';
+import { useState, useEffect, useCallback } from 'react';
+import { FileUploader } from '@/components/upload/FileUploader';
 import { useAuth } from '@/contexts/AuthContext';
 import type { DesignFile } from '@/types';
-import { FileUploader } from '@/components/upload/FileUploader';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -55,6 +58,8 @@ export function FilesPage({ projectId }: FilesPageProps) {
   // UI state
   const [showUploader, setShowUploader] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [fileToPublish, setFileToPublish] = useState<DesignFile | null>(null);
 
   // Fetch files
   const fetchFiles = useCallback(async () => {
@@ -166,6 +171,12 @@ export function FilesPage({ projectId }: FilesPageProps) {
     setShowVersionHistory(true);
   }, []);
 
+  // Open publish dialog
+  const openPublishDialog = useCallback((file: DesignFile) => {
+    setFileToPublish(file);
+    setShowPublishDialog(true);
+  }, []);
+
   // Format file size
   const formatSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
@@ -185,11 +196,11 @@ export function FilesPage({ projectId }: FilesPageProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 border-b bg-white px-6 py-4">
+      <div className="flex-shrink-0 border-b dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Files</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Files</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {files.length} file{files.length !== 1 ? 's' : ''}
               {selectedFiles.size > 0 && ` • ${selectedFiles.size} selected`}
             </p>
@@ -216,22 +227,22 @@ export function FilesPage({ projectId }: FilesPageProps) {
               placeholder="Search files..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
           </div>
 
           {/* View toggle */}
-          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+          <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 ${viewMode === 'grid' ? 'bg-gray-100 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`p-2 ${viewMode === 'grid' ? 'bg-gray-100 dark:bg-gray-700 text-blue-600' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
               title="Grid view"
             >
               <Grid3X3 className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 ${viewMode === 'list' ? 'bg-gray-100 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`p-2 ${viewMode === 'list' ? 'bg-gray-100 dark:bg-gray-700 text-blue-600' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
               title="List view"
             >
               <List className="w-4 h-4" />
@@ -242,7 +253,7 @@ export function FilesPage({ projectId }: FilesPageProps) {
           <button
             onClick={fetchFiles}
             disabled={isLoading}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             title="Refresh"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -281,9 +292,9 @@ export function FilesPage({ projectId }: FilesPageProps) {
           </div>
         ) : files.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
-            <FolderOpen className="w-16 h-16 text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No files yet</h3>
-            <p className="text-gray-500 mb-4">Upload your first CAD file to get started</p>
+            <FolderOpen className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No files yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">Upload your first CAD file to get started</p>
             <button
               onClick={() => setShowUploader(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -298,6 +309,7 @@ export function FilesPage({ projectId }: FilesPageProps) {
             selectedFiles={selectedFiles}
             onToggleSelect={toggleSelection}
             onOpenVersionHistory={openVersionHistory}
+            onPublish={openPublishDialog}
             formatDate={formatDate}
           />
         ) : (
@@ -310,6 +322,7 @@ export function FilesPage({ projectId }: FilesPageProps) {
             onToggleSelect={toggleSelection}
             onSelectAll={selectAll}
             onOpenVersionHistory={openVersionHistory}
+            onPublish={openPublishDialog}
             formatSize={formatSize}
             formatDate={formatDate}
           />
@@ -319,12 +332,12 @@ export function FilesPage({ projectId }: FilesPageProps) {
       {/* Upload Modal */}
       {showUploader && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Upload Files</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Upload Files</h2>
               <button
                 onClick={() => setShowUploader(false)}
-                className="p-1 text-gray-500 hover:text-gray-700"
+                className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -350,6 +363,22 @@ export function FilesPage({ projectId }: FilesPageProps) {
           }}
         />
       )}
+
+      {/* Publish to Marketplace Dialog */}
+      {fileToPublish && (
+        <PublishToMarketplaceDialog
+          isOpen={showPublishDialog}
+          onClose={() => {
+            setShowPublishDialog(false);
+            setFileToPublish(null);
+          }}
+          designId={fileToPublish.id}
+          designName={fileToPublish.name}
+          onPublished={() => {
+            fetchFiles();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -364,6 +393,7 @@ interface FileGridProps {
   selectedFiles: Set<string>;
   onToggleSelect: (id: string) => void;
   onOpenVersionHistory: (file: DesignFile) => void;
+  onPublish: (file: DesignFile) => void;
   formatDate: (date: string) => string;
 }
 
@@ -372,21 +402,66 @@ function FileGrid({
   selectedFiles,
   onToggleSelect,
   onOpenVersionHistory,
+  onPublish,
   formatDate,
 }: FileGridProps) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  
   return (
     <div data-testid="file-list" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 file-grid">
       {files.map(file => (
         <div
           key={file.id}
           data-testid="file-item"
-          className={`group relative bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow cursor-pointer file-card ${
+          className={`group relative bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer file-card ${
             selectedFiles.has(file.id) ? 'ring-2 ring-blue-500' : ''
           }`}
         >
+          {/* Action menu button */}
+          <div className="absolute top-2 right-2 z-10">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenMenuId(openMenuId === file.id ? null : file.id);
+              }}
+              className="p-1 bg-white/80 dark:bg-gray-800/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white dark:hover:bg-gray-700"
+            >
+              <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            </button>
+            
+            {/* Dropdown menu */}
+            {openMenuId === file.id && (
+              <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 z-20">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPublish(file);
+                    setOpenMenuId(null);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  data-testid="publish-menu-item"
+                >
+                  <Globe className="w-4 h-4" />
+                  Publish
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenVersionHistory(file);
+                    setOpenMenuId(null);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Clock className="w-4 h-4" />
+                  Version History
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Thumbnail */}
           <div
-            className="aspect-square bg-gray-100 relative"
+            className="aspect-square bg-gray-100 dark:bg-gray-700 relative"
             onClick={() => onOpenVersionHistory(file)}
           >
             {file.thumbnail_url ? (
@@ -429,10 +504,10 @@ function FileGrid({
 
           {/* Info */}
           <div className="p-3">
-            <h3 className="font-medium text-gray-900 truncate" title={file.name}>
+            <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate" title={file.name}>
               {file.name}
             </h3>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {formatDate(file.updated_at)}
             </p>
           </div>
@@ -456,6 +531,7 @@ interface FileListProps {
   onToggleSelect: (id: string) => void;
   onSelectAll: () => void;
   onOpenVersionHistory: (file: DesignFile) => void;
+  onPublish: (file: DesignFile) => void;
   formatSize: (bytes: number) => string;
   formatDate: (date: string) => string;
 }
@@ -469,17 +545,19 @@ function FileList({
   onToggleSelect,
   onSelectAll,
   onOpenVersionHistory,
+  onPublish,
   formatSize: _formatSize,
   formatDate,
 }: FileListProps) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const SortIcon = sortOrder === 'asc' ? SortAsc : SortDesc;
 
-  const headerClass = "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100";
+  const headerClass = "px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600";
 
   return (
-    <div data-testid="file-list" className="bg-white rounded-lg border overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div data-testid="file-list" className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 overflow-hidden">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-700">
           <tr>
             <th className="px-4 py-3 w-10">
               <input
@@ -512,13 +590,13 @@ function FileList({
             <th className="px-4 py-3 w-10"></th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
           {files.map(file => (
             <tr
               key={file.id}
               data-testid="file-item"
-              className={`hover:bg-gray-50 ${
-                selectedFiles.has(file.id) ? 'bg-blue-50' : ''
+              className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                selectedFiles.has(file.id) ? 'bg-blue-50 dark:bg-blue-900/30' : ''
               }`}
             >
               <td className="px-4 py-3">
@@ -541,39 +619,69 @@ function FileList({
                       className="w-10 h-10 rounded object-cover"
                     />
                   ) : (
-                    <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center">
                       <FileBox className="w-5 h-5 text-gray-400" />
                     </div>
                   )}
                   <div>
-                    <p className="font-medium text-gray-900">{file.name}</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{file.name}</p>
                     {file.description && (
-                      <p className="text-sm text-gray-500 truncate max-w-xs">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
                         {file.description}
                       </p>
                     )}
                   </div>
                 </div>
               </td>
-              <td className="px-4 py-3 text-sm text-gray-500">
+              <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                 {file.source_type.replace('_', ' ')}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-500">
+              <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                 {formatDate(file.updated_at)}
               </td>
               <td className="px-4 py-3">
                 <button
                   onClick={() => onOpenVersionHistory(file)}
-                  className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600"
+                  className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600"
                 >
                   <Clock className="w-3.5 h-3.5" />
                   {file.versions_count}
                 </button>
               </td>
-              <td className="px-4 py-3">
-                <button className="p-1 text-gray-400 hover:text-gray-600">
+              <td className="px-4 py-3 relative">
+                <button 
+                  onClick={() => setOpenMenuId(openMenuId === file.id ? null : file.id)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
                   <MoreVertical className="w-4 h-4" />
                 </button>
+                
+                {/* Dropdown menu */}
+                {openMenuId === file.id && (
+                  <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 z-20">
+                    <button
+                      onClick={() => {
+                        onPublish(file);
+                        setOpenMenuId(null);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      data-testid="publish-menu-item"
+                    >
+                      <Globe className="w-4 h-4" />
+                      Publish
+                    </button>
+                    <button
+                      onClick={() => {
+                        onOpenVersionHistory(file);
+                        setOpenMenuId(null);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <Clock className="w-4 h-4" />
+                      Version History
+                    </button>
+                  </div>
+                )}
               </td>
             </tr>
           ))}

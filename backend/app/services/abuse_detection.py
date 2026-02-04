@@ -17,7 +17,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.usage_limits import AbuseReport, UserBan
+from app.core.usage_limits import AbuseReport
+from app.models.rating import UserBan
 
 
 # =============================================================================

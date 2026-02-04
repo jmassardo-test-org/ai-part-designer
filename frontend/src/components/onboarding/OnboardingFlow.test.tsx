@@ -2,10 +2,10 @@
  * OnboardingFlow Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OnboardingProvider } from './OnboardingFlow';
 
 // Mock AuthContext
@@ -25,6 +25,16 @@ vi.mock('react-router-dom', async () => {
     useNavigate: () => mockNavigate,
   };
 });
+
+// Mock onboardingApi
+vi.mock('@/lib/api/onboarding', () => ({
+  onboardingApi: {
+    getStatus: vi.fn().mockRejectedValue(new Error('Not available')),
+    completeStep: vi.fn().mockResolvedValue({ current_step: 1, completed: false }),
+    skip: vi.fn().mockResolvedValue({ message: 'Skipped' }),
+    reset: vi.fn().mockResolvedValue({ message: 'Reset' }),
+  },
+}));
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -76,7 +86,7 @@ describe('OnboardingProvider', () => {
     
     renderWithRouter();
     
-    expect(screen.queryByText(/welcome to ai part designer/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/welcome to assemblematic/i)).not.toBeInTheDocument();
   });
 
   it('shows skip button', async () => {

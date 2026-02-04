@@ -2,15 +2,31 @@
  * JobQueue Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { JobQueue } from './JobQueue';
 
 // Mock AuthContext
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     token: 'test-token',
+  }),
+}));
+
+// Mock WebSocket context
+const mockSubscribe = vi.fn(() => vi.fn());
+const mockSubscribeToRoom = vi.fn();
+vi.mock('@/contexts/WebSocketContext', () => ({
+  useWebSocket: () => ({
+    connected: true,
+    connecting: false,
+    subscribe: mockSubscribe,
+    subscribeToRoom: mockSubscribeToRoom,
+    send: vi.fn(),
+    reconnect: vi.fn(),
+    unsubscribeFromRoom: vi.fn(),
+    subscribeToJob: vi.fn(),
   }),
 }));
 

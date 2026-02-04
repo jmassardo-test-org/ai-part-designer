@@ -112,11 +112,11 @@ export const LazyProjectsPage = lazyWithFallback(
 );
 
 /**
- * Lazy loaded Generate Page
+ * Lazy loaded Generate Page (v2)
  * Heavy component with parameter forms and preview
  */
 export const LazyGeneratePage = lazyWithFallback(
-  () => import('@/pages/GeneratePage'),
+  () => import('@/pages/GeneratePageV2'),
   <PageSkeleton />
 );
 

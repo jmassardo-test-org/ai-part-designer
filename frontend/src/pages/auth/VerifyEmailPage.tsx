@@ -2,11 +2,11 @@
  * Email verification page component.
  */
 
+import { AxiosError } from 'axios';
+import { Loader2, CheckCircle2, AlertCircle, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Loader2, CheckCircle2, AlertCircle, Mail } from 'lucide-react';
 import { authApi } from '@/lib/auth';
-import { AxiosError } from 'axios';
 
 type VerificationState = 'loading' | 'success' | 'error' | 'no-token';
 

@@ -4,7 +4,10 @@ Reference Component API
 CRUD operations for reference components and component library.
 """
 
+import hashlib
+import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -15,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
+from app.core.config import get_settings
+from app.core.storage import storage_client, StorageBucket
 from app.models.reference_component import (
     ComponentExtractionJob,
     ComponentLibrary,
@@ -22,6 +27,8 @@ from app.models.reference_component import (
     UserComponent,
 )
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/components", tags=["components"])
 
@@ -202,6 +209,147 @@ async def create_component(
     return component
 
 
+class ComponentUploadResponse(BaseModel):
+    """Response from component file upload."""
+    id: UUID
+    name: str | None
+    manufacturer: str | None
+    model_number: str | None
+    category: str
+    specifications: dict
+    extraction_status: str
+    file_type: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/upload", response_model=ComponentUploadResponse, status_code=201)
+async def upload_component(
+    file: UploadFile = File(..., description="Component file (CAD, datasheet, image)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Upload a component file for extraction.
+    
+    Accepts CAD files (STEP, STL, etc.), datasheets (PDF), or images.
+    Automatically triggers specification extraction.
+    """
+    settings = get_settings()
+    
+    # Determine file type
+    filename = file.filename or "unknown"
+    ext = Path(filename).suffix.lower()
+    
+    cad_extensions = {".step", ".stp", ".stl", ".iges", ".igs", ".obj", ".3mf"}
+    image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+    
+    if ext in cad_extensions:
+        file_type = "cad"
+    elif ext == ".pdf":
+        file_type = "datasheet"
+    elif ext in image_extensions:
+        file_type = "image"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {ext}. Supported: CAD files, PDFs, images"
+        )
+    
+    # Read file content
+    content = await file.read()
+    file_size = len(content)
+    
+    # Check file size (50MB limit)
+    max_size = 50 * 1024 * 1024
+    if file_size > max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is 50MB"
+        )
+    
+    checksum = hashlib.sha256(content).hexdigest()
+    
+    # Create component record
+    component_id = uuid4()
+    component = ReferenceComponent(
+        id=component_id,
+        user_id=current_user.id,
+        name=Path(filename).stem,  # Use filename as initial name
+        category="uncategorized",
+        source_type=file_type,
+        extraction_status="pending",
+        tags=[],
+    )
+    
+    db.add(component)
+    await db.flush()
+    
+    # Upload file
+    storage_prefix = f"components/{component_id}"
+    storage_key = f"{storage_prefix}/{filename}"
+    local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / filename
+    
+    try:
+        await storage_client.upload_file(
+            bucket=StorageBucket.UPLOADS,
+            key=storage_key,
+            file=content,
+            content_type=file.content_type or "application/octet-stream",
+        )
+    except Exception as e:
+        logger.warning(f"MinIO upload failed, falling back to local: {e}")
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(content)
+    
+    # Store file metadata
+    component.files_metadata = {
+        f"{file_type}_file": {
+            "filename": filename,
+            "storage_key": storage_key,
+            "size": file_size,
+            "checksum": checksum,
+            "format": ext.lstrip(".").upper(),
+            "uploaded_at": datetime.utcnow().isoformat(),
+        }
+    }
+    
+    # Create extraction job
+    extraction_job = ComponentExtractionJob(
+        id=uuid4(),
+        component_id=component_id,
+        job_type=file_type,
+        status="pending",
+        progress=0,
+    )
+    db.add(extraction_job)
+    
+    await db.commit()
+    await db.refresh(component)
+    
+    # Queue extraction task (async)
+    try:
+        from app.worker.tasks import extract_component_task
+        extract_component_task.delay(str(extraction_job.id))
+    except Exception as e:
+        logger.warning(f"Failed to queue extraction task: {e}")
+    
+    return ComponentUploadResponse(
+        id=component.id,
+        name=component.name,
+        manufacturer=component.manufacturer,
+        model_number=component.model_number,
+        category=component.category,
+        specifications={},
+        extraction_status=component.extraction_status,
+        file_type=file_type,
+        created_at=component.created_at,
+    )
+
+
 @router.get("", response_model=ComponentListResponse)
 async def list_components(
     category: Optional[str] = None,
@@ -356,6 +504,201 @@ async def update_specifications(
     return component
 
 
+class FileUpdateResponse(BaseModel):
+    """Response after updating component files."""
+    component_id: UUID
+    message: str
+    files_updated: int
+    extraction_triggered: bool
+    extraction_job_id: Optional[UUID] = None
+
+
+@router.put("/{component_id}/files", response_model=FileUpdateResponse)
+async def update_component_files(
+    component_id: UUID,
+    cad_file: Optional[UploadFile] = File(None, description="New CAD file (STEP, STL, IGES)"),
+    datasheet: Optional[UploadFile] = File(None, description="New datasheet PDF"),
+    thumbnail: Optional[UploadFile] = File(None, description="New thumbnail image"),
+    trigger_extraction: bool = Query(True, description="Re-trigger AI extraction after upload"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Update CAD files for an existing component.
+    
+    Replaces existing files and optionally re-triggers AI extraction
+    to update dimensions, mounting holes, and other specifications.
+    """
+    settings = get_settings()
+    
+    # Verify component exists and user owns it
+    query = select(ReferenceComponent).where(
+        and_(
+            ReferenceComponent.id == component_id,
+            ReferenceComponent.user_id == current_user.id,
+            ReferenceComponent.deleted_at.is_(None),
+        )
+    )
+    
+    result = await db.execute(query)
+    component = result.scalar_one_or_none()
+    
+    if not component:
+        raise HTTPException(status_code=404, detail="Component not found")
+    
+    if not cad_file and not datasheet and not thumbnail:
+        raise HTTPException(status_code=400, detail="At least one file must be provided")
+    
+    files_updated = 0
+    storage_prefix = f"components/{component_id}"
+    
+    # Allowed extensions
+    cad_extensions = {".step", ".stp", ".stl", ".iges", ".igs", ".obj", ".3mf"}
+    image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+    
+    # Helper function to upload to storage with fallback
+    async def upload_to_storage(
+        key: str, content: bytes, content_type: str, local_path: Path
+    ) -> str:
+        """Upload to MinIO with local filesystem fallback."""
+        try:
+            await storage_client.upload_file(
+                bucket=StorageBucket.UPLOADS,
+                key=key,
+                file=content,
+                content_type=content_type,
+            )
+            logger.debug(f"Uploaded {key} to MinIO")
+            return key
+        except Exception as e:
+            logger.warning(f"MinIO upload failed, falling back to local: {e}")
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(content)
+            return str(local_path)
+    
+    # Process CAD file
+    if cad_file:
+        ext = Path(cad_file.filename or "").suffix.lower()
+        if ext not in cad_extensions:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid CAD file type. Supported: {', '.join(cad_extensions)}"
+            )
+        
+        content = await cad_file.read()
+        checksum = hashlib.sha256(content).hexdigest()
+        
+        # Upload to storage
+        storage_key = f"{storage_prefix}/model{ext}"
+        local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / f"model{ext}"
+        stored_path = await upload_to_storage(
+            storage_key, content, cad_file.content_type or "application/octet-stream", local_path
+        )
+        
+        # Update component metadata
+        if not component.files_metadata:
+            component.files_metadata = {}
+        component.files_metadata["cad_file"] = {
+            "filename": cad_file.filename,
+            "storage_key": storage_key,
+            "path": stored_path,
+            "size": len(content),
+            "checksum": checksum,
+            "format": ext.lstrip(".").upper(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        files_updated += 1
+    
+    # Process datasheet
+    if datasheet:
+        ext = Path(datasheet.filename or "").suffix.lower()
+        if ext != ".pdf":
+            raise HTTPException(status_code=400, detail="Datasheet must be a PDF file")
+        
+        content = await datasheet.read()
+        checksum = hashlib.sha256(content).hexdigest()
+        
+        # Upload to storage
+        storage_key = f"{storage_prefix}/datasheet.pdf"
+        local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / "datasheet.pdf"
+        stored_path = await upload_to_storage(
+            storage_key, content, "application/pdf", local_path
+        )
+        
+        if not component.files_metadata:
+            component.files_metadata = {}
+        component.files_metadata["datasheet"] = {
+            "filename": datasheet.filename,
+            "storage_key": storage_key,
+            "path": stored_path,
+            "size": len(content),
+            "checksum": checksum,
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        files_updated += 1
+    
+    # Process thumbnail
+    if thumbnail:
+        ext = Path(thumbnail.filename or "").suffix.lower()
+        if ext not in image_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid image type. Supported: {', '.join(image_extensions)}"
+            )
+        
+        content = await thumbnail.read()
+        content_type = thumbnail.content_type or f"image/{ext.lstrip('.')}"
+        
+        # Upload to storage
+        storage_key = f"{storage_prefix}/thumbnail{ext}"
+        local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / f"thumbnail{ext}"
+        await upload_to_storage(storage_key, content, content_type, local_path)
+        
+        # Update thumbnail URL - use presigned URL or local path
+        try:
+            thumbnail_url = await storage_client.generate_presigned_download_url(
+                bucket=StorageBucket.UPLOADS,
+                key=storage_key,
+                expires_in=86400 * 7,  # 7 days
+            )
+            component.thumbnail_url = thumbnail_url
+        except Exception:
+            component.thumbnail_url = f"/uploads/components/{component_id}/thumbnail{ext}"
+        files_updated += 1
+    
+    component.updated_at = datetime.utcnow()
+    
+    # Trigger extraction if requested and CAD file or datasheet was updated
+    extraction_job_id = None
+    if trigger_extraction and (cad_file or datasheet):
+        # Create extraction job
+        extraction_job = ComponentExtractionJob(
+            id=uuid4(),
+            component_id=component_id,
+            job_type="full" if (cad_file and datasheet) else ("cad" if cad_file else "datasheet"),
+            status="pending",
+            progress=0,
+        )
+        db.add(extraction_job)
+        component.extraction_status = "pending"
+        extraction_job_id = extraction_job.id
+        
+        # Queue Celery task for extraction
+        from app.worker.tasks import extract_component_task
+        extract_component_task.delay(str(extraction_job.id))
+    
+    await db.commit()
+    
+    return FileUpdateResponse(
+        component_id=component_id,
+        message=f"Successfully updated {files_updated} file(s)",
+        files_updated=files_updated,
+        extraction_triggered=trigger_extraction and (cad_file or datasheet) is not None,
+        extraction_job_id=extraction_job_id,
+    )
+
+
 @router.delete("/{component_id}", status_code=204)
 async def delete_component(
     component_id: UUID,
@@ -439,7 +782,9 @@ async def trigger_extraction(
     await db.commit()
     await db.refresh(job)
     
-    # TODO: Queue background task for extraction
+    # Queue background task for extraction
+    from app.worker.tasks import extract_component_task
+    extract_component_task.delay(str(job.id))
     
     return job
 

@@ -3,14 +3,17 @@ FROM node:20-alpine AS development
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json ./
+# Copy package files (including lock file for reproducible installs)
+COPY package.json package-lock.json* ./
 
-# Install dependencies (use npm for flexibility)
+# Install dependencies - use npm install for dev (more forgiving with lock file versions)
 RUN npm install
 
 # Copy source code (will be overridden by volume mount)
 COPY . .
+
+# Validate that all imports can be resolved (catches missing dependencies)
+RUN node scripts/validate-imports.js || echo "Import validation skipped (dev mode)"
 
 EXPOSE 5173
 
@@ -22,13 +25,16 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies - use npm ci for production builds
+RUN npm install --frozen-lockfile 2>/dev/null || npm install
 
 # Copy source code
 COPY . .
+
+# Validate imports before building (fails fast if packages are missing)
+RUN node scripts/validate-imports.js
 
 # Build the application
 RUN npm run build

@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
-import { renderHook } from '@testing-library/react';
+import { render, screen, act, fireEvent, renderHook } from '@testing-library/react';
 import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ToastProvider, useToast, toast, setToastRef } from './ToastContext';
 
 // Mock createPortal for testing

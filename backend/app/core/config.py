@@ -132,42 +132,70 @@ class Settings(BaseSettings):
     # Object Storage (S3-compatible)
     # ===========================================
     STORAGE_BACKEND: Literal["s3", "gcs", "azure", "minio"] = "minio"
-    STORAGE_ENDPOINT: str | None = "http://localhost:9000"
-    STORAGE_ACCESS_KEY: str = "minioadmin"
-    STORAGE_SECRET_KEY: str = "minioadmin"
+    # Support both STORAGE_ENDPOINT and S3_ENDPOINT_URL for docker-compose compatibility
+    STORAGE_ENDPOINT: str | None = None
+    S3_ENDPOINT_URL: str | None = "http://localhost:9000"
+    STORAGE_ACCESS_KEY: str | None = None
+    AWS_ACCESS_KEY_ID: str = "minioadmin"
+    STORAGE_SECRET_KEY: str | None = None
+    AWS_SECRET_ACCESS_KEY: str = "minioadmin"
     STORAGE_BUCKET_DESIGNS: str = "designs"
     STORAGE_BUCKET_EXPORTS: str = "exports"
     STORAGE_BUCKET_THUMBNAILS: str = "thumbnails"
-    STORAGE_REGION: str = "us-east-1"
+    STORAGE_REGION: str | None = None
+    AWS_REGION: str = "us-east-1"
+    
+    @property
+    def storage_endpoint(self) -> str:
+        """Get storage endpoint, supporting both env var names."""
+        return self.STORAGE_ENDPOINT or self.S3_ENDPOINT_URL or "http://localhost:9000"
+    
+    @property
+    def storage_access_key(self) -> str:
+        """Get storage access key, supporting both env var names."""
+        return self.STORAGE_ACCESS_KEY or self.AWS_ACCESS_KEY_ID
+    
+    @property
+    def storage_secret_key(self) -> str:
+        """Get storage secret key, supporting both env var names."""
+        return self.STORAGE_SECRET_KEY or self.AWS_SECRET_ACCESS_KEY
+    
+    @property
+    def storage_region(self) -> str:
+        """Get storage region, supporting both env var names."""
+        return self.STORAGE_REGION or self.AWS_REGION
     
     # ===========================================
     # AI Provider Configuration
     # ===========================================
-    # Provider: "openai", "ollama", "anthropic", or "azure"
-    AI_PROVIDER: Literal["openai", "ollama", "anthropic", "azure"] = "openai"
+    # Provider: "anthropic" (Claude is the primary and only supported provider)
+    AI_PROVIDER: Literal["anthropic"] = "anthropic"
     
-    # OpenAI Settings
-    OPENAI_API_KEY: str | None = None
-    OPENAI_MODEL: str = "gpt-4"
-    OPENAI_MAX_TOKENS: int = 4096
-    
-    # Ollama Settings (for local development)
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "llama3.2"  # or codellama, mistral, etc.
-    
-    # Anthropic Settings
+    # Anthropic Claude Settings (primary provider)
     ANTHROPIC_API_KEY: str | None = None
-    ANTHROPIC_MODEL: str = "claude-3-sonnet-20240229"
-    
-    # Azure OpenAI Settings
-    AZURE_OPENAI_API_KEY: str | None = None
-    AZURE_OPENAI_ENDPOINT: str | None = None
-    AZURE_OPENAI_DEPLOYMENT: str | None = None
-    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
+    ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
     
     # General AI Settings
     AI_MAX_TOKENS: int = 4096
     AI_TEMPERATURE: float = 0.3
+    
+    # ===========================================
+    # OAuth Providers
+    # ===========================================
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+    
+    # GitHub OAuth
+    GITHUB_CLIENT_ID: str | None = None
+    GITHUB_CLIENT_SECRET: str | None = None
+    
+    # OAuth callback base URL (frontend URL)
+    OAUTH_REDIRECT_BASE: str = "http://localhost:5173"
+    
+    # Frontend URL for redirects and email links
+    # In production: https://assemblematic.ai
+    FRONTEND_URL: str = "http://localhost:5173"
     
     # ===========================================
     # Rate Limiting
@@ -190,11 +218,48 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 50
     
     # ===========================================
+    # Payment Processing (Stripe)
+    # ===========================================
+    STRIPE_SECRET_KEY: str | None = None
+    STRIPE_PUBLISHABLE_KEY: str | None = None
+    STRIPE_WEBHOOK_SECRET: str | None = None
+    
+    # Stripe Price IDs (set in Stripe Dashboard)
+    STRIPE_PRICE_ID_PRO_MONTHLY: str | None = None
+    STRIPE_PRICE_ID_PRO_YEARLY: str | None = None
+    STRIPE_PRICE_ID_ENTERPRISE_MONTHLY: str | None = None
+    STRIPE_PRICE_ID_ENTERPRISE_YEARLY: str | None = None
+    
+    # ===========================================
     # Monitoring
     # ===========================================
     OTEL_EXPORTER_ENDPOINT: str | None = None
     SENTRY_DSN: str | None = None
     LOG_LEVEL: str = "INFO"
+    
+    # ===========================================
+    # CAD System v2 Feature Flags
+    # ===========================================
+    # Enable CAD v2 system (declarative schema + Build123d)
+    CAD_V2_ENABLED: bool = Field(
+        default=True,
+        description="Enable CAD v2 API endpoints (/api/v2/). "
+                    "When True, v2 endpoints are available alongside v1.",
+    )
+    
+    # Use CAD v2 as default for legacy v1 endpoints
+    CAD_V2_AS_DEFAULT: bool = Field(
+        default=True,
+        description="Route v1 CAD generation requests through v2 pipeline. "
+                    "Requires CAD_V2_ENABLED=True. Enables gradual migration.",
+    )
+    
+    # Add deprecation headers to v1 API responses
+    CAD_V1_DEPRECATION_HEADERS: bool = Field(
+        default=True,
+        description="Add Deprecation and Sunset headers to v1 CAD API responses. "
+                    "Warns clients to migrate to v2.",
+    )
 
 
 @lru_cache

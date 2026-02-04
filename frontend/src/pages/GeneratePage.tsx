@@ -2,9 +2,9 @@
  * Natural Language Part Generation Page.
  * 
  * Allows users to describe parts in natural language and generate CAD files.
+ * Supports pre-filling from templates via URL state/params.
  */
 
-import { useState, useCallback } from 'react';
 import { 
   Wand2, 
   Download, 
@@ -19,8 +19,11 @@ import {
   Sparkles,
   Package,
   ExternalLink,
-  Layers
+  Layers,
+  ArrowLeft
 } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { ModelViewer } from '@/components/viewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -49,8 +52,22 @@ const QUALITY_OPTIONS = [
   { value: 'ultra', label: 'Ultra', description: 'Maximum detail' },
 ] as const;
 
+// Template context passed via navigation state
+interface TemplateContext {
+  templateName: string;
+  templateSlug: string;
+  templateDescription: string;
+  parameters: Record<string, number | string | boolean>;
+  suggestedPrompt: string;
+}
+
 export function GeneratePage() {
   const { token } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Get template context from navigation state (if coming from template page)
+  const templateContext = location.state as TemplateContext | null;
   
   // Form state
   const [description, setDescription] = useState('');
@@ -67,6 +84,13 @@ export function GeneratePage() {
   // UI state
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [downloading, setDownloading] = useState<'step' | 'stl' | null>(null);
+
+  // Pre-fill description from template context
+  useEffect(() => {
+    if (templateContext?.suggestedPrompt) {
+      setDescription(templateContext.suggestedPrompt);
+    }
+  }, [templateContext]);
 
   // Handle generation
   const handleGenerate = useCallback(async () => {
@@ -130,7 +154,7 @@ export function GeneratePage() {
   }, [result, token]);
 
   // Use example prompt
-  const useExample = (prompt: string) => {
+  const handleExampleSelect = (prompt: string) => {
     setDescription(prompt);
     setError(null);
   };
@@ -150,16 +174,53 @@ export function GeneratePage() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Breadcrumb Navigation (when coming from template) */}
+      {templateContext && (
+        <nav className="mb-4 flex items-center gap-2 text-sm">
+          <Link 
+            to="/templates" 
+            className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+          >
+            Templates
+          </Link>
+          <span className="text-gray-400 dark:text-gray-500">/</span>
+          <Link 
+            to={`/templates/${templateContext.templateSlug}`}
+            className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+          >
+            {templateContext.templateName}
+          </Link>
+          <span className="text-gray-400 dark:text-gray-500">/</span>
+          <span className="text-gray-900 dark:text-gray-100 font-medium">Customize with AI</span>
+        </nav>
+      )}
+      
+      {/* Back button (when coming from template) */}
+      {templateContext && (
+        <button
+          onClick={() => navigate(`/templates/${templateContext.templateSlug}`)}
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to {templateContext.templateName}
+        </button>
+      )}
+      
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="h-10 w-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Generate Part</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {templateContext ? `Customize: ${templateContext.templateName}` : 'Generate Part'}
+          </h1>
         </div>
-        <p className="text-gray-600">
-          Describe the part you want to create in natural language, and our AI will generate it for you.
+        <p className="text-gray-600 dark:text-gray-400">
+          {templateContext 
+            ? `Modify the pre-filled description below to customize your ${templateContext.templateName}.`
+            : 'Describe the part you want to create in natural language, and our AI will generate it for you.'
+          }
         </p>
       </div>
 
@@ -167,8 +228,8 @@ export function GeneratePage() {
         {/* Left Column: Input */}
         <div className="space-y-6">
           {/* Description Input */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <label className="block font-medium text-gray-900 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <label className="block font-medium text-gray-900 dark:text-gray-100 mb-2">
               Describe your part
             </label>
             <textarea
@@ -176,12 +237,12 @@ export function GeneratePage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g., Create a box 100mm long, 50mm wide, and 30mm tall with 3mm fillets on all edges"
               rows={5}
-              className="w-full px-4 py-3 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none placeholder:text-gray-400"
+              className="w-full px-4 py-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
               disabled={generating}
             />
             
             <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 {description.length}/2000 characters
               </span>
               
@@ -189,7 +250,7 @@ export function GeneratePage() {
                 {description && (
                   <button
                     onClick={handleReset}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900"
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                     disabled={generating}
                   >
                     <RotateCcw className="h-4 w-4" />
@@ -218,21 +279,21 @@ export function GeneratePage() {
           </div>
 
           {/* Example Prompts */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Lightbulb className="h-5 w-5 text-amber-500" />
-              <h3 className="font-medium text-gray-900">Example Prompts</h3>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Example Prompts</h3>
             </div>
             <div className="space-y-2">
               {EXAMPLE_PROMPTS.map((prompt, index) => (
                 <button
                   key={index}
-                  onClick={() => useExample(prompt)}
+                  onClick={() => handleExampleSelect(prompt)}
                   disabled={generating}
-                  className="w-full text-left p-3 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  className="w-full text-left p-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
                 >
                   <div className="flex items-start gap-2">
-                    <Copy className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <Copy className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
                     <span>{prompt}</span>
                   </div>
                 </button>
@@ -241,12 +302,12 @@ export function GeneratePage() {
           </div>
 
           {/* Advanced Options */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              <span className="font-medium text-gray-900">Advanced Options</span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">Advanced Options</span>
               {showAdvanced ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
               ) : (
@@ -255,10 +316,10 @@ export function GeneratePage() {
             </button>
             
             {showAdvanced && (
-              <div className="border-t border-gray-200 p-4 space-y-4">
+              <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
                 {/* Export formats */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Export Formats
                   </label>
                   <div className="flex items-center gap-4">
@@ -267,18 +328,18 @@ export function GeneratePage() {
                         type="checkbox"
                         checked={exportStep}
                         onChange={(e) => setExportStep(e.target.checked)}
-                        className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                        className="h-4 w-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded"
                       />
-                      <span className="text-sm text-gray-700">STEP</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">STEP</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={exportStl}
                         onChange={(e) => setExportStl(e.target.checked)}
-                        className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                        className="h-4 w-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded"
                       />
-                      <span className="text-sm text-gray-700">STL</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">STL</span>
                     </label>
                   </div>
                 </div>
@@ -286,7 +347,7 @@ export function GeneratePage() {
                 {/* STL Quality */}
                 {exportStl && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       STL Quality
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -296,12 +357,12 @@ export function GeneratePage() {
                           onClick={() => setStlQuality(option.value)}
                           className={`p-3 rounded-lg border text-left transition-colors ${
                             stlQuality === option.value
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                           }`}
                         >
-                          <p className="font-medium text-sm text-gray-900">{option.label}</p>
-                          <p className="text-xs text-gray-500">{option.description}</p>
+                          <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{option.label}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{option.description}</p>
                         </button>
                       ))}
                     </div>
@@ -316,23 +377,23 @@ export function GeneratePage() {
         <div className="space-y-6">
           {/* Error Display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-red-800">Generation Failed</p>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <p className="font-medium text-red-800 dark:text-red-300">Generation Failed</p>
+                <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
               </div>
             </div>
           )}
 
           {/* 3D Preview */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="h-[400px] relative">
               {generating ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800">
                   <Loader2 className="h-12 w-12 animate-spin text-primary-600 mb-4" />
-                  <p className="text-gray-600 font-medium">Generating your part...</p>
-                  <p className="text-sm text-gray-500 mt-1">This may take a few seconds</p>
+                  <p className="text-gray-600 dark:text-gray-300 font-medium">Generating your part...</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">This may take a few seconds</p>
                 </div>
               ) : previewData ? (
                 <ModelViewer 
@@ -343,10 +404,10 @@ export function GeneratePage() {
                   className="h-full w-full"
                 />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
-                  <Wand2 className="h-12 w-12 text-gray-300 mb-4" />
-                  <p className="text-gray-500">3D preview will appear here</p>
-                  <p className="text-sm text-gray-400 mt-1">Enter a description and click Generate</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800">
+                  <Wand2 className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">3D preview will appear here</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Enter a description and click Generate</p>
                 </div>
               )}
             </div>
@@ -354,15 +415,15 @@ export function GeneratePage() {
 
           {/* Generation Results */}
           {result && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
               {/* Success header */}
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <div className="h-10 w-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">Part Generated Successfully</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">Part Generated Successfully</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {result.shape} • {result.confidence.toFixed(0)}% confidence
                   </p>
                 </div>
@@ -370,12 +431,12 @@ export function GeneratePage() {
 
               {/* Dimensions */}
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Extracted Dimensions</h4>
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Extracted Dimensions</h4>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(result.dimensions).map(([key, value]) => (
                     <span
                       key={key}
-                      className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700"
+                      className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm text-gray-700 dark:text-gray-300"
                     >
                       {formatDimension(key, value)}
                     </span>
@@ -385,30 +446,30 @@ export function GeneratePage() {
 
               {/* Assembly Parts */}
               {result.is_assembly && result.parts && result.parts.length > 0 && (
-                <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                <div className="border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Layers className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-medium text-blue-900">Assembly Parts ({result.parts.length})</h4>
+                    <Layers className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <h4 className="font-medium text-blue-900 dark:text-blue-300">Assembly Parts ({result.parts.length})</h4>
                   </div>
                   <div className="space-y-3">
                     {result.parts.map((part, index) => (
-                      <div key={index} className="bg-white rounded-lg p-3 border border-blue-100">
+                      <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-blue-100 dark:border-blue-800">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-gray-900">{part.name}</p>
-                            <p className="text-sm text-gray-500">{part.description}</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">{part.name}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{part.description}</p>
                           </div>
                           <div className="flex gap-2">
                             <a
                               href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}${part.downloads.step}`}
-                              className="flex items-center gap-1 px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded hover:bg-primary-200"
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded hover:bg-primary-200 dark:hover:bg-primary-900/50"
                             >
                               <Download className="h-3 w-3" />
                               STEP
                             </a>
                             <a
                               href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}${part.downloads.stl}`}
-                              className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
                             >
                               <Download className="h-3 w-3" />
                               STL
@@ -423,24 +484,24 @@ export function GeneratePage() {
 
               {/* Bill of Materials */}
               {result.is_assembly && result.bom && result.bom.length > 0 && (
-                <div className="border border-green-200 bg-green-50 rounded-lg p-4">
+                <div className="border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Package className="h-5 w-5 text-green-600" />
-                    <h4 className="font-medium text-green-900">Bill of Materials</h4>
+                    <Package className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <h4 className="font-medium text-green-900 dark:text-green-300">Bill of Materials</h4>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left text-green-800">
+                        <tr className="text-left text-green-800 dark:text-green-300">
                           <th className="pb-2">Item</th>
                           <th className="pb-2">Qty</th>
                           <th className="pb-2">Material</th>
                           <th className="pb-2">Supplier</th>
                         </tr>
                       </thead>
-                      <tbody className="text-gray-700">
+                      <tbody className="text-gray-700 dark:text-gray-300">
                         {result.bom.map((item, index) => (
-                          <tr key={index} className="border-t border-green-100">
+                          <tr key={index} className="border-t border-green-100 dark:border-green-800">
                             <td className="py-2">{item.name}</td>
                             <td className="py-2">{item.quantity}</td>
                             <td className="py-2">{item.material}</td>
@@ -450,13 +511,13 @@ export function GeneratePage() {
                                   href={item.supplier_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-1 text-green-700 hover:text-green-900"
+                                  className="flex items-center gap-1 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
                                 >
                                   {item.mcmaster_pn || 'McMaster'}
                                   <ExternalLink className="h-3 w-3" />
                                 </a>
                               ) : (
-                                <span className="text-gray-400">—</span>
+                                <span className="text-gray-400 dark:text-gray-500">—</span>
                               )}
                             </td>
                           </tr>
@@ -469,9 +530,9 @@ export function GeneratePage() {
 
               {/* Warnings */}
               {result.warnings.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-amber-800 mb-1">Warnings</p>
-                  <ul className="text-sm text-amber-700 space-y-1">
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Warnings</p>
+                  <ul className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
                     {result.warnings.map((warning, index) => (
                       <li key={index}>• {warning}</li>
                     ))}
@@ -480,7 +541,7 @@ export function GeneratePage() {
               )}
 
               {/* Timing */}
-              <div className="text-xs text-gray-500 flex items-center gap-4">
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-4">
                 <span>Parse: {result.timing.parse_ms.toFixed(0)}ms</span>
                 <span>Generate: {result.timing.generate_ms.toFixed(0)}ms</span>
                 <span>Export: {result.timing.export_ms.toFixed(0)}ms</span>
@@ -508,7 +569,7 @@ export function GeneratePage() {
                     <button
                       onClick={() => handleDownload('stl')}
                       disabled={downloading === 'stl'}
-                      className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
                     >
                       {downloading === 'stl' ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

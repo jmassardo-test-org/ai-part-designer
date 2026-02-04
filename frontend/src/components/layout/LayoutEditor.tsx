@@ -7,8 +7,8 @@
 
 import React from 'react';
 import { LayoutCanvas } from './LayoutCanvas';
-import { LayoutToolbar, type LayoutAlgorithm } from './LayoutToolbar';
 import { LayoutSidebar } from './LayoutSidebar';
+import { LayoutToolbar, type LayoutAlgorithm } from './LayoutToolbar';
 import type { 
   ComponentData, 
   ComponentPlacement, 

@@ -2,9 +2,10 @@
  * AuthLayout Component Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { describe, it, expect, vi } from 'vitest';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthLayout } from './AuthLayout';
 
 // Mock Logo component
@@ -18,12 +19,14 @@ describe('AuthLayout', () => {
   const renderWithRouter = (initialRoute = '/login') => {
     return render(
       <MemoryRouter initialEntries={[initialRoute]}>
-        <Routes>
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<div data-testid="login-content">Login Form</div>} />
-            <Route path="/register" element={<div data-testid="register-content">Register Form</div>} />
-          </Route>
-        </Routes>
+        <ThemeProvider defaultTheme="dark">
+          <Routes>
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<div data-testid="login-content">Login Form</div>} />
+              <Route path="/register" element={<div data-testid="register-content">Register Form</div>} />
+            </Route>
+          </Routes>
+        </ThemeProvider>
       </MemoryRouter>
     );
   };

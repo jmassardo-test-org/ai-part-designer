@@ -2,4 +2,4 @@
  * Onboarding components index.
  */
 
-export { OnboardingProvider, useOnboarding } from './OnboardingFlow';
+export { OnboardingProvider, useOnboardingRestart } from './OnboardingFlow';

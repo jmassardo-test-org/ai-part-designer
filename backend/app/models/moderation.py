@@ -41,7 +41,7 @@ class ModerationLog(Base):
         },
         "originalPrompt": "Create a custom gun grip",
         "sanitizedPrompt": null,
-        "moderationModel": "openai-moderation-v1"
+        "moderationModel": "claude-content-moderation"
     }
     """
 

@@ -2,7 +2,6 @@
  * File upload component with drag-and-drop support.
  */
 
-import { useState, useCallback, useRef } from 'react';
 import { 
   Upload, 
   X, 
@@ -11,6 +10,7 @@ import {
   AlertCircle,
   Loader2 
 } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // API base URL
@@ -222,8 +222,8 @@ export function FileUploader({
           dropzone relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
           transition-colors duration-200
           ${isDragging
-            ? 'border-primary-500 bg-primary-50'
-            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
           }
         `}
       >
@@ -239,21 +239,21 @@ export function FileUploader({
         <div className="flex flex-col items-center gap-3">
           <div className={`
             h-12 w-12 rounded-full flex items-center justify-center
-            ${isDragging ? 'bg-primary-100' : 'bg-gray-100'}
+            ${isDragging ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-gray-100 dark:bg-gray-700'}
           `}>
             <Upload className={`h-6 w-6 ${isDragging ? 'text-primary-600' : 'text-gray-400'}`} />
           </div>
 
           <div>
-            <p className="font-medium text-gray-900">
+            <p className="font-medium text-gray-900 dark:text-gray-100">
               {isDragging ? 'Drop files here' : 'Drag and drop files here'}
             </p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               or click to browse
             </p>
           </div>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 dark:text-gray-500">
             Supports {ALLOWED_EXTENSIONS.join(', ')} up to {maxSizeMB}MB
           </p>
         </div>
@@ -265,7 +265,7 @@ export function FileUploader({
           {uploads.map((upload) => (
             <div
               key={upload.id}
-              className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
+              className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
             >
               {/* Icon */}
               <div className="flex-shrink-0">
@@ -282,10 +282,10 @@ export function FileUploader({
 
               {/* File info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {upload.file.name}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {formatSize(upload.file.size)}
                   {upload.error && (
                     <span className="text-red-500 ml-2">• {upload.error}</span>
@@ -298,7 +298,7 @@ export function FileUploader({
 
               {/* Progress or remove button */}
               {upload.status === 'uploading' ? (
-                <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary-600 transition-all duration-300"
                     style={{ width: `${upload.progress}%` }}
@@ -310,7 +310,7 @@ export function FileUploader({
                     e.stopPropagation();
                     removeUpload(upload.id);
                   }}
-                  className="p-1 text-gray-400 hover:text-gray-600"
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <X className="h-4 w-4" />
                 </button>

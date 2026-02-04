@@ -275,7 +275,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
                         min_days = min(item["days_until_deletion"] for item in items_to_warn)
                         
                         # Build URLs
-                        base_url = settings.FRONTEND_URL or "https://app.assemblematicai.com"
+                        base_url = settings.FRONTEND_URL or "https://assemblematic.ai"
                         trash_url = f"{base_url}/trash"
                         settings_url = f"{base_url}/settings/trash"
                         

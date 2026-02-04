@@ -2,9 +2,9 @@
  * AdminRoute Component Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AdminRoute } from './AdminRoute';
 
 // Mock AuthContext

@@ -1,11 +1,11 @@
 """
 AI integration package.
 
-Provides OpenAI client, prompt templates, and natural language parsing
+Provides Claude (Anthropic) client, prompt templates, and natural language parsing
 for converting user descriptions into CAD parameters.
 """
 
-from app.ai.client import OpenAIClient, get_ai_client
+from app.ai.client import ClaudeClient, get_ai_client
 from app.ai.prompts import PromptTemplate, DIMENSION_EXTRACTION_PROMPT
 from app.ai.parser import (
     CADParameters,
@@ -25,7 +25,7 @@ from app.ai.exceptions import (
 
 __all__ = [
     # Client
-    "OpenAIClient",
+    "ClaudeClient",
     "get_ai_client",
     # Prompts
     "PromptTemplate",

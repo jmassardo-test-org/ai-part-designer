@@ -1,5 +1,5 @@
 """
-AI-powered CadQuery code generation.
+AI-powered Build123d code generation.
 
 Uses an iterative, multi-pass approach to build up complex geometry:
 1. First pass: Generate base geometry (shape primitives, unions)
@@ -18,7 +18,26 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-import cadquery as cq
+# Build123d imports
+from build123d import (
+    Align,
+    Axis,
+    Box,
+    BuildPart,
+    Cylinder,
+    Sphere,
+    Cone,
+    Location,
+    Locations,
+    Mode,
+    Part,
+    Plane,
+    add,
+    fillet,
+    chamfer,
+    extrude,
+    Hole,
+)
 
 from app.ai.client import get_ai_client
 from app.ai.exceptions import AIParseError, AIValidationError
@@ -33,10 +52,20 @@ logger = logging.getLogger(__name__)
 INTENT_DETECTION_PROMPT = """Analyze this part description and break it down into build steps.
 
 Respond with a JSON object containing:
-- base_shape: description of the primary geometry (box, cylinder, L-bracket, etc.)
+- base_shape: description of the primary geometry (box, cylinder, sphere, L-bracket, etc.)
 - holes: list of hole descriptions if any
 - fillets: list of fillet/chamfer descriptions if any
 - other_features: list of other features (ribs, bosses, pockets, etc.)
+
+Example input: "Make a cylinder 2 inches in diameter and 4 inches tall with a 10mm center hole"
+
+Example output:
+{
+  "base_shape": "cylinder 2 inches diameter (50.8mm), 4 inches tall (101.6mm)",
+  "holes": ["10mm diameter center hole through the cylinder"],
+  "fillets": [],
+  "other_features": []
+}
 
 Example input: "Create an L-bracket 50mm x 50mm x 3mm thick with 4 corner holes 5mm diameter on each flange, 10mm from edges, and 5mm fillets on the outer corners"
 
@@ -48,10 +77,10 @@ Example output:
   "other_features": []
 }
 
-IMPORTANT for angle brackets / L-brackets:
-- "4 corner holes" typically means 4 holes on EACH flange (8 total)
-- Holes are usually in a 2x2 grid pattern near the corners
-- "outer corners" means the 4 corners of each rectangular flange plate
+IMPORTANT:
+- For cylinders: Extract diameter and height, note if hollow or solid
+- For L-brackets: "4 corner holes" typically means 4 holes on EACH flange (8 total)
+- Always convert units to mm in parentheses: "2 inches (50.8mm)"
 
 Only output the JSON. No markdown."""
 
@@ -69,6 +98,24 @@ RULES:
 3. Use simple primitives: box(), cylinder(), sphere()
 4. For unions, use .union()
 
+=== CYLINDER ===
+CadQuery cylinder() takes (height, radius) - NOT diameter!
+For a cylinder 2 inches diameter (50.8mm) and 4 inches tall (101.6mm):
+# diameter = 50.8mm, so radius = 25.4mm
+# height = 101.6mm
+result = cq.Workplane("XY").cylinder(101.6, 25.4)
+
+For a 50mm diameter, 100mm tall cylinder:
+result = cq.Workplane("XY").cylinder(100, 25)  # height=100, radius=25
+
+=== SIMPLE BOX ===
+For a box 100mm long, 50mm wide, 30mm tall:
+result = cq.Workplane("XY").box(100, 50, 30)
+
+=== SPHERE ===
+For a 60mm diameter sphere:
+result = cq.Workplane("XY").sphere(30)  # radius = diameter/2
+
 === L-BRACKET / ANGLE BRACKET ===
 An L-bracket has two perpendicular flanges meeting at a corner.
 For a 50mm x 50mm x 3mm thick L-bracket (both flanges same size):
@@ -79,11 +126,9 @@ h = cq.Workplane("XY").box(50, 50, 3).translate((25, 0, 1.5))
 v = cq.Workplane("XY").box(3, 50, 50).translate((1.5, 0, 25))
 result = h.union(v)
 
-=== SIMPLE BOX ===
-result = cq.Workplane("XY").box(100, 50, 10)
-
-=== CYLINDER ===
-result = cq.Workplane("XY").cylinder(50, 25)
+UNIT CONVERSIONS (convert to mm before using):
+- 1 inch = 25.4 mm
+- 1 cm = 10 mm
 
 Output ONLY the Python code. No markdown. No explanations."""
 
@@ -96,36 +141,39 @@ The variable `base_shape` is already defined as a CadQuery Workplane with the ba
 RULES:
 1. NO imports - cq is already available
 2. Start from `base_shape`, not from scratch
-3. Use .faces().workplane().pushPoints([...]).hole(diameter)
+3. Use .faces().workplane().hole(diameter) for through holes
 4. Last line must be: result = <variable>
 5. Assign intermediate results to variables
 
-=== L-BRACKET HOLES (4 holes per flange, 10mm from edges) ===
-For a 50mm x 50mm flange with 5mm diameter holes, 10mm from edges:
-- Holes at corners: (10, 10), (10, -10), (40, 10), (40, -10) relative to flange center
+=== CYLINDER WITH CENTER THROUGH HOLE ===
+# For a cylinder, select the top circular face (">Z") and add a center hole
+# hole() takes diameter, not radius
+# For a 10mm diameter hole:
+result = base_shape.faces(">Z").workplane().hole(10)
 
-# Horizontal flange - top face
-hole_offset = 10  # distance from edge
+# For a 12.7mm (1/2 inch) diameter hole:
+result = base_shape.faces(">Z").workplane().hole(12.7)
+
+=== BOX WITH CENTER HOLE ===
+result = base_shape.faces(">Z").workplane().hole(10)
+
+=== MULTIPLE HOLES IN PATTERN ===
+# For multiple holes, use pushPoints with coordinates
+result = base_shape.faces(">Z").workplane().pushPoints([
+    (10, 10), (10, -10), (-10, 10), (-10, -10)
+]).hole(5)
+
+=== L-BRACKET HOLES ===
+For a 50mm x 50mm flange with 5mm diameter holes, 10mm from edges:
+hole_offset = 10
 shape = base_shape.faces(">Z").workplane()
 shape = shape.pushPoints([
     (hole_offset, hole_offset), (hole_offset, -hole_offset),
     (40, hole_offset), (40, -hole_offset)
 ]).hole(5)
+result = shape
 
-# Vertical flange - front face
-shape = shape.faces("<X").workplane()
-result = shape.pushPoints([
-    (hole_offset, hole_offset + 3), (hole_offset, 40 + 3),
-    (-hole_offset, hole_offset + 3), (-hole_offset, 40 + 3)
-]).hole(5)
-
-=== SIMPLE CENTER HOLE ===
-result = base_shape.faces(">Z").workplane().hole(10)
-
-=== CYLINDER WITH CENTER THROUGH HOLE ===
-# For a cylinder, select the top circular face and add a through hole
-# The hole will go through the entire cylinder
-result = base_shape.faces(">Z").workplane().hole(10)
+UNIT CONVERSION: 1 inch = 25.4mm, so 1/2 inch = 12.7mm
 
 Output ONLY the Python code. No markdown. No explanations."""
 
@@ -178,12 +226,56 @@ result = base_shape.cut(pocket)
 Output ONLY the Python code. No markdown. No explanations."""
 
 
+# =============================================================================
+# Modification Context Prompt
+# =============================================================================
+
+MODIFICATION_CONTEXT_PROMPT = """You are modifying an existing CAD part. The user has an existing part and wants to change it.
+
+IMPORTANT: Start with the EXACT original code below and add ONLY the modification requested.
+Do NOT recreate the part from scratch - use the original code as your starting point.
+
+=== ORIGINAL CADQUERY CODE (use this as your base) ===
+{original_code}
+=== END ORIGINAL CODE ===
+
+Part description: {original_description}
+Existing dimensions: {existing_dimensions}
+
+User's modification request:
+{modification_request}
+
+RULES:
+1. NO imports - cq is already available
+2. Start with the original code above (copy it exactly, then add modifications)
+3. Add the modification by continuing the CadQuery chain or applying operations to the existing shape
+4. Last line must be: result = <variable_name>
+5. Apply ONLY the modification the user requested
+
+CADQUERY HOLE DRILLING GUIDE:
+- For holes in a HORIZONTAL surface (XY plane): use .faces(">Z") or .faces("<Z")
+- For holes in a VERTICAL surface facing Y: use .faces(">Y") or .faces("<Y")  
+- For holes in a VERTICAL surface facing X: use .faces(">X") or .faces("<X")
+- The .hole(diameter) drills PERPENDICULAR to the selected face
+- For an L-bracket: horizontal leg uses .faces(">Z"), vertical leg uses .faces(">Y") or .faces("<Y")
+
+EXAMPLE - Adding holes to both legs of an L-bracket:
+```
+# Holes in horizontal leg (top face)
+result = result.faces(">Z").workplane().pushPoints([(x1, y1), (x2, y2)]).hole(diameter)
+# Holes in vertical leg (front/back face - NOT the side face)
+result = result.faces("<Y").workplane().pushPoints([(x1, z1), (x2, z2)]).hole(diameter)
+```
+
+Output ONLY the Python code. No markdown. No explanations."""
+
+
 @dataclass
 class CodeGenerationResult:
     """Result of AI code generation."""
     
     code: str
-    shape: cq.Workplane | None = None
+    shape: Part | None = None
     execution_time_ms: float = 0.0
     generation_time_ms: float = 0.0
     error: str | None = None
@@ -199,7 +291,7 @@ def sanitize_code(code: str) -> str:
     Sanitize generated code to ensure it's safe to execute.
     
     - Removes markdown code blocks
-    - Removes cadquery import statements (we provide cq in globals)
+    - Removes build123d/cadquery import statements (we provide symbols in globals)
     - Removes dangerous imports
     - Ensures result variable exists
     """
@@ -208,24 +300,14 @@ def sanitize_code(code: str) -> str:
     code = re.sub(r'^```\s*$', '', code, flags=re.MULTILINE)
     code = code.strip()
     
-    # Fix common AI mistakes
-    # push_points -> pushPoints (CadQuery uses camelCase)
-    code = re.sub(r'\.push_points\s*\(', '.pushPoints(', code)
-    # Remove extra arguments to pushPoints (should only take list)
-    code = re.sub(r'\.pushPoints\(\[([^\]]+)\]\s*,\s*\d+\)', '.pushPoints([\\1])', code)
+    # Remove build123d imports (we provide symbols in globals)
+    code = re.sub(r'^from build123d import.*$', '# from build123d (provided)', code, flags=re.MULTILINE)
+    code = re.sub(r'^import build123d.*$', '# import build123d (provided)', code, flags=re.MULTILINE)
     
-    # Fix invalid fillet/chamfer calls
-    # Remove .fillet(0) and .chamfer(0) as they are invalid
-    code = re.sub(r'\.fillet\(0\)', '', code)
-    code = re.sub(r'\.chamfer\(0\)', '', code)
-    # Remove chained .union() calls on fillets - they don't work that way
-    code = re.sub(r'\.fillet\(([0-9.]+)\)\.union\([^)]+\)', '.fillet(\\1)', code)
-    code = re.sub(r'\.chamfer\(([0-9.]+)\)\.union\([^)]+\)', '.chamfer(\\1)', code)
-    
-    # Remove cadquery imports (we provide cq/cadquery in globals)
-    code = re.sub(r'^import cadquery.*$', '# import cadquery (provided)', code, flags=re.MULTILINE)
-    code = re.sub(r'^from cadquery import.*$', '# from cadquery (provided)', code, flags=re.MULTILINE)
-    code = re.sub(r'^import cq.*$', '# import cq (provided)', code, flags=re.MULTILINE)
+    # Also remove legacy cadquery imports
+    code = re.sub(r'^import cadquery.*$', '# import cadquery (legacy)', code, flags=re.MULTILINE)
+    code = re.sub(r'^from cadquery import.*$', '# from cadquery (legacy)', code, flags=re.MULTILINE)
+    code = re.sub(r'^import cq.*$', '# import cq (legacy)', code, flags=re.MULTILINE)
     
     # Check for dangerous patterns
     dangerous_patterns = [
@@ -254,16 +336,18 @@ def sanitize_code(code: str) -> str:
     return code
 
 
-def execute_cadquery_code(code: str, base_shape: cq.Workplane | None = None) -> cq.Workplane:
+def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
     """
-    Safely execute CadQuery code and return the result.
+    Safely execute Build123d code and return the result.
+    
+    Note: Function name kept for backward compatibility, but now executes Build123d code.
     
     Args:
-        code: Python code that creates a CadQuery Workplane
+        code: Python code that creates a Build123d Part
         base_shape: Optional existing shape to build upon (available as 'base_shape' variable)
         
     Returns:
-        The CadQuery Workplane result
+        The Build123d Part result
         
     Raises:
         AIValidationError: If code is invalid or execution fails
@@ -273,10 +357,31 @@ def execute_cadquery_code(code: str, base_shape: cq.Workplane | None = None) -> 
     
     logger.debug(f"Executing sanitized code:\n{code}")
     
-    # Create restricted execution environment
+    # Create restricted execution environment with Build123d symbols
     allowed_globals = {
-        'cq': cq,
-        'cadquery': cq,
+        # Build123d core
+        'BuildPart': BuildPart,
+        'BuildSketch': __import__('build123d').BuildSketch,
+        'Part': Part,
+        'Plane': Plane,
+        'Mode': Mode,
+        'Align': Align,
+        'Axis': Axis,
+        # Shapes
+        'Box': Box,
+        'Cylinder': Cylinder,
+        'Sphere': Sphere,
+        'Cone': Cone,
+        'Hole': Hole,
+        # Positioning
+        'Location': Location,
+        'Locations': Locations,
+        # Operations
+        'add': add,
+        'fillet': fillet,
+        'chamfer': chamfer,
+        'extrude': extrude,
+        # Utils
         'math': __import__('math'),
     }
     
@@ -298,14 +403,15 @@ def execute_cadquery_code(code: str, base_shape: cq.Workplane | None = None) -> 
         
         result = local_vars['result']
         
-        if not isinstance(result, cq.Workplane):
-            raise AIValidationError(f"Result is not a CadQuery Workplane: {type(result)}")
+        # Check for Build123d Part
+        if not hasattr(result, 'wrapped'):
+            raise AIValidationError(f"Result is not a Build123d Part: {type(result)}")
         
-        # Ensure there's at least one solid on the stack
+        # Ensure there's valid geometry
         try:
-            val = result.val()
-            if not hasattr(val, 'ShapeType') or val.ShapeType() not in ['Solid', 'Compound', 'CompSolid']:
-                raise AIValidationError(f"Result has no valid solid geometry: {type(val)}")
+            bbox = result.bounding_box()
+            if bbox is None:
+                raise AIValidationError("Result has no valid geometry")
         except Exception as e:
             raise AIValidationError(f"Result has no valid geometry: {e}")
         
@@ -322,18 +428,18 @@ def execute_cadquery_code(code: str, base_shape: cq.Workplane | None = None) -> 
 
 
 def _apply_fillet_with_fallback(
-    shape: cq.Workplane,
+    shape: Part,
     edge_selector: str,
     requested_radius: float,
     operation: str = "fillet"
-) -> tuple[cq.Workplane | None, float | None, str | None]:
+) -> tuple[Part | None, float | None, str | None]:
     """
     Try to apply a fillet/chamfer, automatically reducing size if too large.
     Skips operations on complex geometry to prevent hanging.
     
     Args:
         shape: The shape to fillet
-        edge_selector: CadQuery edge selector like "|Z", ">X"
+        edge_selector: Edge selector (not used in Build123d the same way)
         requested_radius: The requested fillet radius
         operation: "fillet" or "chamfer"
         
@@ -452,9 +558,9 @@ async def _generate_single_pass(
     client,
     system_prompt: str,
     user_prompt: str,
-    base_shape: cq.Workplane | None = None,
+    base_shape: Part | None = None,
     max_retries: int = 2,
-) -> tuple[cq.Workplane | None, str, float, float, str | None]:
+) -> tuple[Part | None, str, float, float, str | None]:
     """
     Generate and execute code for a single pass.
     
@@ -624,8 +730,33 @@ async def generate_cadquery_code(
     dims = detected_intent.get('dimensions', {})
     thickness = detected_intent.get('thickness')
     
-    # Add explicit instruction for bracket-type parts
-    if any(term in base_info.lower() for term in ['bracket', 'l-bracket', 'angle']):
+    # Add explicit instruction based on detected shape type
+    base_info_lower = base_info.lower()
+    
+    if any(term in base_info_lower for term in ['cylinder', 'cylindrical', 'tube', 'pipe', 'rod']):
+        # Handle cylinder shapes explicitly
+        diameter = dims.get('diameter', 50)
+        radius = dims.get('radius', diameter / 2 if diameter else 25)
+        height = dims.get('height', 100)
+        
+        base_prompt = (
+            f"Create a CYLINDER with:\n"
+            f"- Diameter: {diameter}mm (radius: {radius}mm)\n"
+            f"- Height: {height}mm\n"
+            f"Use: result = cq.Workplane('XY').cylinder({height}, {radius})\n"
+            f"Remember: cylinder(height, radius) - height first, then radius!"
+        )
+    elif any(term in base_info_lower for term in ['sphere', 'ball', 'spherical']):
+        # Handle sphere shapes explicitly
+        diameter = dims.get('diameter', 50)
+        radius = dims.get('radius', diameter / 2 if diameter else 25)
+        
+        base_prompt = (
+            f"Create a SPHERE with:\n"
+            f"- Diameter: {diameter}mm (radius: {radius}mm)\n"
+            f"Use: result = cq.Workplane('XY').sphere({radius})"
+        )
+    elif any(term in base_info_lower for term in ['bracket', 'l-bracket', 'angle']):
         flange_len = dims.get('flange_length', 50)
         flange_width = dims.get('flange_width', flange_len)
         mat_thickness = thickness or dims.get('thickness', 3)
@@ -635,6 +766,19 @@ async def generate_cadquery_code(
             f"- Flange width: {flange_width}mm\n"
             f"- Material thickness: {mat_thickness}mm\n"
             f"Use the L-bracket pattern from the examples."
+        )
+    elif any(term in base_info_lower for term in ['box', 'cube', 'rectangular', 'block']):
+        # Handle box shapes explicitly
+        length = dims.get('length', 100)
+        width = dims.get('width', 50)
+        height = dims.get('height', 30)
+        
+        base_prompt = (
+            f"Create a BOX with:\n"
+            f"- Length: {length}mm\n"
+            f"- Width: {width}mm\n"
+            f"- Height: {height}mm\n"
+            f"Use: result = cq.Workplane('XY').box({length}, {width}, {height})"
         )
     else:
         base_prompt = f"Create the base shape: {base_info}"
@@ -753,3 +897,93 @@ async def generate_cadquery_code(
         execution_time_ms=total_exec_time,
         adjustments=adjustments,
     )
+
+
+async def generate_modification(
+    original_description: str,
+    modification_request: str,
+    original_code: str | None = None,
+    existing_dimensions: dict[str, float] | None = None,
+    existing_features: list[str] | None = None,
+) -> CodeGenerationResult:
+    """
+    Generate CadQuery code that applies a modification to an existing part.
+    
+    This is used when a user requests changes to an already-generated part,
+    such as "add a 10mm hole in the center" or "make it 20mm taller".
+    
+    Args:
+        original_description: The original part description that was generated
+        modification_request: The user's modification request
+        original_code: The original CadQuery code that generated the part
+        existing_dimensions: Dictionary of existing dimensions (e.g., {"length": 100, "width": 50})
+        existing_features: List of existing features (e.g., ["3mm fillets on all edges"])
+        
+    Returns:
+        CodeGenerationResult with the modified geometry
+    """
+    client = get_ai_client()
+    
+    logger.info(f"Generating modification: '{modification_request}' on '{original_description[:50]}...'")
+    logger.info(f"Original code provided: {bool(original_code)}")
+    if original_code:
+        logger.info(f"Original code length: {len(original_code)} chars")
+        logger.info(f"Original code preview: {original_code[:200]}...")
+    
+    # Format existing dimensions for the prompt
+    dims_str = "None specified"
+    if existing_dimensions:
+        dims_str = ", ".join([f"{k}: {v}mm" for k, v in existing_dimensions.items()])
+    
+    # If no original code provided, create a placeholder
+    code_str = original_code if original_code else "# Original code not available - recreate from dimensions"
+    
+    # Build the modification prompt
+    prompt = MODIFICATION_CONTEXT_PROMPT.format(
+        original_description=original_description,
+        original_code=code_str,
+        existing_dimensions=dims_str,
+        modification_request=modification_request,
+    )
+    
+    messages = [
+        {"role": "system", "content": prompt},
+    ]
+    
+    gen_start = time.monotonic()
+    
+    try:
+        code = await client.complete(messages, temperature=0.2)
+        gen_time = (time.monotonic() - gen_start) * 1000
+        
+        logger.info(f"Modification code generated:\n{code[:500]}...")
+        
+        # Execute the code
+        exec_start = time.monotonic()
+        try:
+            shape = execute_cadquery_code(code)
+            exec_time = (time.monotonic() - exec_start) * 1000
+            
+            return CodeGenerationResult(
+                code=code,
+                shape=shape,
+                generation_time_ms=gen_time,
+                execution_time_ms=exec_time,
+                adjustments=[f"Applied modification: {modification_request}"],
+            )
+        except AIValidationError as e:
+            logger.error(f"Modification execution failed: {e}")
+            return CodeGenerationResult(
+                code=code,
+                error=f"Failed to apply modification: {e}",
+                generation_time_ms=gen_time,
+                execution_time_ms=(time.monotonic() - exec_start) * 1000,
+            )
+            
+    except Exception as e:
+        logger.error(f"Modification generation failed: {e}")
+        return CodeGenerationResult(
+            code="",
+            error=f"Failed to generate modification: {e}",
+            generation_time_ms=(time.monotonic() - gen_start) * 1000,
+        )

@@ -5,11 +5,8 @@
  * exploded view, and component selection.
  */
 
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Environment, Html } from '@react-three/drei';
-import * as THREE from 'three';
-import { STLLoader } from 'three-stdlib';
+import { Canvas, useThree } from '@react-three/fiber';
 import {
   Expand,
   Shrink,
@@ -18,6 +15,9 @@ import {
   RotateCcw,
   List,
 } from 'lucide-react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import * as THREE from 'three';
+import { STLLoader } from 'three-stdlib';
 
 // =============================================================================
 // Types
@@ -354,7 +354,7 @@ export function AssemblyViewer({
   }, []);
 
   return (
-    <div ref={containerRef} className={`relative bg-gray-100 rounded-lg overflow-hidden ${className}`}>
+    <div ref={containerRef} className={`relative bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden ${className}`}>
       {/* Three.js Canvas */}
       <Canvas shadows dpr={[1, 2]}>
         <PerspectiveCamera makeDefault position={[150, 100, 150]} fov={45} />
@@ -382,7 +382,7 @@ export function AssemblyViewer({
           className={`p-2 rounded-lg shadow-md transition-colors ${
             explodeFactor > 0
               ? 'bg-primary-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
           title={explodeFactor > 0 ? 'Collapse view' : 'Exploded view'}
         >
@@ -392,7 +392,7 @@ export function AssemblyViewer({
         {/* Reset camera */}
         <button
           onClick={resetCamera}
-          className="p-2 bg-white rounded-lg shadow-md text-gray-700 hover:bg-gray-50 transition-colors"
+          className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           title="Reset camera"
         >
           <RotateCcw className="w-5 h-5" />
@@ -404,7 +404,7 @@ export function AssemblyViewer({
           className={`p-2 rounded-lg shadow-md transition-colors ${
             showComponentList
               ? 'bg-primary-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
           title="Component list"
         >
@@ -413,8 +413,8 @@ export function AssemblyViewer({
       </div>
 
       {/* Component count */}
-      <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md">
-        <span className="text-sm text-gray-600">
+      <div className="absolute bottom-4 left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md">
+        <span className="text-sm text-gray-600 dark:text-gray-300">
           {components.length} component{components.length !== 1 ? 's' : ''}
           {hiddenComponents.size > 0 && ` (${hiddenComponents.size} hidden)`}
         </span>
@@ -422,16 +422,16 @@ export function AssemblyViewer({
 
       {/* Component list panel */}
       {showComponentList && (
-        <div className="absolute top-4 right-4 w-64 max-h-96 bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="px-4 py-3 border-b bg-gray-50">
-            <h3 className="font-medium text-gray-900">Components</h3>
+        <div className="absolute top-4 right-4 w-64 max-h-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+          <div className="px-4 py-3 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100">Components</h3>
           </div>
           <div className="overflow-y-auto max-h-80">
             {components.map((component) => (
               <div
                 key={component.id}
-                className={`flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-gray-50 ${
-                  selectedComponentId === component.id ? 'bg-primary-50' : ''
+                className={`flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                  selectedComponentId === component.id ? 'bg-primary-50 dark:bg-primary-900/30' : ''
                 }`}
                 onClick={() => handleSelectComponent(component.id)}
               >
@@ -440,9 +440,9 @@ export function AssemblyViewer({
                     className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: component.color || '#6b7280' }}
                   />
-                  <span className="text-sm truncate">{component.name}</span>
+                  <span className="text-sm truncate dark:text-gray-100">{component.name}</span>
                   {component.quantity > 1 && (
-                    <span className="text-xs text-gray-500">×{component.quantity}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">×{component.quantity}</span>
                   )}
                 </div>
                 <button
@@ -466,17 +466,17 @@ export function AssemblyViewer({
 
       {/* Selected component info */}
       {selectedComponentId && (
-        <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
+        <div className="absolute bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-xs">
           {(() => {
             const selected = components.find((c) => c.id === selectedComponentId);
             if (!selected) return null;
             return (
               <>
-                <h4 className="font-medium text-gray-900">{selected.name}</h4>
-                <div className="mt-2 space-y-1 text-sm text-gray-600">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100">{selected.name}</h4>
+                <div className="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-300">
                   <p>Quantity: {selected.quantity}</p>
                   {selected.is_cots && (
-                    <span className="inline-block px-2 py-0.5 bg-gray-100 rounded text-xs">
+                    <span className="inline-block px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
                       COTS Part
                     </span>
                   )}

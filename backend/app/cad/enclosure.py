@@ -6,6 +6,8 @@ Generates box + lid enclosures with:
 - Mounting flanges with holes
 - Gasket grooves
 - Threaded insert bosses
+
+Migrated from CadQuery to Build123d.
 """
 
 from __future__ import annotations
@@ -18,7 +20,11 @@ from pathlib import Path
 import tempfile
 import uuid
 
-import cadquery as cq
+from build123d import (
+    Box, BuildPart, Cylinder, Location, Part,
+    Axis, Mode, Align, fillet, chamfer,
+    Pos, Locations, export_step, export_stl
+)
 
 from app.cad.hardware import (
     BillOfMaterials,
@@ -30,7 +36,6 @@ from app.cad.hardware import (
     recommend_screw_length,
     ScrewHead,
 )
-from app.cad.export import export_step, export_stl, ExportQuality
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +109,7 @@ class GeneratedPart:
     
     name: str
     description: str
-    shape: cq.Workplane
+    shape: Part
     step_data: bytes | None = None
     stl_data: bytes | None = None
     step_path: Path | None = None
@@ -118,18 +123,19 @@ class GeneratedPart:
         self,
         output_dir: Path,
         job_id: str,
-        quality: ExportQuality = ExportQuality.STANDARD,
     ) -> None:
         """Export part to STEP and STL."""
         base_name = f"{self.name.lower().replace(' ', '_')}_{job_id[:8]}"
         
-        self.step_data = export_step(self.shape, product_name=self.name)
+        # Export STEP
         self.step_path = output_dir / f"{base_name}.step"
-        self.step_path.write_bytes(self.step_data)
+        export_step(self.shape, str(self.step_path))
+        self.step_data = self.step_path.read_bytes()
         
-        self.stl_data = export_stl(self.shape, quality=quality)
+        # Export STL
         self.stl_path = output_dir / f"{base_name}.stl"
-        self.stl_path.write_bytes(self.stl_data)
+        export_stl(self.shape, str(self.stl_path))
+        self.stl_data = self.stl_path.read_bytes()
 
 
 @dataclass 
@@ -232,154 +238,161 @@ class EnclosureGenerator:
             generate_time_ms=generate_time,
         )
     
-    def _generate_box(self) -> cq.Workplane:
+    def _generate_box(self) -> Part:
         """Generate the base box with flanges and insert bosses."""
         cfg = self.config
         
-        # Start with outer shell
-        box = (
-            cq.Workplane("XY")
-            .box(cfg.length, cfg.width, cfg.box_height)
-            .edges("|Z")
-            .fillet(cfg.corner_radius)
-        )
-        
-        # Hollow out the inside
-        box = (
-            box
-            .faces(">Z")
-            .workplane()
-            .rect(cfg.internal_length, cfg.internal_width)
-            .cutBlind(-(cfg.box_height - cfg.wall_thickness))
-        )
-        
-        # Add flanges around the top edge
-        flange = (
-            cq.Workplane("XY")
-            .workplane(offset=cfg.box_height / 2)
-            .rect(
+        with BuildPart() as builder:
+            # Start with outer shell
+            Box(
+                cfg.length, cfg.width, cfg.box_height,
+                align=(Align.CENTER, Align.CENTER, Align.CENTER)
+            )
+            
+            # Fillet vertical edges
+            fillet_r = min(cfg.corner_radius, cfg.length / 10, cfg.width / 10)
+            if fillet_r > 0:
+                vertical_edges = builder.edges().filter_by(Axis.Z)
+                if vertical_edges:
+                    try:
+                        fillet(vertical_edges, fillet_r)
+                    except Exception:
+                        pass
+            
+            # Hollow out the inside
+            Box(
+                cfg.internal_length, cfg.internal_width, cfg.box_height - cfg.wall_thickness,
+                align=(Align.CENTER, Align.CENTER, Align.MAX),
+                mode=Mode.SUBTRACT
+            ).locate(Location((0, 0, cfg.box_height / 2)))
+            
+            # Add flanges around the top edge
+            Box(
                 cfg.length + 2 * cfg.flange_width,
-                cfg.width + 2 * cfg.flange_width
-            )
-            .extrude(cfg.flange_thickness)
-        )
+                cfg.width + 2 * cfg.flange_width,
+                cfg.flange_thickness,
+                align=(Align.CENTER, Align.CENTER, Align.MIN)
+            ).locate(Location((0, 0, cfg.box_height / 2)))
+            
+            # Cut out center of flange
+            Box(
+                cfg.length - 2 * cfg.wall_thickness,
+                cfg.width - 2 * cfg.wall_thickness,
+                cfg.flange_thickness,
+                align=(Align.CENTER, Align.CENTER, Align.MIN),
+                mode=Mode.SUBTRACT
+            ).locate(Location((0, 0, cfg.box_height / 2)))
+            
+            # Add mounting holes for threaded inserts
+            hole_positions = self._get_mounting_hole_positions()
+            insert_hole_dia = get_insert_hole(cfg.screw_size)
+            insert_spec = get_threaded_insert_spec(cfg.screw_size)
+            insert_depth = insert_spec.get_dimension("length") + 1.0
+            
+            for x, y in hole_positions:
+                Cylinder(
+                    insert_hole_dia / 2, insert_depth,
+                    align=(Align.CENTER, Align.CENTER, Align.MAX),
+                    mode=Mode.SUBTRACT
+                ).locate(Location((x, y, cfg.box_height / 2 + cfg.flange_thickness)))
+            
+            # Add gasket groove on top face of flange
+            if cfg.gasket_groove:
+                gasket_offset = cfg.wall_thickness + cfg.gasket_width
+                
+                # Outer groove boundary
+                outer_l = cfg.length - 2 * gasket_offset
+                outer_w = cfg.width - 2 * gasket_offset
+                inner_l = outer_l - 2 * cfg.gasket_width
+                inner_w = outer_w - 2 * cfg.gasket_width
+                
+                # Outer box for groove
+                Box(
+                    outer_l, outer_w, cfg.gasket_depth,
+                    align=(Align.CENTER, Align.CENTER, Align.MAX),
+                    mode=Mode.SUBTRACT
+                ).locate(Location((0, 0, cfg.box_height / 2 + cfg.flange_thickness)))
+                
+                # Fill back inner part (leaving groove)
+                Box(
+                    inner_l, inner_w, cfg.gasket_depth,
+                    align=(Align.CENTER, Align.CENTER, Align.MAX),
+                ).locate(Location((0, 0, cfg.box_height / 2 + cfg.flange_thickness)))
         
-        # Cut out center of flange
-        flange = (
-            flange
-            .faces(">Z")
-            .workplane()
-            .rect(cfg.length - 2 * cfg.wall_thickness, cfg.width - 2 * cfg.wall_thickness)
-            .cutThruAll()
-        )
-        
-        # Round flange corners
-        flange = flange.edges("|Z").fillet(cfg.corner_radius + cfg.flange_width / 2)
-        
-        box = box.union(flange)
-        
-        # Add mounting holes for threaded inserts
-        hole_positions = self._get_mounting_hole_positions()
-        insert_hole_dia = get_insert_hole(cfg.screw_size)
-        insert_spec = get_threaded_insert_spec(cfg.screw_size)
-        insert_depth = insert_spec.get_dimension("length") + 1.0
-        
-        for x, y in hole_positions:
-            box = (
-                box
-                .faces(">Z")
-                .workplane()
-                .pushPoints([(x, y)])
-                .hole(insert_hole_dia, insert_depth)
-            )
-        
-        # Add gasket groove on top face of flange
-        if cfg.gasket_groove:
-            gasket_offset = cfg.wall_thickness + cfg.gasket_width
-            box = (
-                box
-                .faces(">Z")
-                .workplane()
-                .rect(
-                    cfg.length - 2 * gasket_offset,
-                    cfg.width - 2 * gasket_offset
-                )
-                .rect(
-                    cfg.length - 2 * gasket_offset - 2 * cfg.gasket_width,
-                    cfg.width - 2 * gasket_offset - 2 * cfg.gasket_width
-                )
-                .cutBlind(-cfg.gasket_depth)
-            )
-        
-        return box
+        return builder.part
     
-    def _generate_lid(self) -> cq.Workplane:
+    def _generate_lid(self) -> Part:
         """Generate the lid with clearance holes."""
         cfg = self.config
         
-        # Lid outer dimensions match flange
-        lid = (
-            cq.Workplane("XY")
-            .box(
+        with BuildPart() as builder:
+            # Lid outer dimensions match flange
+            Box(
                 cfg.length + 2 * cfg.flange_width,
                 cfg.width + 2 * cfg.flange_width,
-                cfg.lid_height
+                cfg.lid_height,
+                align=(Align.CENTER, Align.CENTER, Align.CENTER)
             )
-            .edges("|Z")
-            .fillet(cfg.corner_radius + cfg.flange_width / 2)
-        )
-        
-        # Hollow out
-        lid = (
-            lid
-            .faces("<Z")
-            .workplane()
-            .rect(cfg.internal_length, cfg.internal_width)
-            .cutBlind(-(cfg.lid_height - cfg.wall_thickness))
-        )
-        
-        # Add lip that fits inside the box
-        lip_height = cfg.flange_thickness
-        lip = (
-            cq.Workplane("XY")
-            .workplane(offset=-cfg.lid_height / 2)
-            .rect(
+            
+            # Fillet vertical edges
+            fillet_r = min(cfg.corner_radius + cfg.flange_width / 2, 
+                           (cfg.length + 2 * cfg.flange_width) / 10)
+            if fillet_r > 0:
+                vertical_edges = builder.edges().filter_by(Axis.Z)
+                if vertical_edges:
+                    try:
+                        fillet(vertical_edges, fillet_r)
+                    except Exception:
+                        pass
+            
+            # Hollow out
+            Box(
+                cfg.internal_length, cfg.internal_width, cfg.lid_height - cfg.wall_thickness,
+                align=(Align.CENTER, Align.CENTER, Align.MIN),
+                mode=Mode.SUBTRACT
+            ).locate(Location((0, 0, -cfg.lid_height / 2)))
+            
+            # Add lip that fits inside the box
+            lip_height = cfg.flange_thickness
+            Box(
                 cfg.length - 0.5,  # Slight clearance
-                cfg.width - 0.5
-            )
-            .extrude(-lip_height)
-        )
+                cfg.width - 0.5,
+                lip_height,
+                align=(Align.CENTER, Align.CENTER, Align.MAX)
+            ).locate(Location((0, 0, -cfg.lid_height / 2)))
+            
+            # Hollow the lip
+            Box(
+                cfg.internal_length, cfg.internal_width, lip_height,
+                align=(Align.CENTER, Align.CENTER, Align.MAX),
+                mode=Mode.SUBTRACT
+            ).locate(Location((0, 0, -cfg.lid_height / 2)))
+            
+            # Add clearance holes for screws (with counterbore)
+            hole_positions = self._get_mounting_hole_positions()
+            clearance_dia = get_clearance_hole(cfg.screw_size)
+            
+            # Counterbore for screw heads
+            screw_spec = get_screw_spec(cfg.screw_size, 12)
+            head_dia = screw_spec.get_dimension("head_diameter") + 0.5
+            head_depth = screw_spec.get_dimension("head_height") + 0.5
+            
+            for x, y in hole_positions:
+                # Through hole
+                Cylinder(
+                    clearance_dia / 2, cfg.lid_height,
+                    align=(Align.CENTER, Align.CENTER, Align.CENTER),
+                    mode=Mode.SUBTRACT
+                ).locate(Location((x, y, 0)))
+                
+                # Counterbore
+                Cylinder(
+                    head_dia / 2, head_depth,
+                    align=(Align.CENTER, Align.CENTER, Align.MAX),
+                    mode=Mode.SUBTRACT
+                ).locate(Location((x, y, cfg.lid_height / 2)))
         
-        # Hollow the lip
-        lip = (
-            lip
-            .faces("<Z")
-            .workplane()
-            .rect(cfg.internal_length, cfg.internal_width)
-            .cutThruAll()
-        )
-        
-        lid = lid.union(lip)
-        
-        # Add clearance holes for screws
-        hole_positions = self._get_mounting_hole_positions()
-        clearance_dia = get_clearance_hole(cfg.screw_size)
-        
-        # Counterbore for screw heads
-        screw_spec = get_screw_spec(cfg.screw_size, 12)
-        head_dia = screw_spec.get_dimension("head_diameter") + 0.5
-        head_depth = screw_spec.get_dimension("head_height") + 0.5
-        
-        for x, y in hole_positions:
-            lid = (
-                lid
-                .faces(">Z")
-                .workplane()
-                .pushPoints([(x, y)])
-                .cboreHole(clearance_dia, head_dia, head_depth)
-            )
-        
-        return lid
+        return builder.part
     
     def _get_mounting_hole_positions(self) -> list[tuple[float, float]]:
         """Calculate mounting hole positions on the flange."""

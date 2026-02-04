@@ -5,7 +5,6 @@
  * and action buttons (cancel, retry, save).
  */
 
-import { useState, useCallback } from 'react';
 import {
   Clock,
   Loader2,
@@ -18,8 +17,9 @@ import {
   ChevronUp,
   Save,
 } from 'lucide-react';
-import type { Job, JobStatus } from '@/types';
+import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Job, JobStatus } from '@/types';
 import { SaveDesignModal } from './SaveDesignModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -43,38 +43,38 @@ const STATUS_CONFIG: Record<JobStatus, {
 }> = {
   pending: {
     icon: Clock,
-    color: 'text-gray-500',
-    bgColor: 'bg-gray-100',
+    color: 'text-gray-500 dark:text-gray-400',
+    bgColor: 'bg-gray-100 dark:bg-gray-700',
     label: 'Pending',
   },
   queued: {
     icon: Clock,
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-50',
+    color: 'text-blue-500 dark:text-blue-400',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/30',
     label: 'Queued',
   },
   processing: {
     icon: Loader2,
-    color: 'text-yellow-500',
-    bgColor: 'bg-yellow-50',
+    color: 'text-yellow-500 dark:text-yellow-400',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900/30',
     label: 'Processing',
   },
   completed: {
     icon: CheckCircle2,
-    color: 'text-green-500',
-    bgColor: 'bg-green-50',
+    color: 'text-green-500 dark:text-green-400',
+    bgColor: 'bg-green-50 dark:bg-green-900/30',
     label: 'Completed',
   },
   failed: {
     icon: XCircle,
-    color: 'text-red-500',
-    bgColor: 'bg-red-50',
+    color: 'text-red-500 dark:text-red-400',
+    bgColor: 'bg-red-50 dark:bg-red-900/30',
     label: 'Failed',
   },
   cancelled: {
     icon: AlertCircle,
-    color: 'text-gray-500',
-    bgColor: 'bg-gray-100',
+    color: 'text-gray-500 dark:text-gray-400',
+    bgColor: 'bg-gray-100 dark:bg-gray-700',
     label: 'Cancelled',
   },
 };
@@ -201,7 +201,7 @@ export function JobStatusCard({
           {/* Left side: Status and info */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
             {/* Status icon */}
-            <div className={`p-2 rounded-full bg-white shadow-sm ${statusConfig.color}`}>
+            <div className={`p-2 rounded-full bg-white dark:bg-gray-700 shadow-sm ${statusConfig.color}`}>
               <StatusIcon 
                 className={`w-5 h-5 ${job.status === 'processing' ? 'animate-spin' : ''}`} 
               />
@@ -210,7 +210,7 @@ export function JobStatusCard({
             {/* Job info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-gray-900 dark:text-gray-100">
                   {formatJobType(job.type)}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig.color} ${statusConfig.bgColor}`}>
@@ -221,11 +221,11 @@ export function JobStatusCard({
               {/* Progress bar for active jobs */}
               {isActive && job.progress && (
                 <div className="mt-2">
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                     <span>{job.progress.stage || 'Processing...'}</span>
                     <span>{progress}%</span>
                   </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-blue-500 rounded-full transition-all duration-300"
                       style={{ width: `${progress}%` }}
@@ -242,7 +242,7 @@ export function JobStatusCard({
               )}
 
               {/* Timing info */}
-              <div className="mt-1 text-xs text-gray-500">
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {job.started_at && job.completed_at ? (
                   <span>Completed in {formatDuration(job.started_at, job.completed_at)}</span>
                 ) : job.started_at ? (
@@ -271,7 +271,7 @@ export function JobStatusCard({
               <button
                 onClick={handleRetry}
                 disabled={isRetrying}
-                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                 title="Retry job"
               >
                 <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
@@ -282,7 +282,7 @@ export function JobStatusCard({
               <button
                 onClick={handleCancel}
                 disabled={isCancelling}
-                className="p-2 text-gray-500 hover:text-red-600 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                 title="Cancel job"
               >
                 <X className={`w-4 h-4 ${isCancelling ? 'animate-pulse' : ''}`} />
@@ -291,7 +291,7 @@ export function JobStatusCard({
 
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-white rounded-lg transition-colors"
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
               title={isExpanded ? 'Hide details' : 'Show details'}
             >
               {isExpanded ? (
@@ -307,42 +307,42 @@ export function JobStatusCard({
       {/* Expanded details */}
       {isExpanded && (
         <div className="px-4 pb-4 pt-0">
-          <div className="mt-2 pt-3 border-t border-gray-200/50">
+          <div className="mt-2 pt-3 border-t border-gray-200/50 dark:border-gray-700/50">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <dt className="text-gray-500">Job ID</dt>
-              <dd className="text-gray-900 font-mono text-xs truncate">{job.id}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Job ID</dt>
+              <dd className="text-gray-900 dark:text-gray-100 font-mono text-xs truncate">{job.id}</dd>
 
-              <dt className="text-gray-500">Priority</dt>
-              <dd className="text-gray-900">{job.priority}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Priority</dt>
+              <dd className="text-gray-900 dark:text-gray-100">{job.priority}</dd>
 
-              <dt className="text-gray-500">Retries</dt>
-              <dd className="text-gray-900">{job.retry_count} / {job.max_retries}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Retries</dt>
+              <dd className="text-gray-900 dark:text-gray-100">{job.retry_count} / {job.max_retries}</dd>
 
               {job.started_at && (
                 <>
-                  <dt className="text-gray-500">Started</dt>
-                  <dd className="text-gray-900">{new Date(job.started_at).toLocaleString()}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">Started</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{new Date(job.started_at).toLocaleString()}</dd>
                 </>
               )}
 
               {job.completed_at && (
                 <>
-                  <dt className="text-gray-500">Completed</dt>
-                  <dd className="text-gray-900">{new Date(job.completed_at).toLocaleString()}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">Completed</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{new Date(job.completed_at).toLocaleString()}</dd>
                 </>
               )}
 
               {job.result?.geometry_info && (
                 <>
-                  <dt className="text-gray-500">Volume</dt>
-                  <dd className="text-gray-900">
+                  <dt className="text-gray-500 dark:text-gray-400">Volume</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">
                     {job.result.geometry_info.volume?.toFixed(2)} mm³
                   </dd>
 
                   {job.result.geometry_info.bounding_box && (
                     <>
-                      <dt className="text-gray-500">Size</dt>
-                      <dd className="text-gray-900">
+                      <dt className="text-gray-500 dark:text-gray-400">Size</dt>
+                      <dd className="text-gray-900 dark:text-gray-100">
                         {job.result.geometry_info.bounding_box.x.toFixed(1)} × {' '}
                         {job.result.geometry_info.bounding_box.y.toFixed(1)} × {' '}
                         {job.result.geometry_info.bounding_box.z.toFixed(1)} mm
@@ -424,7 +424,7 @@ export function JobProgressIndicator({ job, size = 'md' }: JobProgressIndicatorP
           stroke="currentColor"
           strokeWidth={strokeWidth}
           fill="none"
-          className="text-gray-200"
+          className="text-gray-200 dark:text-gray-600"
         />
         {/* Progress circle */}
         <circle
@@ -440,7 +440,7 @@ export function JobProgressIndicator({ job, size = 'md' }: JobProgressIndicatorP
           className="text-blue-500 transition-all duration-300"
         />
       </svg>
-      <span className="absolute text-[8px] font-medium text-gray-600">
+      <span className="absolute text-[8px] font-medium text-gray-600 dark:text-gray-300">
         {progress}
       </span>
     </div>

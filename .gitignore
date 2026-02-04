@@ -65,6 +65,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .pnpm-store/
+frontend/test-results/
 
 # Build outputs
 frontend/dist/
@@ -121,6 +122,7 @@ temp/
 *.step.local
 *.stl.local
 generated_parts/
+backend/uploads/
 
 # =============================================================================
 # Secrets / Credentials (NEVER commit these!)

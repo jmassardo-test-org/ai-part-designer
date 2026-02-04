@@ -2,8 +2,8 @@
  * Logo Component Tests
  */
 
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import { Logo, LogoIcon } from './Logo';
 
 describe('Logo', () => {

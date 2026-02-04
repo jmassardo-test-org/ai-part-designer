@@ -15,9 +15,9 @@ import {
   type ReactNode,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import type { User, LoginRequest, RegisterRequest } from '@/types/auth';
-import { authApi } from '@/lib/auth';
 import { tokenStorage } from '@/lib/api';
+import { authApi } from '@/lib/auth';
+import type { User, LoginRequest, RegisterRequest } from '@/types/auth';
 
 /** Authentication context value */
 interface AuthContextValue {

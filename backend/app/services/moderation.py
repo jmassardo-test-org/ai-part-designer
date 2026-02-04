@@ -6,6 +6,8 @@ Detects prohibited content in uploaded CAD files through:
 - Filename/metadata pattern matching
 - Machine learning classification (optional)
 - Rule-based detection
+
+Migrated from CadQuery to Build123d.
 """
 
 import re
@@ -16,7 +18,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
-import cadquery as cq
+from build123d import Part
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,22 +116,25 @@ class ModerationResult:
 # =============================================================================
 
 # Prohibited filename patterns
+# Note: Using (?:^|[\W_]) and (?:[\W_]|$) instead of \b because
+# Python regex treats underscore as a word character, but filenames
+# often use underscores as word separators
 FILENAME_PATTERNS: list[tuple[str, ContentCategory, FlagSeverity]] = [
     # Weapons
-    (r"\b(gun|pistol|rifle|firearm|weapon)\b", ContentCategory.WEAPON, FlagSeverity.HIGH),
-    (r"\b(ar[-_]?15|ak[-_]?47|glock|m16)\b", ContentCategory.WEAPON, FlagSeverity.CRITICAL),
-    (r"\b(receiver|lower|upper|trigger|barrel)\b", ContentCategory.WEAPON_COMPONENT, FlagSeverity.MEDIUM),
-    (r"\b(suppressor|silencer)\b", ContentCategory.WEAPON_COMPONENT, FlagSeverity.CRITICAL),
-    (r"\b(magazine|mag[-_]?clip)\b", ContentCategory.WEAPON_COMPONENT, FlagSeverity.MEDIUM),
+    (r"(?:^|[\W_])(gun|pistol|rifle|firearm|weapon)(?:[\W_]|$)", ContentCategory.WEAPON, FlagSeverity.HIGH),
+    (r"(?:^|[\W_])(ar[-_]?15|ak[-_]?47|glock|m16)(?:[\W_]|$)", ContentCategory.WEAPON, FlagSeverity.CRITICAL),
+    (r"(?:^|[\W_])(receiver|lower|upper|trigger|barrel)(?:[\W_]|$)", ContentCategory.WEAPON_COMPONENT, FlagSeverity.MEDIUM),
+    (r"(?:^|[\W_])(suppressor|silencer)(?:[\W_]|$)", ContentCategory.WEAPON_COMPONENT, FlagSeverity.CRITICAL),
+    (r"(?:^|[\W_])(magazine|mag[-_]?clip)(?:[\W_]|$)", ContentCategory.WEAPON_COMPONENT, FlagSeverity.MEDIUM),
     
     # Drug paraphernalia
-    (r"\b(pipe|bong|grinder)\b", ContentCategory.DRUG_PARAPHERNALIA, FlagSeverity.LOW),
+    (r"(?:^|[\W_])(pipe|bong|grinder)(?:[\W_]|$)", ContentCategory.DRUG_PARAPHERNALIA, FlagSeverity.LOW),
     
     # Counterfeit
-    (r"\b(replica|fake|counterfeit)\b", ContentCategory.COUNTERFEIT, FlagSeverity.MEDIUM),
+    (r"(?:^|[\W_])(replica|fake|counterfeit)(?:[\W_]|$)", ContentCategory.COUNTERFEIT, FlagSeverity.MEDIUM),
     
     # Restricted
-    (r"\b(itar|munition|export[-_]?control)\b", ContentCategory.RESTRICTED_EXPORT, FlagSeverity.HIGH),
+    (r"(?:^|[\W_])(itar|munition|export[-_]?control)(?:[\W_]|$)", ContentCategory.RESTRICTED_EXPORT, FlagSeverity.HIGH),
 ]
 
 # Suspicious geometry signatures (simplified heuristics)
@@ -199,14 +204,14 @@ class ContentModerator:
     async def analyze_file(
         self,
         file_id: UUID,
-        shape: cq.Workplane | None = None,
+        shape: Part | None = None,
     ) -> ModerationResult:
         """
         Perform full content moderation analysis on a file.
         
         Args:
             file_id: The file to analyze
-            shape: Optional pre-loaded CadQuery shape
+            shape: Optional pre-loaded Build123d Part
             
         Returns:
             ModerationResult with all detected flags
@@ -304,7 +309,7 @@ class ContentModerator:
     
     def check_geometry(
         self,
-        shape: cq.Workplane,
+        shape: Part,
     ) -> tuple[list[ContentFlag], str]:
         """
         Check geometry for suspicious signatures.
@@ -338,24 +343,24 @@ class ContentModerator:
         
         return flags, geometry_hash
     
-    def _compute_geometry_hash(self, shape: cq.Workplane) -> str:
+    def _compute_geometry_hash(self, shape: Part) -> str:
         """Compute a hash of the geometry for deduplication."""
         try:
-            # Get solid properties
-            solid = shape.val()
-            
-            # Create hash from key properties
+            # Get solid properties using Build123d
             props = [
-                f"v:{solid.Volume():.2f}",
-                f"a:{solid.Area():.2f}",
+                f"v:{shape.volume:.2f}",
+                f"a:{shape.area:.2f}",
             ]
             
             # Add bounding box
-            bb = shape.val().BoundingBox()
+            bb = shape.bounding_box()
+            xlen = bb.max.X - bb.min.X
+            ylen = bb.max.Y - bb.min.Y
+            zlen = bb.max.Z - bb.min.Z
             props.extend([
-                f"x:{bb.xlen:.2f}",
-                f"y:{bb.ylen:.2f}",
-                f"z:{bb.zlen:.2f}",
+                f"x:{xlen:.2f}",
+                f"y:{ylen:.2f}",
+                f"z:{zlen:.2f}",
             ])
             
             hash_input = "|".join(props)
@@ -363,24 +368,26 @@ class ContentModerator:
         except Exception:
             return hashlib.sha256(str(uuid4()).encode()).hexdigest()[:16]
     
-    def _extract_geometry_features(self, shape: cq.Workplane) -> dict:
+    def _extract_geometry_features(self, shape: Part) -> dict:
         """Extract geometry features for signature matching."""
         features = {}
         
         try:
-            solid = shape.val()
-            bb = solid.BoundingBox()
+            bb = shape.bounding_box()
+            xlen = bb.max.X - bb.min.X
+            ylen = bb.max.Y - bb.min.Y
+            zlen = bb.max.Z - bb.min.Z
             
             # Basic dimensions
-            dims = sorted([bb.xlen, bb.ylen, bb.zlen], reverse=True)
+            dims = sorted([xlen, ylen, zlen], reverse=True)
             features["length"] = dims[0]
             features["width"] = dims[1]
             features["height"] = dims[2]
             features["aspect_ratio"] = dims[0] / dims[2] if dims[2] > 0 else 0
             
             # Volume and area
-            features["volume"] = solid.Volume()
-            features["surface_area"] = solid.Area()
+            features["volume"] = shape.volume
+            features["surface_area"] = shape.area
             
             # Estimate if hollow (low volume/area ratio suggests hollow)
             expected_solid_volume = dims[0] * dims[1] * dims[2]
@@ -389,8 +396,8 @@ class ContentModerator:
             
             # Count faces/edges (complex internals = more features)
             try:
-                faces = shape.faces().vals()
-                edges = shape.edges().vals()
+                faces = shape.faces()
+                edges = shape.edges()
                 features["face_count"] = len(faces)
                 features["edge_count"] = len(edges)
                 features["internal_feature_count"] = max(0, len(faces) - 6)  # More than a box
@@ -408,11 +415,11 @@ class ContentModerator:
                 features["cavity_ratio"] = 0
                 features["wall_thickness"] = min(dims) / 2
             
-            # Check for small holes (potential pin holes)
+            # Check for small holes (potential pin holes) - simplified for Build123d
             try:
-                circles = shape.edges("%Circle").vals()
-                small_circles = [c for c in circles if c.radius() < 5.0]
-                features["has_pin_holes"] = len(small_circles) >= 2
+                # In Build123d, checking for circular edges is different
+                circular_edges = [e for e in edges if hasattr(e, 'radius') and e.radius() < 5.0]
+                features["has_pin_holes"] = len(circular_edges) >= 2
             except Exception:
                 features["has_pin_holes"] = False
                 

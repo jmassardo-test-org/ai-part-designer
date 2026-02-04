@@ -48,6 +48,19 @@ setup('seed test database', async ({ request }) => {
     // User may already exist, continue
   }
 
+  // Force-verify test users (dev endpoint)
+  try {
+    await request.post(`${baseURL}/api/v1/auth/dev/verify-user`, {
+      data: { email: TEST_USER.email },
+    });
+    await request.post(`${baseURL}/api/v1/auth/dev/verify-user`, {
+      data: { email: ADMIN_USER.email },
+    });
+  } catch (e) {
+    // Verification may fail if users don't exist, continue
+    console.log('Note: Could not force-verify users (may already be verified)');
+  }
+
   console.log('✅ Test database seeded');
 });
 

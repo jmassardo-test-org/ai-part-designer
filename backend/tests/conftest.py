@@ -23,8 +23,18 @@ from sqlalchemy.pool import StaticPool
 os.environ["TESTING"] = "true"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["SECRET_KEY"] = "test-secret-key-minimum-32-characters-long"
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
-os.environ["REDIS_URL"] = "redis://localhost:6379/0"
+# Use PostgreSQL for testing - build URL from POSTGRES_* vars if DATABASE_URL not set
+# Note: SQLite doesn't support JSONB, so PostgreSQL is required
+if "DATABASE_URL" not in os.environ:
+    # Build from individual postgres variables (for Docker container)
+    host = os.environ.get("POSTGRES_HOST", "localhost")
+    port = os.environ.get("POSTGRES_PORT", "5432")
+    user = os.environ.get("POSTGRES_USER", "postgres")
+    password = os.environ.get("POSTGRES_PASSWORD", "postgres")
+    db = os.environ.get("POSTGRES_DB", "ai_part_designer")
+    os.environ["DATABASE_URL"] = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
+if "REDIS_URL" not in os.environ:
+    os.environ["REDIS_URL"] = "redis://localhost:6379/0"
 
 from app.models import Base
 from app.core.database import get_db
@@ -50,22 +60,37 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 # Database Fixtures
 # =============================================================================
 
+def get_database_url():
+    """Construct database URL from environment variables."""
+    # Check for DATABASE_URL first
+    if os.environ.get("DATABASE_URL"):
+        return os.environ["DATABASE_URL"]
+    
+    # Build from individual postgres variables (for Docker container)
+    host = os.environ.get("POSTGRES_HOST", "localhost")
+    port = os.environ.get("POSTGRES_PORT", "5432")
+    user = os.environ.get("POSTGRES_USER", "postgres")
+    password = os.environ.get("POSTGRES_PASSWORD", "postgres")
+    db = os.environ.get("POSTGRES_DB", "ai_part_designer")
+    
+    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
+
+
 @pytest_asyncio.fixture(scope="function")
 async def db_engine():
-    """Create test database engine with in-memory SQLite."""
+    """Create test database engine using PostgreSQL."""
+    database_url = get_database_url()
+    
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
+        database_url,
         echo=False,
     )
     
+    # Create tables if they don't exist
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
     yield engine
-    
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
     
     await engine.dispose()
 
@@ -73,6 +98,8 @@ async def db_engine():
 @pytest_asyncio.fixture(scope="function")
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create isolated database session for each test."""
+    from sqlalchemy import text
+    
     async_session_factory = async_sessionmaker(
         bind=db_engine,
         class_=AsyncSession,
@@ -81,7 +108,27 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     )
     
     async with async_session_factory() as session:
+        # Clean up any existing data before the test
+        # Get all table names and truncate them (excluding alembic)
+        try:
+            await session.execute(text("""
+                DO $$
+                DECLARE
+                    r RECORD;
+                BEGIN
+                    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != 'alembic_version') LOOP
+                        EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
+                    END LOOP;
+                END $$;
+            """))
+            await session.commit()
+        except Exception:
+            # If truncate fails (e.g., first run), that's ok
+            await session.rollback()
+        
         yield session
+        
+        # Clean up after the test
         await session.rollback()
 
 
@@ -104,6 +151,20 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest_asyncio.fixture(scope="function")
+async def auth_client(client: AsyncClient, auth_headers: dict[str, str]) -> AsyncClient:
+    """Create authenticated test HTTP client."""
+    client.headers.update(auth_headers)
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def admin_client(client: AsyncClient, admin_headers: dict[str, str]) -> AsyncClient:
+    """Create admin authenticated test HTTP client."""
+    client.headers.update(admin_headers)
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
 async def simple_client() -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client without database (for endpoints that don't need DB)."""
     from httpx import ASGITransport
@@ -121,15 +182,16 @@ async def simple_client() -> AsyncGenerator[AsyncClient, None]:
 @pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession) -> "User":
     """Create a test user."""
+    from datetime import datetime, timezone
     from app.models import User
     from app.core.security import hash_password
     
     user = User(
         email="test@example.com",
-        hashed_password=hash_password("TestPassword123!"),
-        full_name="Test User",
-        is_active=True,
-        is_verified=True,
+        password_hash=hash_password("TestPassword123!"),
+        display_name="Test User",
+        status="active",
+        email_verified_at=datetime.now(timezone.utc),
     )
     db_session.add(user)
     await db_session.commit()
@@ -140,16 +202,17 @@ async def test_user(db_session: AsyncSession) -> "User":
 @pytest_asyncio.fixture
 async def test_admin(db_session: AsyncSession) -> "User":
     """Create a test admin user."""
+    from datetime import datetime, timezone
     from app.models import User
     from app.core.security import hash_password
     
     admin = User(
         email="admin@example.com",
-        hashed_password=hash_password("AdminPassword123!"),
-        full_name="Admin User",
-        is_active=True,
-        is_verified=True,
-        is_superuser=True,
+        password_hash=hash_password("AdminPassword123!"),
+        display_name="Admin User",
+        status="active",
+        role="admin",
+        email_verified_at=datetime.now(timezone.utc),
     )
     db_session.add(admin)
     await db_session.commit()
@@ -160,35 +223,97 @@ async def test_admin(db_session: AsyncSession) -> "User":
 @pytest.fixture
 def auth_headers(test_user: "User") -> dict[str, str]:
     """Generate authentication headers for test user."""
-    from app.core.auth import create_access_token
+    from app.core.security import create_access_token
     
-    token = create_access_token(subject=str(test_user.id))
+    token = create_access_token(
+        user_id=test_user.id,
+        email=test_user.email,
+        role=test_user.role,
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
 def admin_headers(test_admin: "User") -> dict[str, str]:
     """Generate authentication headers for admin user."""
-    from app.core.auth import create_access_token
+    from app.core.security import create_access_token
     
-    token = create_access_token(subject=str(test_admin.id))
+    token = create_access_token(
+        user_id=test_admin.id,
+        email=test_admin.email,
+        role=test_admin.role,
+    )
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def subscription_tiers(db_session: AsyncSession):
+    """Seed subscription tiers for tests that need them."""
+    from app.models.subscription import SubscriptionTier
+    
+    tiers = [
+        SubscriptionTier(
+            slug="free",
+            name="Free",
+            description="Free tier for all users",
+            price_monthly_cents=0,
+            price_yearly_cents=0,
+            monthly_credits=100,
+            max_projects=5,
+            max_designs_per_project=10,
+            max_concurrent_jobs=1,
+            max_storage_gb=1,
+            max_file_size_mb=25,
+            features={"basic_generation": True},
+            is_active=True,
+        ),
+        SubscriptionTier(
+            slug="pro",
+            name="Pro",
+            description="Professional tier",
+            price_monthly_cents=1999,
+            price_yearly_cents=19990,
+            monthly_credits=1000,
+            max_projects=50,
+            max_designs_per_project=100,
+            max_concurrent_jobs=5,
+            max_storage_gb=10,
+            max_file_size_mb=100,
+            features={"basic_generation": True, "advanced_generation": True},
+            is_active=True,
+        ),
+    ]
+    
+    for tier in tiers:
+        db_session.add(tier)
+    
+    await db_session.commit()
+    return tiers
 
 
 # =============================================================================
 # Mock Fixtures
 # =============================================================================
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_redis():
-    """Mock Redis client."""
-    with patch("app.core.cache.get_redis") as mock:
-        redis_mock = AsyncMock()
-        redis_mock.get.return_value = None
-        redis_mock.set.return_value = True
-        redis_mock.delete.return_value = 1
-        mock.return_value = redis_mock
-        yield redis_mock
+    """Mock Redis client for all tests."""
+    mock = MagicMock()
+    mock.exists = AsyncMock(return_value=False)  # Token not blacklisted
+    mock.get = AsyncMock(return_value=None)
+    mock.set = AsyncMock(return_value=True)
+    mock.delete = AsyncMock(return_value=1)
+    mock.incr = AsyncMock(return_value=1)  # For rate limiting
+    mock.expire = AsyncMock(return_value=True)
+    mock.check_rate_limit = AsyncMock(return_value=(True, 100))
+    mock._connected = True
+    
+    # Patch in all modules that import redis_client
+    with patch("app.core.auth.redis_client", mock):
+        with patch("app.core.cache.redis_client", mock):
+            with patch("app.core.rate_limiter.redis_client", mock):
+                with patch("app.core.undo_tokens.redis_client", mock):
+                    yield mock
 
 
 @pytest.fixture
@@ -213,20 +338,15 @@ def mock_storage():
 
 
 @pytest.fixture
-def mock_openai():
-    """Mock OpenAI client."""
-    with patch("app.services.ai.client") as mock:
-        mock.chat.completions.create = AsyncMock(
-            return_value=MagicMock(
-                choices=[
-                    MagicMock(
-                        message=MagicMock(
-                            content='{"type": "box", "dimensions": {"length": 100}}'
-                        )
-                    )
-                ]
-            )
+def mock_claude():
+    """Mock Claude (Anthropic) client."""
+    with patch("app.ai.client.ClaudeClient") as mock:
+        mock_instance = MagicMock()
+        mock_instance.complete = AsyncMock(
+            return_value='{"type": "box", "dimensions": {"length": 100}}'
         )
+        mock_instance.is_configured = True
+        mock.return_value = mock_instance
         yield mock
 
 

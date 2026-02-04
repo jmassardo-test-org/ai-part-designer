@@ -2,8 +2,20 @@
 Sharing API endpoints.
 
 Handles design sharing, permission management, and shared design access.
+
+DEPRECATED: This module is deprecated as of v2.0.
+Use the new Marketplace (/api/v2/marketplace), Lists (/api/v2/lists), 
+and Saves (/api/v2/saves) endpoints instead.
+
+Migration guide:
+- Share publicly → Publish to Marketplace (POST /api/v2/marketplace/designs/{id}/publish)
+- Share with users → Use Design Lists (POST /api/v2/lists/{list_id}/items)
+- Save designs → Use Saves (POST /api/v2/saves/{design_id})
+
+These endpoints will be removed in a future version.
 """
 
+import warnings
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -17,7 +29,18 @@ from app.api.v1.auth import get_current_user
 from app.core.database import get_db
 from app.models import User, Design, DesignShare
 
-router = APIRouter(prefix="/shares", tags=["shares"])
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "The shares API (v1) is deprecated. Use marketplace, lists, and saves APIs (v2) instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+router = APIRouter(
+    prefix="/shares", 
+    tags=["shares (deprecated)"],
+    deprecated=True,
+)
 
 
 # =============================================================================
@@ -129,7 +152,7 @@ async def share_design(
         select(Design).where(
             and_(
                 Design.id == design_id,
-                Design.is_deleted == False,
+                Design.deleted_at.is_(None),
             )
         )
     )
@@ -312,7 +335,7 @@ async def get_shared_with_me(
     """Get designs shared with the current user."""
     offset = (page - 1) * page_size
     
-    # Build query
+    # Build query - use deleted_at.is_(None) for soft delete check
     query = (
         select(DesignShare, Design, User)
         .join(Design, DesignShare.design_id == Design.id)
@@ -320,7 +343,7 @@ async def get_shared_with_me(
         .where(
             and_(
                 DesignShare.shared_with_user_id == current_user.id,
-                Design.is_deleted == False,
+                Design.deleted_at.is_(None),
             )
         )
     )
@@ -343,7 +366,7 @@ async def get_shared_with_me(
         .where(
             and_(
                 DesignShare.shared_with_user_id == current_user.id,
-                Design.is_deleted == False,
+                Design.deleted_at.is_(None),
             )
         )
     )
@@ -505,7 +528,7 @@ async def create_share_link(
         select(Design).where(
             and_(
                 Design.id == design_id,
-                Design.is_deleted == False,
+                Design.deleted_at.is_(None),
             )
         )
     )

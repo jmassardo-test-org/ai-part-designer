@@ -2,8 +2,8 @@
  * CADViewer Component Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import CADViewer, { ModelViewer } from './CADViewer';
 
 // Mock Three.js and react-three-fiber
@@ -24,12 +24,15 @@ vi.mock('@react-three/drei', () => ({
   Html: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock('three-stdlib', () => ({
-  STLLoader: vi.fn().mockImplementation(() => ({
-    load: vi.fn(),
-    parse: vi.fn(),
-  })),
-}));
+// Mock STLLoader as a class - define inside the factory to avoid hoisting issues
+vi.mock('three-stdlib', () => {
+  return {
+    STLLoader: class {
+      load = vi.fn();
+      parse = vi.fn();
+    },
+  };
+});
 
 describe('CADViewer', () => {
   it('re-exports ModelViewer as default', () => {

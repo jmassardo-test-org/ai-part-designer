@@ -13,8 +13,70 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Pre-deploy migration check - runs migrations against ephemeral DB
+  migration-check:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install alembic sqlalchemy psycopg2-binary
+
+      - name: Run migrations (first pass)
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+        run: |
+          cd backend
+          alembic upgrade head
+          echo "✅ First migration pass successful"
+
+      - name: Run migrations (idempotency check)
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+        run: |
+          cd backend
+          # Downgrade and re-upgrade to verify idempotency
+          alembic downgrade -1
+          alembic upgrade head
+          echo "✅ Migration idempotency check passed"
+
+      - name: Verify migration history
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+        run: |
+          cd backend
+          alembic current
+          alembic history --verbose | head -20
+
   build:
     name: Build Docker Images
+    needs: migration-check
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -14,9 +14,11 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import get_settings
 from app.api import api_router
+from app.api.v2 import api_router as api_router_v2
 
 # Configure logging
 logging.basicConfig(
@@ -55,19 +57,38 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await redis_client.connect()
         await redis_client.client.ping()
         logger.info("Redis connected")
+        
+        # Start WebSocket Redis subscriber
+        from app.websocket.subscriber import start_redis_subscriber
+        await start_redis_subscriber()
+        logger.info("WebSocket Redis subscriber started")
     except Exception as e:
         logger.warning(f"Redis connection failed: {e}")
     
     # Check AI configuration
-    if settings.OPENAI_API_KEY:
-        logger.info("OpenAI API configured")
-    else:
-        logger.warning("OpenAI API key not set - AI features disabled")
+    try:
+        from app.ai.providers import get_ai_provider
+        provider = get_ai_provider()
+        health_ok = await provider.health_check()
+        if health_ok:
+            logger.info(f"AI provider ready: {provider.name} (model: {getattr(provider, 'model', 'N/A')})")
+        else:
+            logger.warning(f"AI provider {provider.name} is configured but not healthy")
+    except Exception as e:
+        logger.warning(f"AI provider initialization failed: {e}")
     
     yield
     
     # Shutdown
     logger.info("Shutting down...")
+    
+    try:
+        # Stop WebSocket Redis subscriber
+        from app.websocket.subscriber import stop_redis_subscriber
+        await stop_redis_subscriber()
+        logger.info("WebSocket Redis subscriber stopped")
+    except Exception as e:
+        logger.warning(f"Redis subscriber shutdown error: {e}")
     
     try:
         from app.core.database import close_db
@@ -106,8 +127,19 @@ def create_app() -> FastAPI:
         expose_headers=["*"],
     )
     
+    # Add session middleware for OAuth state management
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.SECRET_KEY,
+        session_cookie="session",
+        max_age=3600,  # 1 hour session
+        same_site="lax",
+        https_only=settings.ENVIRONMENT == "production",
+    )
+    
     # Include API routes
     app.include_router(api_router)
+    app.include_router(api_router_v2)
     
     # Exception handlers
     @app.exception_handler(RequestValidationError)
