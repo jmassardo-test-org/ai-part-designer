@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     TESTING: bool = False
     ENVIRONMENT: Literal["development", "staging", "production", "test"] = "development"
+    LOG_LEVEL: str = "INFO"
     
     # API Settings
     API_V1_PREFIX: str = "/api/v1"

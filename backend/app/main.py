@@ -6,10 +6,10 @@ FastAPI application entry point with middleware, routes, and lifecycle hooks.
 
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,15 +17,13 @@ from fastapi.exceptions import RequestValidationError
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import get_settings
+from app.core.logging import configure_logging, get_logger
 from app.api import api_router
 from app.api.v2 import api_router as api_router_v2
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured logging
+configure_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -116,6 +114,14 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if settings.DEBUG else None,
         lifespan=lifespan,
     )
+    
+    # Add request context middleware for structured logging
+    # Must be added early to capture all request context
+    from app.middleware.request_context import RequestContextMiddleware
+    from app.middleware.security import RequestIdMiddleware
+    
+    app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(RequestIdMiddleware)
     
     # Add CORS middleware
     app.add_middleware(
