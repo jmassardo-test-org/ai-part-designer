@@ -1,7 +1,7 @@
 # ADR-011: Monitoring and Observability Stack
 
 ## Status
-Proposed
+Accepted (Updated 2024-02-04)
 
 ## Context
 We need comprehensive monitoring and observability to:
@@ -12,42 +12,60 @@ We need comprehensive monitoring and observability to:
 - Understand user behavior and system usage
 - Meet SLA commitments (99.9% uptime)
 
+**Key Requirement**: All solutions must be Open Source Software (OSS) for full control, portability, and cost-effectiveness.
+
 ## Decision
-We will implement a **multi-layer observability stack** using:
-- **Metrics**: Prometheus + Grafana (via AWS Managed Prometheus/Grafana)
-- **Logging**: CloudWatch Logs with structured JSON logging
-- **Tracing**: AWS X-Ray for distributed tracing
-- **Error Tracking**: Sentry for error aggregation and alerting
-- **Uptime Monitoring**: AWS Synthetics + external (Checkly/Uptime Robot)
-- **Alerting**: PagerDuty/Opsgenie integrated with CloudWatch Alarms
+We will implement a **multi-layer observability stack** using 100% OSS components:
+- **Logging**: ELK Stack (Elasticsearch, Logstash, Kibana) with Filebeat
+- **Tracing**: OpenTelemetry + Tempo (Grafana Labs)
+- **Metrics**: Prometheus + Grafana
+- **Error Tracking**: Sentry (Self-Hosted OSS)
+- **Correlation**: All systems connected via trace_id and request_id
+- **Alerting**: Grafana Alerting + Prometheus Alertmanager
 
 ## Consequences
 
 ### Positive
+- **100% OSS**: Full control, no vendor lock-in, portable across clouds
+- **Self-hosted**: Complete data privacy and cost predictability
 - **End-to-end visibility**: Metrics, logs, and traces correlated
-- **Managed services**: Less operational overhead
-- **Fast debugging**: Trace requests across services
+- **Fast debugging**: Trace requests across services with distributed tracing
 - **Proactive alerting**: Know about issues before users report
-- **Cost visibility**: Can optimize based on usage patterns
+- **Cloud-agnostic**: Aligns with ADR-013 cloud-agnostic architecture
+- **Community support**: Large OSS communities for all components
 
 ### Negative
-- **Multiple tools**: Need to learn several systems
-- **Cost**: Managed observability services add up
-- **Data volume**: High-cardinality metrics can be expensive
+- **Operational overhead**: Self-hosted requires management and updates
+- **Resource requirements**: Need to provision infrastructure for monitoring stack
+- **Multiple tools**: Need to learn several systems (ELK, Prometheus, Tempo, Sentry)
+- **Initial setup complexity**: More complex than managed services
 
 ### Mitigation
-- Start with essential metrics, expand as needed
-- Set log retention policies to control costs
-- Use sampling for traces in high-traffic scenarios
+- Use Docker Compose for local development (simple setup)
+- Deploy via Helm charts in production (standardized)
+- Start with essential metrics and dashboards, expand as needed
+- Set log retention policies to control storage costs
+- Use trace sampling (10%) in production to reduce overhead
+- Document runbooks and common operations
 
 ## Options Considered
 
 | Component | Options | Choice | Rationale |
 |-----------|---------|--------|-----------|
-| Metrics | CloudWatch, Prometheus, Datadog | Prometheus | Flexible, portable, cost-effective |
-| Logging | CloudWatch, ELK, Loki | CloudWatch | AWS-native, simple |
-| Tracing | X-Ray, Jaeger, Datadog | X-Ray | AWS integration |
-| Errors | Sentry, Rollbar, Bugsnag | Sentry | Best Python support |
+| Logging | ELK, Loki, OpenSearch | **ELK Stack** | Industry standard, powerful queries, rich visualization |
+| Tracing | Jaeger, Tempo, Zipkin | **Tempo** | S3-backed (cost-effective), native Grafana integration |
+| Metrics | Prometheus, InfluxDB, VictoriaMetrics | **Prometheus** | De facto standard, CNCF graduated, huge ecosystem |
+| Visualization | Grafana, Kibana | **Both** | Grafana for metrics/traces, Kibana for logs |
+| Errors | Sentry OSS, GlitchTip, Rollbar | **Sentry OSS** | Best-in-class error tracking, self-hosted |
+| Instrumentation | OpenTelemetry, Zipkin, Custom | **OpenTelemetry** | Vendor-neutral, CNCF standard, future-proof |
+
+### Why Not AWS-Managed Services?
+While ADR-009 chose AWS for deployment, we're using OSS monitoring tools to:
+- Maintain cloud portability (can move to GCP/Azure/self-hosted)
+- Avoid vendor lock-in for observability data
+- Control costs (self-hosted is cheaper at scale)
+- Keep data private and under our control
+- Align with OSS requirement from issue
 
 ## Technical Details
 
@@ -56,46 +74,56 @@ We will implement a **multi-layer observability stack** using:
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         APPLICATION LAYER                                │
 │  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │  FastAPI App                                                         ││
+│  │  FastAPI App + Celery Workers                                       ││
+│  │  ├── Structured JSON logging (stdout)                               ││
+│  │  ├── OpenTelemetry instrumentation (auto + manual)                  ││
 │  │  ├── Prometheus metrics endpoint (/metrics)                         ││
-│  │  ├── Structured JSON logging                                         ││
-│  │  ├── X-Ray tracing middleware                                        ││
-│  │  └── Sentry error capture                                            ││
+│  │  └── Sentry error capture                                           ││
 │  └─────────────────────────────────────────────────────────────────────┘│
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
-        ┌────────────────────────┼────────────────────────────────┐
-        ▼                        ▼                                ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐
-│   Prometheus     │  │  CloudWatch      │  │  AWS X-Ray               │
-│   (AMP)          │  │  Logs            │  │                          │
-│                  │  │                  │  │  Distributed Traces      │
-│   Metrics        │  │  Structured      │  │  Service Map             │
-│   - Request rate │  │  JSON Logs       │  │  Latency Analysis        │
-│   - Latency      │  │  - Request logs  │  │                          │
-│   - Error rate   │  │  - App logs      │  │                          │
-│   - Queue depth  │  │  - Error logs    │  │                          │
-└────────┬─────────┘  └────────┬─────────┘  └──────────────────────────┘
-         │                     │
-         ▼                     ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐
-│   Grafana        │  │  CloudWatch      │  │  Sentry                  │
-│   (AMG)          │  │  Insights        │  │                          │
-│                  │  │                  │  │  Error Tracking          │
-│   Dashboards     │  │  Log Analysis    │  │  - Stack traces          │
-│   Alerting       │  │  Queries         │  │  - Error grouping        │
-│                  │  │                  │  │  - Release tracking      │
-└────────┬─────────┘  └────────┬─────────┘  └──────────────────────────┘
-         │                     │
-         └──────────┬──────────┘
-                    ▼
-         ┌──────────────────┐
-         │   PagerDuty/     │
-         │   Opsgenie       │
-         │                  │
-         │   Alerting       │
-         │   On-call        │
-         └──────────────────┘
+         ┌───────────────────────┼───────────────────────┐
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│   Filebeat       │  │  OTEL Collector  │  │  Prometheus      │
+│   (Shipper)      │  │  (Traces)        │  │  (Scraper)       │
+│                  │  │                  │  │                  │
+│  Collects logs   │  │  Receives spans  │  │  Pulls /metrics  │
+│  from Docker     │  │  Batches traces  │  │  Stores TSDB     │
+└────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘
+         │                     │                      │
+         ▼                     ▼                      │
+┌──────────────────┐  ┌──────────────────┐           │
+│   Logstash       │  │     Tempo        │           │
+│   (Processing)   │  │  (Trace Store)   │           │
+│                  │  │                  │           │
+│  - Parses JSON   │  │  - S3 backend    │           │
+│  - Enriches      │  │  - Query API     │           │
+│  - Filters       │  │  - Compression   │           │
+└────────┬─────────┘  └────────┬─────────┘           │
+         │                     │                      │
+         ▼                     │                      │
+┌──────────────────┐           │                      │
+│  Elasticsearch   │◄──────────┼──────────────────────┤
+│   (Log Store)    │           │                      │
+│                  │  ┌────────▼──────────┐           │
+│  - Full-text     │  │    Grafana        │◄──────────┘
+│  - Aggregations  │  │  (Visualization)  │
+│  - Time-series   │  │                   │
+└────────┬─────────┘  │  - Trace viewer   │
+         │            │  - Dashboards     │
+         │            │  - Alerting       │
+         ▼            └───────────────────┘
+┌──────────────────┐
+│    Kibana        │  ┌──────────────────┐
+│  (Log Explorer)  │  │  Sentry Web      │
+│                  │  │  (Error Track)   │
+│  - Discover      │  │                  │
+│  - Dashboards    │  │  - Grouping      │
+│  - Queries       │  │  - Alerts        │
+└──────────────────┘  │  - Releases      │
+                      └──────────────────┘
 ```
 
 ### Prometheus Metrics Setup
