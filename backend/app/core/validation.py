@@ -60,7 +60,7 @@ class ValidationResult:
     def error_count(self) -> int:
         return len(self.errors)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "is_valid": self.is_valid,
             "error_count": self.error_count,
@@ -89,7 +89,7 @@ class DataValidator(Generic[T]):
         result = validator.validate(user_input)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._rules: list[tuple[str, Callable[[Any], ValidationIssue | None]]] = []
 
     def add_rule(
@@ -101,7 +101,7 @@ class DataValidator(Generic[T]):
         self._rules.append((field, rule))
         return self
 
-    def validate(self, data: dict | BaseModel) -> ValidationResult:
+    def validate(self, data: dict[str, Any] | BaseModel) -> ValidationResult:
         """
         Validate data against all rules.
 
@@ -139,7 +139,7 @@ class DataValidator(Generic[T]):
 
         return ValidationResult(is_valid=is_valid, issues=issues)
 
-    def _get_nested_value(self, data: dict, field: str) -> Any:
+    def _get_nested_value(self, data: dict[str, Any], field: str) -> Any:
         """Get value from nested field path (e.g., 'user.email')."""
         keys = field.split(".")
         value = data
@@ -375,8 +375,8 @@ class CADParameterValidator:
 
     @staticmethod
     def validate_parameters(
-        parameters: dict,
-        schema: dict,
+        parameters: dict[str, Any],
+        schema: dict[str, Any],
     ) -> ValidationResult:
         """
         Validate CAD parameters against template schema.
@@ -498,7 +498,7 @@ class DataQualityChecker:
     when data quality degrades.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._checks: list[tuple[str, Callable[[], ValidationResult]]] = []
         self._results: dict[str, ValidationResult] = {}
 
@@ -535,7 +535,7 @@ class DataQualityChecker:
         self._results = results
         return results
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary of last check run."""
         passed = sum(1 for r in self._results.values() if r.is_valid)
         failed = len(self._results) - passed
