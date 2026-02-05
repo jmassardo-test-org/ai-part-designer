@@ -11,7 +11,7 @@ import mimetypes
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO
+from typing import Any, BinaryIO
 from uuid import UUID
 
 import aioboto3

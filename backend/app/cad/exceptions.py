@@ -5,6 +5,8 @@ Provides a hierarchy of exceptions for CAD operations,
 enabling precise error handling and user-friendly messages.
 """
 
+from typing import Any
+
 
 class CADError(Exception):
     """

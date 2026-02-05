@@ -10,7 +10,7 @@ designed to house electronics like Raspberry Pi, LCDs, and buttons.
 """
 
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 

@@ -143,7 +143,7 @@ def pdf_to_images(pdf_path: Path, max_pages: int = MAX_PAGES_TO_ANALYZE) -> list
         last_page=max_pages,
         dpi=150,  # Good balance of quality and size
     )
-    return cast(list[Image.Image], images)
+    return cast("list[Image.Image]", images)
 
 
 def resize_image(image: Image.Image, target_width: int = TARGET_IMAGE_WIDTH) -> Image.Image:
@@ -365,7 +365,7 @@ class DatasheetParserService:
             json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
             if json_match:
                 result = json.loads(json_match.group())
-                return cast(dict[str, Any], result)
+                return cast("dict[str, Any]", result)
 
         except Exception as e:
             print(f"Error identifying component: {e}")
@@ -407,7 +407,7 @@ class DatasheetParserService:
             if json_match:
                 result = json.loads(json_match.group())
                 result["page_number"] = page_num
-                return cast(dict[str, Any], result)
+                return cast("dict[str, Any]", result)
 
         except Exception as e:
             print(f"Error analyzing page {page_num}: {e}")

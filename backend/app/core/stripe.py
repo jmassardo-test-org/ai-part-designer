@@ -255,7 +255,7 @@ class StripeClient:
         payload: bytes,
         signature: str,
         webhook_secret: str | None = None,
-    ) -> Any:
+    ) -> Any:  # Stripe doesn't have proper type stubs
         """
         Construct and verify a webhook event.
 

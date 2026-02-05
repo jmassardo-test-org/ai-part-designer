@@ -131,7 +131,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         # Skip excluded paths
         if request.url.path in self.EXCLUDED_PATHS:
-            return cast(Response, await call_next(request))
+            return cast("Response", await call_next(request))
 
         start_time = time.time()
 
@@ -281,7 +281,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         if not settings.RATE_LIMIT_ENABLED:
-            return cast(Response, await call_next(request))
+            return cast("Response", await call_next(request))
 
         client_ip = request.client.host if request.client else "unknown"
 
@@ -341,7 +341,7 @@ class IPBlockingMiddleware(BaseHTTPMiddleware):
                     content={"detail": "Access denied"},
                 )
 
-        return cast(Response, await call_next(request))
+        return cast("Response", await call_next(request))
 
 
 # =============================================================================

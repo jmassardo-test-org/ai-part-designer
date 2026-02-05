@@ -9,7 +9,6 @@ Multi-layer defense against prohibited content:
 5. Integration with abuse detection
 """
 
-import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -661,8 +660,7 @@ class ContentModerationService:
             # Find JSON in response
             json_match = re.search(r"\{.*\}", content, re.DOTALL)
             if json_match:
-                result = json.loads(json_match.group())
-                return result  # type: ignore[no-any-return]
+                return json.loads(json_match.group())  # type: ignore[no-any-return]
 
         except Exception as e:
             print(f"AI moderation error: {e}")

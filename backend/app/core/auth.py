@@ -9,9 +9,10 @@ Provides:
 - Rate limiting integration
 """
 
+from collections.abc import Callable
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status

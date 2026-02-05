@@ -5,6 +5,7 @@ Parses natural language into structured intents before schema generation.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 from app.ai.exceptions import AIError
 from app.ai.providers import get_ai_provider

@@ -4,6 +4,8 @@ Enclosure Style Templates
 Pre-defined enclosure style templates for common use cases.
 """
 
+from typing import Any
+
 from app.enclosure.schemas import (
     EnclosureStyle,
     EnclosureStyleType,

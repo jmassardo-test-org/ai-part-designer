@@ -253,7 +253,7 @@ class StorageService:
                 Params={"Bucket": bucket, "Key": key},
                 ExpiresIn=expires_in,
             )
-            return cast(str, presigned_url)
+            return cast("str", presigned_url)
 
     async def list_files(
         self,

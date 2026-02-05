@@ -283,7 +283,7 @@ class PDFProcessor:
             img_bytes = pix.tobytes("png")
 
             doc.close()
-            return cast(bytes, img_bytes)
+            return cast("bytes", img_bytes)
 
         except Exception as e:
             logger.exception(f"Failed to get page image: {e}")

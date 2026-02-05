@@ -11,7 +11,7 @@ button clusters, and mounting hole arrays.
 """
 
 from enum import StrEnum
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 

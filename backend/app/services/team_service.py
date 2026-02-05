@@ -6,6 +6,7 @@ member management, and project assignments.
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, func, select

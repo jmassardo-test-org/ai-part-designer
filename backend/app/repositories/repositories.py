@@ -7,6 +7,7 @@ query methods and business logic.
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select

@@ -34,7 +34,7 @@ class RedisClient:
 
     def __init__(self, url: str | None = None):
         self.url = url or settings.REDIS_URL
-        self._client: redis.Redis[Any] | None = None
+        self._client: Any = None  # Redis client without generic type
 
     async def connect(self) -> None:
         """Initialize Redis connection pool."""
@@ -51,7 +51,7 @@ class RedisClient:
             self._client = None
 
     @property
-    def client(self) -> redis.Redis[Any]:
+    def client(self) -> Any:  # Redis client without generic type
         """Get the Redis client, ensuring connection."""
         if not self._client:
             raise RuntimeError("Redis client not connected. Call connect() first.")

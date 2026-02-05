@@ -6,6 +6,7 @@ across different channels (in-app, email, push).
 """
 
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, func, select, update

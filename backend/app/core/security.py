@@ -13,9 +13,8 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from uuid import UUID
-
 from typing import Any
+from uuid import UUID
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes

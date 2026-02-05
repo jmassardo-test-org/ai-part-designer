@@ -85,7 +85,7 @@ class PaymentService:
                 await self.db.commit()
 
             logger.info(f"Created Stripe customer {customer.id} for user {user.id}")
-            return cast(str, customer.id)
+            return cast("str", customer.id)
 
         except StripeError as e:
             logger.error(f"Failed to create Stripe customer: {e}")

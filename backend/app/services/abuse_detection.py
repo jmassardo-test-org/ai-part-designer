@@ -558,7 +558,7 @@ class AbuseDetectionService:
         result = await self.db.execute(stmt)
         await self.db.commit()
 
-        return cast(int, result.rowcount)
+        return cast("int", result.rowcount)
 
 
 # =============================================================================

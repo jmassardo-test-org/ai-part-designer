@@ -6,9 +6,9 @@ Uses slowapi for rate limiting with Redis backend support.
 """
 
 import time
-from typing import Any
 from collections.abc import Callable
 from functools import wraps
+from typing import Any
 
 from fastapi import HTTPException, Request, status
 from starlette.responses import Response
