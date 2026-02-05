@@ -16,7 +16,7 @@ These endpoints will be removed in a future version.
 """
 
 import warnings
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

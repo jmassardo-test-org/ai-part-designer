@@ -5,7 +5,7 @@ Models for storing reference components (electronics, hardware) with
 mechanical specifications extracted from datasheets and CAD files.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (

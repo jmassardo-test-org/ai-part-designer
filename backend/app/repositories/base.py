@@ -195,7 +195,7 @@ class BaseRepository(Generic[ModelType]):
             return False
 
         if soft and hasattr(instance, "deleted_at"):
-            from datetime import UTC, datetime
+            from datetime import datetime
 
             instance.deleted_at = datetime.now(tz=datetime.UTC)
         else:

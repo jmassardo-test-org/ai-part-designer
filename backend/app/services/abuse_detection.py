@@ -9,7 +9,7 @@ import hashlib
 import ipaddress
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 from uuid import UUID, uuid4
 

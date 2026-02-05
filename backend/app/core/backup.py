@@ -9,7 +9,7 @@ import asyncio
 import gzip
 import logging
 import shutil
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 

@@ -414,7 +414,7 @@ class TestSendMessageResponseSchema:
 
     def test_send_message_response_includes_additional_messages_field(self):
         """Verify SendMessageResponse has additional_messages field with correct default."""
-        from datetime import UTC, datetime
+        from datetime import datetime
         from uuid import uuid4
 
         from app.api.v1.conversations import MessageResponse, SendMessageResponse

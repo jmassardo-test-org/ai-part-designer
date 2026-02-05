@@ -4,7 +4,7 @@ Tests for rating and community models.
 Tests TemplateRating, TemplateFeedback, TemplateComment, ContentReport, and UserBan.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from app.models.rating import (

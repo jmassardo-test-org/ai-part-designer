@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status

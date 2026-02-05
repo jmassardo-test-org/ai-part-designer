@@ -12,7 +12,7 @@ Or via Makefile:
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession

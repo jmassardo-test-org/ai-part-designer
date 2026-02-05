@@ -7,7 +7,7 @@ Provides WebSocket connection for real-time updates.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 

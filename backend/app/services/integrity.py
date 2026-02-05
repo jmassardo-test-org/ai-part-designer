@@ -11,7 +11,7 @@ Provides verification and validation of:
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 

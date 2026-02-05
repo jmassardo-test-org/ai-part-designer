@@ -5,7 +5,7 @@ Provides functions to create, send, and manage notifications
 across different channels (in-app, email, push).
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, func, select, update

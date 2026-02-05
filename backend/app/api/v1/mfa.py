@@ -10,7 +10,7 @@ import base64
 import io
 import logging
 import secrets
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pyotp

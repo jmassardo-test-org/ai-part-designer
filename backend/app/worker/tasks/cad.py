@@ -3,7 +3,7 @@ CAD generation and processing tasks.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 

@@ -184,7 +184,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     ) -> None:
         """Log request with security context."""
         import logging
-        from datetime import UTC, datetime
+        from datetime import datetime
 
         logger = logging.getLogger("security")
 

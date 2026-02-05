@@ -5,7 +5,7 @@ Teams allow organizations to group members for better resource
 organization and access control within an organization.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4

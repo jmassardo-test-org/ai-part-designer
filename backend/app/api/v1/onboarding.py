@@ -7,7 +7,7 @@ Provides endpoints for tracking and managing user onboarding progress.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, status

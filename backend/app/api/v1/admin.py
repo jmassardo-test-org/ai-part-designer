@@ -18,7 +18,7 @@ Provides endpoints for:
 - Marketplace administration
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Annotated
 from uuid import UUID

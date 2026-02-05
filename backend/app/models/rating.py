@@ -4,7 +4,7 @@ Rating and feedback models for community features.
 Handles template ratings, thumbs up/down, and user feedback.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4

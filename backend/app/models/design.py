@@ -2,7 +2,7 @@
 Design domain models: Design, DesignVersion, DesignShare
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 

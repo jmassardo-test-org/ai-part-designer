@@ -13,7 +13,7 @@ Migrated from CadQuery to Build123d.
 import hashlib
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4

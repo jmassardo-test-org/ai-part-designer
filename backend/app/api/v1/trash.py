@@ -8,7 +8,7 @@ Provides endpoints for:
 - Configuring retention policy
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 

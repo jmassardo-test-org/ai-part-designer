@@ -3,7 +3,7 @@ Maintenance and housekeeping tasks.
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from celery import shared_task

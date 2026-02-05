@@ -388,7 +388,7 @@ Manage settings: {settings_url}
         Returns:
             Tuple of (subject, html_body, text_body)
         """
-        from datetime import UTC, datetime
+        from datetime import datetime
 
         settings = get_settings()
 

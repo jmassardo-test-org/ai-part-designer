@@ -6,7 +6,7 @@ roles, and invitations.
 """
 
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4

@@ -8,7 +8,7 @@ supporting AWS S3, GCS, Azure Blob, and MinIO.
 import hashlib
 import logging
 import mimetypes
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import BinaryIO

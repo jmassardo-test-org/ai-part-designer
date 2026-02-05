@@ -13,7 +13,7 @@ Or via Makefile:
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select

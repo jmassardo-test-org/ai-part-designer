@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status

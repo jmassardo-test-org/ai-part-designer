@@ -3,7 +3,7 @@ Analytics and event processing tasks.
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from celery import shared_task
 

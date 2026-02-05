@@ -8,7 +8,7 @@ Provides endpoints for monitoring and managing:
 - Content moderation queues
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query

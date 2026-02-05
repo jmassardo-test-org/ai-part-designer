@@ -5,7 +5,7 @@ Notification models for in-app and email notifications.
 from __future__ import annotations
 
 import enum
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 

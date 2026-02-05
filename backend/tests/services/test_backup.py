@@ -7,7 +7,7 @@ enums and dataclasses by redefining them here for isolated testing.
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 from uuid import UUID, uuid4
 

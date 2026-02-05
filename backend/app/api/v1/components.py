@@ -6,7 +6,7 @@ CRUD operations for reference components and component library.
 
 import hashlib
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 

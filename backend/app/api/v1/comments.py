@@ -4,7 +4,7 @@ Comments API endpoints.
 Handles design comments with threading and mentions.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

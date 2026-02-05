@@ -8,7 +8,7 @@ and transaction logging.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select

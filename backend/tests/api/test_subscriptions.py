@@ -5,7 +5,7 @@ Tests for subscription management, checkout, billing portal,
 and usage endpoints.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from httpx import AsyncClient

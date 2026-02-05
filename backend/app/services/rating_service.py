@@ -5,7 +5,7 @@ Handles template ratings, feedback, comments, reports, and moderation.
 """
 
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, func, select

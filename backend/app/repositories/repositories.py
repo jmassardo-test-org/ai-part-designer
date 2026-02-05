@@ -6,7 +6,7 @@ query methods and business logic.
 """
 
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import desc, func, select

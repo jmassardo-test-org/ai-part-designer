@@ -21,7 +21,7 @@ import argparse
 import asyncio
 import logging
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
