@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -632,12 +633,12 @@ class AutoLayoutEngine:
 
 
 def auto_layout(
-    components: list[dict],
+    components: list[dict[str, Any]],
     algorithm: str = "packed",
     clearance: float = 5.0,
     max_width: float | None = None,
     max_depth: float | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Convenience function for auto-layout.
 

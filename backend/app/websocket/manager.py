@@ -43,7 +43,7 @@ class Connection:
         """Use object identity for equality."""
         return self is other
 
-    async def send(self, message: dict) -> bool:
+    async def send(self, message: dict[str, Any]) -> bool:
         """Send a message to this connection."""
         try:
             await self.websocket.send_json(message)
@@ -69,7 +69,7 @@ class ConnectionManager:
     - Graceful disconnection handling
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # user_id -> set of Connection objects
         self._connections: dict[str, set[Connection]] = {}
         # room_name -> set of Connection objects
@@ -158,7 +158,7 @@ class ConnectionManager:
     async def send_to_user(
         self,
         user_id: str,
-        message: dict,
+        message: dict[str, Any],
     ) -> int:
         """
         Send a message to all connections for a user.
@@ -191,7 +191,7 @@ class ConnectionManager:
     async def send_to_room(
         self,
         room: str,
-        message: dict,
+        message: dict[str, Any],
         exclude_user: str | None = None,
     ) -> int:
         """
@@ -228,7 +228,7 @@ class ConnectionManager:
 
     async def broadcast(
         self,
-        message: dict,
+        message: dict[str, Any],
         exclude_users: set[str] | None = None,
     ) -> int:
         """
@@ -302,7 +302,7 @@ class ConnectionManager:
         """Check if a user has any active connections."""
         return user_id in self._connections and len(self._connections[user_id]) > 0
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get connection statistics."""
         return {
             "current_connections": self.connection_count,
@@ -318,19 +318,24 @@ class ConnectionManager:
 # =============================================================================
 
 
-def send_ws_message_sync(user_id: str, message: dict) -> None:
+def send_ws_message_sync(user_id: str, message: dict[str, Any]) -> None:
     """
     Send WebSocket message from synchronous context (e.g., Celery worker).
 
     This uses Redis pub/sub to communicate with the WebSocket process.
     The actual sending happens in the async WebSocket server.
     """
-    from app.core.cache import redis_client
+    import redis
+
+    from app.core.config import settings
 
     try:
+        # Use sync Redis client for synchronous context
+        sync_redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
         # Publish to Redis channel for WebSocket server to pick up
         channel = f"ws:user:{user_id}"
-        redis_client.client.publish(channel, json.dumps(message))
+        sync_redis.publish(channel, json.dumps(message))
+        sync_redis.close()
     except Exception as e:
         logger.warning(f"Failed to publish WS message: {e}")
 
@@ -368,7 +373,7 @@ async def send_job_progress(
 async def send_job_complete(
     user_id: str,
     job_id: str,
-    result: dict | None = None,
+    result: dict[str, Any] | None = None,
 ) -> None:
     """Send job completion notification."""
     await manager.send_to_user(

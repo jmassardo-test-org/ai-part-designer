@@ -12,6 +12,7 @@ Provides:
 import secrets
 import time
 from collections.abc import Callable
+from typing import Any, cast
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,8 +47,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         "object-src": "'none'",
     }
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        response = await call_next(request)
+    async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
+        response: Response = await call_next(request)
 
         # Prevent clickjacking
         response.headers["X-Frame-Options"] = "DENY"
@@ -97,14 +98,14 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
     The request ID is passed to logging and returned in responses.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         # Check for existing request ID (from load balancer/reverse proxy)
         request_id = request.headers.get("X-Request-ID", secrets.token_urlsafe(16))
 
         # Store in request state for access in handlers
         request.state.request_id = request_id
 
-        response = await call_next(request)
+        response: Response = await call_next(request)
 
         # Include in response headers
         response.headers["X-Request-ID"] = request_id
@@ -127,10 +128,10 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     # Paths to exclude from logging (health checks, etc.)
     EXCLUDED_PATHS = {"/health", "/ready", "/metrics"}
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         # Skip excluded paths
         if request.url.path in self.EXCLUDED_PATHS:
-            return await call_next(request)
+            return cast(Response, await call_next(request))
 
         start_time = time.time()
 
@@ -140,7 +141,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         request_id = getattr(request.state, "request_id", "unknown")
 
         # Process request
-        response = await call_next(request)
+        response: Response = await call_next(request)
 
         # Calculate duration
         duration_ms = (time.time() - start_time) * 1000
@@ -278,9 +279,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     for more granular control.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         if not settings.RATE_LIMIT_ENABLED:
-            return await call_next(request)
+            return cast(Response, await call_next(request))
 
         client_ip = request.client.host if request.client else "unknown"
 
@@ -305,7 +306,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        response = await call_next(request)
+        response: Response = await call_next(request)
 
         # Add rate limit headers
         response.headers["X-RateLimit-Remaining"] = str(remaining)
@@ -325,7 +326,7 @@ class IPBlockingMiddleware(BaseHTTPMiddleware):
     IPs can be blocked via admin action or automated rules.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         client_ip = request.client.host if request.client else None
 
         if client_ip:
@@ -340,7 +341,7 @@ class IPBlockingMiddleware(BaseHTTPMiddleware):
                     content={"detail": "Access denied"},
                 )
 
-        return await call_next(request)
+        return cast(Response, await call_next(request))
 
 
 # =============================================================================
@@ -413,7 +414,7 @@ async def unblock_ip(ip_address: str) -> None:
     await redis_client.delete(f"security:blocked_ip:{ip_address}")
 
 
-async def get_security_stats(time_window_hours: int = 24) -> dict:
+async def get_security_stats(time_window_hours: int = 24) -> dict[str, Any]:
     """Get security statistics for monitoring."""
     # This would query Redis/logs for security metrics
     return {

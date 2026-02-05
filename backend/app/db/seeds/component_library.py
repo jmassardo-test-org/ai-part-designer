@@ -5,6 +5,7 @@ Popular components with verified dimensions, mounting holes, and connector posit
 All dimensions in millimeters.
 """
 
+from typing import Any
 from uuid import uuid4
 
 # =============================================================================
@@ -1447,7 +1448,7 @@ COMPONENT_LIBRARY = [
 ]
 
 
-async def seed_component_library(db) -> int:
+async def seed_component_library(db: Any) -> int:
     """
     Seed the database with the component library.
 
@@ -1502,7 +1503,7 @@ async def seed_component_library(db) -> int:
 
 
 # For easy access
-def get_component_by_name(name: str) -> dict | None:
+def get_component_by_name(name: str) -> dict[str, Any] | None:
     """Get component data by name."""
     for component in COMPONENT_LIBRARY:
         if component["name"].lower() == name.lower():
@@ -1510,7 +1511,7 @@ def get_component_by_name(name: str) -> dict | None:
     return None
 
 
-def get_components_by_category(category: str) -> list[dict]:
+def get_components_by_category(category: str) -> list[dict[str, Any]]:
     """Get all components in a category."""
     return [c for c in COMPONENT_LIBRARY if c["category"] == category]
 

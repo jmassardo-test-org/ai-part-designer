@@ -9,6 +9,7 @@ Integrates all abuse protection layers into FastAPI middleware:
 """
 
 import time
+from typing import Any
 from uuid import UUID
 
 from fastapi import Request, Response
@@ -96,7 +97,8 @@ def get_client_ip(request: Request) -> str:
 def get_user_id(request: Request) -> UUID | None:
     """Get user ID from request state."""
     if hasattr(request.state, "user") and request.state.user:
-        return request.state.user.id
+        user_id: UUID = request.state.user.id
+        return user_id
     return None
 
 
@@ -182,7 +184,7 @@ class AbuseProtectionMiddleware(BaseHTTPMiddleware):
     5. Log request for pattern detection
     """
 
-    def __init__(self, app, db_session_factory=None):
+    def __init__(self, app: Any, db_session_factory: Any = None) -> None:
         super().__init__(app)
         self.db_session_factory = db_session_factory
 
@@ -393,7 +395,7 @@ class GenerationGuardMiddleware:
     - Concurrent generation limits
     """
 
-    def __init__(self, db_session_factory):
+    def __init__(self, db_session_factory: Any) -> None:
         self.db_session_factory = db_session_factory
 
     async def check_generation_allowed(
@@ -402,7 +404,7 @@ class GenerationGuardMiddleware:
         prompt: str,
         tier: UserTier,
         ip_address: str,
-    ) -> tuple[bool, str | None, dict | None]:
+    ) -> tuple[bool, str | None, dict[str, Any] | None]:
         """
         Check if a generation request should be allowed.
 

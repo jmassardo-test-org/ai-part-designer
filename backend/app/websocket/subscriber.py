@@ -25,8 +25,8 @@ class RedisSubscriber:
     the async WebSocket server.
     """
 
-    def __init__(self):
-        self._task: asyncio.Task | None = None
+    def __init__(self) -> None:
+        self._task: asyncio.Task[None] | None = None
         self._running = False
         self._redis = None
         self._pubsub = None
