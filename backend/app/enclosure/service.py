@@ -75,7 +75,7 @@ class EnclosureGenerationService:
     then executes the code to produce the CAD geometry.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.standoff_generator = StandoffGenerator()
         self.cutout_generator = CutoutGenerator()
 

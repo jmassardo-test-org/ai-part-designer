@@ -289,7 +289,7 @@ class BillOfMaterials:
                 return
         self.items.append((spec, quantity))
 
-    def to_dict(self) -> list[dict]:
+    def to_dict(self) -> list[dict[str, Any]]:
         """Convert to dict format."""
         return [
             {

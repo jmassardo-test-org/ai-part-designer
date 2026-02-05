@@ -32,7 +32,7 @@ try:
 except ImportError:
     BUILD123D_AVAILABLE = False
     # Define placeholder types for type hints
-    Part = Any  # type: ignore
+    Part = Any
 
 
 class EnclosureCompiler:
@@ -158,7 +158,7 @@ class EnclosureCompiler:
                     align=(Align.CENTER, Align.CENTER, Align.MIN),
                 )
 
-        return body.part
+        return body.part  # type: ignore[no-any-return]
 
     def _compile_lid(self, spec: EnclosureSpec) -> Part:
         """Compile the enclosure lid.
@@ -209,7 +209,7 @@ class EnclosureCompiler:
                             lip_height,
                         )
 
-        return lid.part
+        return lid.part  # type: ignore[no-any-return]
 
     def _apply_ventilation(self, body: Part, spec: EnclosureSpec) -> Part:
         """Apply ventilation cutouts to the body."""
@@ -229,7 +229,7 @@ class EnclosureCompiler:
                     # Default to slots
                     self._add_vent_slots(vented_body, spec, vent, side)
 
-        return vented_body.part
+        return vented_body.part  # type: ignore[no-any-return]
 
     def _add_honeycomb_vents(
         self,

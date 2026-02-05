@@ -252,7 +252,7 @@ class StandoffGenerator:
                     mode=Mode.SUBTRACT,
                 ).locate(Location((standoff.x, standoff.y, floor_offset)))
 
-        return builder.part
+        return builder.part  # type: ignore[no-any-return]
 
     def generate_all_standoffs(
         self,
@@ -351,4 +351,4 @@ class StandoffGenerator:
             except Exception:
                 pass
 
-        return builder.part
+        return builder.part  # type: ignore[no-any-return]

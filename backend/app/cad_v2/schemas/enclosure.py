@@ -269,13 +269,13 @@ class EnclosureSpec(BaseModel):
 
     # Components (mounted inside)
     components: Annotated[
-        list,  # Will be list[ComponentMount] when components.py is created
+        list[Any],  # Will be list[ComponentMount] when components.py is created
         Field(default_factory=list, description="Components mounted in enclosure"),
     ]
 
     # Features (cutouts, ports, vents)
     features: Annotated[
-        list,  # Will be list[Feature] when features.py is created
+        list[Any],  # Will be list[Feature] when features.py is created
         Field(default_factory=list, description="Features on enclosure walls"),
     ]
 

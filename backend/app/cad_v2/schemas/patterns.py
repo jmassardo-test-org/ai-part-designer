@@ -215,7 +215,7 @@ class PatternedFeature(BaseModel):
     # The base feature (imported from features.py to avoid circular import)
     # feature: Feature
     feature_type: str = Field(..., description="Feature type to pattern")
-    feature_params: dict = Field(
+    feature_params: dict[str, Any] = Field(
         default_factory=dict,
         description="Feature parameters",
     )

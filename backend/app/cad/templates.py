@@ -39,7 +39,7 @@ class TemplateGenerator(Protocol):
 TEMPLATE_REGISTRY: dict[str, TemplateGenerator] = {}
 
 
-def register_template(slug: str):
+def register_template(slug: str) -> Any:
     """Decorator to register a template generator function."""
 
     def decorator(func: TemplateGenerator) -> TemplateGenerator:
@@ -118,7 +118,7 @@ class ProjectBoxParams:
     cable_hole_position: str = "back"  # back, left, right
 
 
-@register_template("project-box")
+@register_template("project-box")  # type: ignore[untyped-decorator]
 def generate_project_box(
     length: float = 100.0,
     width: float = 60.0,
@@ -140,7 +140,7 @@ def generate_project_box(
     cable_hole: bool = False,
     cable_hole_diameter: float = 8.0,
     cable_hole_position: str = "back",
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a parameterized project box/enclosure.
@@ -272,7 +272,7 @@ def generate_project_box(
                     mode=Mode.SUBTRACT,
                 ).locate(Location((x, y, base_height)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -280,7 +280,7 @@ def generate_project_box(
 # =============================================================================
 
 
-@register_template("mounting-bracket")
+@register_template("mounting-bracket")  # type: ignore[untyped-decorator]
 def generate_mounting_bracket(
     width: float = 50.0,
     height: float = 30.0,
@@ -290,7 +290,7 @@ def generate_mounting_bracket(
     hole_count: int = 2,
     fillet_radius: float = 2.0,
     bracket_style: str = "L",  # L, U, Z
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a parameterized mounting bracket.
@@ -409,7 +409,7 @@ def generate_mounting_bracket(
                     mode=Mode.SUBTRACT,
                 ).locate(Location((depth * 1.5 - thickness, y, height - thickness)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -417,7 +417,7 @@ def generate_mounting_bracket(
 # =============================================================================
 
 
-@register_template("simple-box")
+@register_template("simple-box")  # type: ignore[untyped-decorator]
 def generate_simple_box(
     length: float = 50.0,
     width: float = 50.0,
@@ -425,7 +425,7 @@ def generate_simple_box(
     wall_thickness: float = 2.0,
     open_top: bool = True,
     corner_radius: float = 0.0,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a simple hollow box.
@@ -466,7 +466,7 @@ def generate_simple_box(
             mode=Mode.SUBTRACT,
         ).locate(Location((0, 0, wall_thickness)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -474,14 +474,14 @@ def generate_simple_box(
 # =============================================================================
 
 
-@register_template("standoff")
+@register_template("standoff")  # type: ignore[untyped-decorator]
 def generate_standoff(
     outer_diameter: float = 8.0,
     inner_diameter: float = 3.0,
     height: float = 10.0,
     hex_head: bool = False,
     head_height: float = 3.0,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a cylindrical standoff/spacer.
@@ -508,7 +508,7 @@ def generate_standoff(
             mode=Mode.SUBTRACT,
         )
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -516,7 +516,7 @@ def generate_standoff(
 # =============================================================================
 
 
-@register_template("cable-clip")
+@register_template("cable-clip")  # type: ignore[untyped-decorator]
 def generate_cable_clip(
     cable_diameter: float = 6.0,
     clip_width: float = 10.0,
@@ -524,7 +524,7 @@ def generate_cable_clip(
     wall_thickness: float = 1.5,
     screw_hole_diameter: float = 3.0,
     opening_angle: float = 60.0,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a cable management clip.
@@ -571,7 +571,7 @@ def generate_cable_clip(
                 mode=Mode.SUBTRACT,
             ).locate(Location((x, 0, 0)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -579,7 +579,7 @@ def generate_cable_clip(
 # =============================================================================
 
 
-@register_template("hinge")
+@register_template("hinge")  # type: ignore[untyped-decorator]
 def generate_hinge(
     leaf_width: float = 30.0,
     leaf_height: float = 40.0,
@@ -588,7 +588,7 @@ def generate_hinge(
     knuckle_count: int = 3,
     hole_diameter: float = 3.0,
     hole_count: int = 2,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a simple hinge.
@@ -651,7 +651,7 @@ def generate_hinge(
             mode=Mode.SUBTRACT,
         ).locate(Location((0, 0, knuckle_radius))).rotate(Axis.X, 90)
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -659,21 +659,21 @@ def generate_hinge(
 # =============================================================================
 
 
-@register_template("enclosure")
+@register_template("enclosure")  # type: ignore[untyped-decorator]
 def generate_enclosure(
     length: float = 100.0,
     width: float = 80.0,
     height: float = 50.0,
     wall_thickness: float = 2.5,
     corner_radius: float = 5.0,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a basic enclosure (alias for project-box with simpler params).
 
     This is a simplified enclosure for backwards compatibility.
     """
-    return generate_project_box(
+    return generate_project_box(  # type: ignore[no-any-return]
         length=length,
         width=width,
         height=height,
@@ -692,14 +692,14 @@ def generate_enclosure(
 # =============================================================================
 
 
-@register_template("pipe-connector")
+@register_template("pipe-connector")  # type: ignore[untyped-decorator]
 def generate_pipe_connector(
     pipe_od: float = 25.0,
     pipe_id: float = 20.0,
     connector_type: str = "straight",  # straight, elbow, tee, cross
     socket_depth: float = 15.0,
     angle: float = 90.0,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> Part:
     """
     Generate a pipe connector fitting.
@@ -812,4 +812,4 @@ def generate_pipe_connector(
                 mode=Mode.SUBTRACT,
             ).rotate(Axis.Y, 90)
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]

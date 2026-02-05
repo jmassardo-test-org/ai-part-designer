@@ -46,7 +46,7 @@ class CutoutGenerator:
     Supports standard connector profiles and custom dimensions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.profiles = STANDARD_CUTOUT_PROFILES.copy()
 
     def get_profile(
@@ -264,7 +264,7 @@ class CutoutGenerator:
                     align=(Align.CENTER, Align.CENTER, Align.CENTER),
                 ).locate(Location((cutout.center_x, 0, cutout.center_y)))
 
-        return builder.part
+        return builder.part  # type: ignore[no-any-return]
 
     def generate_all_cutouts(
         self,

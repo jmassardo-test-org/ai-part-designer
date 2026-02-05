@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 from build123d import (
     Axis,
@@ -125,7 +126,7 @@ class AlignmentService:
     Uses Build123d Part objects instead of CadQuery Workplanes.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._tolerance = 1e-6
 
     def get_bounding_box(self, shape: Part) -> BoundingBox:
@@ -432,7 +433,7 @@ class AlignmentService:
         reference: Part,
         target: Part,
         mode: AlignmentMode,
-        options: dict | None = None,
+        options: dict[str, Any] | None = None,
     ) -> AlignmentResult:
         """
         Align target shape to reference shape using specified mode.
