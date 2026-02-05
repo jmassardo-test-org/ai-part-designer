@@ -5,12 +5,13 @@ Handles template ratings, thumbs up/down, and user feedback.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -18,7 +19,6 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,13 +26,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.template import Template
+    from app.models.user import User
 
 
-class FeedbackType(str, Enum):
+class FeedbackType(StrEnum):
     """Type of feedback."""
-    
+
     THUMBS_UP = "thumbs_up"
     THUMBS_DOWN = "thumbs_down"
 
@@ -40,7 +40,7 @@ class FeedbackType(str, Enum):
 class TemplateRating(Base, TimestampMixin):
     """
     Template star rating (1-5).
-    
+
     Users can rate templates to help others find quality content.
     Each user can only rate a template once (can update rating).
     """
@@ -107,7 +107,7 @@ class TemplateRating(Base, TimestampMixin):
 class TemplateFeedback(Base, TimestampMixin):
     """
     Template thumbs up/down feedback.
-    
+
     Quick feedback mechanism for templates.
     Each user can only have one feedback per template.
     """
@@ -166,7 +166,7 @@ class TemplateFeedback(Base, TimestampMixin):
 class TemplateComment(Base, TimestampMixin):
     """
     Template comments with threading support.
-    
+
     Users can leave comments and feedback on templates.
     Supports threaded replies via parent_id.
     """
@@ -273,9 +273,9 @@ class TemplateComment(Base, TimestampMixin):
         return f"<TemplateComment(id={self.id}, template_id={self.template_id})>"
 
 
-class ReportReason(str, Enum):
+class ReportReason(StrEnum):
     """Reason categories for reports."""
-    
+
     SPAM = "spam"
     INAPPROPRIATE = "inappropriate"
     COPYRIGHT = "copyright"
@@ -284,18 +284,18 @@ class ReportReason(str, Enum):
     OTHER = "other"
 
 
-class ReportStatus(str, Enum):
+class ReportStatus(StrEnum):
     """Status of a report."""
-    
+
     PENDING = "pending"
     REVIEWING = "reviewing"
     RESOLVED = "resolved"
     DISMISSED = "dismissed"
 
 
-class ReportTargetType(str, Enum):
+class ReportTargetType(StrEnum):
     """Type of content being reported."""
-    
+
     TEMPLATE = "template"
     COMMENT = "comment"
     DESIGN = "design"
@@ -305,7 +305,7 @@ class ReportTargetType(str, Enum):
 class ContentReport(Base, TimestampMixin):
     """
     Content report for moderation.
-    
+
     Users can report inappropriate templates, comments, or designs.
     """
 
@@ -400,7 +400,7 @@ class ContentReport(Base, TimestampMixin):
 class UserBan(Base, TimestampMixin):
     """
     User ban for moderation.
-    
+
     Tracks when and why users are banned from the platform.
     """
 

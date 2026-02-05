@@ -5,21 +5,19 @@ Tests enclosure style types, lid closures, ventilation patterns,
 standoff types, and configuration schemas.
 """
 
-import pytest
-
 from app.enclosure.schemas import (
+    BossStyle,
     EnclosureStyleType,
     LidClosureType,
-    VentilationPattern,
-    StandoffType,
-    BossStyle,
     StandoffOptions,
+    StandoffType,
+    VentilationPattern,
 )
-
 
 # =============================================================================
 # EnclosureStyleType Tests
 # =============================================================================
+
 
 class TestEnclosureStyleType:
     """Tests for EnclosureStyleType enum."""
@@ -58,6 +56,7 @@ class TestEnclosureStyleType:
 # LidClosureType Tests
 # =============================================================================
 
+
 class TestLidClosureType:
     """Tests for LidClosureType enum."""
 
@@ -94,6 +93,7 @@ class TestLidClosureType:
 # =============================================================================
 # VentilationPattern Tests
 # =============================================================================
+
 
 class TestVentilationPattern:
     """Tests for VentilationPattern enum."""
@@ -132,6 +132,7 @@ class TestVentilationPattern:
 # StandoffType Tests
 # =============================================================================
 
+
 class TestStandoffType:
     """Tests for StandoffType enum."""
 
@@ -165,6 +166,7 @@ class TestStandoffType:
 # BossStyle Tests
 # =============================================================================
 
+
 class TestBossStyle:
     """Tests for BossStyle enum."""
 
@@ -194,13 +196,14 @@ class TestBossStyle:
 # StandoffOptions Tests
 # =============================================================================
 
+
 class TestStandoffOptions:
     """Tests for StandoffOptions Pydantic model."""
 
     def test_default_options(self):
         """Test default standoff options."""
         options = StandoffOptions()
-        
+
         assert options.type == StandoffType.HOLLOW
         assert options.boss_style == BossStyle.CYLINDRICAL
         assert options.outer_diameter is None
@@ -215,7 +218,7 @@ class TestStandoffOptions:
             outer_diameter=6.0,
             inner_diameter=3.0,
         )
-        
+
         assert options.type == StandoffType.THREADED
         assert options.boss_style == BossStyle.GUSSETED
         assert options.outer_diameter == 6.0
@@ -227,7 +230,7 @@ class TestStandoffOptions:
             type=StandoffType.SOLID,
             outer_diameter=8.0,
         )
-        
+
         assert options.type == StandoffType.SOLID
         assert options.outer_diameter == 8.0
 
@@ -239,7 +242,7 @@ class TestStandoffOptions:
             outer_diameter=5.0,
             inner_diameter=4.0,
         )
-        
+
         assert options.type == StandoffType.HEAT_SET_INSERT
         assert options.inner_diameter == 4.0
 
@@ -247,6 +250,7 @@ class TestStandoffOptions:
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestEnclosureSchemaEdgeCases:
     """Tests for edge cases in enclosure schemas."""
@@ -260,7 +264,7 @@ class TestEnclosureSchemaEdgeCases:
             StandoffType,
             BossStyle,
         ]
-        
+
         for enum_class in enums:
             assert len(list(enum_class)) > 0
 
@@ -271,7 +275,7 @@ class TestEnclosureSchemaEdgeCases:
             boss_style=BossStyle.RIBBED,
             outer_diameter=6.0,
         )
-        
+
         # Should not raise
         json_data = options.model_dump()
         assert "type" in json_data
@@ -285,8 +289,8 @@ class TestEnclosureSchemaEdgeCases:
             "outer_diameter": 8.0,
             "inner_diameter": 3.2,
         }
-        
+
         options = StandoffOptions(**data)
-        
+
         assert options.type == StandoffType.THREADED
         assert options.boss_style == BossStyle.SQUARE

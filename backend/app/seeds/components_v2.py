@@ -13,27 +13,26 @@ Or via Makefile:
 
 import asyncio
 import logging
-from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import async_session_maker
-from app.models.reference_component import ReferenceComponent
 from app.cad_v2.components import get_registry
 from app.cad_v2.schemas.components import ComponentDefinition
+from app.core.database import async_session_maker
+from app.models.reference_component import ReferenceComponent
 
 logger = logging.getLogger(__name__)
 
 
 def component_to_dict(comp: ComponentDefinition) -> dict[str, Any]:
     """Convert a ComponentDefinition to a database-friendly dict.
-    
+
     Args:
         comp: The component definition from the registry.
-        
+
     Returns:
         Dictionary with fields for ReferenceComponent model.
     """
@@ -45,7 +44,9 @@ def component_to_dict(comp: ComponentDefinition) -> dict[str, Any]:
             "width": comp.dimensions.width.value,
             "depth": comp.dimensions.depth.value,
             "height": comp.dimensions.height.value,
-            "unit": comp.dimensions.width.unit.value if hasattr(comp.dimensions.width, "unit") else "mm",
+            "unit": comp.dimensions.width.unit.value
+            if hasattr(comp.dimensions.width, "unit")
+            else "mm",
         },
         "mounting_holes": [
             {
@@ -64,9 +65,13 @@ def component_to_dict(comp: ComponentDefinition) -> dict[str, Any]:
                     "x": p.position.x,
                     "y": p.position.y,
                     "z": p.position.z,
-                } if p.position else None,
+                }
+                if p.position
+                else None,
                 "cutout_width": p.width.value if p.width and hasattr(p.width, "value") else None,
-                "cutout_height": p.height.value if p.height and hasattr(p.height, "value") else None,
+                "cutout_height": p.height.value
+                if p.height and hasattr(p.height, "value")
+                else None,
             }
             for p in (comp.ports or [])
         ],
@@ -77,25 +82,25 @@ def component_to_dict(comp: ComponentDefinition) -> dict[str, Any]:
 
 async def seed_components_v2(db: AsyncSession) -> tuple[int, int]:
     """Sync CAD v2 component registry with the database.
-    
+
     Creates or updates ReferenceComponent records for each
     component in the registry.
-    
+
     Args:
         db: Async database session.
-        
+
     Returns:
         Tuple of (created_count, updated_count).
     """
     registry = get_registry()
     components = registry.list_all()
-    
+
     created = 0
     updated = 0
-    
+
     for comp in components:
         comp_data = component_to_dict(comp)
-        
+
         # Check if component already exists by name and category (using as slug)
         existing = await db.execute(
             select(ReferenceComponent).where(
@@ -104,7 +109,7 @@ async def seed_components_v2(db: AsyncSession) -> tuple[int, int]:
             )
         )
         existing_comp = existing.scalar_one_or_none()
-        
+
         if existing_comp:
             # Update existing component
             existing_comp.category = comp_data["category"]
@@ -136,7 +141,7 @@ async def seed_components_v2(db: AsyncSession) -> tuple[int, int]:
             db.add(new_comp)
             created += 1
             logger.debug(f"Created component: {comp.id}")
-    
+
     await db.commit()
     return created, updated
 
@@ -145,11 +150,11 @@ async def main() -> None:
     """Run component seeding."""
     logging.basicConfig(level=logging.INFO)
     logger.info("Seeding CAD v2 components from registry...")
-    
+
     async with async_session_maker() as db:
         created, updated = await seed_components_v2(db)
         logger.info(f"Component seeding complete: {created} created, {updated} updated")
-        
+
         # Log summary
         registry = get_registry()
         logger.info(f"Total components in registry: {registry.count}")

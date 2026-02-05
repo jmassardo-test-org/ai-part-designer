@@ -4,37 +4,35 @@ Service layer for rating and community features.
 Handles template ratings, feedback, comments, reports, and moderation.
 """
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.rating import (
-    TemplateRating,
-    TemplateFeedback,
-    TemplateComment,
     ContentReport,
-    UserBan,
     FeedbackType,
     ReportStatus,
-    ReportTargetType,
+    TemplateComment,
+    TemplateFeedback,
+    TemplateRating,
+    UserBan,
 )
 from app.models.template import Template
-from app.models.user import User
 from app.schemas.rating import (
-    TemplateRatingCreate,
-    TemplateFeedbackCreate,
+    BanCreate,
     CommentCreate,
     CommentUpdate,
+    ModerationStats,
     ReportCreate,
     ReportResolve,
-    BanCreate,
-    TemplateRatingSummary,
+    TemplateFeedbackCreate,
     TemplateFeedbackSummary,
-    ModerationStats,
+    TemplateRatingCreate,
+    TemplateRatingSummary,
 )
 
 
@@ -43,7 +41,7 @@ class RatingService:
 
     def __init__(self, db: AsyncSession):
         """Initialize rating service.
-        
+
         Args:
             db: Async database session.
         """
@@ -56,12 +54,12 @@ class RatingService:
         data: TemplateRatingCreate,
     ) -> TemplateRating:
         """Create or update a template rating.
-        
+
         Args:
             template_id: Template to rate.
             user_id: User rating the template.
             data: Rating data.
-            
+
         Returns:
             Created or updated rating.
         """
@@ -103,11 +101,11 @@ class RatingService:
         user_id: UUID,
     ) -> TemplateRating | None:
         """Get user's rating for a template.
-        
+
         Args:
             template_id: Template ID.
             user_id: User ID.
-            
+
         Returns:
             Rating or None if not rated.
         """
@@ -127,12 +125,12 @@ class RatingService:
         offset: int = 0,
     ) -> tuple[Sequence[TemplateRating], int]:
         """Get ratings for a template with pagination.
-        
+
         Args:
             template_id: Template ID.
             limit: Maximum results.
             offset: Offset for pagination.
-            
+
         Returns:
             Tuple of (ratings, total_count).
         """
@@ -161,10 +159,10 @@ class RatingService:
 
     async def get_rating_summary(self, template_id: UUID) -> TemplateRatingSummary:
         """Get rating summary for a template.
-        
+
         Args:
             template_id: Template ID.
-            
+
         Returns:
             Rating summary with distribution.
         """
@@ -175,7 +173,7 @@ class RatingService:
         ).where(TemplateRating.template_id == template_id)
         result = await self.db.execute(stmt)
         row = result.one()
-        
+
         avg_rating = float(row.avg) if row.avg else 0.0
         total = row.total or 0
 
@@ -189,7 +187,7 @@ class RatingService:
             .group_by(TemplateRating.rating)
         )
         dist_result = await self.db.execute(dist_stmt)
-        distribution = {i: 0 for i in range(1, 6)}
+        distribution = dict.fromkeys(range(1, 6), 0)
         for row in dist_result:
             distribution[row.rating] = row.count
 
@@ -202,11 +200,11 @@ class RatingService:
 
     async def delete_rating(self, template_id: UUID, user_id: UUID) -> bool:
         """Delete a user's rating.
-        
+
         Args:
             template_id: Template ID.
             user_id: User ID.
-            
+
         Returns:
             True if deleted, False if not found.
         """
@@ -228,7 +226,7 @@ class RatingService:
 
     async def _update_template_avg_rating(self, template_id: UUID) -> None:
         """Update template's cached average rating.
-        
+
         Args:
             template_id: Template ID.
         """
@@ -242,7 +240,7 @@ class RatingService:
         template_stmt = select(Template).where(Template.id == template_id)
         template_result = await self.db.execute(template_stmt)
         template = template_result.scalar_one_or_none()
-        
+
         if template:
             template.avg_rating = float(avg) if avg else None
 
@@ -252,7 +250,7 @@ class FeedbackService:
 
     def __init__(self, db: AsyncSession):
         """Initialize feedback service.
-        
+
         Args:
             db: Async database session.
         """
@@ -265,12 +263,12 @@ class FeedbackService:
         data: TemplateFeedbackCreate,
     ) -> TemplateFeedback:
         """Set feedback for a template.
-        
+
         Args:
             template_id: Template ID.
             user_id: User ID.
             data: Feedback data.
-            
+
         Returns:
             Created or updated feedback.
         """
@@ -299,11 +297,11 @@ class FeedbackService:
 
     async def remove_feedback(self, template_id: UUID, user_id: UUID) -> bool:
         """Remove user's feedback for a template.
-        
+
         Args:
             template_id: Template ID.
             user_id: User ID.
-            
+
         Returns:
             True if removed, False if not found.
         """
@@ -328,11 +326,11 @@ class FeedbackService:
         user_id: UUID | None = None,
     ) -> TemplateFeedbackSummary:
         """Get feedback summary for a template.
-        
+
         Args:
             template_id: Template ID.
             user_id: Optional user ID to include their feedback.
-            
+
         Returns:
             Feedback summary.
         """
@@ -389,7 +387,7 @@ class CommentService:
 
     def __init__(self, db: AsyncSession):
         """Initialize comment service.
-        
+
         Args:
             db: Async database session.
         """
@@ -402,12 +400,12 @@ class CommentService:
         data: CommentCreate,
     ) -> TemplateComment:
         """Create a new comment.
-        
+
         Args:
             template_id: Template ID.
             user_id: User ID.
             data: Comment data.
-            
+
         Returns:
             Created comment.
         """
@@ -428,12 +426,12 @@ class CommentService:
         data: CommentUpdate,
     ) -> TemplateComment | None:
         """Update a comment.
-        
+
         Args:
             comment_id: Comment ID.
             user_id: User ID (must match comment author).
             data: Update data.
-            
+
         Returns:
             Updated comment or None if not found/unauthorized.
         """
@@ -452,7 +450,7 @@ class CommentService:
         comment.content = data.content
         comment.is_edited = True
         comment.edited_at = datetime.utcnow()
-        
+
         await self.db.flush()
         return comment
 
@@ -463,12 +461,12 @@ class CommentService:
         is_admin: bool = False,
     ) -> bool:
         """Delete a comment.
-        
+
         Args:
             comment_id: Comment ID.
             user_id: User ID.
             is_admin: Whether user is an admin (can delete any comment).
-            
+
         Returns:
             True if deleted, False if not found/unauthorized.
         """
@@ -481,7 +479,7 @@ class CommentService:
                     TemplateComment.user_id == user_id,
                 )
             )
-        
+
         result = await self.db.execute(stmt)
         comment = result.scalar_one_or_none()
 
@@ -499,13 +497,13 @@ class CommentService:
         offset: int = 0,
     ) -> tuple[Sequence[TemplateComment], int]:
         """Get comments for a template.
-        
+
         Args:
             template_id: Template ID.
             include_hidden: Include hidden comments (for admins).
             limit: Maximum results.
             offset: Offset for pagination.
-            
+
         Returns:
             Tuple of (comments, total_count).
         """
@@ -515,7 +513,7 @@ class CommentService:
             TemplateComment.parent_id.is_(None),  # Only top-level comments
         ]
         if not include_hidden:
-            conditions.append(TemplateComment.is_hidden == False)
+            conditions.append(not TemplateComment.is_hidden)
 
         stmt = (
             select(TemplateComment)
@@ -529,11 +527,7 @@ class CommentService:
         comments = result.scalars().all()
 
         # Get total count
-        count_stmt = (
-            select(func.count())
-            .select_from(TemplateComment)
-            .where(and_(*conditions))
-        )
+        count_stmt = select(func.count()).select_from(TemplateComment).where(and_(*conditions))
         count_result = await self.db.execute(count_stmt)
         total = count_result.scalar() or 0
 
@@ -545,17 +539,17 @@ class CommentService:
         include_hidden: bool = False,
     ) -> Sequence[TemplateComment]:
         """Get replies to a comment.
-        
+
         Args:
             comment_id: Parent comment ID.
             include_hidden: Include hidden replies.
-            
+
         Returns:
             List of reply comments.
         """
         conditions = [TemplateComment.parent_id == comment_id]
         if not include_hidden:
-            conditions.append(TemplateComment.is_hidden == False)
+            conditions.append(not TemplateComment.is_hidden)
 
         stmt = (
             select(TemplateComment)
@@ -573,12 +567,12 @@ class CommentService:
         reason: str | None = None,
     ) -> TemplateComment | None:
         """Hide a comment (moderation).
-        
+
         Args:
             comment_id: Comment ID.
             moderator_id: Moderator user ID.
             reason: Reason for hiding.
-            
+
         Returns:
             Updated comment or None if not found.
         """
@@ -593,16 +587,16 @@ class CommentService:
         comment.hidden_by_id = moderator_id
         comment.hidden_at = datetime.utcnow()
         comment.hidden_reason = reason
-        
+
         await self.db.flush()
         return comment
 
     async def unhide_comment(self, comment_id: UUID) -> TemplateComment | None:
         """Unhide a comment.
-        
+
         Args:
             comment_id: Comment ID.
-            
+
         Returns:
             Updated comment or None if not found.
         """
@@ -617,16 +611,16 @@ class CommentService:
         comment.hidden_by_id = None
         comment.hidden_at = None
         comment.hidden_reason = None
-        
+
         await self.db.flush()
         return comment
 
     async def get_reply_count(self, comment_id: UUID) -> int:
         """Get number of replies to a comment.
-        
+
         Args:
             comment_id: Parent comment ID.
-            
+
         Returns:
             Number of visible replies.
         """
@@ -636,7 +630,7 @@ class CommentService:
             .where(
                 and_(
                     TemplateComment.parent_id == comment_id,
-                    TemplateComment.is_hidden == False,
+                    not TemplateComment.is_hidden,
                 )
             )
         )
@@ -649,7 +643,7 @@ class ReportService:
 
     def __init__(self, db: AsyncSession):
         """Initialize report service.
-        
+
         Args:
             db: Async database session.
         """
@@ -661,11 +655,11 @@ class ReportService:
         data: ReportCreate,
     ) -> ContentReport:
         """Create a content report.
-        
+
         Args:
             reporter_id: User filing the report.
             data: Report data.
-            
+
         Returns:
             Created report.
         """
@@ -683,10 +677,10 @@ class ReportService:
 
     async def get_report(self, report_id: UUID) -> ContentReport | None:
         """Get a report by ID.
-        
+
         Args:
             report_id: Report ID.
-            
+
         Returns:
             Report or None.
         """
@@ -700,11 +694,11 @@ class ReportService:
         offset: int = 0,
     ) -> tuple[Sequence[ContentReport], int]:
         """Get pending reports for moderation queue.
-        
+
         Args:
             limit: Maximum results.
             offset: Offset for pagination.
-            
+
         Returns:
             Tuple of (reports, total_count).
         """
@@ -736,12 +730,12 @@ class ReportService:
         data: ReportResolve,
     ) -> ContentReport | None:
         """Resolve a report.
-        
+
         Args:
             report_id: Report ID.
             moderator_id: Moderator resolving the report.
             data: Resolution data.
-            
+
         Returns:
             Updated report or None if not found.
         """
@@ -765,12 +759,12 @@ class ReportService:
         notes: str | None = None,
     ) -> ContentReport | None:
         """Dismiss a report.
-        
+
         Args:
             report_id: Report ID.
             moderator_id: Moderator dismissing the report.
             notes: Optional notes.
-            
+
         Returns:
             Updated report or None if not found.
         """
@@ -789,10 +783,10 @@ class ReportService:
 
     async def get_user_report_count(self, user_id: UUID) -> int:
         """Get number of reports filed by a user.
-        
+
         Args:
             user_id: User ID.
-            
+
         Returns:
             Number of reports.
         """
@@ -810,7 +804,7 @@ class BanService:
 
     def __init__(self, db: AsyncSession):
         """Initialize ban service.
-        
+
         Args:
             db: Async database session.
         """
@@ -822,11 +816,11 @@ class BanService:
         data: BanCreate,
     ) -> UserBan:
         """Ban a user.
-        
+
         Args:
             admin_id: Admin performing the ban.
             data: Ban data.
-            
+
         Returns:
             Created ban.
         """
@@ -854,12 +848,12 @@ class BanService:
         reason: str,
     ) -> UserBan | None:
         """Unban a user.
-        
+
         Args:
             ban_id: Ban ID.
             admin_id: Admin performing the unban.
             reason: Reason for unbanning.
-            
+
         Returns:
             Updated ban or None if not found.
         """
@@ -880,10 +874,10 @@ class BanService:
 
     async def get_active_ban(self, user_id: UUID) -> UserBan | None:
         """Get active ban for a user.
-        
+
         Args:
             user_id: User ID.
-            
+
         Returns:
             Active ban or None.
         """
@@ -892,7 +886,7 @@ class BanService:
             .where(
                 and_(
                     UserBan.user_id == user_id,
-                    UserBan.is_active == True,
+                    UserBan.is_active,
                 )
             )
             .order_by(UserBan.created_at.desc())
@@ -912,10 +906,10 @@ class BanService:
 
     async def is_user_banned(self, user_id: UUID) -> bool:
         """Check if a user is currently banned.
-        
+
         Args:
             user_id: User ID.
-            
+
         Returns:
             True if banned, False otherwise.
         """
@@ -928,17 +922,17 @@ class BanService:
         offset: int = 0,
     ) -> tuple[Sequence[UserBan], int]:
         """Get all active bans.
-        
+
         Args:
             limit: Maximum results.
             offset: Offset for pagination.
-            
+
         Returns:
             Tuple of (bans, total_count).
         """
         stmt = (
             select(UserBan)
-            .where(UserBan.is_active == True)
+            .where(UserBan.is_active)
             .options(selectinload(UserBan.user))
             .order_by(UserBan.created_at.desc())
             .limit(limit)
@@ -947,11 +941,7 @@ class BanService:
         result = await self.db.execute(stmt)
         bans = result.scalars().all()
 
-        count_stmt = (
-            select(func.count())
-            .select_from(UserBan)
-            .where(UserBan.is_active == True)
-        )
+        count_stmt = select(func.count()).select_from(UserBan).where(UserBan.is_active)
         count_result = await self.db.execute(count_stmt)
         total = count_result.scalar() or 0
 
@@ -959,18 +949,14 @@ class BanService:
 
     async def get_user_ban_history(self, user_id: UUID) -> Sequence[UserBan]:
         """Get ban history for a user.
-        
+
         Args:
             user_id: User ID.
-            
+
         Returns:
             List of bans.
         """
-        stmt = (
-            select(UserBan)
-            .where(UserBan.user_id == user_id)
-            .order_by(UserBan.created_at.desc())
-        )
+        stmt = select(UserBan).where(UserBan.user_id == user_id).order_by(UserBan.created_at.desc())
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
@@ -980,7 +966,7 @@ class ModerationService:
 
     def __init__(self, db: AsyncSession):
         """Initialize moderation service.
-        
+
         Args:
             db: Async database session.
         """
@@ -991,7 +977,7 @@ class ModerationService:
 
     async def get_moderation_stats(self) -> ModerationStats:
         """Get moderation dashboard statistics.
-        
+
         Returns:
             Moderation stats.
         """
@@ -1007,9 +993,7 @@ class ModerationService:
         # Reports today
         today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         today_stmt = (
-            select(func.count())
-            .select_from(ContentReport)
-            .where(ContentReport.created_at >= today)
+            select(func.count()).select_from(ContentReport).where(ContentReport.created_at >= today)
         )
         today_result = await self.db.execute(today_stmt)
         reports_today = today_result.scalar() or 0
@@ -1025,19 +1009,13 @@ class ModerationService:
         reports_this_week = week_result.scalar() or 0
 
         # Active bans
-        bans_stmt = (
-            select(func.count())
-            .select_from(UserBan)
-            .where(UserBan.is_active == True)
-        )
+        bans_stmt = select(func.count()).select_from(UserBan).where(UserBan.is_active)
         bans_result = await self.db.execute(bans_stmt)
         active_bans = bans_result.scalar() or 0
 
         # Hidden comments
         hidden_stmt = (
-            select(func.count())
-            .select_from(TemplateComment)
-            .where(TemplateComment.is_hidden == True)
+            select(func.count()).select_from(TemplateComment).where(TemplateComment.is_hidden)
         )
         hidden_result = await self.db.execute(hidden_stmt)
         hidden_comments = hidden_result.scalar() or 0

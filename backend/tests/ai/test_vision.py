@@ -4,14 +4,12 @@ Tests for AI Vision Module.
 Tests extracted dimensions dataclass and vision extraction structures.
 """
 
-import pytest
-
 from app.ai.vision import ExtractedDimensions
-
 
 # =============================================================================
 # ExtractedDimensions Tests
 # =============================================================================
+
 
 class TestExtractedDimensions:
     """Tests for ExtractedDimensions dataclass."""
@@ -19,7 +17,7 @@ class TestExtractedDimensions:
     def test_default_creation(self):
         """Test creating with defaults."""
         dims = ExtractedDimensions()
-        
+
         assert dims.overall_dimensions is None
         assert dims.mounting_holes is None
         assert dims.cutouts is None
@@ -39,7 +37,7 @@ class TestExtractedDimensions:
                 "unit": "mm",
             }
         )
-        
+
         assert dims.overall_dimensions["length"] == 100
         assert dims.overall_dimensions["width"] == 80
         assert dims.overall_dimensions["height"] == 50
@@ -54,7 +52,7 @@ class TestExtractedDimensions:
             {"x": 90, "y": 70, "diameter": 5, "type": "threaded"},
         ]
         dims = ExtractedDimensions(mounting_holes=holes)
-        
+
         assert len(dims.mounting_holes) == 4
         assert dims.mounting_holes[0]["x"] == 10
         assert dims.mounting_holes[2]["type"] == "threaded"
@@ -66,7 +64,7 @@ class TestExtractedDimensions:
             {"type": "circular", "x": 50, "y": 50, "diameter": 25},
         ]
         dims = ExtractedDimensions(cutouts=cutouts)
-        
+
         assert len(dims.cutouts) == 2
         assert dims.cutouts[0]["type"] == "rectangular"
         assert dims.cutouts[1]["type"] == "circular"
@@ -78,7 +76,7 @@ class TestExtractedDimensions:
             {"type": "HDMI", "x": 60, "y": 5, "width": 15, "height": 6},
         ]
         dims = ExtractedDimensions(connectors=connectors)
-        
+
         assert len(dims.connectors) == 2
         assert dims.connectors[0]["type"] == "USB-C"
         assert dims.connectors[1]["type"] == "HDMI"
@@ -91,7 +89,7 @@ class TestExtractedDimensions:
             "length": "+0.2/-0.1",
         }
         dims = ExtractedDimensions(tolerances=tolerances)
-        
+
         assert dims.tolerances["general"] == "+/- 0.1"
         assert dims.tolerances["hole_positions"] == "+/- 0.05"
 
@@ -103,7 +101,7 @@ class TestExtractedDimensions:
             "Deburr all edges",
         ]
         dims = ExtractedDimensions(notes=notes)
-        
+
         assert len(dims.notes) == 3
         assert "millimeters" in dims.notes[0]
 
@@ -111,13 +109,13 @@ class TestExtractedDimensions:
         """Test with raw response."""
         raw = '{"overall_dimensions": {"length": 100}}'
         dims = ExtractedDimensions(raw_response=raw)
-        
+
         assert dims.raw_response == raw
 
     def test_with_confidence(self):
         """Test with confidence score."""
         dims = ExtractedDimensions(confidence=0.95)
-        
+
         assert dims.confidence == 0.95
 
     def test_full_extraction(self):
@@ -132,7 +130,7 @@ class TestExtractedDimensions:
             raw_response='{"test": true}',
             confidence=0.92,
         )
-        
+
         assert dims.overall_dimensions is not None
         assert dims.mounting_holes is not None
         assert dims.cutouts is not None
@@ -147,6 +145,7 @@ class TestExtractedDimensions:
 # to_dict Tests
 # =============================================================================
 
+
 class TestExtractedDimensionsToDict:
     """Tests for ExtractedDimensions to_dict method."""
 
@@ -154,7 +153,7 @@ class TestExtractedDimensionsToDict:
         """Test to_dict with defaults."""
         dims = ExtractedDimensions()
         result = dims.to_dict()
-        
+
         assert "overall_dimensions" in result
         assert "mounting_holes" in result
         assert "cutouts" in result
@@ -162,7 +161,7 @@ class TestExtractedDimensionsToDict:
         assert "tolerances" in result
         assert "notes" in result
         assert "confidence" in result
-        
+
         assert result["overall_dimensions"] is None
         assert result["confidence"] == 0.0
 
@@ -174,7 +173,7 @@ class TestExtractedDimensionsToDict:
             confidence=0.85,
         )
         result = dims.to_dict()
-        
+
         assert result["overall_dimensions"]["length"] == 100
         assert len(result["mounting_holes"]) == 1
         assert result["confidence"] == 0.85
@@ -186,7 +185,7 @@ class TestExtractedDimensionsToDict:
             confidence=0.9,
         )
         result = dims.to_dict()
-        
+
         # raw_response should not be in the output dict
         assert "raw_response" not in result
 
@@ -197,7 +196,7 @@ class TestExtractedDimensionsToDict:
         )
         result1 = dims.to_dict()
         result2 = dims.to_dict()
-        
+
         assert result1 is not result2
 
 
@@ -205,19 +204,20 @@ class TestExtractedDimensionsToDict:
 # Edge Cases
 # =============================================================================
 
+
 class TestVisionEdgeCases:
     """Tests for edge cases in vision module."""
 
     def test_zero_confidence(self):
         """Test zero confidence."""
         dims = ExtractedDimensions(confidence=0.0)
-        
+
         assert dims.confidence == 0.0
 
     def test_full_confidence(self):
         """Test full confidence (1.0)."""
         dims = ExtractedDimensions(confidence=1.0)
-        
+
         assert dims.confidence == 1.0
 
     def test_empty_lists(self):
@@ -228,7 +228,7 @@ class TestVisionEdgeCases:
             connectors=[],
             notes=[],
         )
-        
+
         assert dims.mounting_holes == []
         assert dims.cutouts == []
         assert dims.connectors == []
@@ -240,7 +240,7 @@ class TestVisionEdgeCases:
             overall_dimensions={},
             tolerances={},
         )
-        
+
         assert dims.overall_dimensions == {}
         assert dims.tolerances == {}
 
@@ -259,7 +259,7 @@ class TestVisionEdgeCases:
             },
         ]
         dims = ExtractedDimensions(mounting_holes=holes)
-        
+
         assert dims.mounting_holes[0]["metadata"]["thread_pitch"] == 0.8
 
     def test_very_small_dimensions(self):
@@ -271,7 +271,7 @@ class TestVisionEdgeCases:
                 "height": 0.01,
             }
         )
-        
+
         assert dims.overall_dimensions["length"] == 0.1
         assert dims.overall_dimensions["height"] == 0.01
 
@@ -284,17 +284,14 @@ class TestVisionEdgeCases:
                 "height": 2000,
             }
         )
-        
+
         assert dims.overall_dimensions["length"] == 10000
 
     def test_many_mounting_holes(self):
         """Test with many mounting holes."""
-        holes = [
-            {"x": i * 10, "y": 0, "diameter": 3}
-            for i in range(100)
-        ]
+        holes = [{"x": i * 10, "y": 0, "diameter": 3} for i in range(100)]
         dims = ExtractedDimensions(mounting_holes=holes)
-        
+
         assert len(dims.mounting_holes) == 100
 
     def test_unicode_in_notes(self):
@@ -306,6 +303,6 @@ class TestVisionEdgeCases:
                 "Surface: Ra 1.6μm",
             ]
         )
-        
+
         assert "±" in dims.notes[0]
         assert "μm" in dims.notes[2]

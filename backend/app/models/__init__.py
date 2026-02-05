@@ -5,43 +5,21 @@ This module exports all database models for the application.
 Models follow the schema defined in docs/database-schema.md
 """
 
-from app.models.base import Base, TimestampMixin, SoftDeleteMixin
-from app.models.user import User, UserSettings, Subscription
-from app.models.subscription import (
-    SubscriptionTier,
-    CreditBalance,
-    CreditTransaction,
-    UsageQuota,
-    TransactionType,
-    TierSlug,
-    OPERATION_COSTS,
-    get_operation_cost,
+from app.models.annotation import (
+    AnnotationStatus,
+    AnnotationType,
+    DesignAnnotation,
 )
-from app.models.project import Project
-from app.models.template import Template
-from app.models.design import Design, DesignVersion, DesignShare
-from app.models.job import Job
-from app.models.file import File
-from app.models.moderation import ModerationLog
 from app.models.api_key import APIKey
-from app.models.audit import AuditLog
 from app.models.assembly import (
     Assembly,
     AssemblyComponent,
+    BOMItem,
     ComponentRelationship,
     Vendor,
-    BOMItem,
 )
-from app.models.reference_component import (
-    ReferenceComponent,
-    ComponentLibrary,
-    ComponentExtractionJob,
-    UserComponent,
-)
-from app.models.spatial_layout import (
-    SpatialLayout,
-    ComponentPlacement,
-)
+from app.models.audit import AuditLog
+from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 from app.models.conversation import (
     Conversation,
     ConversationMessage,
@@ -49,159 +27,182 @@ from app.models.conversation import (
     MessageRole,
     MessageType,
 )
-from app.models.organization import (
-    Organization,
-    OrganizationMember,
-    OrganizationInvite,
-    OrganizationCreditBalance,
-    OrganizationAuditLog,
-    OrganizationRole,
-    InviteStatus,
-)
-from app.models.annotation import (
-    DesignAnnotation,
-    AnnotationType,
-    AnnotationStatus,
-)
-from app.models.notification import (
-    Notification,
-    NotificationPreference,
-    NotificationType,
-    NotificationPriority,
-    DEFAULT_PREFERENCES,
-)
+from app.models.design import Design, DesignShare, DesignVersion
 from app.models.design_context import (
     DesignContext,
     DesignRefinementJob,
+)
+from app.models.file import File
+from app.models.job import Job
+from app.models.marketplace import (
+    DesignList,
+    DesignListItem,
+    DesignSave,
+)
+from app.models.moderation import ModerationLog
+from app.models.notification import (
+    DEFAULT_PREFERENCES,
+    Notification,
+    NotificationPreference,
+    NotificationPriority,
+    NotificationType,
+)
+from app.models.oauth import OAuthConnection
+from app.models.organization import (
+    InviteStatus,
+    Organization,
+    OrganizationAuditLog,
+    OrganizationCreditBalance,
+    OrganizationInvite,
+    OrganizationMember,
+    OrganizationRole,
 )
 from app.models.payment import (
     PaymentHistory,
     PaymentStatus,
     PaymentType,
 )
-from app.models.oauth import OAuthConnection
-from app.models.team import (
-    Team,
-    TeamMember,
-    TeamRole,
-    ProjectTeam,
-)
+from app.models.project import Project
 from app.models.rating import (
-    TemplateRating,
-    TemplateFeedback,
-    TemplateComment,
     ContentReport,
-    UserBan,
     FeedbackType,
     ReportReason,
     ReportStatus,
     ReportTargetType,
+    TemplateComment,
+    TemplateFeedback,
+    TemplateRating,
+    UserBan,
 )
-from app.models.marketplace import (
-    DesignList,
-    DesignListItem,
-    DesignSave,
+from app.models.reference_component import (
+    ComponentExtractionJob,
+    ComponentLibrary,
+    ReferenceComponent,
+    UserComponent,
 )
+from app.models.spatial_layout import (
+    ComponentPlacement,
+    SpatialLayout,
+)
+from app.models.subscription import (
+    OPERATION_COSTS,
+    CreditBalance,
+    CreditTransaction,
+    SubscriptionTier,
+    TierSlug,
+    TransactionType,
+    UsageQuota,
+    get_operation_cost,
+)
+from app.models.team import (
+    ProjectTeam,
+    Team,
+    TeamMember,
+    TeamRole,
+)
+from app.models.template import Template
+from app.models.user import Subscription, User, UserSettings
+
 __all__ = [
-    # Base
-    "Base",
-    "TimestampMixin",
-    "SoftDeleteMixin",
-    # User domain
-    "User",
-    "UserSettings",
-    "Subscription",
-    # Project domain
-    "Project",
-    # Template domain
-    "Template",
-    # Design domain
-    "Design",
-    "DesignVersion",
-    "DesignShare",
-    # Job domain
-    "Job",
-    # File domain
-    "File",
+    "DEFAULT_PREFERENCES",
+    "OPERATION_COSTS",
+    # API
+    "APIKey",
+    "AnnotationStatus",
+    "AnnotationType",
     # Assembly domain
     "Assembly",
     "AssemblyComponent",
-    "ComponentRelationship",
-    "Vendor",
-    "BOMItem",
-    # Reference Component domain
-    "ReferenceComponent",
-    "ComponentLibrary",
-    "ComponentExtractionJob",
-    "UserComponent",
-    # Spatial Layout domain
-    "SpatialLayout",
-    "ComponentPlacement",
-    # Moderation
-    "ModerationLog",
-    # API
-    "APIKey",
     # Audit
     "AuditLog",
+    "BOMItem",
+    # Base
+    "Base",
+    "ComponentExtractionJob",
+    "ComponentLibrary",
+    "ComponentPlacement",
+    "ComponentRelationship",
+    "ContentReport",
     # Conversation
     "Conversation",
     "ConversationMessage",
     "ConversationStatus",
-    "MessageRole",
-    "MessageType",
-    # Subscription & Credits
-    "SubscriptionTier",
     "CreditBalance",
     "CreditTransaction",
-    "UsageQuota",
-    "TransactionType",
-    "TierSlug",
-    "OPERATION_COSTS",
-    "get_operation_cost",
-    # Organization
-    "Organization",
-    "OrganizationMember",
-    "OrganizationInvite",
-    "OrganizationCreditBalance",
-    "OrganizationAuditLog",
-    "OrganizationRole",
-    "InviteStatus",
+    # Design domain
+    "Design",
     # Annotations
     "DesignAnnotation",
-    "AnnotationType",
-    "AnnotationStatus",
+    # Design Context
+    "DesignContext",
+    # Marketplace
+    "DesignList",
+    "DesignListItem",
+    "DesignRefinementJob",
+    "DesignSave",
+    "DesignShare",
+    "DesignVersion",
+    "FeedbackType",
+    # File domain
+    "File",
+    "InviteStatus",
+    # Job domain
+    "Job",
+    "MessageRole",
+    "MessageType",
+    # Moderation
+    "ModerationLog",
     # Notifications
     "Notification",
     "NotificationPreference",
-    "NotificationType",
     "NotificationPriority",
-    "DEFAULT_PREFERENCES",
-    # Design Context
-    "DesignContext",
-    "DesignRefinementJob",
+    "NotificationType",
+    # OAuth
+    "OAuthConnection",
+    # Organization
+    "Organization",
+    "OrganizationAuditLog",
+    "OrganizationCreditBalance",
+    "OrganizationInvite",
+    "OrganizationMember",
+    "OrganizationRole",
     # Payment
     "PaymentHistory",
     "PaymentStatus",
     "PaymentType",
-    # OAuth
-    "OAuthConnection",
+    # Project domain
+    "Project",
+    "ProjectTeam",
+    # Reference Component domain
+    "ReferenceComponent",
+    "ReportReason",
+    "ReportStatus",
+    "ReportTargetType",
+    "SoftDeleteMixin",
+    # Spatial Layout domain
+    "SpatialLayout",
+    "Subscription",
+    # Subscription & Credits
+    "SubscriptionTier",
     # Teams
     "Team",
     "TeamMember",
     "TeamRole",
-    "ProjectTeam",
+    # Template domain
+    "Template",
+    "TemplateComment",
+    "TemplateFeedback",
     # Ratings & Community
     "TemplateRating",
-    "TemplateFeedback",
-    "TemplateComment",
-    "ContentReport",
+    "TierSlug",
+    "TimestampMixin",
+    "TransactionType",
+    "UsageQuota",
+    # User domain
+    "User",
     "UserBan",
-    "FeedbackType",
-    "ReportReason",
-    "ReportStatus",
-    "ReportTargetType",
-    # Marketplace
-    "DesignList",
-    "DesignListItem",
-    "DesignSave",
+    "UserComponent",
+    "UserSettings",
+    "Vendor",
+    "get_operation_cost",
 ]

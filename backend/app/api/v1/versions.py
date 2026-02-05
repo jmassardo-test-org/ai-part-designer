@@ -15,7 +15,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -34,7 +34,7 @@ router = APIRouter()
 
 class VersionSummary(BaseModel):
     """Summary info for a design version."""
-    
+
     id: UUID
     version_number: int
     created_at: datetime
@@ -43,21 +43,21 @@ class VersionSummary(BaseModel):
     file_url: str
     thumbnail_url: str | None = None
     geometry_info: dict = Field(default_factory=dict)
-    
+
     class Config:
         from_attributes = True
 
 
 class VersionDetail(VersionSummary):
     """Full version details including parameters and formats."""
-    
+
     parameters: dict = Field(default_factory=dict)
     file_formats: dict = Field(default_factory=dict)
 
 
 class VersionListResponse(BaseModel):
     """Paginated version list response."""
-    
+
     versions: list[VersionSummary]
     total: int
     page: int
@@ -66,7 +66,7 @@ class VersionListResponse(BaseModel):
 
 class RestoreVersionRequest(BaseModel):
     """Request to restore a version."""
-    
+
     description: str | None = Field(
         default=None,
         description="Optional description for the restoration",
@@ -76,7 +76,7 @@ class RestoreVersionRequest(BaseModel):
 
 class RestoreVersionResponse(BaseModel):
     """Response after restoring a version."""
-    
+
     new_version_id: UUID
     new_version_number: int
     restored_from_version: int
@@ -85,7 +85,7 @@ class RestoreVersionResponse(BaseModel):
 
 class VersionComparisonResponse(BaseModel):
     """Response comparing two versions."""
-    
+
     version_a: VersionSummary
     version_b: VersionSummary
     parameter_diff: dict
@@ -94,7 +94,7 @@ class VersionComparisonResponse(BaseModel):
 
 class VersionDiffItem(BaseModel):
     """Single diff item between versions."""
-    
+
     field: str
     old_value: str | float | int | bool | None
     new_value: str | float | int | bool | None
@@ -103,7 +103,7 @@ class VersionDiffItem(BaseModel):
 
 class VersionDiffResponse(BaseModel):
     """Detailed diff between two versions."""
-    
+
     from_version: int
     to_version: int
     parameter_changes: list[VersionDiffItem]
@@ -122,20 +122,16 @@ async def get_design_or_404(
     user: User,
 ) -> Design:
     """Get design with ownership check."""
-    query = (
-        select(Design)
-        .where(Design.id == design_id)
-        .where(Design.deleted_at.is_(None))
-    )
+    query = select(Design).where(Design.id == design_id).where(Design.deleted_at.is_(None))
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     # Check ownership or share access
     if design.project.user_id != user.id:
         # TODO: Check for share access
@@ -143,7 +139,7 @@ async def get_design_or_404(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return design
 
 
@@ -160,13 +156,13 @@ async def get_version_or_404(
     )
     result = await db.execute(query)
     version = result.scalar_one_or_none()
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Version not found",
         )
-    
+
     # Check ownership through design
     design = version.design
     if design.project.user_id != user.id:
@@ -174,7 +170,7 @@ async def get_version_or_404(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return version
 
 
@@ -186,38 +182,44 @@ def compute_dict_diff(
     """Compute differences between two dictionaries."""
     changes = []
     all_keys = set(old_dict.keys()) | set(new_dict.keys())
-    
+
     for key in all_keys:
         field = f"{prefix}{key}" if prefix else key
         old_val = old_dict.get(key)
         new_val = new_dict.get(key)
-        
+
         if key not in old_dict:
-            changes.append(VersionDiffItem(
-                field=field,
-                old_value=None,
-                new_value=new_val,
-                change_type="added",
-            ))
+            changes.append(
+                VersionDiffItem(
+                    field=field,
+                    old_value=None,
+                    new_value=new_val,
+                    change_type="added",
+                )
+            )
         elif key not in new_dict:
-            changes.append(VersionDiffItem(
-                field=field,
-                old_value=old_val,
-                new_value=None,
-                change_type="removed",
-            ))
+            changes.append(
+                VersionDiffItem(
+                    field=field,
+                    old_value=old_val,
+                    new_value=None,
+                    change_type="removed",
+                )
+            )
         elif old_val != new_val:
             # Recurse for nested dicts
             if isinstance(old_val, dict) and isinstance(new_val, dict):
                 changes.extend(compute_dict_diff(old_val, new_val, f"{field}."))
             else:
-                changes.append(VersionDiffItem(
-                    field=field,
-                    old_value=old_val,
-                    new_value=new_val,
-                    change_type="modified",
-                ))
-    
+                changes.append(
+                    VersionDiffItem(
+                        field=field,
+                        old_value=old_val,
+                        new_value=new_val,
+                        change_type="modified",
+                    )
+                )
+
     return changes
 
 
@@ -242,15 +244,13 @@ async def list_versions(
     """List all versions of a design."""
     # Verify access
     await get_design_or_404(design_id, db, current_user)
-    
+
     # Count total
     count_query = (
-        select(func.count())
-        .select_from(DesignVersion)
-        .where(DesignVersion.design_id == design_id)
+        select(func.count()).select_from(DesignVersion).where(DesignVersion.design_id == design_id)
     )
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch versions
     offset = (page - 1) * page_size
     query = (
@@ -263,7 +263,7 @@ async def list_versions(
     )
     result = await db.execute(query)
     versions = result.scalars().all()
-    
+
     return VersionListResponse(
         versions=[
             VersionSummary(
@@ -297,7 +297,7 @@ async def get_version(
 ) -> VersionDetail:
     """Get detailed version information."""
     version = await get_version_or_404(version_id, db, current_user)
-    
+
     return VersionDetail(
         id=version.id,
         version_number=version.version_number,
@@ -328,14 +328,13 @@ async def restore_version(
     """Restore a previous version, creating a new version."""
     version = await get_version_or_404(version_id, db, current_user)
     design = version.design
-    
+
     # Get the latest version number
-    latest_query = (
-        select(func.max(DesignVersion.version_number))
-        .where(DesignVersion.design_id == design.id)
+    latest_query = select(func.max(DesignVersion.version_number)).where(
+        DesignVersion.design_id == design.id
     )
     latest_num = (await db.execute(latest_query)).scalar_one() or 0
-    
+
     # Create new version as copy of restored version
     new_version = DesignVersion(
         design_id=design.id,
@@ -348,16 +347,16 @@ async def restore_version(
         geometry_info=version.geometry_info,
         change_description=request.description or f"Restored from version {version.version_number}",
     )
-    
+
     db.add(new_version)
-    
+
     # Update design to point to new version
     design.current_version_id = new_version.id
     design.updated_at = func.now()
-    
+
     await db.commit()
     await db.refresh(new_version)
-    
+
     return RestoreVersionResponse(
         new_version_id=new_version.id,
         new_version_number=new_version.version_number,
@@ -382,7 +381,7 @@ async def compare_versions(
     """Compare two versions of a design."""
     # Verify access
     await get_design_or_404(design_id, db, current_user)
-    
+
     # Fetch both versions
     query = (
         select(DesignVersion)
@@ -392,7 +391,7 @@ async def compare_versions(
     )
     result = await db.execute(query)
     versions = {v.version_number: v for v in result.scalars().all()}
-    
+
     if version_a not in versions:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -403,10 +402,10 @@ async def compare_versions(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_b} not found",
         )
-    
+
     v_a = versions[version_a]
     v_b = versions[version_b]
-    
+
     # Compute parameter differences
     param_diff = {}
     all_params = set(v_a.parameters.keys()) | set(v_b.parameters.keys())
@@ -415,7 +414,7 @@ async def compare_versions(
         val_b = v_b.parameters.get(key)
         if val_a != val_b:
             param_diff[key] = {"version_a": val_a, "version_b": val_b}
-    
+
     # Compute geometry differences
     geo_diff = {}
     for key in ["volume", "surfaceArea", "triangleCount"]:
@@ -423,7 +422,7 @@ async def compare_versions(
         val_b = v_b.geometry_info.get(key)
         if val_a != val_b:
             geo_diff[key] = {"version_a": val_a, "version_b": val_b}
-    
+
     return VersionComparisonResponse(
         version_a=VersionSummary(
             id=v_a.id,
@@ -466,7 +465,7 @@ async def get_version_diff(
     """Get detailed diff between two versions."""
     # Verify access
     await get_design_or_404(design_id, db, current_user)
-    
+
     # Fetch both versions
     query = (
         select(DesignVersion)
@@ -475,7 +474,7 @@ async def get_version_diff(
     )
     result = await db.execute(query)
     versions = {v.version_number: v for v in result.scalars().all()}
-    
+
     if from_version not in versions:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -486,19 +485,19 @@ async def get_version_diff(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {to_version} not found",
         )
-    
+
     v_from = versions[from_version]
     v_to = versions[to_version]
-    
+
     # Compute diffs
     param_changes = compute_dict_diff(v_from.parameters, v_to.parameters)
     geo_changes = compute_dict_diff(v_from.geometry_info, v_to.geometry_info)
-    
+
     # Build summary
     added = sum(1 for c in param_changes + geo_changes if c.change_type == "added")
     removed = sum(1 for c in param_changes + geo_changes if c.change_type == "removed")
     modified = sum(1 for c in param_changes + geo_changes if c.change_type == "modified")
-    
+
     summary_parts = []
     if added:
         summary_parts.append(f"{added} added")
@@ -506,9 +505,9 @@ async def get_version_diff(
         summary_parts.append(f"{removed} removed")
     if modified:
         summary_parts.append(f"{modified} modified")
-    
+
     summary = ", ".join(summary_parts) if summary_parts else "No changes"
-    
+
     return VersionDiffResponse(
         from_version=from_version,
         to_version=to_version,
@@ -530,8 +529,8 @@ async def get_latest_version(
     current_user: User = Depends(get_current_user),
 ) -> VersionDetail:
     """Get the latest version of a design."""
-    design = await get_design_or_404(design_id, db, current_user)
-    
+    await get_design_or_404(design_id, db, current_user)
+
     # Get the latest version
     query = (
         select(DesignVersion)
@@ -542,13 +541,13 @@ async def get_latest_version(
     )
     result = await db.execute(query)
     version = result.scalar_one_or_none()
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No versions found for this design",
         )
-    
+
     return VersionDetail(
         id=version.id,
         version_number=version.version_number,

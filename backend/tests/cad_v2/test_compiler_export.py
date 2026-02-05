@@ -2,7 +2,6 @@
 
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 from build123d import Box, Part
@@ -17,7 +16,7 @@ from app.cad_v2.compiler.export import (
 
 def create_test_part() -> Part:
     """Create a simple Build123d Part for testing exports.
-    
+
     Returns:
         A simple Box Part that can be exported.
     """
@@ -190,6 +189,5 @@ class TestExportErrorHandling:
 
     def test_raises_export_error_for_invalid_extension(self) -> None:
         """Should raise ExportError for unsupported extensions."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ExportError):
-                export_part("mock", Path(tmpdir) / "test.obj")
+        with tempfile.TemporaryDirectory() as tmpdir, pytest.raises(ExportError):
+            export_part("mock", Path(tmpdir) / "test.obj")

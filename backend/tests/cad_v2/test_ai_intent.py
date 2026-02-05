@@ -90,9 +90,7 @@ class TestIntentParserQuickClassify:
 
     def test_features_extraction(self, parser: IntentParser) -> None:
         """Should extract feature mentions."""
-        result = parser._quick_classify(
-            "Create a case with USB port and ventilation"
-        )
+        result = parser._quick_classify("Create a case with USB port and ventilation")
         assert "usb" in result.features_mentioned
         assert "vent" in result.features_mentioned
 
@@ -161,9 +159,7 @@ class TestIntentParserComponentPatterns:
 
     def test_multiple_components(self, parser: IntentParser) -> None:
         """Should find multiple components."""
-        result = parser._quick_classify(
-            "Case for Raspberry Pi 5 with LCD display"
-        )
+        result = parser._quick_classify("Case for Raspberry Pi 5 with LCD display")
         assert "raspberry-pi-5" in result.components
         # LCD is matched as a feature, not component in quick classify
 

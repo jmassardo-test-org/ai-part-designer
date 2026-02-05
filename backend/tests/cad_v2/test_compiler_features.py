@@ -11,16 +11,14 @@ from app.cad_v2.schemas.base import BoundingBox, Dimension, Point2D
 from app.cad_v2.schemas.enclosure import EnclosureSpec, WallSide, WallSpec
 from app.cad_v2.schemas.features import (
     ButtonCutout,
-    CircleCutout,
     DisplayCutout,
     PortCutout,
-    RectangleCutout,
 )
 
 
 def create_test_body() -> Part:
     """Create a simple enclosure body for testing feature cutouts.
-    
+
     Returns:
         A Box Part representing a simplified enclosure body.
     """
@@ -110,48 +108,36 @@ class TestWallPositionCalculation:
 
     def test_front_wall_position(self, feature_compiler: FeatureCompiler) -> None:
         """Front wall position should be at -depth/2."""
-        pos = feature_compiler._get_wall_position(
-            WallSide.FRONT, Point2D(x=10, y=5)
-        )
+        pos = feature_compiler._get_wall_position(WallSide.FRONT, Point2D(x=10, y=5))
         assert pos[0] == 10  # x passed through
         assert pos[1] == -50  # -depth/2 = -100/2
         assert pos[2] == 5 + 25  # y + height/2
 
     def test_back_wall_position(self, feature_compiler: FeatureCompiler) -> None:
         """Back wall position should be at +depth/2."""
-        pos = feature_compiler._get_wall_position(
-            WallSide.BACK, Point2D(x=10, y=5)
-        )
+        pos = feature_compiler._get_wall_position(WallSide.BACK, Point2D(x=10, y=5))
         assert pos[0] == 10
         assert pos[1] == 50  # +depth/2
 
     def test_left_wall_position(self, feature_compiler: FeatureCompiler) -> None:
         """Left wall position should be at -width/2."""
-        pos = feature_compiler._get_wall_position(
-            WallSide.LEFT, Point2D(x=10, y=5)
-        )
+        pos = feature_compiler._get_wall_position(WallSide.LEFT, Point2D(x=10, y=5))
         assert pos[0] == -60  # -width/2 = -120/2
         assert pos[1] == 10  # x becomes y
 
     def test_right_wall_position(self, feature_compiler: FeatureCompiler) -> None:
         """Right wall position should be at +width/2."""
-        pos = feature_compiler._get_wall_position(
-            WallSide.RIGHT, Point2D(x=10, y=5)
-        )
+        pos = feature_compiler._get_wall_position(WallSide.RIGHT, Point2D(x=10, y=5))
         assert pos[0] == 60  # +width/2
 
     def test_top_wall_position(self, feature_compiler: FeatureCompiler) -> None:
         """Top wall position should be at +height/2."""
-        pos = feature_compiler._get_wall_position(
-            WallSide.TOP, Point2D(x=10, y=5)
-        )
+        pos = feature_compiler._get_wall_position(WallSide.TOP, Point2D(x=10, y=5))
         assert pos[2] == 25  # +height/2
 
     def test_bottom_wall_position(self, feature_compiler: FeatureCompiler) -> None:
         """Bottom wall position should be at -height/2."""
-        pos = feature_compiler._get_wall_position(
-            WallSide.BOTTOM, Point2D(x=10, y=5)
-        )
+        pos = feature_compiler._get_wall_position(WallSide.BOTTOM, Point2D(x=10, y=5))
         assert pos[2] == -25  # -height/2
 
 
@@ -237,9 +223,7 @@ class TestFeatureSchemaCreation:
 class TestFeatureApplication:
     """Tests for applying features to geometry."""
 
-    def test_apply_feature_returns_part(
-        self, feature_compiler: FeatureCompiler
-    ) -> None:
+    def test_apply_feature_returns_part(self, feature_compiler: FeatureCompiler) -> None:
         """apply_feature should return a modified part."""
         port = PortCutout(
             side=WallSide.FRONT,
@@ -285,7 +269,7 @@ class TestPortTypeNormalization:
 
     def test_port_type_lowercase(self) -> None:
         """Port types should use lowercase."""
-        for port_type in PORT_DIMENSIONS.keys():
+        for port_type in PORT_DIMENSIONS:
             assert port_type == port_type.lower()
 
     def test_port_type_hyphenated(self) -> None:

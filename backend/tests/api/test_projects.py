@@ -4,17 +4,18 @@ Tests for projects API endpoints.
 Tests project CRUD operations, listing, and access control.
 """
 
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import uuid4
 
 from app.models import Project
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def sample_project(db_session: AsyncSession, test_user):
@@ -44,11 +45,11 @@ async def sample_projects(db_session: AsyncSession, test_user):
         )
         db_session.add(project)
         projects.append(project)
-    
+
     await db_session.commit()
     for p in projects:
         await db_session.refresh(p)
-    
+
     return projects
 
 
@@ -59,6 +60,7 @@ async def sample_projects(db_session: AsyncSession, test_user):
 # =============================================================================
 # Helper function
 # =============================================================================
+
 
 def get_items_from_response(data: dict) -> list:
     """Extract items from API response, handling various formats."""
@@ -75,6 +77,7 @@ def get_items_from_response(data: dict) -> list:
 # List Projects Tests
 # =============================================================================
 
+
 class TestListProjects:
     """Tests for GET /api/v1/projects."""
 
@@ -83,7 +86,7 @@ class TestListProjects:
     ):
         """Should return list of user's projects."""
         response = await client.get("/api/v1/projects", headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
         items = get_items_from_response(data)
@@ -94,12 +97,10 @@ class TestListProjects:
         response = await client.get("/api/v1/projects")
         assert response.status_code == 401
 
-    async def test_list_projects_empty(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_list_projects_empty(self, client: AsyncClient, auth_headers: dict):
         """Should return empty list when user has no projects."""
         response = await client.get("/api/v1/projects", headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
         items = get_items_from_response(data)
@@ -109,11 +110,8 @@ class TestListProjects:
         self, client: AsyncClient, auth_headers: dict, sample_projects
     ):
         """Should support pagination."""
-        response = await client.get(
-            "/api/v1/projects?per_page=2&page=1",
-            headers=auth_headers
-        )
-        
+        response = await client.get("/api/v1/projects?per_page=2&page=1", headers=auth_headers)
+
         assert response.status_code == 200
         data = response.json()
         items = get_items_from_response(data)
@@ -125,12 +123,11 @@ class TestListProjects:
 # Create Project Tests
 # =============================================================================
 
+
 class TestCreateProject:
     """Tests for POST /api/v1/projects."""
 
-    async def test_create_project_success(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_create_project_success(self, client: AsyncClient, auth_headers: dict):
         """Should create a new project."""
         response = await client.post(
             "/api/v1/projects",
@@ -138,53 +135,43 @@ class TestCreateProject:
             json={
                 "name": "New Project",
                 "description": "A brand new project",
-            }
+            },
         )
-        
+
         assert response.status_code in [200, 201]
         data = response.json()
         assert data["name"] == "New Project"
         assert data["description"] == "A brand new project"
         assert "id" in data
 
-    async def test_create_project_minimal(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_create_project_minimal(self, client: AsyncClient, auth_headers: dict):
         """Should create project with only required fields."""
         response = await client.post(
-            "/api/v1/projects",
-            headers=auth_headers,
-            json={"name": "Minimal Project"}
+            "/api/v1/projects", headers=auth_headers, json={"name": "Minimal Project"}
         )
-        
+
         assert response.status_code in [200, 201]
         data = response.json()
         assert data["name"] == "Minimal Project"
 
-    async def test_create_project_missing_name(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_create_project_missing_name(self, client: AsyncClient, auth_headers: dict):
         """Should return 422 when name is missing."""
         response = await client.post(
-            "/api/v1/projects",
-            headers=auth_headers,
-            json={"description": "No name provided"}
+            "/api/v1/projects", headers=auth_headers, json={"description": "No name provided"}
         )
-        
+
         assert response.status_code == 422
 
     async def test_create_project_unauthenticated(self, client: AsyncClient):
         """Should return 401 without authentication."""
-        response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Test Project"}
-        )
+        response = await client.post("/api/v1/projects", json={"name": "Test Project"})
         assert response.status_code == 401
 
 
 # =============================================================================
 # Get Project Tests
 # =============================================================================
+
 
 class TestGetProject:
     """Tests for GET /api/v1/projects/{id}."""
@@ -193,34 +180,28 @@ class TestGetProject:
         self, client: AsyncClient, auth_headers: dict, sample_project
     ):
         """Should return project details."""
-        response = await client.get(
-            f"/api/v1/projects/{sample_project.id}",
-            headers=auth_headers
-        )
-        
+        response = await client.get(f"/api/v1/projects/{sample_project.id}", headers=auth_headers)
+
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == str(sample_project.id)
         assert data["name"] == sample_project.name
 
-    async def test_get_project_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_get_project_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent project."""
         response = await client.get(
-            "/api/v1/projects/00000000-0000-0000-0000-000000000000",
-            headers=auth_headers
+            "/api/v1/projects/00000000-0000-0000-0000-000000000000", headers=auth_headers
         )
-        
+
         assert response.status_code == 404
 
     async def test_get_other_users_project(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ):
         """Should return 404 for another user's project."""
-        from app.models import User
         from app.core.security import hash_password
-        
+        from app.models import User
+
         # Create another user
         other_user = User(
             id=uuid4(),
@@ -231,7 +212,7 @@ class TestGetProject:
         )
         db_session.add(other_user)
         await db_session.flush()
-        
+
         # Create project for that user
         other_project = Project(
             id=uuid4(),
@@ -241,12 +222,9 @@ class TestGetProject:
         db_session.add(other_project)
         await db_session.commit()
         await db_session.refresh(other_project)
-        
-        response = await client.get(
-            f"/api/v1/projects/{other_project.id}",
-            headers=auth_headers
-        )
-        
+
+        response = await client.get(f"/api/v1/projects/{other_project.id}", headers=auth_headers)
+
         # 404 if not found, 403 if found but not authorized
         assert response.status_code in [403, 404]
 
@@ -254,6 +232,7 @@ class TestGetProject:
 # =============================================================================
 # Update Project Tests
 # =============================================================================
+
 
 class TestUpdateProject:
     """Tests for PUT /api/v1/projects/{id}."""
@@ -268,9 +247,9 @@ class TestUpdateProject:
             json={
                 "name": "Updated Project Name",
                 "description": "Updated description",
-            }
+            },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Updated Project Name"
@@ -283,31 +262,30 @@ class TestUpdateProject:
         response = await client.put(
             f"/api/v1/projects/{sample_project.id}",
             headers=auth_headers,
-            json={"name": "Only Name Updated"}
+            json={"name": "Only Name Updated"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Only Name Updated"
         # Description should remain unchanged
         assert data["description"] == sample_project.description
 
-    async def test_update_project_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_update_project_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent project."""
         response = await client.put(
             "/api/v1/projects/00000000-0000-0000-0000-000000000000",
             headers=auth_headers,
-            json={"name": "Updated"}
+            json={"name": "Updated"},
         )
-        
+
         assert response.status_code == 404
 
 
 # =============================================================================
 # Delete Project Tests
 # =============================================================================
+
 
 class TestDeleteProject:
     """Tests for DELETE /api/v1/projects/{id}."""
@@ -317,37 +295,32 @@ class TestDeleteProject:
     ):
         """Should delete project."""
         response = await client.delete(
-            f"/api/v1/projects/{sample_project.id}",
-            headers=auth_headers
+            f"/api/v1/projects/{sample_project.id}", headers=auth_headers
         )
-        
+
         assert response.status_code in [200, 204]
-        
+
         # Verify project is gone
         get_response = await client.get(
-            f"/api/v1/projects/{sample_project.id}",
-            headers=auth_headers
+            f"/api/v1/projects/{sample_project.id}", headers=auth_headers
         )
         assert get_response.status_code == 404
 
-    async def test_delete_project_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_delete_project_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent project."""
         response = await client.delete(
-            "/api/v1/projects/00000000-0000-0000-0000-000000000000",
-            headers=auth_headers
+            "/api/v1/projects/00000000-0000-0000-0000-000000000000", headers=auth_headers
         )
-        
+
         assert response.status_code == 404
 
     async def test_delete_other_users_project(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ):
         """Should not be able to delete another user's project."""
-        from app.models import User
         from app.core.security import hash_password
-        
+        from app.models import User
+
         # Create another user
         other_user = User(
             id=uuid4(),
@@ -358,7 +331,7 @@ class TestDeleteProject:
         )
         db_session.add(other_user)
         await db_session.flush()
-        
+
         # Create project for that user
         other_project = Project(
             id=uuid4(),
@@ -368,12 +341,9 @@ class TestDeleteProject:
         db_session.add(other_project)
         await db_session.commit()
         await db_session.refresh(other_project)
-        
-        response = await client.delete(
-            f"/api/v1/projects/{other_project.id}",
-            headers=auth_headers
-        )
-        
+
+        response = await client.delete(f"/api/v1/projects/{other_project.id}", headers=auth_headers)
+
         # 404 if not found, 403 if found but not authorized
         assert response.status_code in [403, 404]
 
@@ -382,6 +352,7 @@ class TestDeleteProject:
 # Project Designs Tests
 # =============================================================================
 
+
 class TestGetProjectDesigns:
     """Tests for GET /api/v1/projects/{project_id}/designs."""
 
@@ -389,7 +360,7 @@ class TestGetProjectDesigns:
     async def project_with_designs(self, db_session: AsyncSession, test_user):
         """Create a project with multiple designs for testing."""
         from app.models import Design
-        
+
         project = Project(
             id=uuid4(),
             user_id=test_user.id,
@@ -398,7 +369,7 @@ class TestGetProjectDesigns:
         )
         db_session.add(project)
         await db_session.flush()
-        
+
         designs = []
         for i in range(5):
             design = Design(
@@ -411,12 +382,12 @@ class TestGetProjectDesigns:
             )
             db_session.add(design)
             designs.append(design)
-        
+
         await db_session.commit()
         await db_session.refresh(project)
         for d in designs:
             await db_session.refresh(d)
-        
+
         return project, designs
 
     @pytest.mark.asyncio
@@ -424,13 +395,10 @@ class TestGetProjectDesigns:
         self, client: AsyncClient, auth_headers: dict, project_with_designs
     ):
         """Should return paginated list of project designs."""
-        project, designs = project_with_designs
-        
-        response = await client.get(
-            f"/api/v1/projects/{project.id}/designs",
-            headers=auth_headers
-        )
-        
+        project, _designs = project_with_designs
+
+        response = await client.get(f"/api/v1/projects/{project.id}/designs", headers=auth_headers)
+
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
@@ -444,12 +412,11 @@ class TestGetProjectDesigns:
     ):
         """Should support pagination parameters."""
         project, _ = project_with_designs
-        
+
         response = await client.get(
-            f"/api/v1/projects/{project.id}/designs?page=1&per_page=2",
-            headers=auth_headers
+            f"/api/v1/projects/{project.id}/designs?page=1&per_page=2", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 2
@@ -463,12 +430,11 @@ class TestGetProjectDesigns:
     ):
         """Should filter designs by status."""
         project, _ = project_with_designs
-        
+
         response = await client.get(
-            f"/api/v1/projects/{project.id}/designs?status=ready",
-            headers=auth_headers
+            f"/api/v1/projects/{project.id}/designs?status=ready", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         # Designs 0, 2, 4 are "ready" (3 total)
@@ -482,12 +448,11 @@ class TestGetProjectDesigns:
     ):
         """Should search designs by name."""
         project, _ = project_with_designs
-        
+
         response = await client.get(
-            f"/api/v1/projects/{project.id}/designs?search=Design%201",
-            headers=auth_headers
+            f"/api/v1/projects/{project.id}/designs?search=Design%201", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["total"] >= 1
@@ -499,38 +464,28 @@ class TestGetProjectDesigns:
     ):
         """Should return empty list for project with no designs."""
         response = await client.get(
-            f"/api/v1/projects/{sample_project.id}/designs",
-            headers=auth_headers
+            f"/api/v1/projects/{sample_project.id}/designs", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["items"] == []
         assert data["total"] == 0
 
     @pytest.mark.asyncio
-    async def test_get_project_designs_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_get_project_designs_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent project."""
         fake_id = uuid4()
-        
-        response = await client.get(
-            f"/api/v1/projects/{fake_id}/designs",
-            headers=auth_headers
-        )
-        
+
+        response = await client.get(f"/api/v1/projects/{fake_id}/designs", headers=auth_headers)
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_project_designs_unauthenticated(
-        self, client: AsyncClient, sample_project
-    ):
+    async def test_get_project_designs_unauthenticated(self, client: AsyncClient, sample_project):
         """Should return 401 without authentication."""
-        response = await client.get(
-            f"/api/v1/projects/{sample_project.id}/designs"
-        )
-        
+        response = await client.get(f"/api/v1/projects/{sample_project.id}/designs")
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -538,9 +493,9 @@ class TestGetProjectDesigns:
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ):
         """Should return 403 when accessing another user's project."""
-        from app.models import User
         from app.core.security import hash_password
-        
+        from app.models import User
+
         # Create another user and their project
         other_user = User(
             id=uuid4(),
@@ -551,7 +506,7 @@ class TestGetProjectDesigns:
         )
         db_session.add(other_user)
         await db_session.flush()
-        
+
         other_project = Project(
             id=uuid4(),
             user_id=other_user.id,
@@ -560,10 +515,9 @@ class TestGetProjectDesigns:
         db_session.add(other_project)
         await db_session.commit()
         await db_session.refresh(other_project)
-        
+
         response = await client.get(
-            f"/api/v1/projects/{other_project.id}/designs",
-            headers=auth_headers
+            f"/api/v1/projects/{other_project.id}/designs", headers=auth_headers
         )
-        
+
         assert response.status_code in [403, 404]

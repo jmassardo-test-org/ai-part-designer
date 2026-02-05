@@ -2,17 +2,17 @@
 CAD generation and processing tasks.
 """
 
+import logging
 from datetime import datetime
 from typing import Any
 from uuid import UUID
-import logging
 
 from celery import shared_task
 
 from app.worker.ws_utils import (
-    send_job_progress,
     send_job_complete,
     send_job_failed,
+    send_job_progress,
     send_job_started,
 )
 
@@ -35,36 +35,37 @@ def generate_from_template(
 ) -> dict:
     """
     Generate CAD model from template with parameters.
-    
+
     Args:
         job_id: Job ID to update with progress/results
         template_id: Template to use for generation
         parameters: Parameter values to apply
         output_formats: Formats to generate (default: ["step", "stl"])
         user_id: User ID for WebSocket updates
-    
+
     Returns:
         Dict with file URLs and geometry info
     """
-    from app.core.database import async_session_maker
-    from app.repositories import TemplateRepository, JobRepository
     import asyncio
-    
+
+    from app.core.database import async_session_maker
+    from app.repositories import JobRepository, TemplateRepository
+
     output_formats = output_formats or ["step", "stl"]
-    
+
     # Send job started notification
     if user_id:
         send_job_started(user_id, job_id, "cad_generation")
-    
+
     async def run():
         async with async_session_maker() as session:
             # Get template
             template_repo = TemplateRepository(session)
             template = await template_repo.get_by_id(UUID(template_id))
-            
+
             if not template:
                 raise ValueError(f"Template not found: {template_id}")
-            
+
             # Update job status
             job_repo = JobRepository(session)
             await job_repo.update(
@@ -75,16 +76,16 @@ def generate_from_template(
                 progress_message="Loading template",
             )
             await session.commit()
-            
+
             # Send WebSocket progress update
             if user_id:
                 send_job_progress(user_id, job_id, 10, "running", "Loading template")
-            
+
             # Validate parameters
             validation = template.validate_parameters(parameters)
             if not validation["valid"]:
                 raise ValueError(f"Invalid parameters: {validation['errors']}")
-            
+
             # Execute CadQuery script (placeholder)
             await job_repo.update(
                 UUID(job_id),
@@ -92,19 +93,19 @@ def generate_from_template(
                 progress_message="Generating CAD model",
             )
             await session.commit()
-            
+
             if user_id:
                 send_job_progress(user_id, job_id, 30, "running", "Generating CAD model")
-            
+
             # Execute CadQuery generation
             from app.cad.templates import generate_from_template as generate_template_cad
-            
+
             try:
                 cad_result = generate_template_cad(template.slug, parameters)
             except Exception as cad_error:
                 logger.error(f"CadQuery execution failed: {cad_error}")
                 raise ValueError(f"CAD generation failed: {cad_error}")
-            
+
             # Generate output formats
             await job_repo.update(
                 UUID(job_id),
@@ -112,47 +113,48 @@ def generate_from_template(
                 progress_message="Exporting CAD formats",
             )
             await session.commit()
-            
+
             if user_id:
                 send_job_progress(user_id, job_id, 50, "running", "Exporting CAD formats")
-            
+
             # Export to requested formats and upload to storage
-            from app.core.storage import storage_client, StorageBucket
-            from app.cad.export import export_model
             import tempfile
             from pathlib import Path
-            
+
+            from app.cad.export import export_model
+            from app.core.storage import StorageBucket, storage_client
+
             file_urls = {}
             geometry_info = {}
-            
+
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
-                
+
                 # Export each format
                 for fmt in output_formats:
                     export_path = temp_path / f"model.{fmt}"
                     export_model(cad_result, export_path, format=fmt)
-                    
+
                     if export_path.exists():
                         storage_key = f"designs/{job_id}/model.{fmt}"
                         content_type = "application/step" if fmt == "step" else f"model/{fmt}"
-                        
+
                         await storage_client.upload_file(
                             bucket=StorageBucket.EXPORTS,
                             key=storage_key,
                             file=export_path.read_bytes(),
                             content_type=content_type,
                         )
-                        
+
                         # Generate presigned URL for download
                         file_urls[fmt] = await storage_client.generate_presigned_download_url(
                             bucket=StorageBucket.EXPORTS,
                             key=storage_key,
                             expires_in=86400,  # 24 hours
                         )
-                
+
                 # Get geometry info from the solid
-                if hasattr(cad_result, 'val') and hasattr(cad_result.val(), 'Volume'):
+                if hasattr(cad_result, "val") and hasattr(cad_result.val(), "Volume"):
                     solid = cad_result.val()
                     bbox = cad_result.val().BoundingBox()
                     geometry_info = {
@@ -164,7 +166,7 @@ def generate_from_template(
                         "volume": round(solid.Volume(), 2),
                         "is_manifold": True,
                     }
-            
+
             # Generate thumbnail
             await job_repo.update(
                 UUID(job_id),
@@ -172,23 +174,24 @@ def generate_from_template(
                 progress_message="Generating thumbnail",
             )
             await session.commit()
-            
+
             if user_id:
                 send_job_progress(user_id, job_id, 90, "running", "Generating thumbnail")
-            
+
             # Build result with actual data
             result = {
                 "template_id": template_id,
                 "template_slug": template.slug,
                 "parameters": parameters,
                 "files": file_urls,
-                "geometry_info": geometry_info or {
+                "geometry_info": geometry_info
+                or {
                     "bounding_box": {"x": 0, "y": 0, "z": 0},
                     "volume": 0,
                     "is_manifold": True,
                 },
             }
-            
+
             # Mark job complete
             await job_repo.update(
                 UUID(job_id),
@@ -198,24 +201,27 @@ def generate_from_template(
                 result=result,
             )
             await session.commit()
-            
+
             # Send WebSocket completion notification
             if user_id:
                 send_job_complete(user_id, job_id, result)
-            
+
             logger.info(f"CAD generation complete for job {job_id}")
             return result
-    
+
     try:
         return asyncio.run(run())
     except Exception as e:
         logger.error(f"CAD generation failed: {e}")
-        
+
         # Send WebSocket failure notification
         if user_id:
             send_job_failed(user_id, job_id, str(e), type(e).__name__)
-        
+
         # Update job as failed
+        error_msg = str(e)
+        error_type = type(e).__name__
+
         async def mark_failed():
             async with async_session_maker() as session:
                 job_repo = JobRepository(session)
@@ -223,13 +229,13 @@ def generate_from_template(
                     UUID(job_id),
                     status="failed",
                     completed_at=datetime.utcnow(),
-                    error_message=str(e),
-                    error={"message": str(e), "type": type(e).__name__},
+                    error_message=error_msg,
+                    error={"message": error_msg, "type": error_type},
                 )
                 await session.commit()
-        
+
         asyncio.run(mark_failed())
-        
+
         # Retry if applicable
         if self.request.retries < self.max_retries:
             raise self.retry(exc=e)
@@ -249,11 +255,11 @@ def modify_design(
 ) -> dict:
     """
     Apply modifications to an existing design.
-    
+
     Creates a new version with the modifications applied.
     """
     logger.info(f"Modifying design {design_id}")
-    
+
     # Placeholder implementation
     return {
         "version_id": "new-version-uuid",
@@ -267,14 +273,14 @@ def modify_design(
 def validate_geometry(file_url: str) -> dict:
     """
     Validate CAD geometry for printability.
-    
+
     Checks:
     - Manifold/watertight geometry
     - Minimum wall thickness
     - Overhangs and supports
     """
     logger.info(f"Validating geometry: {file_url}")
-    
+
     # Placeholder implementation
     return {
         "is_valid": True,
@@ -293,12 +299,12 @@ def generate_thumbnail(
 ) -> str:
     """
     Generate thumbnail image from CAD model.
-    
+
     Returns:
         URL to generated thumbnail
     """
     logger.info(f"Generating thumbnail for: {file_url}")
-    
+
     # Placeholder implementation
     return f"s3://thumbnails/{hash(file_url)}/thumb.png"
 
@@ -322,14 +328,14 @@ def generate_from_description_task(
 ) -> dict:
     """
     Generate CAD model from natural language description.
-    
+
     This task:
     1. Parses the description using AI
     2. Generates 3D geometry
     3. Exports to requested formats
     4. Uploads to storage
     5. Updates job status
-    
+
     Args:
         job_id: Job ID for status tracking
         description: Natural language part description
@@ -337,23 +343,23 @@ def generate_from_description_task(
         export_stl: Whether to generate STL file
         stl_quality: STL quality preset
         user_id: User who requested the generation
-    
+
     Returns:
         Dict with file URLs and metadata
     """
     import asyncio
-    from pathlib import Path
     import tempfile
-    
-    from app.core.database import async_session_maker
-    from app.repositories import JobRepository
+    from pathlib import Path
+
     from app.ai.generator import generate_from_description
     from app.cad.export import ExportQuality
-    
+    from app.core.database import async_session_maker
+    from app.repositories import JobRepository
+
     async def run():
         async with async_session_maker() as session:
             job_repo = JobRepository(session)
-            
+
             try:
                 # Update job: started
                 await job_repo.update(
@@ -364,7 +370,7 @@ def generate_from_description_task(
                     progress_message="Analyzing description...",
                 )
                 await session.commit()
-                
+
                 # Generate CAD
                 with tempfile.TemporaryDirectory() as temp_dir:
                     result = await generate_from_description(
@@ -375,7 +381,7 @@ def generate_from_description_task(
                         stl_quality=ExportQuality(stl_quality),
                         job_id=job_id,
                     )
-                    
+
                     # Update progress
                     await job_repo.update(
                         UUID(job_id),
@@ -383,13 +389,14 @@ def generate_from_description_task(
                         progress_message="Uploading files...",
                     )
                     await session.commit()
-                    
+
                     # Upload to storage
                     file_urls = {}
-                    
+
                     from app.core.storage import get_storage
+
                     storage = await get_storage()
-                    
+
                     if result.step_path and result.step_path.exists():
                         step_key = f"designs/{job_id}/model.step"
                         await storage.upload_file(
@@ -399,7 +406,7 @@ def generate_from_description_task(
                             content_type="application/step",
                         )
                         file_urls["step"] = step_key
-                    
+
                     if result.stl_path and result.stl_path.exists():
                         stl_key = f"designs/{job_id}/model.stl"
                         await storage.upload_file(
@@ -409,7 +416,7 @@ def generate_from_description_task(
                             content_type="model/stl",
                         )
                         file_urls["stl"] = stl_key
-                
+
                 # Build result
                 output = {
                     "job_id": job_id,
@@ -425,7 +432,7 @@ def generate_from_description_task(
                     },
                     "warnings": result.warnings,
                 }
-                
+
                 # Mark complete
                 await job_repo.update(
                     UUID(job_id),
@@ -436,13 +443,15 @@ def generate_from_description_task(
                     result=output,
                 )
                 await session.commit()
-                
-                logger.info(f"AI generation complete for job {job_id}: {result.parameters.shape.value}")
+
+                logger.info(
+                    f"AI generation complete for job {job_id}: {result.parameters.shape.value}"
+                )
                 return output
-                
+
             except Exception as e:
                 logger.error(f"AI generation failed for job {job_id}: {e}")
-                
+
                 await job_repo.update(
                     UUID(job_id),
                     status="failed",
@@ -452,7 +461,7 @@ def generate_from_description_task(
                 )
                 await session.commit()
                 raise
-    
+
     try:
         return asyncio.run(run())
     except Exception as e:

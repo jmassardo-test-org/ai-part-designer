@@ -11,9 +11,9 @@ Each pass validates and retries if needed before moving on.
 
 from __future__ import annotations
 
+import ast
 import logging
 import re
-import ast
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,23 +24,23 @@ from build123d import (
     Axis,
     Box,
     BuildPart,
-    Cylinder,
-    Sphere,
     Cone,
+    Cylinder,
+    Hole,
     Location,
     Locations,
     Mode,
     Part,
     Plane,
+    Sphere,
     add,
-    fillet,
     chamfer,
     extrude,
-    Hole,
+    fillet,
 )
 
 from app.ai.client import get_ai_client
-from app.ai.exceptions import AIParseError, AIValidationError
+from app.ai.exceptions import AIValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ UNIT CONVERSIONS (convert to mm before using):
 Output ONLY the Python code. No markdown. No explanations."""
 
 
-ADD_HOLES_PROMPT = """You have an existing shape stored in `base_shape`. 
+ADD_HOLES_PROMPT = """You have an existing shape stored in `base_shape`.
 Add holes to it based on the description.
 
 The variable `base_shape` is already defined as a CadQuery Workplane with the base geometry.
@@ -254,7 +254,7 @@ RULES:
 
 CADQUERY HOLE DRILLING GUIDE:
 - For holes in a HORIZONTAL surface (XY plane): use .faces(">Z") or .faces("<Z")
-- For holes in a VERTICAL surface facing Y: use .faces(">Y") or .faces("<Y")  
+- For holes in a VERTICAL surface facing Y: use .faces(">Y") or .faces("<Y")
 - For holes in a VERTICAL surface facing X: use .faces(">X") or .faces("<X")
 - The .hole(diameter) drills PERPENDICULAR to the selected face
 - For an L-bracket: horizontal leg uses .faces(">Z"), vertical leg uses .faces(">Y") or .faces("<Y")
@@ -273,14 +273,14 @@ Output ONLY the Python code. No markdown. No explanations."""
 @dataclass
 class CodeGenerationResult:
     """Result of AI code generation."""
-    
+
     code: str
     shape: Part | None = None
     execution_time_ms: float = 0.0
     generation_time_ms: float = 0.0
     error: str | None = None
     adjustments: list[str] = field(default_factory=list)  # User-facing messages about changes made
-    
+
     @property
     def is_successful(self) -> bool:
         return self.shape is not None and self.error is None
@@ -289,124 +289,128 @@ class CodeGenerationResult:
 def sanitize_code(code: str) -> str:
     """
     Sanitize generated code to ensure it's safe to execute.
-    
+
     - Removes markdown code blocks
     - Removes build123d/cadquery import statements (we provide symbols in globals)
     - Removes dangerous imports
     - Ensures result variable exists
     """
     # Remove markdown code blocks
-    code = re.sub(r'^```python\s*', '', code, flags=re.MULTILINE)
-    code = re.sub(r'^```\s*$', '', code, flags=re.MULTILINE)
+    code = re.sub(r"^```python\s*", "", code, flags=re.MULTILINE)
+    code = re.sub(r"^```\s*$", "", code, flags=re.MULTILINE)
     code = code.strip()
-    
+
     # Remove build123d imports (we provide symbols in globals)
-    code = re.sub(r'^from build123d import.*$', '# from build123d (provided)', code, flags=re.MULTILINE)
-    code = re.sub(r'^import build123d.*$', '# import build123d (provided)', code, flags=re.MULTILINE)
-    
+    code = re.sub(
+        r"^from build123d import.*$", "# from build123d (provided)", code, flags=re.MULTILINE
+    )
+    code = re.sub(
+        r"^import build123d.*$", "# import build123d (provided)", code, flags=re.MULTILINE
+    )
+
     # Also remove legacy cadquery imports
-    code = re.sub(r'^import cadquery.*$', '# import cadquery (legacy)', code, flags=re.MULTILINE)
-    code = re.sub(r'^from cadquery import.*$', '# from cadquery (legacy)', code, flags=re.MULTILINE)
-    code = re.sub(r'^import cq.*$', '# import cq (legacy)', code, flags=re.MULTILINE)
-    
+    code = re.sub(r"^import cadquery.*$", "# import cadquery (legacy)", code, flags=re.MULTILINE)
+    code = re.sub(r"^from cadquery import.*$", "# from cadquery (legacy)", code, flags=re.MULTILINE)
+    code = re.sub(r"^import cq.*$", "# import cq (legacy)", code, flags=re.MULTILINE)
+
     # Check for dangerous patterns
     dangerous_patterns = [
-        r'\bimport\s+os\b',
-        r'\bimport\s+sys\b',
-        r'\bimport\s+subprocess\b',
-        r'\bimport\s+shutil\b',
-        r'\b__import__\b',
-        r'\beval\b',
-        r'\bexec\b',
-        r'\bopen\s*\(',
-        r'\bfile\s*\(',
-        r'\bos\.',
-        r'\bsys\.',
-        r'\bsubprocess\.',
+        r"\bimport\s+os\b",
+        r"\bimport\s+sys\b",
+        r"\bimport\s+subprocess\b",
+        r"\bimport\s+shutil\b",
+        r"\b__import__\b",
+        r"\beval\b",
+        r"\bexec\b",
+        r"\bopen\s*\(",
+        r"\bfile\s*\(",
+        r"\bos\.",
+        r"\bsys\.",
+        r"\bsubprocess\.",
     ]
-    
+
     for pattern in dangerous_patterns:
         if re.search(pattern, code):
             raise AIValidationError(f"Generated code contains forbidden pattern: {pattern}")
-    
+
     # Ensure code assigns to result
-    if 'result' not in code:
+    if "result" not in code:
         raise AIValidationError("Generated code must assign to 'result' variable")
-    
+
     return code
 
 
 def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
     """
     Safely execute Build123d code and return the result.
-    
+
     Note: Function name kept for backward compatibility, but now executes Build123d code.
-    
+
     Args:
         code: Python code that creates a Build123d Part
         base_shape: Optional existing shape to build upon (available as 'base_shape' variable)
-        
+
     Returns:
         The Build123d Part result
-        
+
     Raises:
         AIValidationError: If code is invalid or execution fails
     """
     # Sanitize first
     code = sanitize_code(code)
-    
+
     logger.debug(f"Executing sanitized code:\n{code}")
-    
+
     # Create restricted execution environment with Build123d symbols
     allowed_globals = {
         # Build123d core
-        'BuildPart': BuildPart,
-        'BuildSketch': __import__('build123d').BuildSketch,
-        'Part': Part,
-        'Plane': Plane,
-        'Mode': Mode,
-        'Align': Align,
-        'Axis': Axis,
+        "BuildPart": BuildPart,
+        "BuildSketch": __import__("build123d").BuildSketch,
+        "Part": Part,
+        "Plane": Plane,
+        "Mode": Mode,
+        "Align": Align,
+        "Axis": Axis,
         # Shapes
-        'Box': Box,
-        'Cylinder': Cylinder,
-        'Sphere': Sphere,
-        'Cone': Cone,
-        'Hole': Hole,
+        "Box": Box,
+        "Cylinder": Cylinder,
+        "Sphere": Sphere,
+        "Cone": Cone,
+        "Hole": Hole,
         # Positioning
-        'Location': Location,
-        'Locations': Locations,
+        "Location": Location,
+        "Locations": Locations,
         # Operations
-        'add': add,
-        'fillet': fillet,
-        'chamfer': chamfer,
-        'extrude': extrude,
+        "add": add,
+        "fillet": fillet,
+        "chamfer": chamfer,
+        "extrude": extrude,
         # Utils
-        'math': __import__('math'),
+        "math": __import__("math"),
     }
-    
+
     local_vars: dict[str, Any] = {}
-    
+
     # If we have a base shape, make it available
     if base_shape is not None:
-        local_vars['base_shape'] = base_shape
-    
+        local_vars["base_shape"] = base_shape
+
     try:
         # Parse to check syntax
         ast.parse(code)
-        
+
         # Execute
         exec(code, allowed_globals, local_vars)
-        
-        if 'result' not in local_vars:
+
+        if "result" not in local_vars:
             raise AIValidationError("Code did not create 'result' variable")
-        
-        result = local_vars['result']
-        
+
+        result = local_vars["result"]
+
         # Check for Build123d Part
-        if not hasattr(result, 'wrapped'):
+        if not hasattr(result, "wrapped"):
             raise AIValidationError(f"Result is not a Build123d Part: {type(result)}")
-        
+
         # Ensure there's valid geometry
         try:
             bbox = result.bounding_box()
@@ -414,9 +418,9 @@ def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
                 raise AIValidationError("Result has no valid geometry")
         except Exception as e:
             raise AIValidationError(f"Result has no valid geometry: {e}")
-        
+
         return result
-        
+
     except SyntaxError as e:
         logger.error(f"Syntax error in generated code: {e}")
         raise AIValidationError(f"Syntax error in generated code: {e}")
@@ -428,73 +432,71 @@ def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
 
 
 def _apply_fillet_with_fallback(
-    shape: Part,
-    edge_selector: str,
-    requested_radius: float,
-    operation: str = "fillet"
+    shape: Part, edge_selector: str, requested_radius: float, operation: str = "fillet"
 ) -> tuple[Part | None, float | None, str | None]:
     """
     Try to apply a fillet/chamfer, automatically reducing size if too large.
     Skips operations on complex geometry to prevent hanging.
-    
+
     Args:
         shape: The shape to fillet
         edge_selector: Edge selector (not used in Build123d the same way)
         requested_radius: The requested fillet radius
         operation: "fillet" or "chamfer"
-        
+
     Returns:
         Tuple of (result_shape, actual_radius_used, adjustment_message)
         If all attempts fail, returns (None, None, error_message)
     """
     # Try the requested radius first, then progressively smaller
     radii_to_try = [requested_radius]
-    
+
     # Add fallback radii (75%, 50%, 25%, 10% of requested)
     for factor in [0.75, 0.5, 0.25, 0.1]:
         fallback = round(requested_radius * factor, 2)
         if fallback >= 0.1:  # Minimum useful fillet
             radii_to_try.append(fallback)
-    
+
     # Also try some absolute minimums
     for min_radius in [0.5, 0.25, 0.1]:
         if min_radius not in radii_to_try and min_radius < requested_radius:
             radii_to_try.append(min_radius)
-    
+
     radii_to_try = sorted(set(radii_to_try), reverse=True)
-    
+
     logger.info(f"Trying {operation} on {edge_selector} with radii: {radii_to_try}")
-    
+
     last_error = None
     for radius in radii_to_try:
         try:
             edges = shape.edges(edge_selector)
-            
+
             # Log how many edges we're trying to fillet
             edge_count = edges.size()
-            logger.info(f"Attempting {operation}({radius}) on {edge_count} edges matching {edge_selector}")
-            
+            logger.info(
+                f"Attempting {operation}({radius}) on {edge_count} edges matching {edge_selector}"
+            )
+
             # Skip if too many edges - OpenCASCADE hangs on complex filleting
             # Even 10+ edges with holes can hang indefinitely
             if edge_count > 8:
                 last_error = f"Too many edges ({edge_count}) - skipping to avoid hang"
-                logger.warning(f"Skipping fillet on {edge_selector}: {edge_count} edges is too many for reliable filleting")
+                logger.warning(
+                    f"Skipping fillet on {edge_selector}: {edge_count} edges is too many for reliable filleting"
+                )
                 break
-            
+
             # Skip small radii on even moderate edge counts
             if edge_count > 4 and radius < 0.3:
                 last_error = f"Too many edges ({edge_count}) with small radius ({radius})"
-                logger.info(f"Skipping small fillet on complex geometry")
+                logger.info("Skipping small fillet on complex geometry")
                 continue
-            
-            if operation == "fillet":
-                result = edges.fillet(radius)
-            else:
-                result = edges.chamfer(radius)
-            
+
+            result = edges.fillet(radius) if operation == "fillet" else edges.chamfer(radius)
+
             # Validate the result
             val = result.val()
-            if hasattr(val, 'ShapeType') and val.ShapeType() in ['Solid', 'Compound', 'CompSolid']:
+            if hasattr(val, "ShapeType") and val.ShapeType() in ["Solid", "Compound", "CompSolid"]:
                 if radius < requested_radius:
                     adjustment_msg = (
                         f"Adjusted {operation} from {requested_radius}mm to {radius}mm "
@@ -502,53 +504,64 @@ def _apply_fillet_with_fallback(
                     )
                     logger.info(adjustment_msg)
                     return result, radius, adjustment_msg
-                else:
-                    return result, radius, None
-                    
+                return result, radius, None
+
         except Exception as e:
             last_error = str(e)
             logger.debug(f"Fillet with selector {edge_selector} radius {radius} failed: {e}")
             continue
-    
+
     # All attempts failed
     logger.warning(f"All {operation} attempts failed for selector {edge_selector}: {last_error}")
-    return None, None, f"Could not apply {operation} - geometry may be too complex. Error: {last_error}"
+    return (
+        None,
+        None,
+        f"Could not apply {operation} - geometry may be too complex. Error: {last_error}",
+    )
 
 
 def _extract_fillet_params_from_code(code: str) -> tuple[str | None, float | None, str]:
     """
     Extract edge selector and radius from generated fillet code.
-    
+
     Returns:
         Tuple of (edge_selector, radius, operation)
     """
     if not code:
         return None, None, "fillet"
-        
+
     # Match patterns like: .edges("|Z").fillet(2) or .edges(">X").chamfer(1.5)
     fillet_match = re.search(r'\.edges\(["\']([^"\']+)["\']\)\.fillet\(([0-9.]+)\)', code)
     if fillet_match:
         return fillet_match.group(1), float(fillet_match.group(2)), "fillet"
-    
+
     chamfer_match = re.search(r'\.edges\(["\']([^"\']+)["\']\)\.chamfer\(([0-9.]+)\)', code)
     if chamfer_match:
         return chamfer_match.group(1), float(chamfer_match.group(2)), "chamfer"
-    
+
     return None, None, "fillet"
 
 
 def _extract_radius_from_description(description: str) -> float:
     """Extract a fillet/chamfer radius from a text description."""
     # Look for patterns like "5mm fillet", "3 mm chamfer", "2mm radius", "2mm rounded"
-    match = re.search(r'(\d+(?:\.\d+)?)\s*(?:mm)?\s*(?:fillet|chamfer|radius|rounded|round|edge)', description, re.IGNORECASE)
+    match = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:mm)?\s*(?:fillet|chamfer|radius|rounded|round|edge)",
+        description,
+        re.IGNORECASE,
+    )
     if match:
         return float(match.group(1))
     # Also try reverse: "fillet 5mm", "rounded 2mm"
-    match = re.search(r'(?:fillet|chamfer|radius|rounded|round)\s*(?:of\s+)?(\d+(?:\.\d+)?)\s*(?:mm)?', description, re.IGNORECASE)
+    match = re.search(
+        r"(?:fillet|chamfer|radius|rounded|round)\s*(?:of\s+)?(\d+(?:\.\d+)?)\s*(?:mm)?",
+        description,
+        re.IGNORECASE,
+    )
     if match:
         return float(match.group(1))
     # Just look for any number followed by mm
-    match = re.search(r'(\d+(?:\.\d+)?)\s*mm', description, re.IGNORECASE)
+    match = re.search(r"(\d+(?:\.\d+)?)\s*mm", description, re.IGNORECASE)
     if match:
         return float(match.group(1))
     return 1.0  # Default
@@ -563,7 +576,7 @@ async def _generate_single_pass(
 ) -> tuple[Part | None, str, float, float, str | None]:
     """
     Generate and execute code for a single pass.
-    
+
     Returns:
         Tuple of (shape, code, gen_time_ms, exec_time_ms, error)
     """
@@ -571,33 +584,35 @@ async def _generate_single_pass(
     last_code = ""
     total_gen_time = 0.0
     total_exec_time = 0.0
-    
+
     for attempt in range(max_retries + 1):
         gen_start = time.monotonic()
-        
+
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        
+
         # If retrying, add error context
         if last_error and attempt > 0:
             messages.append({"role": "assistant", "content": f"```python\n{last_code}\n```"})
-            messages.append({
-                "role": "user",
-                "content": f"Error: {last_error}\n\nFix the code. Avoid the same mistake. Output only code."
-            })
-        
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"Error: {last_error}\n\nFix the code. Avoid the same mistake. Output only code.",
+                }
+            )
+
         try:
             code = await client.complete(messages, temperature=0.2 + (attempt * 0.1))
             gen_time = (time.monotonic() - gen_start) * 1000
             total_gen_time += gen_time
             logger.info(f"Pass generated code (attempt {attempt + 1}):\n{code[:300]}...")
-            
+
         except Exception as e:
             logger.error(f"AI generation failed: {e}")
             return None, "", total_gen_time, 0.0, f"AI generation failed: {e}"
-        
+
         # Execute
         exec_start = time.monotonic()
         try:
@@ -606,13 +621,13 @@ async def _generate_single_pass(
             total_exec_time += exec_time
             logger.info(f"Pass execution successful in {exec_time:.0f}ms")
             return shape, code, total_gen_time, total_exec_time, None
-            
+
         except AIValidationError as e:
             last_error = str(e)
             last_code = code
             total_exec_time += (time.monotonic() - exec_start) * 1000
             logger.warning(f"Pass failed (attempt {attempt + 1}/{max_retries + 1}): {e}")
-    
+
     return None, last_code, total_gen_time, total_exec_time, last_error
 
 
@@ -621,36 +636,32 @@ async def _detect_intent(client, description: str) -> dict:
     Use AI to break down the part description into build steps.
     """
     import json
-    
+
     messages = [
         {"role": "system", "content": INTENT_DETECTION_PROMPT},
         {"role": "user", "content": description},
     ]
-    
+
     try:
         response = await client.complete(messages, temperature=0.1)
         # Clean up response
         response = response.strip()
         if response.startswith("```"):
-            response = re.sub(r'^```json?\s*', '', response)
-            response = re.sub(r'\s*```$', '', response)
-        
+            response = re.sub(r"^```json?\s*", "", response)
+            response = re.sub(r"\s*```$", "", response)
+
         intent = json.loads(response)
         logger.info(f"Detected intent: {intent}")
         return intent
     except Exception as e:
         logger.warning(f"Intent detection failed: {e}, using fallback")
-        return {
-            "base_shape": description,
-            "holes": [],
-            "fillets": [],
-            "other_features": []
-        }
+        return {"base_shape": description, "holes": [], "fillets": [], "other_features": []}
 
 
 @dataclass
 class BuildStep:
     """A single step in the iterative build process."""
+
     name: str
     prompt: str
     description: str
@@ -665,21 +676,21 @@ async def generate_cadquery_code(
 ) -> CodeGenerationResult:
     """
     Generate CadQuery code from a natural language description.
-    
+
     Uses an iterative multi-pass approach:
     1. Detect intent and break down into steps (or use provided intent)
     2. Generate base geometry
     3. Add holes/cuts
     4. Add fillets/chamfers
     5. Add other features
-    
+
     Each step validates and retries before proceeding.
-    
+
     Args:
         description: Natural language description of the part
         intent: Optional pre-computed PartIntent from reasoning module
         build_plan: Optional pre-computed BuildPlan from reasoning module
-        
+
     Returns:
         CodeGenerationResult with the generated code and shape
     """
@@ -687,22 +698,32 @@ async def generate_cadquery_code(
     total_gen_time = 0.0
     total_exec_time = 0.0
     all_code = []
-    
+
     # Step 1: Detect intent (or use provided intent from reasoning)
     logger.info(f"Starting iterative generation for: {description[:100]}...")
-    
-    if intent and hasattr(intent, 'part_type'):
+
+    if intent and hasattr(intent, "part_type"):
         # Use structured intent from reasoning module
         detected_intent = {
             "base_shape": f"{intent.part_type}: {intent.primary_function}",
-            "holes": [f.get("description", str(f)) for f in intent.features if f.get("type") == "hole"],
-            "fillets": [f.get("description", str(f)) for f in intent.features if f.get("type") in ["fillet", "chamfer"]],
-            "other_features": [f.get("description", str(f)) for f in intent.features if f.get("type") not in ["hole", "fillet", "chamfer"]],
+            "holes": [
+                f.get("description", str(f)) for f in intent.features if f.get("type") == "hole"
+            ],
+            "fillets": [
+                f.get("description", str(f))
+                for f in intent.features
+                if f.get("type") in ["fillet", "chamfer"]
+            ],
+            "other_features": [
+                f.get("description", str(f))
+                for f in intent.features
+                if f.get("type") not in ["hole", "fillet", "chamfer"]
+            ],
         }
         # Build detailed dimension description
         dims = intent.overall_dimensions
         thickness = intent.material_thickness
-        
+
         if dims:
             # Format dimensions clearly for the AI
             dim_parts = []
@@ -711,34 +732,34 @@ async def generate_cadquery_code(
                     dim_parts.append(f"{k}={v}mm")
             if thickness and "thickness" not in dims:
                 dim_parts.append(f"thickness={thickness}mm")
-            
+
             dim_str = ", ".join(dim_parts)
             detected_intent["base_shape"] = f"{detected_intent['base_shape']} ({dim_str})"
             detected_intent["dimensions"] = dims
             detected_intent["thickness"] = thickness
-        
+
         logger.info(f"Using intent from reasoning: {detected_intent}")
     else:
         # Fall back to AI-based intent detection
         detected_intent = await _detect_intent(client, description)
-    
+
     # Step 2: Generate base shape (required)
     logger.info("Pass 1: Generating base geometry...")
-    
+
     # Build more explicit base prompt with dimension context
-    base_info = detected_intent.get('base_shape', description)
-    dims = detected_intent.get('dimensions', {})
-    thickness = detected_intent.get('thickness')
-    
+    base_info = detected_intent.get("base_shape", description)
+    dims = detected_intent.get("dimensions", {})
+    thickness = detected_intent.get("thickness")
+
     # Add explicit instruction based on detected shape type
     base_info_lower = base_info.lower()
-    
-    if any(term in base_info_lower for term in ['cylinder', 'cylindrical', 'tube', 'pipe', 'rod']):
+
+    if any(term in base_info_lower for term in ["cylinder", "cylindrical", "tube", "pipe", "rod"]):
         # Handle cylinder shapes explicitly
-        diameter = dims.get('diameter', 50)
-        radius = dims.get('radius', diameter / 2 if diameter else 25)
-        height = dims.get('height', 100)
-        
+        diameter = dims.get("diameter", 50)
+        radius = dims.get("radius", diameter / 2 if diameter else 25)
+        height = dims.get("height", 100)
+
         base_prompt = (
             f"Create a CYLINDER with:\n"
             f"- Diameter: {diameter}mm (radius: {radius}mm)\n"
@@ -746,20 +767,20 @@ async def generate_cadquery_code(
             f"Use: result = cq.Workplane('XY').cylinder({height}, {radius})\n"
             f"Remember: cylinder(height, radius) - height first, then radius!"
         )
-    elif any(term in base_info_lower for term in ['sphere', 'ball', 'spherical']):
+    elif any(term in base_info_lower for term in ["sphere", "ball", "spherical"]):
         # Handle sphere shapes explicitly
-        diameter = dims.get('diameter', 50)
-        radius = dims.get('radius', diameter / 2 if diameter else 25)
-        
+        diameter = dims.get("diameter", 50)
+        radius = dims.get("radius", diameter / 2 if diameter else 25)
+
         base_prompt = (
             f"Create a SPHERE with:\n"
             f"- Diameter: {diameter}mm (radius: {radius}mm)\n"
             f"Use: result = cq.Workplane('XY').sphere({radius})"
         )
-    elif any(term in base_info_lower for term in ['bracket', 'l-bracket', 'angle']):
-        flange_len = dims.get('flange_length', 50)
-        flange_width = dims.get('flange_width', flange_len)
-        mat_thickness = thickness or dims.get('thickness', 3)
+    elif any(term in base_info_lower for term in ["bracket", "l-bracket", "angle"]):
+        flange_len = dims.get("flange_length", 50)
+        flange_width = dims.get("flange_width", flange_len)
+        mat_thickness = thickness or dims.get("thickness", 3)
         base_prompt = (
             f"Create an L-bracket/angle bracket with:\n"
             f"- Flange length: {flange_len}mm (both flanges)\n"
@@ -767,12 +788,12 @@ async def generate_cadquery_code(
             f"- Material thickness: {mat_thickness}mm\n"
             f"Use the L-bracket pattern from the examples."
         )
-    elif any(term in base_info_lower for term in ['box', 'cube', 'rectangular', 'block']):
+    elif any(term in base_info_lower for term in ["box", "cube", "rectangular", "block"]):
         # Handle box shapes explicitly
-        length = dims.get('length', 100)
-        width = dims.get('width', 50)
-        height = dims.get('height', 30)
-        
+        length = dims.get("length", 100)
+        width = dims.get("width", 50)
+        height = dims.get("height", 30)
+
         base_prompt = (
             f"Create a BOX with:\n"
             f"- Length: {length}mm\n"
@@ -782,13 +803,13 @@ async def generate_cadquery_code(
         )
     else:
         base_prompt = f"Create the base shape: {base_info}"
-    
+
     shape, code, gen_t, exec_t, error = await _generate_single_pass(
         client, BASE_SHAPE_PROMPT, base_prompt, None, max_retries=3
     )
     total_gen_time += gen_t
     total_exec_time += exec_t
-    
+
     if error or shape is None:
         return CodeGenerationResult(
             code=code,
@@ -796,54 +817,54 @@ async def generate_cadquery_code(
             generation_time_ms=total_gen_time,
             execution_time_ms=total_exec_time,
         )
-    
+
     all_code.append(f"# === Base Shape ===\n{code}")
     current_shape = shape
     adjustments = []  # Track adjustments made for user feedback
-    
+
     # Step 3: Add holes (if any)
-    holes = detected_intent.get('holes', [])
+    holes = detected_intent.get("holes", [])
     if holes:
         logger.info(f"Pass 2: Adding holes... ({len(holes)} hole specifications)")
         holes_desc = "; ".join(holes) if isinstance(holes, list) else str(holes)
         holes_prompt = f"Add these holes to the shape: {holes_desc}"
-        
+
         shape, code, gen_t, exec_t, error = await _generate_single_pass(
             client, ADD_HOLES_PROMPT, holes_prompt, current_shape, max_retries=3
         )
         total_gen_time += gen_t
         total_exec_time += exec_t
-        
+
         if shape is not None:
             all_code.append(f"# === Holes ===\n{code}")
             current_shape = shape
         else:
             logger.warning(f"Holes pass failed, continuing without: {error}")
-    
+
     # Step 4: Add fillets/chamfers (if any) - direct approach (AI generates too much garbage for fillets)
-    fillets = detected_intent.get('fillets', [])
+    fillets = detected_intent.get("fillets", [])
     if fillets:
         logger.info(f"Pass 3: Adding fillets/chamfers... ({len(fillets)} specifications)")
         fillets_desc = "; ".join(fillets) if isinstance(fillets, list) else str(fillets)
-        
+
         # Extract the requested radius from the description
         requested_radius = _extract_radius_from_description(fillets_desc)
         logger.info(f"Extracted fillet radius: {requested_radius}mm from '{fillets_desc}'")
-        
+
         # Skip AI code generation for fillets - just apply directly with fallback
         # The AI tends to generate invalid fillet code
         exec_start = time.monotonic()
         fillet_applied = False
-        
+
         for selector in ["|Z", "|X", "|Y"]:
             result_shape, actual_radius, adjustment_msg = _apply_fillet_with_fallback(
                 current_shape, selector, requested_radius, "fillet"
             )
             if result_shape is not None:
-                actual_code = f"result = base_shape.edges(\"{selector}\").fillet({actual_radius})"
+                actual_code = f'result = base_shape.edges("{selector}").fillet({actual_radius})'
                 all_code.append(f"# === Fillets ===\n{actual_code}")
                 current_shape = result_shape
-                
+
                 if actual_radius < requested_radius:
                     adjustment_msg = (
                         f"Adjusted fillet from {requested_radius}mm to {actual_radius}mm on {selector} edges "
@@ -851,45 +872,49 @@ async def generate_cadquery_code(
                     )
                 else:
                     adjustment_msg = f"Applied {actual_radius}mm fillet to {selector} edges"
-                
+
                 adjustments.append(adjustment_msg)
                 logger.info(f"Fillet success: {adjustment_msg}")
                 fillet_applied = True
                 break
-        
+
         total_exec_time += (time.monotonic() - exec_start) * 1000
-        
+
         if not fillet_applied:
             adjustments.append(
-                f"Could not apply fillet - the geometry is too complex for this feature. "
-                f"Consider simplifying the part or applying fillets in CAD software."
+                "Could not apply fillet - the geometry is too complex for this feature. "
+                "Consider simplifying the part or applying fillets in CAD software."
             )
             logger.warning(f"All fillet attempts failed for: {fillets_desc}")
-    
+
     # Step 5: Add other features (if any)
-    other_features = detected_intent.get('other_features', [])
+    other_features = detected_intent.get("other_features", [])
     if other_features:
         logger.info(f"Pass 4: Adding other features... ({len(other_features)} specifications)")
-        features_desc = "; ".join(other_features) if isinstance(other_features, list) else str(other_features)
+        features_desc = (
+            "; ".join(other_features) if isinstance(other_features, list) else str(other_features)
+        )
         features_prompt = f"Add these features: {features_desc}"
-        
+
         shape, code, gen_t, exec_t, error = await _generate_single_pass(
             client, ADD_FEATURES_PROMPT, features_prompt, current_shape, max_retries=3
         )
         total_gen_time += gen_t
         total_exec_time += exec_t
-        
+
         if shape is not None:
             all_code.append(f"# === Other Features ===\n{code}")
             current_shape = shape
         else:
             logger.warning(f"Features pass failed, continuing without: {error}")
-    
+
     # Combine all code
     combined_code = "\n\n".join(all_code)
-    
-    logger.info(f"Iterative generation complete: {len(all_code)} passes successful, {len(adjustments)} adjustments made")
-    
+
+    logger.info(
+        f"Iterative generation complete: {len(all_code)} passes successful, {len(adjustments)} adjustments made"
+    )
+
     return CodeGenerationResult(
         code=combined_code,
         shape=current_shape,
@@ -908,36 +933,42 @@ async def generate_modification(
 ) -> CodeGenerationResult:
     """
     Generate CadQuery code that applies a modification to an existing part.
-    
+
     This is used when a user requests changes to an already-generated part,
     such as "add a 10mm hole in the center" or "make it 20mm taller".
-    
+
     Args:
         original_description: The original part description that was generated
         modification_request: The user's modification request
         original_code: The original CadQuery code that generated the part
         existing_dimensions: Dictionary of existing dimensions (e.g., {"length": 100, "width": 50})
         existing_features: List of existing features (e.g., ["3mm fillets on all edges"])
-        
+
     Returns:
         CodeGenerationResult with the modified geometry
     """
     client = get_ai_client()
-    
-    logger.info(f"Generating modification: '{modification_request}' on '{original_description[:50]}...'")
+
+    logger.info(
+        f"Generating modification: '{modification_request}' on '{original_description[:50]}...'"
+    )
     logger.info(f"Original code provided: {bool(original_code)}")
     if original_code:
         logger.info(f"Original code length: {len(original_code)} chars")
         logger.info(f"Original code preview: {original_code[:200]}...")
-    
+
     # Format existing dimensions for the prompt
     dims_str = "None specified"
     if existing_dimensions:
         dims_str = ", ".join([f"{k}: {v}mm" for k, v in existing_dimensions.items()])
-    
+
     # If no original code provided, create a placeholder
-    code_str = original_code if original_code else "# Original code not available - recreate from dimensions"
-    
+    code_str = (
+        original_code
+        if original_code
+        else "# Original code not available - recreate from dimensions"
+    )
+
     # Build the modification prompt
     prompt = MODIFICATION_CONTEXT_PROMPT.format(
         original_description=original_description,
@@ -945,25 +976,25 @@ async def generate_modification(
         existing_dimensions=dims_str,
         modification_request=modification_request,
     )
-    
+
     messages = [
         {"role": "system", "content": prompt},
     ]
-    
+
     gen_start = time.monotonic()
-    
+
     try:
         code = await client.complete(messages, temperature=0.2)
         gen_time = (time.monotonic() - gen_start) * 1000
-        
+
         logger.info(f"Modification code generated:\n{code[:500]}...")
-        
+
         # Execute the code
         exec_start = time.monotonic()
         try:
             shape = execute_cadquery_code(code)
             exec_time = (time.monotonic() - exec_start) * 1000
-            
+
             return CodeGenerationResult(
                 code=code,
                 shape=shape,
@@ -979,7 +1010,7 @@ async def generate_modification(
                 generation_time_ms=gen_time,
                 execution_time_ms=(time.monotonic() - exec_start) * 1000,
             )
-            
+
     except Exception as e:
         logger.error(f"Modification generation failed: {e}")
         return CodeGenerationResult(

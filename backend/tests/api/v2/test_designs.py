@@ -7,17 +7,20 @@ and database session management.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import Project
 from app.models.design import Design
 from app.models.job import Job
+from app.models.project import Project
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest_asyncio.fixture
@@ -356,9 +359,7 @@ class TestListDesignsV2:
         await db_session.commit()
 
         # Filter by test_project
-        response = await auth_client.get(
-            f"/api/v2/designs/?project_id={test_project.id}"
-        )
+        response = await auth_client.get(f"/api/v2/designs/?project_id={test_project.id}")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1

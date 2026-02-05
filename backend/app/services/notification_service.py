@@ -6,56 +6,54 @@ across different channels (in-app, email, push).
 """
 
 from datetime import datetime, timedelta
-from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import and_, select, func, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
+    DEFAULT_PREFERENCES,
     Notification,
     NotificationPreference,
-    NotificationType,
     NotificationPriority,
-    User,
-    DEFAULT_PREFERENCES,
+    NotificationType,
 )
 
 
 class NotificationService:
     """Service for managing notifications."""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
-    
+
     async def create_notification(
         self,
         user_id: UUID,
         notification_type: NotificationType,
         title: str,
         message: str,
-        action_url: Optional[str] = None,
-        action_label: Optional[str] = None,
-        actor_id: Optional[UUID] = None,
-        entity_type: Optional[str] = None,
-        entity_id: Optional[UUID] = None,
-        data: Optional[dict] = None,
+        action_url: str | None = None,
+        action_label: str | None = None,
+        actor_id: UUID | None = None,
+        entity_type: str | None = None,
+        entity_id: UUID | None = None,
+        data: dict | None = None,
         priority: NotificationPriority = NotificationPriority.NORMAL,
-        expires_in_days: Optional[int] = None,
-    ) -> Optional[Notification]:
+        expires_in_days: int | None = None,
+    ) -> Notification | None:
         """
         Create a notification for a user.
-        
+
         Checks user preferences before creating. Returns None if
         the user has disabled this notification type.
-        
+
         Extended fields (action_url, action_label, actor_id, entity_type, entity_id,
         priority, expires_in_days) are stored in the data JSONB field.
         """
         # Check user preferences
         if not await self.should_send_in_app(user_id, notification_type):
             return None
-        
+
         # Build data dict including any extended fields
         notification_data = data.copy() if data else {}
         if action_url:
@@ -73,7 +71,7 @@ class NotificationService:
         if expires_in_days:
             expires_at = datetime.now() + timedelta(days=expires_in_days)
             notification_data["expires_at"] = expires_at.isoformat()
-        
+
         notification = Notification(
             user_id=user_id,
             type=notification_type,
@@ -81,17 +79,17 @@ class NotificationService:
             message=message,
             data=notification_data if notification_data else None,
         )
-        
+
         self.db.add(notification)
         await self.db.commit()
         await self.db.refresh(notification)
-        
+
         # Check if email should be sent
         if await self.should_send_email(user_id, notification_type):
             await self.queue_email_notification(notification)
-        
+
         return notification
-    
+
     async def should_send_in_app(
         self,
         user_id: UUID,
@@ -104,7 +102,7 @@ class NotificationService:
         # Use defaults
         defaults = DEFAULT_PREFERENCES.get(notification_type, {})
         return defaults.get("in_app", True)
-    
+
     async def should_send_email(
         self,
         user_id: UUID,
@@ -117,12 +115,12 @@ class NotificationService:
         # Use defaults
         defaults = DEFAULT_PREFERENCES.get(notification_type, {})
         return defaults.get("email", False)
-    
+
     async def get_preference(
         self,
         user_id: UUID,
         notification_type: NotificationType,
-    ) -> Optional[NotificationPreference]:
+    ) -> NotificationPreference | None:
         """Get user preference for a notification type."""
         result = await self.db.execute(
             select(NotificationPreference).where(
@@ -133,14 +131,14 @@ class NotificationService:
             )
         )
         return result.scalar_one_or_none()
-    
+
     async def queue_email_notification(self, notification: Notification) -> None:
         """Queue email notification for sending."""
         # In a real implementation, this would add to a task queue
         # For now, mark as sent immediately (stub)
         notification.email_sent_at = datetime.now()
         await self.db.commit()
-    
+
     async def get_notifications(
         self,
         user_id: UUID,
@@ -153,22 +151,21 @@ class NotificationService:
             Notification.user_id == user_id,
             Notification.dismissed_at.is_(None),
         ]
-        
+
         if unread_only:
             conditions.append(Notification.read_at.is_(None))
-        
+
         # Filter out expired
         conditions.append(
-            (Notification.expires_at.is_(None)) | 
-            (Notification.expires_at > datetime.now())
+            (Notification.expires_at.is_(None)) | (Notification.expires_at > datetime.now())
         )
-        
+
         # Count total
         count_result = await self.db.execute(
             select(func.count(Notification.id)).where(and_(*conditions))
         )
         total = count_result.scalar() or 0
-        
+
         # Get page
         offset = (page - 1) * page_size
         result = await self.db.execute(
@@ -182,9 +179,9 @@ class NotificationService:
             .limit(page_size)
         )
         notifications = list(result.scalars().all())
-        
+
         return notifications, total
-    
+
     async def get_unread_count(self, user_id: UUID) -> int:
         """Get count of unread notifications."""
         result = await self.db.execute(
@@ -193,13 +190,13 @@ class NotificationService:
                     Notification.user_id == user_id,
                     Notification.read_at.is_(None),
                     Notification.dismissed_at.is_(None),
-                    (Notification.expires_at.is_(None)) | 
-                    (Notification.expires_at > datetime.now()),
+                    (Notification.expires_at.is_(None))
+                    | (Notification.expires_at > datetime.now()),
                 )
             )
         )
         return result.scalar() or 0
-    
+
     async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool:
         """Mark a notification as read."""
         result = await self.db.execute(
@@ -214,7 +211,7 @@ class NotificationService:
         )
         await self.db.commit()
         return (result.rowcount or 0) > 0
-    
+
     async def mark_all_as_read(self, user_id: UUID) -> int:
         """Mark all notifications as read for a user."""
         result = await self.db.execute(
@@ -229,7 +226,7 @@ class NotificationService:
         )
         await self.db.commit()
         return result.rowcount or 0
-    
+
     async def dismiss(self, notification_id: UUID, user_id: UUID) -> bool:
         """Dismiss a notification."""
         result = await self.db.execute(
@@ -244,28 +241,26 @@ class NotificationService:
         )
         await self.db.commit()
         return (result.rowcount or 0) > 0
-    
+
     async def get_preferences(self, user_id: UUID) -> list[NotificationPreference]:
         """Get all notification preferences for a user."""
         result = await self.db.execute(
-            select(NotificationPreference).where(
-                NotificationPreference.user_id == user_id
-            )
+            select(NotificationPreference).where(NotificationPreference.user_id == user_id)
         )
         return list(result.scalars().all())
-    
+
     async def update_preference(
         self,
         user_id: UUID,
         notification_type: NotificationType,
-        in_app_enabled: Optional[bool] = None,
-        email_enabled: Optional[bool] = None,
-        push_enabled: Optional[bool] = None,
-        email_digest: Optional[str] = None,
+        in_app_enabled: bool | None = None,
+        email_enabled: bool | None = None,
+        push_enabled: bool | None = None,
+        email_digest: str | None = None,
     ) -> NotificationPreference:
         """Update or create a notification preference."""
         pref = await self.get_preference(user_id, notification_type)
-        
+
         if not pref:
             # Create with defaults
             defaults = DEFAULT_PREFERENCES.get(notification_type, {})
@@ -276,7 +271,7 @@ class NotificationService:
                 email_enabled=defaults.get("email", False),
             )
             self.db.add(pref)
-        
+
         # Update fields
         if in_app_enabled is not None:
             pref.in_app_enabled = in_app_enabled
@@ -286,14 +281,15 @@ class NotificationService:
             pref.push_enabled = push_enabled
         if email_digest is not None:
             pref.email_digest = email_digest
-        
+
         await self.db.commit()
         await self.db.refresh(pref)
-        
+
         return pref
 
 
 # --- Notification Helpers ---
+
 
 async def notify_design_shared(
     db: AsyncSession,
@@ -303,7 +299,7 @@ async def notify_design_shared(
     design_id: UUID,
     design_name: str,
     permission: str,
-) -> Optional[Notification]:
+) -> Notification | None:
     """Send notification when a design is shared with a user."""
     service = NotificationService(db)
     return await service.create_notification(
@@ -328,7 +324,7 @@ async def notify_comment_mention(
     design_id: UUID,
     design_name: str,
     comment_preview: str,
-) -> Optional[Notification]:
+) -> Notification | None:
     """Send notification when a user is mentioned in a comment."""
     service = NotificationService(db)
     return await service.create_notification(
@@ -351,7 +347,7 @@ async def notify_job_completed(
     job_id: UUID,
     job_type: str,
     design_name: str,
-) -> Optional[Notification]:
+) -> Notification | None:
     """Send notification when a job completes."""
     service = NotificationService(db)
     return await service.create_notification(
@@ -373,7 +369,7 @@ async def notify_job_failed(
     job_type: str,
     design_name: str,
     error_message: str,
-) -> Optional[Notification]:
+) -> Notification | None:
     """Send notification when a job fails."""
     service = NotificationService(db)
     return await service.create_notification(
@@ -397,7 +393,7 @@ async def notify_org_invite(
     org_id: UUID,
     org_name: str,
     role: str,
-) -> Optional[Notification]:
+) -> Notification | None:
     """Send notification for organization invite."""
     service = NotificationService(db)
     return await service.create_notification(

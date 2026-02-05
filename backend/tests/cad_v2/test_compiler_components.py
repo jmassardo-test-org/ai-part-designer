@@ -103,9 +103,7 @@ class TestComponentMounting:
     """Tests for component mounting compilation."""
 
     @pytest.mark.skipif(not BUILD123D_AVAILABLE, reason="Build123d not available")
-    def test_compile_with_pi_standoffs(
-        self, enclosure_with_pi: EnclosureSpec
-    ) -> None:
+    def test_compile_with_pi_standoffs(self, enclosure_with_pi: EnclosureSpec) -> None:
         """Should compile enclosure with Raspberry Pi standoffs."""
         from app.cad_v2.compiler import CompilationEngine
 
@@ -181,9 +179,7 @@ class TestHoneycombVentilation:
     """Tests for honeycomb ventilation pattern."""
 
     @pytest.mark.skipif(not BUILD123D_AVAILABLE, reason="Build123d not available")
-    def test_compile_honeycomb_vents(
-        self, enclosure_with_honeycomb: EnclosureSpec
-    ) -> None:
+    def test_compile_honeycomb_vents(self, enclosure_with_honeycomb: EnclosureSpec) -> None:
         """Should compile enclosure with honeycomb ventilation."""
         from app.cad_v2.compiler import CompilationEngine
 
@@ -195,9 +191,7 @@ class TestHoneycombVentilation:
         assert isinstance(result.parts["body"], Part)
 
     @pytest.mark.skipif(not BUILD123D_AVAILABLE, reason="Build123d not available")
-    def test_compile_slot_vents(
-        self, enclosure_with_slots: EnclosureSpec
-    ) -> None:
+    def test_compile_slot_vents(self, enclosure_with_slots: EnclosureSpec) -> None:
         """Should compile enclosure with slot ventilation."""
         from app.cad_v2.compiler import CompilationEngine
 

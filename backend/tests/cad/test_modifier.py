@@ -5,18 +5,15 @@ Tests modification operations, transformations, boolean operations,
 and operation validation.
 """
 
-import pytest
-from dataclasses import asdict
-
 from app.cad.modifier import (
-    OperationType,
     ModifyOperation,
+    OperationType,
 )
-
 
 # =============================================================================
 # Operation Type Tests
 # =============================================================================
+
 
 class TestOperationType:
     """Tests for operation type enum."""
@@ -49,6 +46,7 @@ class TestOperationType:
 # Modify Operation Tests
 # =============================================================================
 
+
 class TestModifyOperation:
     """Tests for modification operation dataclass."""
 
@@ -58,7 +56,7 @@ class TestModifyOperation:
             type=OperationType.TRANSLATE,
             params={"x": 10.0, "y": 20.0, "z": 0.0},
         )
-        
+
         assert op.type == OperationType.TRANSLATE
         assert op.params["x"] == 10.0
         assert op.params["y"] == 20.0
@@ -69,7 +67,7 @@ class TestModifyOperation:
             type=OperationType.ROTATE,
             params={"angle": 45.0, "axis": "z"},
         )
-        
+
         assert op.type == OperationType.ROTATE
         assert op.params["angle"] == 45.0
 
@@ -79,7 +77,7 @@ class TestModifyOperation:
             type=OperationType.SCALE,
             params={"factor": 2.0},
         )
-        
+
         assert op.type == OperationType.SCALE
         assert op.params["factor"] == 2.0
 
@@ -89,7 +87,7 @@ class TestModifyOperation:
             type=OperationType.FILLET,
             params={"radius": 3.0, "edges": "all"},
         )
-        
+
         assert op.type == OperationType.FILLET
         assert op.params["radius"] == 3.0
 
@@ -99,7 +97,7 @@ class TestModifyOperation:
             type=OperationType.SHELL,
             params={"thickness": 2.0, "faces_to_remove": ["top"]},
         )
-        
+
         assert op.type == OperationType.SHELL
         assert op.params["thickness"] == 2.0
 
@@ -107,6 +105,7 @@ class TestModifyOperation:
 # =============================================================================
 # Operation Validation Tests
 # =============================================================================
+
 
 class TestOperationValidation:
     """Tests for operation parameter validation."""
@@ -117,7 +116,7 @@ class TestOperationValidation:
             type=OperationType.TRANSLATE,
             params={"x": 10.0},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -127,7 +126,7 @@ class TestOperationValidation:
             type=OperationType.TRANSLATE,
             params={},  # No axis specified
         )
-        
+
         errors = op.validate()
         assert len(errors) > 0
         assert "axis" in errors[0].lower()
@@ -138,7 +137,7 @@ class TestOperationValidation:
             type=OperationType.ROTATE,
             params={"angle": 90.0},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -148,7 +147,7 @@ class TestOperationValidation:
             type=OperationType.ROTATE,
             params={},  # No angle
         )
-        
+
         errors = op.validate()
         assert len(errors) > 0
         assert "angle" in errors[0].lower()
@@ -159,7 +158,7 @@ class TestOperationValidation:
             type=OperationType.SCALE,
             params={"factor": 1.5},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -169,7 +168,7 @@ class TestOperationValidation:
             type=OperationType.SCALE,
             params={},  # No factor
         )
-        
+
         errors = op.validate()
         assert len(errors) > 0
         assert "factor" in errors[0].lower()
@@ -180,7 +179,7 @@ class TestOperationValidation:
             type=OperationType.SCALE,
             params={"factor": 0},
         )
-        
+
         errors = op.validate()
         assert len(errors) > 0
 
@@ -190,7 +189,7 @@ class TestOperationValidation:
             type=OperationType.SCALE,
             params={"factor": -1.0},
         )
-        
+
         errors = op.validate()
         assert len(errors) > 0
 
@@ -198,6 +197,7 @@ class TestOperationValidation:
 # =============================================================================
 # Boolean Operation Tests
 # =============================================================================
+
 
 class TestBooleanOperations:
     """Tests for boolean operation configuration."""
@@ -208,7 +208,7 @@ class TestBooleanOperations:
             type=OperationType.UNION,
             params={"with_solid": "other_part.step"},
         )
-        
+
         assert op.type == OperationType.UNION
 
     def test_difference_operation(self):
@@ -217,7 +217,7 @@ class TestBooleanOperations:
             type=OperationType.DIFFERENCE,
             params={"subtract_solid": "cutout.step"},
         )
-        
+
         assert op.type == OperationType.DIFFERENCE
 
     def test_intersection_operation(self):
@@ -226,13 +226,14 @@ class TestBooleanOperations:
             type=OperationType.INTERSECTION,
             params={"with_solid": "intersector.step"},
         )
-        
+
         assert op.type == OperationType.INTERSECTION
 
 
 # =============================================================================
 # Feature Operation Tests
 # =============================================================================
+
 
 class TestFeatureOperations:
     """Tests for feature operation configuration."""
@@ -243,7 +244,7 @@ class TestFeatureOperations:
             type=OperationType.CHAMFER,
             params={"distance": 2.0},
         )
-        
+
         assert op.type == OperationType.CHAMFER
         assert op.params["distance"] == 2.0
 
@@ -257,7 +258,7 @@ class TestFeatureOperations:
                 "position": {"x": 25.0, "y": 25.0},
             },
         )
-        
+
         assert op.type == OperationType.ADD_HOLE
         assert op.params["diameter"] == 5.0
 
@@ -271,7 +272,7 @@ class TestFeatureOperations:
                 "depth": 5.0,
             },
         )
-        
+
         assert op.type == OperationType.ADD_POCKET
 
     def test_add_boss_operation(self):
@@ -283,13 +284,14 @@ class TestFeatureOperations:
                 "height": 15.0,
             },
         )
-        
+
         assert op.type == OperationType.ADD_BOSS
 
 
 # =============================================================================
 # Mirror Operation Tests
 # =============================================================================
+
 
 class TestMirrorOperation:
     """Tests for mirror operation."""
@@ -300,7 +302,7 @@ class TestMirrorOperation:
             type=OperationType.MIRROR,
             params={"plane": "YZ"},  # Mirror across YZ plane (flip X)
         )
-        
+
         assert op.type == OperationType.MIRROR
         assert op.params["plane"] == "YZ"
 
@@ -310,7 +312,7 @@ class TestMirrorOperation:
             type=OperationType.MIRROR,
             params={"plane": "XZ"},
         )
-        
+
         assert op.params["plane"] == "XZ"
 
     def test_mirror_z_plane(self):
@@ -319,13 +321,14 @@ class TestMirrorOperation:
             type=OperationType.MIRROR,
             params={"plane": "XY"},
         )
-        
+
         assert op.params["plane"] == "XY"
 
 
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases in modifier operations."""
@@ -336,7 +339,7 @@ class TestEdgeCases:
             type=OperationType.TRANSLATE,
             params={"z": 50.0},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -346,7 +349,7 @@ class TestEdgeCases:
             type=OperationType.SCALE,
             params={"factor": 100.0},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -356,7 +359,7 @@ class TestEdgeCases:
             type=OperationType.SCALE,
             params={"factor": 0.001},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -366,7 +369,7 @@ class TestEdgeCases:
             type=OperationType.ROTATE,
             params={"angle": 360.0, "axis": "z"},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -376,7 +379,7 @@ class TestEdgeCases:
             type=OperationType.ROTATE,
             params={"angle": -45.0, "axis": "y"},
         )
-        
+
         errors = op.validate()
         assert len(errors) == 0
 
@@ -384,6 +387,7 @@ class TestEdgeCases:
 # =============================================================================
 # Operation Chaining Tests
 # =============================================================================
+
 
 class TestOperationChaining:
     """Tests for multiple operation scenarios."""
@@ -404,9 +408,9 @@ class TestOperationChaining:
                 params={"radius": 2.0},
             ),
         ]
-        
+
         assert len(operations) == 3
-        
+
         # Validate all operations
         for op in operations:
             errors = op.validate()

@@ -13,10 +13,9 @@ from app.api.deps import get_current_user, get_db, get_optional_user
 from app.models.user import User
 from app.schemas.rating import (
     CommentCreate,
-    CommentUpdate,
-    CommentResponse,
-    CommentThread,
     CommentModerationAction,
+    CommentResponse,
+    CommentUpdate,
     CommentUserInfo,
 )
 from app.services.rating_service import CommentService
@@ -41,13 +40,13 @@ async def create_template_comment(
     current_user: User = Depends(get_current_user),
 ) -> CommentResponse:
     """Create a new comment on a template.
-    
+
     Supports threaded replies via parent_id.
     """
     service = CommentService(db)
     comment = await service.create_comment(template_id, current_user.id, data)
     await db.commit()
-    
+
     return CommentResponse(
         id=comment.id,
         template_id=comment.template_id,
@@ -79,7 +78,7 @@ async def get_template_comments(
     current_user: User | None = Depends(get_optional_user),
 ) -> list[CommentResponse]:
     """Get comments for a template.
-    
+
     Returns top-level comments with reply counts.
     Hidden comments are excluded unless user is admin.
     """
@@ -91,28 +90,32 @@ async def get_template_comments(
         limit=limit,
         offset=offset,
     )
-    
+
     result = []
     for comment in comments:
         reply_count = await service.get_reply_count(comment.id)
-        result.append(CommentResponse(
-            id=comment.id,
-            template_id=comment.template_id,
-            user_id=comment.user_id,
-            parent_id=comment.parent_id,
-            content=comment.content,
-            is_hidden=comment.is_hidden,
-            is_edited=comment.is_edited,
-            edited_at=comment.edited_at,
-            created_at=comment.created_at,
-            updated_at=comment.updated_at,
-            user=CommentUserInfo(
-                id=comment.user.id,
-                display_name=comment.user.display_name,
-            ) if comment.user else None,
-            reply_count=reply_count,
-        ))
-    
+        result.append(
+            CommentResponse(
+                id=comment.id,
+                template_id=comment.template_id,
+                user_id=comment.user_id,
+                parent_id=comment.parent_id,
+                content=comment.content,
+                is_hidden=comment.is_hidden,
+                is_edited=comment.is_edited,
+                edited_at=comment.edited_at,
+                created_at=comment.created_at,
+                updated_at=comment.updated_at,
+                user=CommentUserInfo(
+                    id=comment.user.id,
+                    display_name=comment.user.display_name,
+                )
+                if comment.user
+                else None,
+                reply_count=reply_count,
+            )
+        )
+
     return result
 
 
@@ -130,28 +133,32 @@ async def get_template_comment_replies(
     is_admin = current_user and current_user.is_admin
     service = CommentService(db)
     replies = await service.get_comment_replies(comment_id, include_hidden=is_admin)
-    
+
     result = []
     for reply in replies:
         reply_count = await service.get_reply_count(reply.id)
-        result.append(CommentResponse(
-            id=reply.id,
-            template_id=reply.template_id,
-            user_id=reply.user_id,
-            parent_id=reply.parent_id,
-            content=reply.content,
-            is_hidden=reply.is_hidden,
-            is_edited=reply.is_edited,
-            edited_at=reply.edited_at,
-            created_at=reply.created_at,
-            updated_at=reply.updated_at,
-            user=CommentUserInfo(
-                id=reply.user.id,
-                display_name=reply.user.display_name,
-            ) if reply.user else None,
-            reply_count=reply_count,
-        ))
-    
+        result.append(
+            CommentResponse(
+                id=reply.id,
+                template_id=reply.template_id,
+                user_id=reply.user_id,
+                parent_id=reply.parent_id,
+                content=reply.content,
+                is_hidden=reply.is_hidden,
+                is_edited=reply.is_edited,
+                edited_at=reply.edited_at,
+                created_at=reply.created_at,
+                updated_at=reply.updated_at,
+                user=CommentUserInfo(
+                    id=reply.user.id,
+                    display_name=reply.user.display_name,
+                )
+                if reply.user
+                else None,
+                reply_count=reply_count,
+            )
+        )
+
     return result
 
 
@@ -167,20 +174,20 @@ async def update_template_comment(
     current_user: User = Depends(get_current_user),
 ) -> CommentResponse:
     """Update a comment.
-    
+
     Users can only update their own comments.
     """
     service = CommentService(db)
     comment = await service.update_comment(comment_id, current_user.id, data)
-    
+
     if not comment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found or you don't have permission to edit it",
         )
-    
+
     await db.commit()
-    
+
     reply_count = await service.get_reply_count(comment.id)
     return CommentResponse(
         id=comment.id,
@@ -212,7 +219,7 @@ async def delete_template_comment(
     current_user: User = Depends(get_current_user),
 ) -> None:
     """Delete a comment.
-    
+
     Users can delete their own comments. Admins can delete any comment.
     """
     service = CommentService(db)
@@ -221,13 +228,13 @@ async def delete_template_comment(
         current_user.id,
         is_admin=current_user.is_admin,
     )
-    
+
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found or you don't have permission to delete it",
         )
-    
+
     await db.commit()
 
 
@@ -248,7 +255,7 @@ async def moderate_template_comment(
     current_user: User = Depends(get_current_user),
 ) -> CommentResponse:
     """Moderate a comment (admin only).
-    
+
     Actions: hide, unhide, delete
     """
     if not current_user.is_admin:
@@ -256,9 +263,9 @@ async def moderate_template_comment(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = CommentService(db)
-    
+
     if data.action == "hide":
         comment = await service.hide_comment(comment_id, current_user.id, data.reason)
     elif data.action == "unhide":
@@ -278,15 +285,15 @@ async def moderate_template_comment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown action: {data.action}",
         )
-    
+
     if not comment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found",
         )
-    
+
     await db.commit()
-    
+
     reply_count = await service.get_reply_count(comment.id)
     return CommentResponse(
         id=comment.id,

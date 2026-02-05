@@ -7,25 +7,19 @@ Supports manual positioning and auto-layout.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
-    Column,
-    DateTime,
-    Enum as SAEnum,
     Float,
     ForeignKey,
     Index,
-    Integer,
     String,
     Text,
     UniqueConstraint,
-    func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -39,9 +33,10 @@ if TYPE_CHECKING:
 # Enums
 # =============================================================================
 
+
 class FaceDirection(str):
     """Direction a component face points relative to enclosure."""
-    
+
     FRONT = "front"
     BACK = "back"
     LEFT = "left"
@@ -52,7 +47,7 @@ class FaceDirection(str):
 
 class LayoutStatus(str):
     """Status of a layout."""
-    
+
     DRAFT = "draft"
     VALIDATED = "validated"
     FINALIZED = "finalized"
@@ -62,10 +57,11 @@ class LayoutStatus(str):
 # Spatial Layout
 # =============================================================================
 
+
 class SpatialLayout(Base, TimestampMixin):
     """
     Spatial layout of components within an enclosure.
-    
+
     A project can have multiple layouts (e.g., "Compact", "Spaced Out")
     to explore different arrangements before generating an enclosure.
     """
@@ -139,11 +135,11 @@ class SpatialLayout(Base, TimestampMixin):
     )  # Min Y spacing, mm
 
     # Relationships
-    project: Mapped["Project"] = relationship(
+    project: Mapped[Project] = relationship(
         "Project",
         back_populates="layouts",
     )
-    placements: Mapped[list["ComponentPlacement"]] = relationship(
+    placements: Mapped[list[ComponentPlacement]] = relationship(
         "ComponentPlacement",
         back_populates="layout",
         cascade="all, delete-orphan",
@@ -151,9 +147,7 @@ class SpatialLayout(Base, TimestampMixin):
     )
 
     # Indexes
-    __table_args__ = (
-        Index("idx_layouts_project", "project_id"),
-    )
+    __table_args__ = (Index("idx_layouts_project", "project_id"),)
 
     def __repr__(self) -> str:
         return f"<SpatialLayout(id={self.id}, name={self.name})>"
@@ -171,28 +165,34 @@ class SpatialLayout(Base, TimestampMixin):
     def get_bounding_box(self) -> dict:
         """
         Calculate bounding box of all placed components.
-        
+
         Returns:
             Dict with min_x, max_x, min_y, max_y, min_z, max_z
         """
         if not self.placements:
             return {
-                "min_x": 0, "max_x": 0,
-                "min_y": 0, "max_y": 0,
-                "min_z": 0, "max_z": 0,
+                "min_x": 0,
+                "max_x": 0,
+                "min_y": 0,
+                "max_y": 0,
+                "min_z": 0,
+                "max_z": 0,
             }
-        
+
         min_x = min(p.x for p in self.placements)
         max_x = max(p.x + (p.width or 0) for p in self.placements)
         min_y = min(p.y for p in self.placements)
         max_y = max(p.y + (p.depth or 0) for p in self.placements)
         min_z = min(p.z for p in self.placements)
         max_z = max(p.z + (p.height or 0) for p in self.placements)
-        
+
         return {
-            "min_x": min_x, "max_x": max_x,
-            "min_y": min_y, "max_y": max_y,
-            "min_z": min_z, "max_z": max_z,
+            "min_x": min_x,
+            "max_x": max_x,
+            "min_y": min_y,
+            "max_y": max_y,
+            "min_z": min_z,
+            "max_z": max_z,
         }
 
 
@@ -200,10 +200,11 @@ class SpatialLayout(Base, TimestampMixin):
 # Component Placement
 # =============================================================================
 
+
 class ComponentPlacement(Base, TimestampMixin):
     """
     Position and orientation of a component within a layout.
-    
+
     Origin is at bottom-left-front corner of enclosure interior.
     Rotation is around Z-axis (vertical) in 90° increments.
     """
@@ -296,11 +297,11 @@ class ComponentPlacement(Base, TimestampMixin):
     )
 
     # Relationships
-    layout: Mapped["SpatialLayout"] = relationship(
+    layout: Mapped[SpatialLayout] = relationship(
         "SpatialLayout",
         back_populates="placements",
     )
-    component: Mapped["ReferenceComponent"] = relationship(
+    component: Mapped[ReferenceComponent] = relationship(
         "ReferenceComponent",
         lazy="joined",
     )
@@ -310,7 +311,8 @@ class ComponentPlacement(Base, TimestampMixin):
         Index("idx_placements_layout", "layout_id"),
         Index("idx_placements_component", "component_id"),
         UniqueConstraint(
-            "layout_id", "component_id",
+            "layout_id",
+            "component_id",
             name="uq_placement_layout_component",
         ),
     )
@@ -331,7 +333,7 @@ class ComponentPlacement(Base, TimestampMixin):
     def get_bounding_box(self) -> dict:
         """
         Get axis-aligned bounding box in enclosure coordinates.
-        
+
         Returns:
             Dict with min_x, max_x, min_y, max_y, min_z, max_z
         """
@@ -344,41 +346,38 @@ class ComponentPlacement(Base, TimestampMixin):
             "max_z": self.z + (self.height or 0),
         }
 
-    def intersects(self, other: "ComponentPlacement", margin: float = 0) -> bool:
+    def intersects(self, other: ComponentPlacement, margin: float = 0) -> bool:
         """
         Check if this placement intersects with another.
-        
+
         Args:
             other: Another placement to check
             margin: Additional clearance to require
-            
+
         Returns:
             True if bounding boxes overlap (including margin)
         """
         # Get bounding boxes
         a = self.get_bounding_box()
         b = other.get_bounding_box()
-        
+
         # Check for non-overlap in each axis
         if a["max_x"] + margin <= b["min_x"] or b["max_x"] + margin <= a["min_x"]:
             return False
         if a["max_y"] + margin <= b["min_y"] or b["max_y"] + margin <= a["min_y"]:
             return False
-        if a["max_z"] + margin <= b["min_z"] or b["max_z"] + margin <= a["min_z"]:
-            return False
-        
-        return True
+        return not (a["max_z"] + margin <= b["min_z"] or b["max_z"] + margin <= a["min_z"])
 
     def set_rotation(self, degrees: float) -> None:
         """
         Set rotation and update cached dimensions.
-        
+
         Args:
             degrees: Rotation in degrees (will be rounded to nearest 90°)
         """
         # Round to nearest 90°
         self.rotation_z = round(degrees / 90) * 90 % 360
-        
+
         # Swap width/depth for 90° and 270° rotations
         if self.rotation_z in (90, 270):
             self.width, self.depth = self.depth, self.width

@@ -5,11 +5,11 @@ Handles multi-user organizations, team membership,
 roles, and invitations.
 """
 
+import secrets
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
-import secrets
 
 from sqlalchemy import (
     Boolean,
@@ -21,29 +21,30 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, SoftDeleteMixin
+from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.project import Project
     from app.models.team import Team
+    from app.models.user import User
 
 
-class OrganizationRole(str, Enum):
+class OrganizationRole(StrEnum):
     """Organization member roles with increasing permissions."""
-    
+
     VIEWER = "viewer"  # Read-only access
     MEMBER = "member"  # Create and edit own resources
-    ADMIN = "admin"    # Manage members and settings
-    OWNER = "owner"    # Full control, can delete org
+    ADMIN = "admin"  # Manage members and settings
+    OWNER = "owner"  # Full control, can delete org
 
 
-class InviteStatus(str, Enum):
+class InviteStatus(StrEnum):
     """Invitation status."""
-    
+
     PENDING = "pending"
     ACCEPTED = "accepted"
     DECLINED = "declined"
@@ -54,7 +55,7 @@ class InviteStatus(str, Enum):
 class Organization(Base, TimestampMixin, SoftDeleteMixin):
     """
     Organization model.
-    
+
     Represents a team or company that can have multiple members
     and own shared resources like projects and designs.
     """
@@ -79,7 +80,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
         unique=True,
         index=True,
     )
-    
+
     # Owner (creator) - nullable in DB
     owner_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -105,29 +106,29 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     def description(self) -> str | None:
         """Get description from settings."""
         return self.settings.get("description")
-    
+
     @description.setter
     def description(self, value: str | None) -> None:
         """Set description in settings."""
         if self.settings is None:
             self.settings = {}
         self.settings = {**self.settings, "description": value}
-    
+
     @property
     def logo_url(self) -> str | None:
         """Get logo URL from settings."""
         return self.settings.get("logo_url")
-    
+
     @property
     def subscription_tier(self) -> str:
         """Get subscription tier from settings."""
         return self.settings.get("subscription_tier", "free")
-    
+
     @property
     def max_members(self) -> int:
         """Get max members from settings."""
         return self.settings.get("max_members", 5)
-    
+
     @property
     def max_projects(self) -> int:
         """Get max projects from settings."""
@@ -187,7 +188,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
 class OrganizationMember(Base, TimestampMixin):
     """
     Organization membership.
-    
+
     Links users to organizations with role-based access control.
     """
 
@@ -285,7 +286,7 @@ class OrganizationMember(Base, TimestampMixin):
 class OrganizationInvite(Base, TimestampMixin):
     """
     Organization invitation.
-    
+
     Tracks pending invitations sent to email addresses.
     """
 
@@ -384,10 +385,7 @@ class OrganizationInvite(Base, TimestampMixin):
     @property
     def is_valid(self) -> bool:
         """Check if invite is still valid."""
-        return (
-            self.status == InviteStatus.PENDING.value
-            and self.expires_at > datetime.utcnow()
-        )
+        return self.status == InviteStatus.PENDING.value and self.expires_at > datetime.utcnow()
 
     def accept(self, user: "User") -> None:
         """Mark invite as accepted."""
@@ -407,7 +405,7 @@ class OrganizationInvite(Base, TimestampMixin):
 class OrganizationCreditBalance(Base, TimestampMixin):
     """
     Organization credit pool.
-    
+
     Shared credits for all organization members.
     """
 
@@ -471,7 +469,7 @@ class OrganizationCreditBalance(Base, TimestampMixin):
 class OrganizationAuditLog(Base, TimestampMixin):
     """
     Organization audit log.
-    
+
     Tracks all organization actions for compliance.
     """
 
@@ -502,12 +500,12 @@ class OrganizationAuditLog(Base, TimestampMixin):
         String(100),
         nullable=False,
     )  # member_added, member_removed, role_changed, settings_updated, etc.
-    
+
     resource_type: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
     )  # member, invite, project, settings
-    
+
     resource_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         nullable=True,

@@ -5,14 +5,17 @@ It provides a unified interface for compiling different types of designs.
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.cad_v2.schemas.enclosure import EnclosureSpec
 
+if TYPE_CHECKING:
+    from app.cad_v2.compiler.enclosure import EnclosureCompiler
 
-class ExportFormat(str, Enum):
+
+class ExportFormat(StrEnum):
     """Supported export formats."""
 
     STEP = "step"
@@ -126,7 +129,7 @@ class CompilationEngine:
 
     def __init__(self) -> None:
         """Initialize compilation engine."""
-        self._enclosure_compiler: "EnclosureCompiler | None" = None
+        self._enclosure_compiler: EnclosureCompiler | None = None
 
     @property
     def enclosure_compiler(self) -> "EnclosureCompiler":
@@ -191,4 +194,3 @@ class CompilationEngine:
 
 
 # Lazy import to avoid circular dependency
-from app.cad_v2.compiler.enclosure import EnclosureCompiler  # noqa: E402

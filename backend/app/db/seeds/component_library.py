@@ -5,8 +5,6 @@ Popular components with verified dimensions, mounting holes, and connector posit
 All dimensions in millimeters.
 """
 
-from datetime import datetime
-from typing import Any
 from uuid import uuid4
 
 # =============================================================================
@@ -48,18 +46,98 @@ RASPBERRY_PI_5 = {
         {"x": 61.5, "y": 52.5, "diameter": 2.7, "type": "M2.5"},
     ],
     "connectors": [
-        {"name": "USB-C Power", "type": "usb-c", "x": 11.2, "y": 56.0, "width": 9.0, "height": 3.2, "side": "top"},
-        {"name": "Micro HDMI 0", "type": "micro-hdmi", "x": 26.0, "y": 56.0, "width": 6.5, "height": 3.0, "side": "top"},
-        {"name": "Micro HDMI 1", "type": "micro-hdmi", "x": 39.0, "y": 56.0, "width": 6.5, "height": 3.0, "side": "top"},
-        {"name": "USB 3.0 (x2)", "type": "usb-a-stacked", "x": 85.0, "y": 29.0, "width": 17.5, "height": 15.5, "side": "right"},
-        {"name": "USB 2.0 (x2)", "type": "usb-a-stacked", "x": 85.0, "y": 47.0, "width": 17.5, "height": 15.5, "side": "right"},
-        {"name": "Ethernet", "type": "rj45", "x": 85.0, "y": 10.25, "width": 21.5, "height": 16.0, "side": "right"},
-        {"name": "3.5mm Audio", "type": "audio-jack", "x": 53.5, "y": 56.0, "width": 7.0, "height": 6.0, "side": "top"},
-        {"name": "40-pin GPIO", "type": "header-2x20", "x": 7.1, "y": 32.5, "width": 51.0, "height": 5.0, "side": "internal"},
+        {
+            "name": "USB-C Power",
+            "type": "usb-c",
+            "x": 11.2,
+            "y": 56.0,
+            "width": 9.0,
+            "height": 3.2,
+            "side": "top",
+        },
+        {
+            "name": "Micro HDMI 0",
+            "type": "micro-hdmi",
+            "x": 26.0,
+            "y": 56.0,
+            "width": 6.5,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "Micro HDMI 1",
+            "type": "micro-hdmi",
+            "x": 39.0,
+            "y": 56.0,
+            "width": 6.5,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "USB 3.0 (x2)",
+            "type": "usb-a-stacked",
+            "x": 85.0,
+            "y": 29.0,
+            "width": 17.5,
+            "height": 15.5,
+            "side": "right",
+        },
+        {
+            "name": "USB 2.0 (x2)",
+            "type": "usb-a-stacked",
+            "x": 85.0,
+            "y": 47.0,
+            "width": 17.5,
+            "height": 15.5,
+            "side": "right",
+        },
+        {
+            "name": "Ethernet",
+            "type": "rj45",
+            "x": 85.0,
+            "y": 10.25,
+            "width": 21.5,
+            "height": 16.0,
+            "side": "right",
+        },
+        {
+            "name": "3.5mm Audio",
+            "type": "audio-jack",
+            "x": 53.5,
+            "y": 56.0,
+            "width": 7.0,
+            "height": 6.0,
+            "side": "top",
+        },
+        {
+            "name": "40-pin GPIO",
+            "type": "header-2x20",
+            "x": 7.1,
+            "y": 32.5,
+            "width": 51.0,
+            "height": 5.0,
+            "side": "internal",
+        },
     ],
     "clearance_zones": [
-        {"name": "SD Card", "x": -3.0, "y": 22.0, "width": 15.0, "height": 12.0, "z_height": 2.0, "side": "left"},
-        {"name": "Power Button", "x": 21.0, "y": 0.0, "width": 7.0, "height": 5.0, "z_height": 3.0, "side": "bottom"},
+        {
+            "name": "SD Card",
+            "x": -3.0,
+            "y": 22.0,
+            "width": 15.0,
+            "height": 12.0,
+            "z_height": 2.0,
+            "side": "left",
+        },
+        {
+            "name": "Power Button",
+            "x": 21.0,
+            "y": 0.0,
+            "width": 7.0,
+            "height": 5.0,
+            "z_height": 3.0,
+            "side": "bottom",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -89,17 +167,89 @@ RASPBERRY_PI_4B = {
         {"x": 61.5, "y": 52.5, "diameter": 2.7, "type": "M2.5"},
     ],
     "connectors": [
-        {"name": "USB-C Power", "type": "usb-c", "x": 11.2, "y": 56.0, "width": 9.0, "height": 3.2, "side": "top"},
-        {"name": "Micro HDMI 0", "type": "micro-hdmi", "x": 26.0, "y": 56.0, "width": 6.5, "height": 3.0, "side": "top"},
-        {"name": "Micro HDMI 1", "type": "micro-hdmi", "x": 39.0, "y": 56.0, "width": 6.5, "height": 3.0, "side": "top"},
-        {"name": "USB 3.0 (x2)", "type": "usb-a-stacked", "x": 85.0, "y": 29.0, "width": 17.5, "height": 15.5, "side": "right"},
-        {"name": "USB 2.0 (x2)", "type": "usb-a-stacked", "x": 85.0, "y": 47.0, "width": 17.5, "height": 15.5, "side": "right"},
-        {"name": "Ethernet", "type": "rj45", "x": 85.0, "y": 10.25, "width": 21.5, "height": 16.0, "side": "right"},
-        {"name": "3.5mm Audio", "type": "audio-jack", "x": 53.5, "y": 56.0, "width": 7.0, "height": 6.0, "side": "top"},
-        {"name": "40-pin GPIO", "type": "header-2x20", "x": 7.1, "y": 32.5, "width": 51.0, "height": 5.0, "side": "internal"},
+        {
+            "name": "USB-C Power",
+            "type": "usb-c",
+            "x": 11.2,
+            "y": 56.0,
+            "width": 9.0,
+            "height": 3.2,
+            "side": "top",
+        },
+        {
+            "name": "Micro HDMI 0",
+            "type": "micro-hdmi",
+            "x": 26.0,
+            "y": 56.0,
+            "width": 6.5,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "Micro HDMI 1",
+            "type": "micro-hdmi",
+            "x": 39.0,
+            "y": 56.0,
+            "width": 6.5,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "USB 3.0 (x2)",
+            "type": "usb-a-stacked",
+            "x": 85.0,
+            "y": 29.0,
+            "width": 17.5,
+            "height": 15.5,
+            "side": "right",
+        },
+        {
+            "name": "USB 2.0 (x2)",
+            "type": "usb-a-stacked",
+            "x": 85.0,
+            "y": 47.0,
+            "width": 17.5,
+            "height": 15.5,
+            "side": "right",
+        },
+        {
+            "name": "Ethernet",
+            "type": "rj45",
+            "x": 85.0,
+            "y": 10.25,
+            "width": 21.5,
+            "height": 16.0,
+            "side": "right",
+        },
+        {
+            "name": "3.5mm Audio",
+            "type": "audio-jack",
+            "x": 53.5,
+            "y": 56.0,
+            "width": 7.0,
+            "height": 6.0,
+            "side": "top",
+        },
+        {
+            "name": "40-pin GPIO",
+            "type": "header-2x20",
+            "x": 7.1,
+            "y": 32.5,
+            "width": 51.0,
+            "height": 5.0,
+            "side": "internal",
+        },
     ],
     "clearance_zones": [
-        {"name": "SD Card", "x": -3.0, "y": 22.0, "width": 15.0, "height": 12.0, "z_height": 2.0, "side": "left"},
+        {
+            "name": "SD Card",
+            "x": -3.0,
+            "y": 22.0,
+            "width": 15.0,
+            "height": 12.0,
+            "z_height": 2.0,
+            "side": "left",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -129,13 +279,53 @@ RASPBERRY_PI_ZERO_2W = {
         {"x": 61.5, "y": 26.5, "diameter": 2.7, "type": "M2.5"},
     ],
     "connectors": [
-        {"name": "Micro USB Power", "type": "micro-usb", "x": 6.0, "y": 30.0, "width": 8.0, "height": 3.0, "side": "top"},
-        {"name": "Micro USB Data", "type": "micro-usb", "x": 19.5, "y": 30.0, "width": 8.0, "height": 3.0, "side": "top"},
-        {"name": "Mini HDMI", "type": "mini-hdmi", "x": 35.5, "y": 30.0, "width": 11.0, "height": 3.5, "side": "top"},
-        {"name": "40-pin GPIO", "type": "header-2x20-unpopulated", "x": 7.5, "y": 15.0, "width": 51.0, "height": 5.0, "side": "internal"},
+        {
+            "name": "Micro USB Power",
+            "type": "micro-usb",
+            "x": 6.0,
+            "y": 30.0,
+            "width": 8.0,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "Micro USB Data",
+            "type": "micro-usb",
+            "x": 19.5,
+            "y": 30.0,
+            "width": 8.0,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "Mini HDMI",
+            "type": "mini-hdmi",
+            "x": 35.5,
+            "y": 30.0,
+            "width": 11.0,
+            "height": 3.5,
+            "side": "top",
+        },
+        {
+            "name": "40-pin GPIO",
+            "type": "header-2x20-unpopulated",
+            "x": 7.5,
+            "y": 15.0,
+            "width": 51.0,
+            "height": 5.0,
+            "side": "internal",
+        },
     ],
     "clearance_zones": [
-        {"name": "SD Card", "x": 65.0, "y": 8.0, "width": 15.0, "height": 12.0, "z_height": 2.0, "side": "right"},
+        {
+            "name": "SD Card",
+            "x": 65.0,
+            "y": 8.0,
+            "width": 15.0,
+            "height": 12.0,
+            "z_height": 2.0,
+            "side": "right",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -169,11 +359,51 @@ ARDUINO_UNO_R3 = {
         {"x": 66.0, "y": 35.6, "diameter": 3.2, "type": "M3"},
     ],
     "connectors": [
-        {"name": "USB-B", "type": "usb-b", "x": 9.0, "y": 0.0, "width": 12.0, "height": 11.0, "side": "bottom"},
-        {"name": "DC Jack", "type": "barrel-jack", "x": 0.0, "y": 7.6, "width": 9.0, "height": 14.0, "side": "left"},
-        {"name": "Digital Pins", "type": "header-1x14", "x": 18.0, "y": 53.4, "width": 35.5, "height": 8.5, "side": "internal"},
-        {"name": "Analog Pins", "type": "header-1x6", "x": 50.0, "y": 0.0, "width": 15.2, "height": 8.5, "side": "internal"},
-        {"name": "Power Pins", "type": "header-1x8", "x": 18.0, "y": 0.0, "width": 20.3, "height": 8.5, "side": "internal"},
+        {
+            "name": "USB-B",
+            "type": "usb-b",
+            "x": 9.0,
+            "y": 0.0,
+            "width": 12.0,
+            "height": 11.0,
+            "side": "bottom",
+        },
+        {
+            "name": "DC Jack",
+            "type": "barrel-jack",
+            "x": 0.0,
+            "y": 7.6,
+            "width": 9.0,
+            "height": 14.0,
+            "side": "left",
+        },
+        {
+            "name": "Digital Pins",
+            "type": "header-1x14",
+            "x": 18.0,
+            "y": 53.4,
+            "width": 35.5,
+            "height": 8.5,
+            "side": "internal",
+        },
+        {
+            "name": "Analog Pins",
+            "type": "header-1x6",
+            "x": 50.0,
+            "y": 0.0,
+            "width": 15.2,
+            "height": 8.5,
+            "side": "internal",
+        },
+        {
+            "name": "Power Pins",
+            "type": "header-1x8",
+            "x": 18.0,
+            "y": 0.0,
+            "width": 20.3,
+            "height": 8.5,
+            "side": "internal",
+        },
     ],
     "clearance_zones": [],
     "thermal": {
@@ -204,9 +434,33 @@ ARDUINO_NANO = {
         {"x": 43.7, "y": 16.7, "diameter": 1.5, "type": "M1.5"},
     ],
     "connectors": [
-        {"name": "Mini USB", "type": "mini-usb", "x": 20.0, "y": 18.0, "width": 8.0, "height": 4.0, "side": "top"},
-        {"name": "Left Pins", "type": "header-1x15", "x": 0.0, "y": 1.5, "width": 2.54, "height": 38.0, "side": "left"},
-        {"name": "Right Pins", "type": "header-1x15", "x": 18.0, "y": 1.5, "width": 2.54, "height": 38.0, "side": "right"},
+        {
+            "name": "Mini USB",
+            "type": "mini-usb",
+            "x": 20.0,
+            "y": 18.0,
+            "width": 8.0,
+            "height": 4.0,
+            "side": "top",
+        },
+        {
+            "name": "Left Pins",
+            "type": "header-1x15",
+            "x": 0.0,
+            "y": 1.5,
+            "width": 2.54,
+            "height": 38.0,
+            "side": "left",
+        },
+        {
+            "name": "Right Pins",
+            "type": "header-1x15",
+            "x": 18.0,
+            "y": 1.5,
+            "width": 2.54,
+            "height": 38.0,
+            "side": "right",
+        },
     ],
     "clearance_zones": [],
     "thermal": {
@@ -237,8 +491,24 @@ ARDUINO_MEGA_2560 = {
         {"x": 96.5, "y": 2.5, "diameter": 3.2, "type": "M3"},
     ],
     "connectors": [
-        {"name": "USB-B", "type": "usb-b", "x": 9.0, "y": 0.0, "width": 12.0, "height": 11.0, "side": "bottom"},
-        {"name": "DC Jack", "type": "barrel-jack", "x": 0.0, "y": 7.6, "width": 9.0, "height": 14.0, "side": "left"},
+        {
+            "name": "USB-B",
+            "type": "usb-b",
+            "x": 9.0,
+            "y": 0.0,
+            "width": 12.0,
+            "height": 11.0,
+            "side": "bottom",
+        },
+        {
+            "name": "DC Jack",
+            "type": "barrel-jack",
+            "x": 0.0,
+            "y": 7.6,
+            "width": 9.0,
+            "height": 14.0,
+            "side": "left",
+        },
     ],
     "clearance_zones": [],
     "thermal": {
@@ -269,12 +539,44 @@ ESP32_DEVKIT_V1 = {
         {"x": 49.4, "y": 26.0, "diameter": 2.0, "type": "M2"},
     ],
     "connectors": [
-        {"name": "Micro USB", "type": "micro-usb", "x": 23.0, "y": 28.0, "width": 8.0, "height": 3.0, "side": "top"},
-        {"name": "Left Pins", "type": "header-1x19", "x": 0.0, "y": 2.0, "width": 2.54, "height": 48.0, "side": "left"},
-        {"name": "Right Pins", "type": "header-1x19", "x": 28.0, "y": 2.0, "width": 2.54, "height": 48.0, "side": "right"},
+        {
+            "name": "Micro USB",
+            "type": "micro-usb",
+            "x": 23.0,
+            "y": 28.0,
+            "width": 8.0,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "Left Pins",
+            "type": "header-1x19",
+            "x": 0.0,
+            "y": 2.0,
+            "width": 2.54,
+            "height": 48.0,
+            "side": "left",
+        },
+        {
+            "name": "Right Pins",
+            "type": "header-1x19",
+            "x": 28.0,
+            "y": 2.0,
+            "width": 2.54,
+            "height": 48.0,
+            "side": "right",
+        },
     ],
     "clearance_zones": [
-        {"name": "Antenna", "x": 15.0, "y": 0.0, "width": 20.0, "height": 10.0, "z_height": 2.0, "side": "bottom"},
+        {
+            "name": "Antenna",
+            "x": 15.0,
+            "y": 0.0,
+            "width": 20.0,
+            "height": 10.0,
+            "z_height": 2.0,
+            "side": "bottom",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -304,12 +606,44 @@ ESP8266_NODEMCU = {
         {"x": 56.0, "y": 29.0, "diameter": 2.0, "type": "M2"},
     ],
     "connectors": [
-        {"name": "Micro USB", "type": "micro-usb", "x": 26.0, "y": 31.0, "width": 8.0, "height": 3.0, "side": "top"},
-        {"name": "Left Pins", "type": "header-1x15", "x": 0.0, "y": 2.0, "width": 2.54, "height": 38.0, "side": "left"},
-        {"name": "Right Pins", "type": "header-1x15", "x": 31.0, "y": 2.0, "width": 2.54, "height": 38.0, "side": "right"},
+        {
+            "name": "Micro USB",
+            "type": "micro-usb",
+            "x": 26.0,
+            "y": 31.0,
+            "width": 8.0,
+            "height": 3.0,
+            "side": "top",
+        },
+        {
+            "name": "Left Pins",
+            "type": "header-1x15",
+            "x": 0.0,
+            "y": 2.0,
+            "width": 2.54,
+            "height": 38.0,
+            "side": "left",
+        },
+        {
+            "name": "Right Pins",
+            "type": "header-1x15",
+            "x": 31.0,
+            "y": 2.0,
+            "width": 2.54,
+            "height": 38.0,
+            "side": "right",
+        },
     ],
     "clearance_zones": [
-        {"name": "Antenna", "x": 20.0, "y": 0.0, "width": 18.0, "height": 10.0, "z_height": 2.0, "side": "bottom"},
+        {
+            "name": "Antenna",
+            "x": 20.0,
+            "y": 0.0,
+            "width": 18.0,
+            "height": 10.0,
+            "z_height": 2.0,
+            "side": "bottom",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -343,7 +677,15 @@ LCD_16X2_I2C = {
         {"x": 77.5, "y": 33.5, "diameter": 3.2, "type": "M3"},
     ],
     "connectors": [
-        {"name": "I2C Header", "type": "header-1x4", "x": 35.0, "y": 0.0, "width": 10.0, "height": 8.5, "side": "bottom"},
+        {
+            "name": "I2C Header",
+            "type": "header-1x4",
+            "x": 35.0,
+            "y": 0.0,
+            "width": 10.0,
+            "height": 8.5,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [],
     "display_area": {
@@ -379,7 +721,15 @@ LCD_20X4_I2C = {
         {"x": 95.5, "y": 57.5, "diameter": 3.2, "type": "M3"},
     ],
     "connectors": [
-        {"name": "I2C Header", "type": "header-1x4", "x": 45.0, "y": 0.0, "width": 10.0, "height": 8.5, "side": "bottom"},
+        {
+            "name": "I2C Header",
+            "type": "header-1x4",
+            "x": 45.0,
+            "y": 0.0,
+            "width": 10.0,
+            "height": 8.5,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [],
     "display_area": {
@@ -397,7 +747,7 @@ LCD_20X4_I2C = {
 }
 
 OLED_096_I2C = {
-    "name": "0.96\" OLED Display I2C",
+    "name": '0.96" OLED Display I2C',
     "model_number": "SSD1306-096",
     "manufacturer": "Various",
     "category": "display",
@@ -415,7 +765,15 @@ OLED_096_I2C = {
         {"x": 25.0, "y": 25.0, "diameter": 2.0, "type": "M2"},
     ],
     "connectors": [
-        {"name": "I2C Header", "type": "header-1x4", "x": 8.5, "y": 0.0, "width": 10.0, "height": 2.54, "side": "bottom"},
+        {
+            "name": "I2C Header",
+            "type": "header-1x4",
+            "x": 8.5,
+            "y": 0.0,
+            "width": 10.0,
+            "height": 2.54,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [],
     "display_area": {
@@ -433,7 +791,7 @@ OLED_096_I2C = {
 }
 
 OLED_130_I2C = {
-    "name": "1.3\" OLED Display I2C",
+    "name": '1.3" OLED Display I2C',
     "model_number": "SH1106-130",
     "manufacturer": "Various",
     "category": "display",
@@ -451,7 +809,15 @@ OLED_130_I2C = {
         {"x": 32.5, "y": 30.5, "diameter": 2.5, "type": "M2.5"},
     ],
     "connectors": [
-        {"name": "I2C Header", "type": "header-1x4", "x": 12.0, "y": 0.0, "width": 10.0, "height": 2.54, "side": "bottom"},
+        {
+            "name": "I2C Header",
+            "type": "header-1x4",
+            "x": 12.0,
+            "y": 0.0,
+            "width": 10.0,
+            "height": 2.54,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [],
     "display_area": {
@@ -469,7 +835,7 @@ OLED_130_I2C = {
 }
 
 TFT_240_320 = {
-    "name": "2.4\" TFT LCD 240x320",
+    "name": '2.4" TFT LCD 240x320',
     "model_number": "ILI9341-240",
     "manufacturer": "Various",
     "category": "display",
@@ -487,7 +853,15 @@ TFT_240_320 = {
         {"x": 69.0, "y": 50.0, "diameter": 2.5, "type": "M2.5"},
     ],
     "connectors": [
-        {"name": "SPI Header", "type": "header-2x7", "x": 28.0, "y": 0.0, "width": 18.0, "height": 5.0, "side": "bottom"},
+        {
+            "name": "SPI Header",
+            "type": "header-2x7",
+            "x": 28.0,
+            "y": 0.0,
+            "width": 18.0,
+            "height": 5.0,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [],
     "display_area": {
@@ -523,7 +897,15 @@ TACTILE_BUTTON_6X6 = {
     "mounting_holes": [],  # Through-hole pins
     "connectors": [],
     "clearance_zones": [
-        {"name": "Button Travel", "x": 0.0, "y": 0.0, "width": 6.0, "height": 6.0, "z_height": 1.0, "side": "top"},
+        {
+            "name": "Button Travel",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 6.0,
+            "height": 6.0,
+            "z_height": 1.0,
+            "side": "top",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -548,7 +930,15 @@ TACTILE_BUTTON_12X12 = {
     "mounting_holes": [],
     "connectors": [],
     "clearance_zones": [
-        {"name": "Button Travel", "x": 0.0, "y": 0.0, "width": 12.0, "height": 12.0, "z_height": 1.5, "side": "top"},
+        {
+            "name": "Button Travel",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 12.0,
+            "height": 12.0,
+            "z_height": 1.5,
+            "side": "top",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -575,10 +965,26 @@ ROTARY_ENCODER = {
         {"x": 24.0, "y": 2.0, "diameter": 3.0, "type": "M3"},
     ],
     "connectors": [
-        {"name": "5-pin Header", "type": "header-1x5", "x": 5.0, "y": 0.0, "width": 13.0, "height": 8.5, "side": "bottom"},
+        {
+            "name": "5-pin Header",
+            "type": "header-1x5",
+            "x": 5.0,
+            "y": 0.0,
+            "width": 13.0,
+            "height": 8.5,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [
-        {"name": "Knob Area", "x": 6.0, "y": 9.0, "width": 14.0, "height": 14.0, "z_height": 20.0, "side": "top"},
+        {
+            "name": "Knob Area",
+            "x": 6.0,
+            "y": 9.0,
+            "width": 14.0,
+            "height": 14.0,
+            "z_height": 20.0,
+            "side": "top",
+        },
     ],
     "thermal": {
         "max_temp_c": 70,
@@ -607,10 +1013,26 @@ JOYSTICK_MODULE = {
         {"x": 31.5, "y": 23.5, "diameter": 3.0, "type": "M3"},
     ],
     "connectors": [
-        {"name": "5-pin Header", "type": "header-1x5", "x": 10.0, "y": 0.0, "width": 13.0, "height": 8.5, "side": "bottom"},
+        {
+            "name": "5-pin Header",
+            "type": "header-1x5",
+            "x": 10.0,
+            "y": 0.0,
+            "width": 13.0,
+            "height": 8.5,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [
-        {"name": "Joystick Movement", "x": 7.0, "y": 3.0, "width": 20.0, "height": 20.0, "z_height": 25.0, "side": "top"},
+        {
+            "name": "Joystick Movement",
+            "x": 7.0,
+            "y": 3.0,
+            "width": 20.0,
+            "height": 20.0,
+            "z_height": 25.0,
+            "side": "top",
+        },
     ],
     "thermal": {
         "max_temp_c": 70,
@@ -724,7 +1146,15 @@ SD_CARD_SLOT = {
     "mounting_holes": [],
     "connectors": [],
     "clearance_zones": [
-        {"name": "Card Insertion", "x": 0.0, "y": 7.0, "width": 12.0, "height": 10.0, "z_height": 1.5, "side": "front"},
+        {
+            "name": "Card Insertion",
+            "x": 0.0,
+            "y": 7.0,
+            "width": 12.0,
+            "height": 10.0,
+            "z_height": 1.5,
+            "side": "front",
+        },
     ],
     "thermal": {
         "max_temp_c": 70,
@@ -755,10 +1185,26 @@ PIR_SENSOR_HC_SR501 = {
         {"x": 29.5, "y": 12.0, "diameter": 2.0, "type": "M2"},
     ],
     "connectors": [
-        {"name": "3-pin Header", "type": "header-1x3", "x": 12.0, "y": 0.0, "width": 8.0, "height": 8.5, "side": "bottom"},
+        {
+            "name": "3-pin Header",
+            "type": "header-1x3",
+            "x": 12.0,
+            "y": 0.0,
+            "width": 8.0,
+            "height": 8.5,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [
-        {"name": "Sensor Dome", "x": 4.0, "y": 0.0, "width": 24.0, "height": 24.0, "z_height": 15.0, "side": "top"},
+        {
+            "name": "Sensor Dome",
+            "x": 4.0,
+            "y": 0.0,
+            "width": 24.0,
+            "height": 24.0,
+            "z_height": 15.0,
+            "side": "top",
+        },
     ],
     "thermal": {
         "max_temp_c": 60,
@@ -785,11 +1231,35 @@ ULTRASONIC_HC_SR04 = {
         {"x": 43.0, "y": 10.0, "diameter": 2.0, "type": "M2"},
     ],
     "connectors": [
-        {"name": "4-pin Header", "type": "header-1x4", "x": 17.0, "y": 0.0, "width": 10.0, "height": 8.5, "side": "bottom"},
+        {
+            "name": "4-pin Header",
+            "type": "header-1x4",
+            "x": 17.0,
+            "y": 0.0,
+            "width": 10.0,
+            "height": 8.5,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [
-        {"name": "Left Transducer", "x": 3.0, "y": 3.0, "width": 16.0, "height": 14.0, "z_height": 12.0, "side": "front"},
-        {"name": "Right Transducer", "x": 26.0, "y": 3.0, "width": 16.0, "height": 14.0, "z_height": 12.0, "side": "front"},
+        {
+            "name": "Left Transducer",
+            "x": 3.0,
+            "y": 3.0,
+            "width": 16.0,
+            "height": 14.0,
+            "z_height": 12.0,
+            "side": "front",
+        },
+        {
+            "name": "Right Transducer",
+            "x": 26.0,
+            "y": 3.0,
+            "width": 16.0,
+            "height": 14.0,
+            "z_height": 12.0,
+            "side": "front",
+        },
     ],
     "thermal": {
         "max_temp_c": 70,
@@ -813,10 +1283,26 @@ DHT22_SENSOR = {
     },
     "mounting_holes": [],
     "connectors": [
-        {"name": "4-pin", "type": "sip-4", "x": 3.5, "y": 0.0, "width": 10.0, "height": 5.0, "side": "bottom"},
+        {
+            "name": "4-pin",
+            "type": "sip-4",
+            "x": 3.5,
+            "y": 0.0,
+            "width": 10.0,
+            "height": 5.0,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [
-        {"name": "Vent Holes", "x": 0.0, "y": 3.0, "width": 25.0, "height": 10.0, "z_height": 3.0, "side": "front"},
+        {
+            "name": "Vent Holes",
+            "x": 0.0,
+            "y": 3.0,
+            "width": 25.0,
+            "height": 10.0,
+            "z_height": 3.0,
+            "side": "front",
+        },
     ],
     "thermal": {
         "max_temp_c": 80,
@@ -842,7 +1328,15 @@ BME280_MODULE = {
         {"x": 2.0, "y": 5.0, "diameter": 2.0, "type": "M2"},
     ],
     "connectors": [
-        {"name": "4-pin Header", "type": "header-1x4", "x": 4.0, "y": 0.0, "width": 10.0, "height": 2.54, "side": "bottom"},
+        {
+            "name": "4-pin Header",
+            "type": "header-1x4",
+            "x": 4.0,
+            "y": 0.0,
+            "width": 10.0,
+            "height": 2.54,
+            "side": "bottom",
+        },
     ],
     "clearance_zones": [],
     "thermal": {
@@ -874,11 +1368,35 @@ BUCK_CONVERTER_MINI = {
         {"x": 20.0, "y": 15.0, "diameter": 2.0, "type": "M2"},
     ],
     "connectors": [
-        {"name": "Input +/-", "type": "screw-terminal-2", "x": 0.0, "y": 5.0, "width": 5.0, "height": 8.0, "side": "left"},
-        {"name": "Output +/-", "type": "screw-terminal-2", "x": 22.0, "y": 5.0, "width": 5.0, "height": 8.0, "side": "right"},
+        {
+            "name": "Input +/-",
+            "type": "screw-terminal-2",
+            "x": 0.0,
+            "y": 5.0,
+            "width": 5.0,
+            "height": 8.0,
+            "side": "left",
+        },
+        {
+            "name": "Output +/-",
+            "type": "screw-terminal-2",
+            "x": 22.0,
+            "y": 5.0,
+            "width": 5.0,
+            "height": 8.0,
+            "side": "right",
+        },
     ],
     "clearance_zones": [
-        {"name": "Adjustment Pot", "x": 8.0, "y": 6.0, "width": 6.0, "height": 6.0, "z_height": 3.0, "side": "top"},
+        {
+            "name": "Adjustment Pot",
+            "x": 8.0,
+            "y": 6.0,
+            "width": 6.0,
+            "height": 6.0,
+            "z_height": 3.0,
+            "side": "top",
+        },
     ],
     "thermal": {
         "max_temp_c": 85,
@@ -897,39 +1415,33 @@ COMPONENT_LIBRARY = [
     RASPBERRY_PI_5,
     RASPBERRY_PI_4B,
     RASPBERRY_PI_ZERO_2W,
-    
     # Microcontrollers
     ARDUINO_UNO_R3,
     ARDUINO_NANO,
     ARDUINO_MEGA_2560,
     ESP32_DEVKIT_V1,
     ESP8266_NODEMCU,
-    
     # Displays
     LCD_16X2_I2C,
     LCD_20X4_I2C,
     OLED_096_I2C,
     OLED_130_I2C,
     TFT_240_320,
-    
     # Input Devices
     TACTILE_BUTTON_6X6,
     TACTILE_BUTTON_12X12,
     ROTARY_ENCODER,
     JOYSTICK_MODULE,
-    
     # Connectors
     USB_A_PANEL_MOUNT,
     USB_C_PANEL_MOUNT,
     DC_BARREL_JACK,
     SD_CARD_SLOT,
-    
     # Sensors
     PIR_SENSOR_HC_SR501,
     ULTRASONIC_HC_SR04,
     DHT22_SENSOR,
     BME280_MODULE,
-    
     # Power
     BUCK_CONVERTER_MINI,
 ]
@@ -938,14 +1450,15 @@ COMPONENT_LIBRARY = [
 async def seed_component_library(db) -> int:
     """
     Seed the database with the component library.
-    
+
     Returns the number of components added.
     """
-    from app.models.reference_component import ReferenceComponent, ComponentLibrary
     from sqlalchemy import select
-    
+
+    from app.models.reference_component import ComponentLibrary
+
     count = 0
-    
+
     for component_data in COMPONENT_LIBRARY:
         # Check if component already exists
         result = await db.execute(
@@ -954,10 +1467,10 @@ async def seed_component_library(db) -> int:
             )
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             continue
-        
+
         # Create library component
         library_component = ComponentLibrary(
             id=uuid4(),
@@ -980,10 +1493,10 @@ async def seed_component_library(db) -> int:
             is_verified=True,
             popularity_score=100,  # Default for seed data
         )
-        
+
         db.add(library_component)
         count += 1
-    
+
     await db.commit()
     return count
 

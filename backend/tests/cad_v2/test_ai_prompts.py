@@ -1,15 +1,13 @@
 """Tests for CAD v2 AI prompts."""
 
-import pytest
-
 from app.cad_v2.ai.prompts import (
     CAD_V2_SYSTEM_PROMPT,
-    INTENT_CLASSIFICATION_PROMPT,
     DIMENSION_EXTRACTION_PROMPT,
-    FEATURE_EXTRACTION_PROMPT,
-    PromptTemplate,
     ENCLOSURE_GENERATION,
+    FEATURE_EXTRACTION_PROMPT,
     INTENT_CLASSIFICATION,
+    INTENT_CLASSIFICATION_PROMPT,
+    PromptTemplate,
 )
 
 
@@ -123,7 +121,7 @@ class TestPromptTemplate:
             user_template="Create: {user_input}",
         )
         messages = template.format_messages("a box")
-        
+
         assert len(messages) == 2
         assert messages[0]["role"] == "system"
         assert messages[0]["content"] == "You are a CAD expert."

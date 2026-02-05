@@ -4,9 +4,6 @@ Contact Form API Tests.
 
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock
-
-from app.main import app
 
 
 @pytest.fixture
@@ -119,6 +116,7 @@ class TestContactFormRateLimiting:
         """Test that rate limit is enforced."""
         # Reset rate limiting state
         from app.api.v1.contact import _submission_times
+
         _submission_times.clear()
 
         # Make 5 successful requests (the limit)
@@ -153,11 +151,11 @@ class TestContactFormSpamDetection:
         """Test that spam keywords are detected but return success."""
         # Reset rate limiting
         from app.api.v1.contact import _submission_times
+
         _submission_times.clear()
 
         valid_contact_data["message"] = (
-            "Congratulations! You've won the LOTTERY! "
-            "Click here to claim your prize money now!"
+            "Congratulations! You've won the LOTTERY! Click here to claim your prize money now!"
         )
         response = await async_client.post("/api/v1/contact", json=valid_contact_data)
 
@@ -172,6 +170,7 @@ class TestContactFormSpamDetection:
         """Test that legitimate messages are not flagged as spam."""
         # Reset rate limiting
         from app.api.v1.contact import _submission_times
+
         _submission_times.clear()
 
         valid_contact_data["message"] = (

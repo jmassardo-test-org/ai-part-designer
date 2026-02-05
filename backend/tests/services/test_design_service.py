@@ -6,30 +6,32 @@ Tests design management operations: copy, move, delete with undo, and versioning
 
 from __future__ import annotations
 
-import pytest
-import pytest_asyncio
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+import pytest
+import pytest_asyncio
 
 from app.models.design import Design
 from app.models.project import Project
 from app.models.user import User
 from app.services.design_service import (
-    DesignService,
     DesignNotFoundError,
     DesignPermissionError,
+    DesignService,
     ProjectNotFoundError,
     UndoTokenExpiredError,
 )
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest_asyncio.fixture
 async def test_project(db_session: AsyncSession, test_user: User) -> Project:
@@ -60,9 +62,7 @@ async def second_project(db_session: AsyncSession, test_user: User) -> Project:
 
 
 @pytest_asyncio.fixture
-async def test_design(
-    db_session: AsyncSession, test_project: Project, test_user: User
-) -> Design:
+async def test_design(db_session: AsyncSession, test_project: Project, test_user: User) -> Design:
     """Create a test design."""
     design = Design(
         name="Test Design",
@@ -88,6 +88,7 @@ def design_service(db_session: AsyncSession) -> DesignService:
 # =============================================================================
 # Copy Design Tests
 # =============================================================================
+
 
 class TestCopyDesign:
     """Tests for the copy_design method."""
@@ -170,6 +171,7 @@ class TestCopyDesign:
 # Move Design Tests
 # =============================================================================
 
+
 class TestMoveDesign:
     """Tests for the move_design method."""
 
@@ -231,6 +233,7 @@ class TestMoveDesign:
 # Delete Design Tests
 # =============================================================================
 
+
 class TestDeleteDesign:
     """Tests for the delete_design and undo_delete methods."""
 
@@ -240,23 +243,23 @@ class TestDeleteDesign:
         with patch("app.core.undo_tokens.redis_client") as mock_redis:
             # Storage for tokens during test
             tokens = {}
-            
+
             async def mock_set_json(key, data, ttl=None):
                 tokens[key] = data
-            
+
             async def mock_get_json(key):
                 return tokens.get(key)
-            
+
             async def mock_delete(key):
                 if key in tokens:
                     del tokens[key]
                     return 1
                 return 0
-            
+
             mock_redis.set_json = AsyncMock(side_effect=mock_set_json)
             mock_redis.get_json = AsyncMock(side_effect=mock_get_json)
             mock_redis.delete = AsyncMock(side_effect=mock_delete)
-            
+
             yield mock_redis
 
     @pytest.mark.asyncio
@@ -338,6 +341,7 @@ class TestDeleteDesign:
 # Version Management Tests
 # =============================================================================
 
+
 class TestVersionManagement:
     """Tests for version listing, creation, and restoration."""
 
@@ -375,6 +379,7 @@ class TestVersionManagement:
 # Permission Tests
 # =============================================================================
 
+
 class TestPermissions:
     """Tests for permission checks."""
 
@@ -388,7 +393,7 @@ class TestPermissions:
             password_hash=hash_password("OtherPassword123!"),
             display_name="Other User",
             status="active",
-            email_verified_at=datetime.now(timezone.utc),
+            email_verified_at=datetime.now(UTC),
         )
         db_session.add(user)
         await db_session.commit()
@@ -428,6 +433,7 @@ class TestPermissions:
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases and error conditions."""

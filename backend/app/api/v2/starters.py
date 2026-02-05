@@ -7,14 +7,12 @@ Allows browsing vendor-published starter designs and remixing them.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, desc, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import desc, func, or_, select
 
-from app.api.deps import get_current_user, get_current_user_optional
+from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.design import Design
 from app.models.project import Project
@@ -26,6 +24,11 @@ from app.schemas.marketplace import (
     StarterDetailResponse,
     StarterListResponse,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +63,10 @@ def _design_to_starter(design: Design) -> StarterDesignResponse:
     # Extract features from enclosure_spec if available
     features: list[str] = []
     exterior_dims: dict | None = None
-    
+
     if design.enclosure_spec:
         spec = design.enclosure_spec
-        
+
         # Get dimensions
         if "exterior" in spec:
             ext = spec["exterior"]
@@ -73,24 +76,24 @@ def _design_to_starter(design: Design) -> StarterDesignResponse:
                 "height": ext.get("height", {}).get("value"),
                 "unit": ext.get("width", {}).get("unit", "mm"),
             }
-        
+
         # Extract feature types
         if "features" in spec:
             for feature in spec.get("features", []):
                 feature_type = feature.get("type", "")
                 if feature_type and feature_type not in features:
                     features.append(feature_type)
-        
+
         # Add lid type
         if "lid" in spec:
             lid_type = spec["lid"].get("type")
             if lid_type:
                 features.append(f"lid-{lid_type}")
-        
+
         # Add ventilation
         if spec.get("ventilation", {}).get("enabled"):
             features.append("ventilation")
-    
+
     return StarterDesignResponse(
         id=design.id,
         name=design.name,
@@ -121,7 +124,7 @@ async def list_starter_designs(
 ) -> StarterListResponse:
     """
     List public starter designs for remixing.
-    
+
     These are vendor-published template designs that users can
     use as starting points.
     """
@@ -132,16 +135,16 @@ async def list_starter_designs(
         .where(Design.is_public == True)  # noqa: E712
         .where(Design.deleted_at.is_(None))
     )
-    
+
     # Apply category filter
     if category:
         query = query.where(Design.category == category)
-    
+
     # Apply tag filter
     if tags:
         for tag in tags:
             query = query.where(Design.tags.contains([tag]))
-    
+
     # Apply search
     if search:
         search_pattern = f"%{search.lower()}%"
@@ -151,20 +154,20 @@ async def list_starter_designs(
                 func.lower(Design.description).like(search_pattern),
             )
         )
-    
+
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Apply sorting and pagination
     offset = (page - 1) * page_size
     query = query.order_by(desc(Design.remix_count), desc(Design.created_at))
     query = query.offset(offset).limit(page_size)
-    
+
     result = await db.execute(query)
     designs = result.scalars().all()
-    
+
     return StarterListResponse(
         items=[_design_to_starter(d) for d in designs],
         total=total,
@@ -192,12 +195,12 @@ async def get_starter_categories(
         .group_by(Design.category)
         .order_by(desc("count"))
     )
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     category_counts = {row.category: row.count for row in rows}
-    
+
     return [
         {
             "name": cat.replace("-", " ").title(),
@@ -225,26 +228,26 @@ async def get_starter_detail(
         .where(Design.is_public == True)  # noqa: E712
         .where(Design.deleted_at.is_(None))
     )
-    
+
     result = await db.execute(query)
     row = result.first()
-    
+
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Starter design not found",
         )
-    
+
     design = row.Design
     author_name = row.author_name
-    
+
     # Extract features and dimensions
     features: list[str] = []
     exterior_dims: dict | None = None
-    
+
     if design.enclosure_spec:
         spec = design.enclosure_spec
-        
+
         if "exterior" in spec:
             ext = spec["exterior"]
             exterior_dims = {
@@ -253,13 +256,13 @@ async def get_starter_detail(
                 "height": ext.get("height", {}).get("value"),
                 "unit": ext.get("width", {}).get("unit", "mm"),
             }
-        
+
         if "features" in spec:
             for feature in spec.get("features", []):
                 feature_type = feature.get("type", "")
                 if feature_type and feature_type not in features:
                     features.append(feature_type)
-    
+
     return StarterDetailResponse(
         id=design.id,
         name=design.name,
@@ -291,7 +294,7 @@ async def remix_design(
 ) -> RemixResponse:
     """
     Create a remix (copy) of a starter design.
-    
+
     The remix is a new design owned by the user with the
     same EnclosureSpec, ready for customization.
     """
@@ -303,16 +306,16 @@ async def remix_design(
         .where(Design.is_public == True)  # noqa: E712
         .where(Design.deleted_at.is_(None))
     )
-    
+
     result = await db.execute(query)
     starter = result.scalar_one_or_none()
-    
+
     if not starter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Starter design not found",
         )
-    
+
     # Get or create default project
     project_query = (
         select(Project)
@@ -322,7 +325,7 @@ async def remix_design(
     )
     project_result = await db.execute(project_query)
     project = project_result.scalar_one_or_none()
-    
+
     if not project:
         project = Project(
             user_id=current_user.id,
@@ -331,10 +334,10 @@ async def remix_design(
         )
         db.add(project)
         await db.flush()
-    
+
     # Create remix name
     remix_name = request.name if request and request.name else f"{starter.name} (Remix)"
-    
+
     # Create the remix design
     remix = Design(
         user_id=current_user.id,
@@ -350,17 +353,17 @@ async def remix_design(
         is_public=False,
         is_starter=False,
     )
-    
+
     db.add(remix)
-    
+
     # Increment remix count on original
     starter.remix_count = (starter.remix_count or 0) + 1
-    
+
     await db.commit()
     await db.refresh(remix)
-    
+
     logger.info(f"User {current_user.id} remixed starter {design_id} -> {remix.id}")
-    
+
     return RemixResponse(
         id=remix.id,
         name=remix.name,
@@ -388,20 +391,20 @@ async def list_design_remixes(
         .where(Design.is_public == True)  # noqa: E712
         .where(Design.deleted_at.is_(None))
     )
-    
+
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Apply pagination
     offset = (page - 1) * page_size
     query = query.order_by(desc(Design.created_at))
     query = query.offset(offset).limit(page_size)
-    
+
     result = await db.execute(query)
     designs = result.scalars().all()
-    
+
     return StarterListResponse(
         items=[_design_to_starter(d) for d in designs],
         total=total,

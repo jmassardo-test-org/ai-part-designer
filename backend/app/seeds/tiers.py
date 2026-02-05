@@ -140,31 +140,31 @@ TIERS = [
 
 async def seed_tiers(session: AsyncSession) -> int:
     """Seed subscription tiers.
-    
+
     Args:
         session: Database session.
-        
+
     Returns:
         Number of tiers created.
     """
     created = 0
-    
+
     for tier_data in TIERS:
         # Check if tier already exists
         result = await session.execute(
             select(SubscriptionTier).where(SubscriptionTier.slug == tier_data["slug"])
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             logger.info(f"Tier '{tier_data['slug']}' already exists, skipping...")
             continue
-        
+
         tier = SubscriptionTier(**tier_data)
         session.add(tier)
         created += 1
         logger.info(f"Created tier: {tier_data['name']}")
-    
+
     await session.commit()
     return created
 
@@ -175,7 +175,7 @@ async def main():
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-    
+
     async with async_session_maker() as session:
         count = await seed_tiers(session)
         print(f"\nSeeded {count} subscription tiers successfully!")

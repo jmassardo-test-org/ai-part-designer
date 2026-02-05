@@ -6,16 +6,19 @@ Tests version listing, retrieval, restore, and comparison.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
 # List Versions Tests
 # =============================================================================
+
 
 class TestListVersions:
     """Tests for version listing endpoint."""
@@ -29,9 +32,9 @@ class TestListVersions:
     ):
         """Test that listing versions requires authentication."""
         design = await design_factory.create(db=db_session)
-        
+
         response = await client.get(f"/api/v1/designs/{design.id}/versions")
-        
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -47,15 +50,15 @@ class TestListVersions:
         """Test listing versions when none exist."""
         project = await project_factory.create(db=db_session, user=test_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         response = await client.get(
             f"/api/v1/designs/{design.id}/versions",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["versions"] == []
         assert data["total"] == 0
 
@@ -73,19 +76,19 @@ class TestListVersions:
         """Test listing versions when design has versions."""
         project = await project_factory.create(db=db_session, user=test_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         await version_factory.create(db=db_session, design=design, version_number=1)
         await version_factory.create(db=db_session, design=design, version_number=2)
         await version_factory.create(db=db_session, design=design, version_number=3)
-        
+
         response = await client.get(
             f"/api/v1/designs/{design.id}/versions",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["versions"]) == 3
         assert data["total"] == 3
         # Should be ordered by version number descending
@@ -103,7 +106,7 @@ class TestListVersions:
             f"/api/v1/designs/{uuid4()}/versions",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -121,12 +124,12 @@ class TestListVersions:
         other_user = await user_factory.create(db=db_session)
         project = await project_factory.create(db=db_session, user=other_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         response = await client.get(
             f"/api/v1/designs/{design.id}/versions",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 403
 
     @pytest.mark.asyncio
@@ -143,23 +146,23 @@ class TestListVersions:
         """Test version listing pagination."""
         project = await project_factory.create(db=db_session, user=test_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         for i in range(5):
             await version_factory.create(
                 db=db_session,
                 design=design,
                 version_number=i + 1,
             )
-        
+
         response = await client.get(
             f"/api/v1/designs/{design.id}/versions",
             headers=auth_headers,
             params={"page": 1, "page_size": 2},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["versions"]) == 2
         assert data["total"] == 5
 
@@ -167,6 +170,7 @@ class TestListVersions:
 # =============================================================================
 # Get Version Tests
 # =============================================================================
+
 
 class TestGetVersion:
     """Tests for getting individual version details."""
@@ -191,15 +195,15 @@ class TestGetVersion:
             version_number=1,
             change_description="Initial version",
         )
-        
+
         response = await client.get(
             f"/api/v1/versions/{version.id}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["version_number"] == 1
         assert "geometry_info" in data
 
@@ -215,7 +219,7 @@ class TestGetVersion:
             f"/api/v1/versions/{uuid4()}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -235,18 +239,19 @@ class TestGetVersion:
         project = await project_factory.create(db=db_session, user=other_user)
         design = await design_factory.create(db=db_session, project=project)
         version = await version_factory.create(db=db_session, design=design)
-        
+
         response = await client.get(
             f"/api/v1/versions/{version.id}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 403
 
 
 # =============================================================================
 # Restore Version Tests
 # =============================================================================
+
 
 class TestRestoreVersion:
     """Tests for version restore endpoint."""
@@ -265,7 +270,7 @@ class TestRestoreVersion:
         """Test restoring a previous version."""
         project = await project_factory.create(db=db_session, user=test_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         v1 = await version_factory.create(
             db=db_session,
             design=design,
@@ -276,16 +281,16 @@ class TestRestoreVersion:
             design=design,
             version_number=2,
         )
-        
+
         response = await client.post(
             f"/api/v1/versions/{v1.id}/restore",
             headers=auth_headers,
             json={"description": "Restored v1"},
         )
-        
+
         assert response.status_code == 201
         data = response.json()
-        
+
         assert data["new_version_number"] == 3
         assert data["restored_from_version"] == 1
 
@@ -302,7 +307,7 @@ class TestRestoreVersion:
             headers=auth_headers,
             json={},
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -322,19 +327,20 @@ class TestRestoreVersion:
         project = await project_factory.create(db=db_session, user=other_user)
         design = await design_factory.create(db=db_session, project=project)
         version = await version_factory.create(db=db_session, design=design)
-        
+
         response = await client.post(
             f"/api/v1/versions/{version.id}/restore",
             headers=auth_headers,
             json={},
         )
-        
+
         assert response.status_code == 403
 
 
 # =============================================================================
 # Compare Versions Tests
 # =============================================================================
+
 
 class TestCompareVersions:
     """Tests for version comparison endpoint."""
@@ -353,7 +359,7 @@ class TestCompareVersions:
         """Test comparing two versions."""
         project = await project_factory.create(db=db_session, user=test_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         await version_factory.create(
             db=db_session,
             design=design,
@@ -366,16 +372,16 @@ class TestCompareVersions:
             version_number=2,
             geometry_info={"volume": 200, "surfaceArea": 75},
         )
-        
+
         response = await client.get(
             f"/api/v1/designs/{design.id}/versions/compare",
             headers=auth_headers,
             params={"version_a": 1, "version_b": 2},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["version_a"]["version_number"] == 1
         assert data["version_b"]["version_number"] == 2
         assert "geometry_diff" in data
@@ -393,7 +399,7 @@ class TestCompareVersions:
             headers=auth_headers,
             params={"version_a": 1, "version_b": 2},
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -410,25 +416,26 @@ class TestCompareVersions:
         """Test comparing with non-existent version number."""
         project = await project_factory.create(db=db_session, user=test_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         await version_factory.create(
             db=db_session,
             design=design,
             version_number=1,
         )
-        
+
         response = await client.get(
             f"/api/v1/designs/{design.id}/versions/compare",
             headers=auth_headers,
             params={"version_a": 1, "version_b": 99},  # 99 doesn't exist
         )
-        
+
         assert response.status_code == 404
 
 
 # =============================================================================
 # Diff Tests
 # =============================================================================
+
 
 class TestVersionDiff:
     """Tests for version diff endpoint."""
@@ -447,7 +454,7 @@ class TestVersionDiff:
         """Test getting diff between versions."""
         project = await project_factory.create(db=db_session, user=test_user)
         design = await design_factory.create(db=db_session, project=project)
-        
+
         await version_factory.create(
             db=db_session,
             design=design,
@@ -458,12 +465,12 @@ class TestVersionDiff:
             design=design,
             version_number=2,
         )
-        
+
         response = await client.get(
             f"/api/v1/designs/{design.id}/versions/diff",
             headers=auth_headers,
             params={"from_version": 1, "to_version": 2},
         )
-        
+
         # The endpoint may or may not exist - just check it doesn't crash
         assert response.status_code in [200, 404]

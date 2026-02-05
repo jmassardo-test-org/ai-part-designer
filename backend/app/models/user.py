@@ -6,39 +6,40 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.project import Project
-    from app.models.design import Design
-    from app.models.job import Job
+    from app.models.annotation import DesignAnnotation
     from app.models.api_key import APIKey
     from app.models.conversation import Conversation
-    from app.models.subscription import CreditBalance, UsageQuota
-    from app.models.organization import OrganizationMember
-    from app.models.team import TeamMember
-    from app.models.annotation import DesignAnnotation
+    from app.models.design import Design
+    from app.models.job import Job
+    from app.models.marketplace import DesignList
     from app.models.notification import Notification, NotificationPreference
-    from app.models.payment import PaymentHistory
     from app.models.oauth import OAuthConnection
+    from app.models.organization import OrganizationMember
+    from app.models.payment import PaymentHistory
+    from app.models.project import Project
     from app.models.rating import (
-        TemplateRating,
-        TemplateFeedback,
-        TemplateComment,
         ContentReport,
+        TemplateComment,
+        TemplateFeedback,
+        TemplateRating,
         UserBan,
     )
-    from app.models.marketplace import DesignList
+    from app.models.subscription import CreditBalance, UsageQuota
+    from app.models.team import TeamMember
 
 
 class User(Base, TimestampMixin, SoftDeleteMixin):
     """
     User account model.
-    
+
     Represents registered users of the platform with authentication
     credentials and account status.
     """
@@ -226,7 +227,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="user",
         lazy="selectin",
     )
-    
+
     # Marketplace lists
     design_lists: Mapped[list["DesignList"]] = relationship(
         "DesignList",
@@ -234,7 +235,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-    
+
     # Rating and feedback relationships
     template_ratings: Mapped[list["TemplateRating"]] = relationship(
         "TemplateRating",
@@ -306,7 +307,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
 class Subscription(Base, TimestampMixin):
     """
     User subscription model.
-    
+
     Tracks the subscription tier and billing status for a user.
     One-to-one relationship with User.
     """
@@ -389,7 +390,7 @@ class Subscription(Base, TimestampMixin):
 class UserSettings(Base, TimestampMixin):
     """
     User preferences and notification settings.
-    
+
     Stores user-configurable settings as JSONB for flexibility.
     One-to-one relationship with User.
     """

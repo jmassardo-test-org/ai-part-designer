@@ -8,24 +8,29 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.core.rate_limiter import RateLimiter, expensive_operation_limit, design_operation_limit
+from app.core.rate_limiter import design_operation_limit, expensive_operation_limit
 from app.models.conversation import Conversation
 from app.models.design import Design
 from app.models.job import Job
 from app.models.notification import NotificationType
 from app.models.project import Project
-from app.models.user import User
 from app.services.design_service import DesignService
 from app.services.notification_service import NotificationService
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -36,31 +41,42 @@ router = APIRouter()
 # Schemas
 # ============================================================================
 
+
 class DesignCreate(BaseModel):
     """Request schema for creating a design."""
+
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
-    project_id: UUID | None = Field(None, description="Project to save to. If not provided, uses default project.")
+    project_id: UUID | None = Field(
+        None, description="Project to save to. If not provided, uses default project."
+    )
 
 
 class DesignFromJobCreate(BaseModel):
     """Request schema for creating a design from a job."""
+
     job_id: UUID = Field(..., description="ID of the completed generation job")
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
-    project_id: UUID | None = Field(None, description="Project to save to. If not provided, uses default project.")
+    project_id: UUID | None = Field(
+        None, description="Project to save to. If not provided, uses default project."
+    )
 
 
 class DesignFromConversationCreate(BaseModel):
     """Request schema for creating a design from a conversation result."""
+
     conversation_id: UUID = Field(..., description="ID of the completed conversation")
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
-    project_id: UUID | None = Field(None, description="Project to save to. If not provided, uses default project.")
+    project_id: UUID | None = Field(
+        None, description="Project to save to. If not provided, uses default project."
+    )
 
 
 class DesignResponse(BaseModel):
     """Response schema for a design."""
+
     id: UUID
     name: str
     description: str | None
@@ -79,6 +95,7 @@ class DesignResponse(BaseModel):
 
 class DesignListResponse(BaseModel):
     """Response schema for listing designs."""
+
     designs: list[DesignResponse]
     total: int
     page: int
@@ -89,10 +106,8 @@ class DesignListResponse(BaseModel):
 # Helper Functions
 # ============================================================================
 
-async def get_or_create_default_project(
-    user: User,
-    db: AsyncSession
-) -> Project:
+
+async def get_or_create_default_project(user: User, db: AsyncSession) -> Project:
     """Get or create the user's default project."""
     query = (
         select(Project)
@@ -118,6 +133,7 @@ async def get_or_create_default_project(
 # ============================================================================
 # Endpoints
 # ============================================================================
+
 
 @router.post("/designs", response_model=DesignResponse, status_code=status.HTTP_201_CREATED)
 async def create_design(
@@ -177,7 +193,9 @@ async def create_design(
     )
 
 
-@router.post("/designs/from-job", response_model=DesignResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/designs/from-job", response_model=DesignResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_design_from_job(
     request: DesignFromJobCreate,
     current_user: User = Depends(get_current_user),
@@ -185,15 +203,11 @@ async def create_design_from_job(
 ) -> DesignResponse:
     """
     Create a design from a completed generation job.
-    
+
     This saves an AI-generated design to the user's library.
     """
     # Find the job
-    job_query = (
-        select(Job)
-        .where(Job.id == request.job_id)
-        .where(Job.user_id == current_user.id)
-    )
+    job_query = select(Job).where(Job.id == request.job_id).where(Job.user_id == current_user.id)
     result = await db.execute(job_query)
     job = result.scalar_one_or_none()
 
@@ -295,7 +309,9 @@ async def create_design_from_job(
     )
 
 
-@router.post("/designs/from-conversation", response_model=DesignResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/designs/from-conversation", response_model=DesignResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_design_from_conversation(
     request: DesignFromConversationCreate,
     current_user: User = Depends(get_current_user),
@@ -303,7 +319,7 @@ async def create_design_from_conversation(
 ) -> DesignResponse:
     """
     Create a design from a completed conversation.
-    
+
     This saves an AI-generated design from chat to the user's library.
     """
     # Find the conversation
@@ -379,7 +395,9 @@ async def create_design_from_conversation(
     await db.commit()
     await db.refresh(design)
 
-    logger.info(f"Design created from conversation: {design.id} from conversation {conversation.id} by user {current_user.id}")
+    logger.info(
+        f"Design created from conversation: {design.id} from conversation {conversation.id} by user {current_user.id}"
+    )
 
     # Create notification for design saved
     try:
@@ -476,18 +494,20 @@ async def list_designs(
         if design.extra_data:
             thumbnail_url = design.extra_data.get("thumbnail_url")
 
-        design_responses.append(DesignResponse(
-            id=design.id,
-            name=design.name,
-            description=design.description,
-            project_id=design.project_id,
-            project_name=project_name,
-            source_type=design.source_type,
-            status=design.status,
-            thumbnail_url=thumbnail_url,
-            created_at=design.created_at.isoformat(),
-            updated_at=design.updated_at.isoformat(),
-        ))
+        design_responses.append(
+            DesignResponse(
+                id=design.id,
+                name=design.name,
+                description=design.description,
+                project_id=design.project_id,
+                project_name=project_name,
+                source_type=design.source_type,
+                status=design.status,
+                thumbnail_url=thumbnail_url,
+                created_at=design.created_at.isoformat(),
+                updated_at=design.updated_at.isoformat(),
+            )
+        )
 
     return DesignListResponse(
         designs=design_responses,
@@ -552,8 +572,10 @@ async def get_design(
 # Update Design Endpoint
 # ============================================================================
 
+
 class DesignUpdate(BaseModel):
     """Request schema for updating a design."""
+
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
     project_id: UUID | None = Field(None, description="Move design to a different project")
@@ -568,7 +590,7 @@ async def update_design(
 ) -> DesignResponse:
     """
     Update a design's name, description, or move to another project.
-    
+
     Only the design owner can update it. Moving requires ownership of
     both the source and target projects.
     """
@@ -599,13 +621,13 @@ async def update_design(
         )
         target_result = await db.execute(target_query)
         target_project = target_result.scalar_one_or_none()
-        
+
         if not target_project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Target project not found or you don't have access",
             )
-        
+
         # Use DesignService for the move operation
         design_service = DesignService(db)
         try:
@@ -665,15 +687,20 @@ async def update_design(
 # Copy Design Endpoint
 # ============================================================================
 
+
 class CopyDesignRequest(BaseModel):
     """Request schema for copying a design."""
+
     name: str = Field(..., min_length=1, max_length=255, description="Name for the copy")
-    target_project_id: UUID | None = Field(None, description="Project to copy to (default: same project)")
+    target_project_id: UUID | None = Field(
+        None, description="Project to copy to (default: same project)"
+    )
     include_versions: bool = Field(False, description="Copy all versions (default: only current)")
 
 
 class CopyDesignResponse(BaseModel):
     """Response schema for a copied design."""
+
     id: UUID
     name: str
     description: str | None
@@ -706,22 +733,22 @@ async def copy_design(
 ) -> CopyDesignResponse:
     """
     Create a copy of an existing design.
-    
+
     Copies the design and optionally all its versions to the same
     or a different project.
-    
+
     Rate limit: 10 copies per minute per user (recommended).
     """
     from app.services.design_service import (
-        DesignService,
+        DesignCopyError,
         DesignNotFoundError,
         DesignPermissionError,
+        DesignService,
         ProjectNotFoundError,
-        DesignCopyError,
     )
-    
+
     service = DesignService(db)
-    
+
     try:
         result = await service.copy_design(
             design_id=design_id,
@@ -752,19 +779,19 @@ async def copy_design(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to copy design",
         )
-    
+
     design = result.design
-    
+
     # Get project name
     project_query = select(Project.name).where(Project.id == design.project_id)
     project_result = await db.execute(project_query)
     project_name = project_result.scalar_one()
-    
+
     # Get thumbnail
     thumbnail_url = None
     if design.extra_data and isinstance(design.extra_data, dict):
         thumbnail_url = design.extra_data.get("thumbnail_url")
-    
+
     return CopyDesignResponse(
         id=design.id,
         name=design.name,
@@ -785,8 +812,10 @@ async def copy_design(
 # Delete Design with Undo
 # ============================================================================
 
+
 class DeleteDesignResponse(BaseModel):
     """Response schema for delete with undo support."""
+
     message: str
     design_id: UUID
     undo_token: str
@@ -806,18 +835,18 @@ async def delete_design_with_undo(
 ) -> DeleteDesignResponse:
     """
     Soft delete a design with undo support.
-    
+
     Returns an undo token that can be used to restore the design
     within 30 seconds.
     """
     from app.services.design_service import (
-        DesignService,
         DesignNotFoundError,
         DesignPermissionError,
+        DesignService,
     )
-    
+
     service = DesignService(db)
-    
+
     try:
         result = await service.delete_design(design_id, current_user)
     except DesignNotFoundError:
@@ -831,9 +860,9 @@ async def delete_design_with_undo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     logger.info(f"Design {design_id} deleted by user {current_user.id}")
-    
+
     return DeleteDesignResponse(
         message="Design deleted",
         design_id=result.design_id,
@@ -844,6 +873,7 @@ async def delete_design_with_undo(
 
 class UndoDeleteResponse(BaseModel):
     """Response schema for undo delete."""
+
     message: str
     design: DesignResponse
 
@@ -859,17 +889,17 @@ async def undo_delete_design(
 ) -> UndoDeleteResponse:
     """
     Restore a recently deleted design using the undo token.
-    
+
     The undo token expires after 30 seconds.
     """
     from app.services.design_service import (
+        DesignPermissionError,
         DesignService,
         UndoTokenExpiredError,
-        DesignPermissionError,
     )
-    
+
     service = DesignService(db)
-    
+
     try:
         design = await service.undo_delete(undo_token, current_user)
     except (UndoTokenExpiredError, DesignPermissionError):
@@ -879,19 +909,19 @@ async def undo_delete_design(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired undo token",
         )
-    
+
     # Get project name
     project_query = select(Project.name).where(Project.id == design.project_id)
     project_result = await db.execute(project_query)
     project_name = project_result.scalar_one()
-    
+
     # Get thumbnail
     thumbnail_url = None
     if design.extra_data and isinstance(design.extra_data, dict):
         thumbnail_url = design.extra_data.get("thumbnail_url")
-    
+
     logger.info(f"Design {design.id} restored by user {current_user.id}")
-    
+
     return UndoDeleteResponse(
         message="Design restored",
         design=DesignResponse(
@@ -913,8 +943,10 @@ async def undo_delete_design(
 # Version Endpoints
 # ============================================================================
 
+
 class VersionResponse(BaseModel):
     """Response schema for a design version."""
+
     id: UUID
     version_number: int
     thumbnail_url: str | None
@@ -930,6 +962,7 @@ class VersionResponse(BaseModel):
 
 class VersionListResponse(BaseModel):
     """Response schema for listing versions."""
+
     versions: list[VersionResponse]
     total: int
     page: int
@@ -949,21 +982,19 @@ async def list_design_versions(
 ) -> VersionListResponse:
     """
     Get version history for a design.
-    
+
     Returns a paginated list of all versions with metadata.
     """
     from app.services.design_service import (
-        DesignService,
         DesignNotFoundError,
         DesignPermissionError,
+        DesignService,
     )
-    
+
     service = DesignService(db)
-    
+
     try:
-        versions, total = await service.list_versions(
-            design_id, current_user, page, per_page
-        )
+        versions, total = await service.list_versions(design_id, current_user, page, per_page)
     except DesignNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -974,12 +1005,12 @@ async def list_design_versions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     # Get design's current version ID
     design_query = select(Design.current_version_id).where(Design.id == design_id)
     design_result = await db.execute(design_query)
     current_version_id = design_result.scalar_one_or_none()
-    
+
     version_responses = [
         VersionResponse(
             id=v.id,
@@ -993,7 +1024,7 @@ async def list_design_versions(
         )
         for v in versions
     ]
-    
+
     return VersionListResponse(
         versions=version_responses,
         total=total,
@@ -1004,6 +1035,7 @@ async def list_design_versions(
 
 class CreateVersionRequest(BaseModel):
     """Request schema for creating a version snapshot."""
+
     change_description: str | None = Field(None, max_length=500)
 
 
@@ -1020,21 +1052,19 @@ async def create_design_version(
 ) -> VersionResponse:
     """
     Create a new version snapshot of a design.
-    
+
     Captures the current state of the design as a new version.
     """
     from app.services.design_service import (
-        DesignService,
         DesignNotFoundError,
         DesignPermissionError,
+        DesignService,
     )
-    
+
     service = DesignService(db)
-    
+
     try:
-        version = await service.create_version(
-            design_id, current_user, request.change_description
-        )
+        version = await service.create_version(design_id, current_user, request.change_description)
     except DesignNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1045,7 +1075,7 @@ async def create_design_version(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return VersionResponse(
         id=version.id,
         version_number=version.version_number,
@@ -1070,17 +1100,17 @@ async def restore_design_version(
 ) -> DesignResponse:
     """
     Restore a design to a previous version.
-    
+
     Creates a new version with the restored state (preserves history).
     """
     from app.services.design_service import (
-        DesignService,
         DesignNotFoundError,
         DesignPermissionError,
+        DesignService,
     )
-    
+
     service = DesignService(db)
-    
+
     try:
         design = await service.restore_version(design_id, version_id, current_user)
     except DesignNotFoundError:
@@ -1093,17 +1123,17 @@ async def restore_design_version(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     # Get project name
     project_query = select(Project.name).where(Project.id == design.project_id)
     project_result = await db.execute(project_query)
     project_name = project_result.scalar_one()
-    
+
     # Get thumbnail
     thumbnail_url = None
     if design.extra_data and isinstance(design.extra_data, dict):
         thumbnail_url = design.extra_data.get("thumbnail_url")
-    
+
     return DesignResponse(
         id=design.id,
         name=design.name,

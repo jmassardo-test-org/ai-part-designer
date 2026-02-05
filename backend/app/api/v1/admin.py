@@ -19,33 +19,27 @@ Provides endpoints for:
 """
 
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, update, and_, or_, desc
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user, require_admin
 from app.core.database import get_db
+from app.models.api_key import APIKey
+from app.models.audit import AuditLog
+from app.models.file import File as FileModel
 from app.models.moderation import ModerationLog
-from app.models.user import User, Subscription
-from app.models.subscription import SubscriptionTier, CreditBalance
+from app.models.notification import Notification
 from app.models.organization import Organization, OrganizationMember
 from app.models.reference_component import ReferenceComponent
-from app.models.notification import Notification
-from app.models.file import File as FileModel
-from app.models.audit import AuditLog
-from app.models.api_key import APIKey
-from app.services.moderation import (
-    ContentModerator,
-    ModerationResult,
-    ModerationStatus,
-    FlagSeverity,
-)
+from app.models.subscription import CreditBalance, SubscriptionTier
+from app.models.user import Subscription, User
 from app.services.security_audit import SecurityAuditService, SecurityEventType
 
 router = APIRouter()
@@ -58,7 +52,7 @@ router = APIRouter()
 
 class ModerationItemResponse(BaseModel):
     """A moderation queue item."""
-    
+
     id: UUID
     design_id: UUID | None
     user_id: UUID
@@ -71,14 +65,14 @@ class ModerationItemResponse(BaseModel):
     details: dict = Field(default_factory=dict)
     is_appealed: bool = False
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class ModerationQueueResponse(BaseModel):
     """Paginated moderation queue."""
-    
+
     items: list[ModerationItemResponse]
     total: int
     page: int
@@ -89,7 +83,7 @@ class ModerationQueueResponse(BaseModel):
 
 class ModerationDecisionRequest(BaseModel):
     """Request to approve or reject content."""
-    
+
     notes: str | None = Field(
         default=None,
         max_length=1000,
@@ -99,7 +93,7 @@ class ModerationDecisionRequest(BaseModel):
 
 class RejectContentRequest(BaseModel):
     """Request to reject content with reason."""
-    
+
     reason: str = Field(
         ...,
         max_length=100,
@@ -118,7 +112,7 @@ class RejectContentRequest(BaseModel):
 
 class ModerationDecisionResponse(BaseModel):
     """Response after moderation decision."""
-    
+
     id: UUID
     decision: str
     reviewed_by: UUID
@@ -128,7 +122,7 @@ class ModerationDecisionResponse(BaseModel):
 
 class UserWarningRequest(BaseModel):
     """Request to issue a user warning."""
-    
+
     category: str = Field(
         ...,
         description="Warning category",
@@ -152,7 +146,7 @@ class UserWarningRequest(BaseModel):
 
 class UserWarningResponse(BaseModel):
     """User warning details."""
-    
+
     id: UUID
     user_id: UUID
     category: str
@@ -165,7 +159,7 @@ class UserWarningResponse(BaseModel):
 
 class UserBanRequest(BaseModel):
     """Request to ban a user."""
-    
+
     reason: str = Field(
         ...,
         max_length=1000,
@@ -185,7 +179,7 @@ class UserBanRequest(BaseModel):
 
 class UserBanResponse(BaseModel):
     """User ban details."""
-    
+
     id: UUID
     user_id: UUID
     reason: str
@@ -196,7 +190,7 @@ class UserBanResponse(BaseModel):
 
 class ModerationStatsResponse(BaseModel):
     """Moderation statistics."""
-    
+
     pending_count: int
     escalated_count: int
     approved_today: int
@@ -222,13 +216,13 @@ async def get_moderation_item_or_404(
     )
     result = await db.execute(query)
     item = result.scalar_one_or_none()
-    
+
     if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Moderation item not found",
         )
-    
+
     return item
 
 
@@ -253,53 +247,40 @@ async def get_moderation_queue(
     current_user: User = Depends(get_current_user),
 ) -> ModerationQueueResponse:
     """Get paginated moderation queue."""
-    
+
     # Base query
-    base_query = select(ModerationLog).options(
-        selectinload(ModerationLog.user)
-    )
-    
+    base_query = select(ModerationLog).options(selectinload(ModerationLog.user))
+
     # Apply filters
     filters = []
     if status_filter:
         filters.append(ModerationLog.decision == status_filter)
     else:
         # Default: show pending and escalated
-        filters.append(
-            ModerationLog.decision.in_(["pending_review", "escalated"])
-        )
-    
+        filters.append(ModerationLog.decision.in_(["pending_review", "escalated"]))
+
     if filters:
         base_query = base_query.where(and_(*filters))
-    
+
     # Count total
-    count_query = select(func.count()).select_from(
-        base_query.subquery()
-    )
+    count_query = select(func.count()).select_from(base_query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Count pending and escalated
-    pending_count = (await db.execute(
-        select(func.count())
-        .where(ModerationLog.decision == "pending_review")
-    )).scalar_one()
-    
-    escalated_count = (await db.execute(
-        select(func.count())
-        .where(ModerationLog.decision == "escalated")
-    )).scalar_one()
-    
+    pending_count = (
+        await db.execute(select(func.count()).where(ModerationLog.decision == "pending_review"))
+    ).scalar_one()
+
+    escalated_count = (
+        await db.execute(select(func.count()).where(ModerationLog.decision == "escalated"))
+    ).scalar_one()
+
     # Fetch page
     offset = (page - 1) * page_size
-    query = (
-        base_query
-        .order_by(ModerationLog.created_at.desc())
-        .offset(offset)
-        .limit(page_size)
-    )
+    query = base_query.order_by(ModerationLog.created_at.desc()).offset(offset).limit(page_size)
     result = await db.execute(query)
     items = result.scalars().all()
-    
+
     return ModerationQueueResponse(
         items=[
             ModerationItemResponse(
@@ -338,46 +319,47 @@ async def get_moderation_stats(
 ) -> ModerationStatsResponse:
     """Get moderation statistics."""
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    
+
     # Count pending
-    pending_count = (await db.execute(
-        select(func.count())
-        .where(ModerationLog.decision == "pending_review")
-    )).scalar_one()
-    
+    pending_count = (
+        await db.execute(select(func.count()).where(ModerationLog.decision == "pending_review"))
+    ).scalar_one()
+
     # Count escalated
-    escalated_count = (await db.execute(
-        select(func.count())
-        .where(ModerationLog.decision == "escalated")
-    )).scalar_one()
-    
+    escalated_count = (
+        await db.execute(select(func.count()).where(ModerationLog.decision == "escalated"))
+    ).scalar_one()
+
     # Count approved today
-    approved_today = (await db.execute(
-        select(func.count())
-        .where(
-            ModerationLog.decision == "approved",
-            ModerationLog.reviewed_at >= today_start,
+    approved_today = (
+        await db.execute(
+            select(func.count()).where(
+                ModerationLog.decision == "approved",
+                ModerationLog.reviewed_at >= today_start,
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     # Count rejected today
-    rejected_today = (await db.execute(
-        select(func.count())
-        .where(
-            ModerationLog.decision == "rejected",
-            ModerationLog.reviewed_at >= today_start,
+    rejected_today = (
+        await db.execute(
+            select(func.count()).where(
+                ModerationLog.decision == "rejected",
+                ModerationLog.reviewed_at >= today_start,
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     # Count pending appeals
-    appeals_pending = (await db.execute(
-        select(func.count())
-        .where(
-            ModerationLog.is_appealed == True,
-            ModerationLog.appeal_decision.is_(None),
+    appeals_pending = (
+        await db.execute(
+            select(func.count()).where(
+                ModerationLog.is_appealed,
+                ModerationLog.appeal_decision.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     return ModerationStatsResponse(
         pending_count=pending_count,
         escalated_count=escalated_count,
@@ -401,7 +383,7 @@ async def get_moderation_item(
 ) -> ModerationItemResponse:
     """Get moderation item details."""
     item = await get_moderation_item_or_404(item_id, db)
-    
+
     return ModerationItemResponse(
         id=item.id,
         design_id=item.design_id,
@@ -433,23 +415,23 @@ async def approve_content(
 ) -> ModerationDecisionResponse:
     """Approve content after review."""
     item = await get_moderation_item_or_404(item_id, db)
-    
+
     if item.decision == "approved":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Content already approved",
         )
-    
+
     # Update item
     item.decision = "approved"
     item.reviewer_id = current_user.id
     item.reviewed_at = datetime.utcnow()
-    
+
     if request.notes:
         item.details["review_notes"] = request.notes
-    
+
     await db.commit()
-    
+
     return ModerationDecisionResponse(
         id=item.id,
         decision="approved",
@@ -474,29 +456,29 @@ async def reject_content(
 ) -> ModerationDecisionResponse:
     """Reject content after review."""
     item = await get_moderation_item_or_404(item_id, db)
-    
+
     if item.decision == "rejected":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Content already rejected",
         )
-    
+
     # Update item
     item.decision = "rejected"
     item.reason = request.reason
     item.reviewer_id = current_user.id
     item.reviewed_at = datetime.utcnow()
-    
+
     if request.notes:
         item.details["review_notes"] = request.notes
-    
+
     # Optionally issue warning
     if request.warn_user:
         # Create warning (simplified - would use UserWarning model)
         item.details["warning_issued"] = True
-    
+
     await db.commit()
-    
+
     return ModerationDecisionResponse(
         id=item.id,
         decision="rejected",
@@ -521,16 +503,16 @@ async def escalate_content(
 ) -> ModerationDecisionResponse:
     """Escalate content for senior review."""
     item = await get_moderation_item_or_404(item_id, db)
-    
+
     item.decision = "escalated"
     item.details["escalated_by"] = str(current_user.id)
     item.details["escalated_at"] = datetime.utcnow().isoformat()
-    
+
     if request.notes:
         item.details["escalation_notes"] = request.notes
-    
+
     await db.commit()
-    
+
     return ModerationDecisionResponse(
         id=item.id,
         decision="escalated",
@@ -564,38 +546,40 @@ async def warn_user(
     user_query = select(User).where(User.id == user_id)
     user_result = await db.execute(user_query)
     user = user_result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     # Calculate expiration
     expires_at = None
     if request.expires_in_days:
         expires_at = datetime.utcnow() + timedelta(days=request.expires_in_days)
-    
+
     # Store warning in user's extra_data (simplified)
     # In production, use dedicated UserWarning model
     warnings = user.extra_data.get("warnings", [])
     warning_id = str(uuid4())
-    warnings.append({
-        "id": warning_id,
-        "category": request.category,
-        "severity": request.severity,
-        "message": request.message,
-        "issued_by": str(current_user.id),
-        "created_at": datetime.utcnow().isoformat(),
-        "expires_at": expires_at.isoformat() if expires_at else None,
-        "acknowledged": False,
-    })
+    warnings.append(
+        {
+            "id": warning_id,
+            "category": request.category,
+            "severity": request.severity,
+            "message": request.message,
+            "issued_by": str(current_user.id),
+            "created_at": datetime.utcnow().isoformat(),
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "acknowledged": False,
+        }
+    )
     user.extra_data["warnings"] = warnings
-    
+
     await db.commit()
-    
+
     from uuid import UUID as UUID_type
-    
+
     return UserWarningResponse(
         id=UUID_type(warning_id),
         user_id=user_id,
@@ -627,33 +611,33 @@ async def ban_user(
     user_query = select(User).where(User.id == user_id)
     user_result = await db.execute(user_query)
     user = user_result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     # Check if already banned
     if user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User is already banned",
         )
-    
+
     # Calculate expiration
     expires_at = None
     if not request.is_permanent and request.duration_days:
         expires_at = datetime.utcnow() + timedelta(days=request.duration_days)
-    
+
     # Ban user
     user.is_banned = True
     user.banned_at = datetime.utcnow()
     user.ban_reason = request.reason
     user.ban_expires_at = expires_at
-    
+
     await db.commit()
-    
+
     return UserBanResponse(
         id=user.id,  # Using user ID as ban ID (simplified)
         user_id=user_id,
@@ -679,30 +663,30 @@ async def unban_user(
     user_query = select(User).where(User.id == user_id)
     user_result = await db.execute(user_query)
     user = user_result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     if not user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User is not banned",
         )
-    
+
     user.is_banned = False
     user.banned_at = None
     user.ban_reason = None
     user.ban_expires_at = None
-    
+
     await db.commit()
 
 
 class PasswordResetResponse(BaseModel):
     """Response for admin-initiated password reset."""
-    
+
     message: str
     email_sent: bool
 
@@ -720,29 +704,29 @@ async def admin_reset_password(
     current_user: User = Depends(get_current_user),
 ) -> PasswordResetResponse:
     """Admin-initiated password reset for a user."""
-    from app.services.email import get_email_service
-    from app.core.security import create_password_reset_token
     from app.core.config import get_settings
-    
+    from app.core.security import create_password_reset_token
+    from app.services.email import get_email_service
+
     settings = get_settings()
-    
+
     # Verify user exists
     user_query = select(User).where(User.id == user_id)
     user_result = await db.execute(user_query)
     user = user_result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     # Generate reset token
     reset_token = create_password_reset_token(user.email)
-    
+
     # Build reset URL
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
-    
+
     # Send email
     email_service = get_email_service()
     email_sent = await email_service.send_password_reset_email(
@@ -750,7 +734,7 @@ async def admin_reset_password(
         display_name=user.full_name or user.email.split("@")[0],
         reset_url=reset_url,
     )
-    
+
     # Log password reset request to audit log
     security_audit = SecurityAuditService(db)
     await security_audit.log_event(
@@ -765,20 +749,22 @@ async def admin_reset_password(
         },
     )
     await db.commit()
-    
+
     return PasswordResetResponse(
-        message=f"Password reset email sent to {user.email}" if email_sent else "Failed to send email",
+        message=f"Password reset email sent to {user.email}"
+        if email_sent
+        else "Failed to send email",
         email_sent=email_sent,
     )
 
 
 # Need uuid4 import
 from uuid import uuid4
-from app.models.project import Project
-from app.models.design import Design
-from app.models.template import Template
-from app.models.job import Job
 
+from app.models.design import Design
+from app.models.job import Job
+from app.models.project import Project
+from app.models.template import Template
 
 # =============================================================================
 # Analytics Schemas
@@ -787,7 +773,7 @@ from app.models.job import Job
 
 class AnalyticsOverviewResponse(BaseModel):
     """Platform analytics overview."""
-    
+
     total_users: int
     active_users_daily: int
     active_users_weekly: int
@@ -805,7 +791,7 @@ class AnalyticsOverviewResponse(BaseModel):
 
 class UserAnalyticsResponse(BaseModel):
     """User analytics for a period."""
-    
+
     period: str
     total_users: int
     new_users: int
@@ -816,7 +802,7 @@ class UserAnalyticsResponse(BaseModel):
 
 class GenerationAnalyticsResponse(BaseModel):
     """Generation analytics for a period."""
-    
+
     period: str
     total_generations: int
     ai_generations: int
@@ -828,7 +814,7 @@ class GenerationAnalyticsResponse(BaseModel):
 
 class JobAnalyticsResponse(BaseModel):
     """Job queue analytics."""
-    
+
     period: str
     total_jobs: int
     completed_jobs: int
@@ -841,7 +827,7 @@ class JobAnalyticsResponse(BaseModel):
 
 class StorageAnalyticsResponse(BaseModel):
     """Storage usage analytics."""
-    
+
     total_storage_bytes: int
     used_storage_bytes: int
     storage_by_type: dict[str, int]
@@ -855,7 +841,7 @@ class StorageAnalyticsResponse(BaseModel):
 
 class AdminUserResponse(BaseModel):
     """Admin view of a user."""
-    
+
     id: UUID
     email: str
     display_name: str
@@ -871,7 +857,7 @@ class AdminUserResponse(BaseModel):
 
 class AdminUserListResponse(BaseModel):
     """Paginated user list for admins."""
-    
+
     users: list[AdminUserResponse]
     total: int
     page: int
@@ -880,7 +866,7 @@ class AdminUserListResponse(BaseModel):
 
 class AdminUserUpdateRequest(BaseModel):
     """Request to update a user."""
-    
+
     display_name: str | None = None
     role: str | None = Field(None, pattern="^(user|moderator|admin)$")
     status: str | None = Field(None, pattern="^(active|suspended|pending_verification)$")
@@ -888,14 +874,14 @@ class AdminUserUpdateRequest(BaseModel):
 
 class SuspendUserRequest(BaseModel):
     """Request to suspend a user."""
-    
+
     reason: str = Field(..., max_length=500)
     duration_days: int | None = Field(None, ge=1, le=365)
 
 
 class ImpersonateResponse(BaseModel):
     """Response for user impersonation."""
-    
+
     access_token: str
     user_id: UUID
     user_email: str
@@ -910,7 +896,7 @@ class ImpersonateResponse(BaseModel):
 
 class AdminProjectResponse(BaseModel):
     """Admin view of a project."""
-    
+
     id: UUID
     name: str
     description: str | None
@@ -924,13 +910,13 @@ class AdminProjectResponse(BaseModel):
 
 class SuspendProjectRequest(BaseModel):
     """Request to suspend a project."""
-    
+
     reason: str = Field(..., min_length=1, max_length=500)
 
 
 class AdminProjectListResponse(BaseModel):
     """Paginated project list."""
-    
+
     projects: list[AdminProjectResponse]
     total: int
     page: int
@@ -939,7 +925,7 @@ class AdminProjectListResponse(BaseModel):
 
 class AdminDesignResponse(BaseModel):
     """Admin view of a design."""
-    
+
     id: UUID
     name: str
     description: str | None
@@ -957,7 +943,7 @@ class AdminDesignResponse(BaseModel):
 
 class AdminDesignListResponse(BaseModel):
     """Paginated design list."""
-    
+
     designs: list[AdminDesignResponse]
     total: int
     page: int
@@ -966,14 +952,14 @@ class AdminDesignListResponse(BaseModel):
 
 class TransferOwnershipRequest(BaseModel):
     """Request to transfer ownership."""
-    
+
     new_owner_id: UUID
     reason: str | None = None
 
 
 class VisibilityChangeRequest(BaseModel):
     """Request to change design visibility."""
-    
+
     is_public: bool
 
 
@@ -984,7 +970,7 @@ class VisibilityChangeRequest(BaseModel):
 
 class AdminTemplateResponse(BaseModel):
     """Admin view of a template."""
-    
+
     id: UUID
     name: str
     slug: str
@@ -1001,7 +987,7 @@ class AdminTemplateResponse(BaseModel):
 
 class AdminTemplateListResponse(BaseModel):
     """Paginated template list."""
-    
+
     templates: list[AdminTemplateResponse]
     total: int
     page: int
@@ -1010,7 +996,7 @@ class AdminTemplateListResponse(BaseModel):
 
 class AdminTemplateCreateRequest(BaseModel):
     """Request to create a template."""
-    
+
     name: str = Field(..., max_length=255)
     slug: str = Field(..., max_length=100)
     description: str | None = None
@@ -1025,7 +1011,7 @@ class AdminTemplateCreateRequest(BaseModel):
 
 class AdminTemplateUpdateRequest(BaseModel):
     """Request to update a template."""
-    
+
     name: str | None = None
     description: str | None = None
     category: str | None = None
@@ -1045,7 +1031,7 @@ class AdminTemplateUpdateRequest(BaseModel):
 
 class AdminJobResponse(BaseModel):
     """Admin view of a job."""
-    
+
     id: UUID
     job_type: str
     status: str
@@ -1062,7 +1048,7 @@ class AdminJobResponse(BaseModel):
 
 class AdminJobListResponse(BaseModel):
     """Paginated job list."""
-    
+
     jobs: list[AdminJobResponse]
     total: int
     page: int
@@ -1087,7 +1073,7 @@ async def get_analytics_overview(
     db: AsyncSession = Depends(get_db),
 ) -> AnalyticsOverviewResponse:
     """Get platform analytics overview.
-    
+
     Args:
         organization_id: Filter by organization
         plan: Filter by subscription plan (free, starter, pro, enterprise)
@@ -1096,17 +1082,17 @@ async def get_analytics_overview(
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = now - timedelta(days=7)
     month_ago = now - timedelta(days=30)
-    
+
     # Build user filter conditions
     user_conditions = [User.deleted_at.is_(None)]
-    
+
     if organization_id:
         # Get users in organization
         org_user_ids = select(OrganizationMember.user_id).where(
             OrganizationMember.organization_id == organization_id
         )
         user_conditions.append(User.id.in_(org_user_ids))
-    
+
     if plan:
         # Get users with specific plan
         plan_user_ids = select(Subscription.user_id).where(
@@ -1114,99 +1100,113 @@ async def get_analytics_overview(
             Subscription.status == "active",
         )
         user_conditions.append(User.id.in_(plan_user_ids))
-    
+
     # User counts
-    total_users = (await db.execute(
-        select(func.count()).where(*user_conditions)
-    )).scalar_one()
-    
+    total_users = (await db.execute(select(func.count()).where(*user_conditions))).scalar_one()
+
     # Active users (by last_login_at) - with filters
-    active_daily = (await db.execute(
-        select(func.count()).where(
-            User.last_login_at >= today_start,
-            *user_conditions,
+    active_daily = (
+        await db.execute(
+            select(func.count()).where(
+                User.last_login_at >= today_start,
+                *user_conditions,
+            )
         )
-    )).scalar_one()
-    
-    active_weekly = (await db.execute(
-        select(func.count()).where(
-            User.last_login_at >= week_ago,
-            *user_conditions,
+    ).scalar_one()
+
+    active_weekly = (
+        await db.execute(
+            select(func.count()).where(
+                User.last_login_at >= week_ago,
+                *user_conditions,
+            )
         )
-    )).scalar_one()
-    
-    active_monthly = (await db.execute(
-        select(func.count()).where(
-            User.last_login_at >= month_ago,
-            *user_conditions,
+    ).scalar_one()
+
+    active_monthly = (
+        await db.execute(
+            select(func.count()).where(
+                User.last_login_at >= month_ago,
+                *user_conditions,
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     # New signups - with filters
-    new_today = (await db.execute(
-        select(func.count()).where(
-            User.created_at >= today_start,
-            *user_conditions,
+    new_today = (
+        await db.execute(
+            select(func.count()).where(
+                User.created_at >= today_start,
+                *user_conditions,
+            )
         )
-    )).scalar_one()
-    
-    new_week = (await db.execute(
-        select(func.count()).where(
-            User.created_at >= week_ago,
-            *user_conditions,
+    ).scalar_one()
+
+    new_week = (
+        await db.execute(
+            select(func.count()).where(
+                User.created_at >= week_ago,
+                *user_conditions,
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     # Build project/design filters based on user filters
     filtered_user_ids = None
     if organization_id or plan:
         filtered_user_ids = select(User.id).where(*user_conditions)
-    
+
     # Projects and designs
     project_conditions = [Project.deleted_at.is_(None)]
     design_conditions = [Design.deleted_at.is_(None)]
-    
+
     if filtered_user_ids is not None:
         project_conditions.append(Project.user_id.in_(filtered_user_ids))
         design_conditions.append(Design.user_id.in_(filtered_user_ids))
-    
-    total_projects = (await db.execute(
-        select(func.count()).where(*project_conditions)
-    )).scalar_one()
-    
-    total_designs = (await db.execute(
-        select(func.count()).where(*design_conditions)
-    )).scalar_one()
-    
+
+    total_projects = (
+        await db.execute(select(func.count()).where(*project_conditions))
+    ).scalar_one()
+
+    total_designs = (await db.execute(select(func.count()).where(*design_conditions))).scalar_one()
+
     # Generations (designs created)
-    generations_today = (await db.execute(
-        select(func.count()).where(
-            Design.created_at >= today_start,
-            *design_conditions,
+    generations_today = (
+        await db.execute(
+            select(func.count()).where(
+                Design.created_at >= today_start,
+                *design_conditions,
+            )
         )
-    )).scalar_one()
-    
-    generations_week = (await db.execute(
-        select(func.count()).where(
-            Design.created_at >= week_ago,
-            *design_conditions,
+    ).scalar_one()
+
+    generations_week = (
+        await db.execute(
+            select(func.count()).where(
+                Design.created_at >= week_ago,
+                *design_conditions,
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     # Jobs
-    pending_jobs = (await db.execute(
-        select(func.count()).where(
-            Job.status.in_(["pending", "processing"]),
+    pending_jobs = (
+        await db.execute(
+            select(func.count()).where(
+                Job.status.in_(["pending", "processing"]),
+            )
         )
-    )).scalar_one()
-    
-    failed_today = (await db.execute(
-        select(func.count()).where(
-            Job.status == "failed",
-            Job.created_at >= today_start,
+    ).scalar_one()
+
+    failed_today = (
+        await db.execute(
+            select(func.count()).where(
+                Job.status == "failed",
+                Job.created_at >= today_start,
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     return AnalyticsOverviewResponse(
         total_users=total_users,
         active_users_daily=active_daily,
@@ -1238,28 +1238,32 @@ async def get_user_analytics(
     """Get user analytics for a period."""
     days = int(period.replace("d", ""))
     start_date = datetime.utcnow() - timedelta(days=days)
-    
-    total_users = (await db.execute(
-        select(func.count()).where(User.deleted_at.is_(None))
-    )).scalar_one()
-    
-    new_users = (await db.execute(
-        select(func.count()).where(
-            User.created_at >= start_date,
-            User.deleted_at.is_(None),
+
+    total_users = (
+        await db.execute(select(func.count()).where(User.deleted_at.is_(None)))
+    ).scalar_one()
+
+    new_users = (
+        await db.execute(
+            select(func.count()).where(
+                User.created_at >= start_date,
+                User.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
-    active_users = (await db.execute(
-        select(func.count()).where(
-            User.last_login_at >= start_date,
-            User.deleted_at.is_(None),
+    ).scalar_one()
+
+    active_users = (
+        await db.execute(
+            select(func.count()).where(
+                User.last_login_at >= start_date,
+                User.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     # Churned = not logged in during period but were active before
     churned_users = 0  # Simplified - would need more complex query
-    
+
     return UserAnalyticsResponse(
         period=period,
         total_users=total_users,
@@ -1284,49 +1288,59 @@ async def get_generation_analytics(
     """Get generation analytics for a period."""
     days = int(period.replace("d", ""))
     start_date = datetime.utcnow() - timedelta(days=days)
-    
-    total = (await db.execute(
-        select(func.count()).where(
-            Design.created_at >= start_date,
-            Design.deleted_at.is_(None),
+
+    total = (
+        await db.execute(
+            select(func.count()).where(
+                Design.created_at >= start_date,
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
-    ai_generated = (await db.execute(
-        select(func.count()).where(
-            Design.created_at >= start_date,
-            Design.source_type == "ai_generated",
-            Design.deleted_at.is_(None),
+    ).scalar_one()
+
+    ai_generated = (
+        await db.execute(
+            select(func.count()).where(
+                Design.created_at >= start_date,
+                Design.source_type == "ai_generated",
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
-    template_generated = (await db.execute(
-        select(func.count()).where(
-            Design.created_at >= start_date,
-            Design.source_type == "template",
-            Design.deleted_at.is_(None),
+    ).scalar_one()
+
+    template_generated = (
+        await db.execute(
+            select(func.count()).where(
+                Design.created_at >= start_date,
+                Design.source_type == "template",
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
-    imported = (await db.execute(
-        select(func.count()).where(
-            Design.created_at >= start_date,
-            Design.source_type == "imported",
-            Design.deleted_at.is_(None),
+    ).scalar_one()
+
+    imported = (
+        await db.execute(
+            select(func.count()).where(
+                Design.created_at >= start_date,
+                Design.source_type == "imported",
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     # Success rate based on status
-    successful = (await db.execute(
-        select(func.count()).where(
-            Design.created_at >= start_date,
-            Design.status == "ready",
-            Design.deleted_at.is_(None),
+    successful = (
+        await db.execute(
+            select(func.count()).where(
+                Design.created_at >= start_date,
+                Design.status == "ready",
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     success_rate = (successful / total * 100) if total > 0 else 0.0
-    
+
     return GenerationAnalyticsResponse(
         period=period,
         total_generations=total,
@@ -1352,33 +1366,39 @@ async def get_job_analytics(
     """Get job queue analytics."""
     days = int(period.replace("d", ""))
     start_date = datetime.utcnow() - timedelta(days=days)
-    
-    total = (await db.execute(
-        select(func.count()).where(Job.created_at >= start_date)
-    )).scalar_one()
-    
-    completed = (await db.execute(
-        select(func.count()).where(
-            Job.created_at >= start_date,
-            Job.status == "completed",
+
+    total = (
+        await db.execute(select(func.count()).where(Job.created_at >= start_date))
+    ).scalar_one()
+
+    completed = (
+        await db.execute(
+            select(func.count()).where(
+                Job.created_at >= start_date,
+                Job.status == "completed",
+            )
         )
-    )).scalar_one()
-    
-    failed = (await db.execute(
-        select(func.count()).where(
-            Job.created_at >= start_date,
-            Job.status == "failed",
+    ).scalar_one()
+
+    failed = (
+        await db.execute(
+            select(func.count()).where(
+                Job.created_at >= start_date,
+                Job.status == "failed",
+            )
         )
-    )).scalar_one()
-    
-    pending = (await db.execute(
-        select(func.count()).where(
-            Job.status.in_(["pending", "processing"]),
+    ).scalar_one()
+
+    pending = (
+        await db.execute(
+            select(func.count()).where(
+                Job.status.in_(["pending", "processing"]),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     success_rate = (completed / total * 100) if total > 0 else 0.0
-    
+
     return JobAnalyticsResponse(
         period=period,
         total_jobs=total,
@@ -1413,14 +1433,14 @@ async def get_storage_analytics(
 
 class TimeSeriesDataPoint(BaseModel):
     """A single data point in a time series."""
-    
+
     date: str
     value: int
 
 
 class TimeSeriesAnalyticsResponse(BaseModel):
     """Time-series analytics data for charts."""
-    
+
     new_users: list[TimeSeriesDataPoint]
     active_users: list[TimeSeriesDataPoint]
     new_projects: list[TimeSeriesDataPoint]
@@ -1442,20 +1462,20 @@ async def get_time_series_analytics(
     """Get time-series analytics for charting."""
     now = datetime.utcnow()
     start_date = now - timedelta(days=days)
-    
+
     # Generate date range
     date_range = []
     for i in range(days):
         date = start_date + timedelta(days=i)
         date_range.append(date.strftime("%Y-%m-%d"))
-    
+
     # Initialize data with zeros
-    new_users_data = {d: 0 for d in date_range}
-    active_users_data = {d: 0 for d in date_range}
-    new_projects_data = {d: 0 for d in date_range}
-    new_designs_data = {d: 0 for d in date_range}
-    jobs_completed_data = {d: 0 for d in date_range}
-    
+    new_users_data = dict.fromkeys(date_range, 0)
+    active_users_data = dict.fromkeys(date_range, 0)
+    new_projects_data = dict.fromkeys(date_range, 0)
+    new_designs_data = dict.fromkeys(date_range, 0)
+    jobs_completed_data = dict.fromkeys(date_range, 0)
+
     # Query new users per day
     new_users_query = (
         select(
@@ -1470,10 +1490,10 @@ async def get_time_series_analytics(
     )
     result = await db.execute(new_users_query)
     for row in result.all():
-        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, 'strftime') else str(row.date)
+        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, "strftime") else str(row.date)
         if date_str in new_users_data:
             new_users_data[date_str] = row.count
-    
+
     # Query active users per day (by last_login_at)
     active_users_query = (
         select(
@@ -1488,10 +1508,10 @@ async def get_time_series_analytics(
     )
     result = await db.execute(active_users_query)
     for row in result.all():
-        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, 'strftime') else str(row.date)
+        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, "strftime") else str(row.date)
         if date_str in active_users_data:
             active_users_data[date_str] = row.count
-    
+
     # Query new projects per day
     new_projects_query = (
         select(
@@ -1506,10 +1526,10 @@ async def get_time_series_analytics(
     )
     result = await db.execute(new_projects_query)
     for row in result.all():
-        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, 'strftime') else str(row.date)
+        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, "strftime") else str(row.date)
         if date_str in new_projects_data:
             new_projects_data[date_str] = row.count
-    
+
     # Query new designs per day
     new_designs_query = (
         select(
@@ -1524,17 +1544,19 @@ async def get_time_series_analytics(
     )
     result = await db.execute(new_designs_query)
     for row in result.all():
-        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, 'strftime') else str(row.date)
+        date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, "strftime") else str(row.date)
         if date_str in new_designs_data:
             new_designs_data[date_str] = row.count
-    
+
     # Convert to response format
     return TimeSeriesAnalyticsResponse(
         new_users=[TimeSeriesDataPoint(date=d, value=v) for d, v in new_users_data.items()],
         active_users=[TimeSeriesDataPoint(date=d, value=v) for d, v in active_users_data.items()],
         new_projects=[TimeSeriesDataPoint(date=d, value=v) for d, v in new_projects_data.items()],
         new_designs=[TimeSeriesDataPoint(date=d, value=v) for d, v in new_designs_data.items()],
-        jobs_completed=[TimeSeriesDataPoint(date=d, value=v) for d, v in jobs_completed_data.items()],
+        jobs_completed=[
+            TimeSeriesDataPoint(date=d, value=v) for d, v in jobs_completed_data.items()
+        ],
     )
 
 
@@ -1560,32 +1582,31 @@ async def list_users(
 ) -> AdminUserListResponse:
     """List all users with pagination and filters."""
     query = select(User).where(User.deleted_at.is_(None))
-    
+
     # Apply filters
     if search:
         search_pattern = f"%{search}%"
         query = query.where(
-            (User.email.ilike(search_pattern)) |
-            (User.display_name.ilike(search_pattern))
+            (User.email.ilike(search_pattern)) | (User.display_name.ilike(search_pattern))
         )
-    
+
     if role:
         query = query.where(User.role == role)
-    
+
     if status_filter:
         query = query.where(User.status == status_filter)
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Paginate
     offset = (page - 1) * page_size
     query = query.order_by(User.created_at.desc()).offset(offset).limit(page_size)
-    
+
     result = await db.execute(query)
     users = result.scalars().all()
-    
+
     return AdminUserListResponse(
         users=[
             AdminUserResponse(
@@ -1621,31 +1642,35 @@ async def get_user_details(
     query = select(User).where(User.id == user_id, User.deleted_at.is_(None))
     result = await db.execute(query)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     # Count projects and designs
-    project_count = (await db.execute(
-        select(func.count()).where(
-            Project.user_id == user_id,
-            Project.deleted_at.is_(None),
+    project_count = (
+        await db.execute(
+            select(func.count()).where(
+                Project.user_id == user_id,
+                Project.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
-    design_count = (await db.execute(
-        select(func.count())
-        .select_from(Design)
-        .join(Project, Design.project_id == Project.id)
-        .where(
-            Project.user_id == user_id,
-            Design.deleted_at.is_(None),
+    ).scalar_one()
+
+    design_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(Design)
+            .join(Project, Design.project_id == Project.id)
+            .where(
+                Project.user_id == user_id,
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     return AdminUserResponse(
         id=user.id,
         email=user.email,
@@ -1677,23 +1702,23 @@ async def update_user(
     query = select(User).where(User.id == user_id, User.deleted_at.is_(None))
     result = await db.execute(query)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     # Prevent self-demotion
     if user_id == current_user.id and request.role and request.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot demote your own admin role",
         )
-    
+
     # Track original role for audit
     old_role = user.role
-    
+
     # Apply updates
     if request.display_name is not None:
         user.display_name = request.display_name
@@ -1701,10 +1726,10 @@ async def update_user(
         user.role = request.role
     if request.status is not None:
         user.status = request.status
-    
+
     await db.commit()
     await db.refresh(user)
-    
+
     # Log role change to audit log
     if request.role is not None and request.role != old_role:
         security_audit = SecurityAuditService(db)
@@ -1721,7 +1746,7 @@ async def update_user(
             },
         )
         await db.commit()
-    
+
     return AdminUserResponse(
         id=user.id,
         email=user.email,
@@ -1751,25 +1776,25 @@ async def suspend_user(
     query = select(User).where(User.id == user_id, User.deleted_at.is_(None))
     result = await db.execute(query)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     if user_id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot suspend your own account",
         )
-    
+
     if user.status == "suspended":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User is already suspended",
         )
-    
+
     user.status = "suspended"
     user.extra_data["suspension_reason"] = request.reason
     user.extra_data["suspended_at"] = datetime.utcnow().isoformat()
@@ -1778,10 +1803,10 @@ async def suspend_user(
         user.extra_data["suspension_expires"] = (
             datetime.utcnow() + timedelta(days=request.duration_days)
         ).isoformat()
-    
+
     await db.commit()
     await db.refresh(user)
-    
+
     return AdminUserResponse(
         id=user.id,
         email=user.email,
@@ -1809,28 +1834,28 @@ async def unsuspend_user(
     query = select(User).where(User.id == user_id, User.deleted_at.is_(None))
     result = await db.execute(query)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     if user.status != "suspended":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User is not suspended",
         )
-    
+
     user.status = "active"
     user.extra_data.pop("suspension_reason", None)
     user.extra_data.pop("suspended_at", None)
     user.extra_data.pop("suspended_by", None)
     user.extra_data.pop("suspension_expires", None)
-    
+
     await db.commit()
     await db.refresh(user)
-    
+
     return AdminUserResponse(
         id=user.id,
         email=user.email,
@@ -1859,19 +1884,19 @@ async def delete_user(
     query = select(User).where(User.id == user_id, User.deleted_at.is_(None))
     result = await db.execute(query)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     if user_id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot delete your own account",
         )
-    
+
     user.deleted_at = datetime.utcnow()
     await db.commit()
 
@@ -1890,23 +1915,23 @@ async def impersonate_user(
 ) -> ImpersonateResponse:
     """Create temporary session as a user for debugging."""
     from app.core.security import create_access_token
-    
+
     query = select(User).where(User.id == user_id, User.deleted_at.is_(None))
     result = await db.execute(query)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     if user.role == "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot impersonate admin users",
         )
-    
+
     # Create short-lived token (1 hour)
     expires_at = datetime.utcnow() + timedelta(hours=1)
     token = create_access_token(
@@ -1916,16 +1941,18 @@ async def impersonate_user(
         expires_delta=timedelta(hours=1),
         additional_claims={"impersonated_by": str(current_user.id)},
     )
-    
+
     # Store audit record
     audit_id = uuid4()
-    user.extra_data.setdefault("impersonation_log", []).append({
-        "id": str(audit_id),
-        "by": str(current_user.id),
-        "at": datetime.utcnow().isoformat(),
-    })
+    user.extra_data.setdefault("impersonation_log", []).append(
+        {
+            "id": str(audit_id),
+            "by": str(current_user.id),
+            "at": datetime.utcnow().isoformat(),
+        }
+    )
     await db.commit()
-    
+
     return ImpersonateResponse(
         access_token=token,
         user_id=user.id,
@@ -1956,33 +1983,29 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
 ) -> AdminProjectListResponse:
     """List all projects with pagination."""
-    query = (
-        select(Project)
-        .options(selectinload(Project.user))
-        .where(Project.deleted_at.is_(None))
-    )
-    
+    query = select(Project).options(selectinload(Project.user)).where(Project.deleted_at.is_(None))
+
     if user_id:
         query = query.where(Project.user_id == user_id)
-    
+
     if status_filter:
         query = query.where(Project.status == status_filter)
-    
+
     if search:
         search_pattern = f"%{search}%"
         query = query.where(Project.name.ilike(search_pattern))
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Paginate
     offset = (page - 1) * page_size
     query = query.order_by(Project.created_at.desc()).offset(offset).limit(page_size)
-    
+
     result = await db.execute(query)
     projects = result.scalars().all()
-    
+
     return AdminProjectListResponse(
         projects=[
             AdminProjectResponse(
@@ -1992,7 +2015,7 @@ async def list_projects(
                 user_id=project.user_id,
                 user_email=project.user.email if project.user else None,
                 design_count=0,  # Would count from relationship
-                status=getattr(project, 'status', 'active'),
+                status=getattr(project, "status", "active"),
                 created_at=project.created_at,
                 updated_at=project.updated_at,
             )
@@ -2023,21 +2046,23 @@ async def get_project_details(
     )
     result = await db.execute(query)
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
+
     # Count designs
-    design_count = (await db.execute(
-        select(func.count()).where(
-            Design.project_id == project_id,
-            Design.deleted_at.is_(None),
+    design_count = (
+        await db.execute(
+            select(func.count()).where(
+                Design.project_id == project_id,
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     return AdminProjectResponse(
         id=project.id,
         name=project.name,
@@ -2045,7 +2070,7 @@ async def get_project_details(
         user_id=project.user_id,
         user_email=project.user.email if project.user else None,
         design_count=design_count,
-        status=getattr(project, 'status', 'active'),
+        status=getattr(project, "status", "active"),
         created_at=project.created_at,
         updated_at=project.updated_at,
     )
@@ -2066,13 +2091,13 @@ async def delete_project(
     query = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
     result = await db.execute(query)
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
+
     project.deleted_at = datetime.utcnow()
     await db.commit()
 
@@ -2098,13 +2123,13 @@ async def transfer_project(
     )
     result = await db.execute(query)
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
+
     # Verify new owner exists
     new_owner_query = select(User).where(
         User.id == request.new_owner_id,
@@ -2112,19 +2137,19 @@ async def transfer_project(
     )
     new_owner_result = await db.execute(new_owner_query)
     new_owner = new_owner_result.scalar_one_or_none()
-    
+
     if not new_owner:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="New owner not found",
         )
-    
+
     project.user_id = request.new_owner_id
     await db.commit()
-    
+
     # Refresh to get new owner
     await db.refresh(project)
-    
+
     return AdminProjectResponse(
         id=project.id,
         name=project.name,
@@ -2132,7 +2157,7 @@ async def transfer_project(
         user_id=project.user_id,
         user_email=new_owner.email,
         design_count=0,
-        status=getattr(project, 'status', 'active'),
+        status=getattr(project, "status", "active"),
         created_at=project.created_at,
         updated_at=project.updated_at,
     )
@@ -2159,31 +2184,33 @@ async def suspend_project(
     )
     result = await db.execute(query)
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
-    if getattr(project, 'status', 'active') == "suspended":
+
+    if getattr(project, "status", "active") == "suspended":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Project is already suspended",
         )
-    
+
     project.status = "suspended"
     await db.commit()
     await db.refresh(project)
-    
+
     # Count designs
-    design_count = (await db.execute(
-        select(func.count()).where(
-            Design.project_id == project_id,
-            Design.deleted_at.is_(None),
+    design_count = (
+        await db.execute(
+            select(func.count()).where(
+                Design.project_id == project_id,
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     return AdminProjectResponse(
         id=project.id,
         name=project.name,
@@ -2216,31 +2243,33 @@ async def unsuspend_project(
     )
     result = await db.execute(query)
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
-    if getattr(project, 'status', 'active') != "suspended":
+
+    if getattr(project, "status", "active") != "suspended":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Project is not suspended",
         )
-    
+
     project.status = "active"
     await db.commit()
     await db.refresh(project)
-    
+
     # Count designs
-    design_count = (await db.execute(
-        select(func.count()).where(
-            Design.project_id == project_id,
-            Design.deleted_at.is_(None),
+    design_count = (
+        await db.execute(
+            select(func.count()).where(
+                Design.project_id == project_id,
+                Design.deleted_at.is_(None),
+            )
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
     return AdminProjectResponse(
         id=project.id,
         name=project.name,
@@ -2279,36 +2308,34 @@ async def list_designs(
     query = (
         select(Design)
         .join(Project, Design.project_id == Project.id)
-        .options(
-            selectinload(Design.project).selectinload(Project.user)
-        )
+        .options(selectinload(Design.project).selectinload(Project.user))
         .where(Design.deleted_at.is_(None))
     )
-    
+
     if source_type:
         query = query.where(Design.source_type == source_type)
-    
+
     if status_filter:
         query = query.where(Design.status == status_filter)
-    
+
     if user_id:
         query = query.where(Project.user_id == user_id)
-    
+
     if search:
         search_pattern = f"%{search}%"
         query = query.where(Design.name.ilike(search_pattern))
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Paginate
     offset = (page - 1) * page_size
     query = query.order_by(Design.created_at.desc()).offset(offset).limit(page_size)
-    
+
     result = await db.execute(query)
     designs = result.scalars().all()
-    
+
     return AdminDesignListResponse(
         designs=[
             AdminDesignResponse(
@@ -2320,7 +2347,9 @@ async def list_designs(
                 project_id=design.project_id,
                 project_name=design.project.name if design.project else None,
                 user_id=design.project.user_id if design.project else None,
-                user_email=design.project.user.email if design.project and design.project.user else None,
+                user_email=design.project.user.email
+                if design.project and design.project.user
+                else None,
                 template_id=design.template_id,
                 is_public=design.is_public,
                 created_at=design.created_at,
@@ -2348,20 +2377,18 @@ async def get_design_details(
     """Get design details."""
     query = (
         select(Design)
-        .options(
-            selectinload(Design.project).selectinload(Project.user)
-        )
+        .options(selectinload(Design.project).selectinload(Project.user))
         .where(Design.id == design_id, Design.deleted_at.is_(None))
     )
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     return AdminDesignResponse(
         id=design.id,
         name=design.name,
@@ -2394,13 +2421,13 @@ async def delete_design(
     query = select(Design).where(Design.id == design_id, Design.deleted_at.is_(None))
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     design.deleted_at = datetime.utcnow()
     await db.commit()
 
@@ -2419,24 +2446,22 @@ async def restore_design(
     """Restore a soft-deleted design."""
     query = (
         select(Design)
-        .options(
-            selectinload(Design.project).selectinload(Project.user)
-        )
+        .options(selectinload(Design.project).selectinload(Project.user))
         .where(Design.id == design_id, Design.deleted_at.isnot(None))
     )
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Deleted design not found",
         )
-    
+
     design.deleted_at = None
     await db.commit()
     await db.refresh(design)
-    
+
     return AdminDesignResponse(
         id=design.id,
         name=design.name,
@@ -2469,24 +2494,22 @@ async def change_design_visibility(
     """Change design visibility."""
     query = (
         select(Design)
-        .options(
-            selectinload(Design.project).selectinload(Project.user)
-        )
+        .options(selectinload(Design.project).selectinload(Project.user))
         .where(Design.id == design_id, Design.deleted_at.is_(None))
     )
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     design.is_public = request.is_public
     await db.commit()
     await db.refresh(design)
-    
+
     return AdminDesignResponse(
         id=design.id,
         name=design.name,
@@ -2526,31 +2549,30 @@ async def list_templates(
 ) -> AdminTemplateListResponse:
     """List all templates with pagination."""
     query = select(Template)
-    
+
     if category:
         query = query.where(Template.category == category)
-    
+
     if is_active is not None:
         query = query.where(Template.is_active == is_active)
-    
+
     if search:
         search_pattern = f"%{search}%"
         query = query.where(
-            (Template.name.ilike(search_pattern)) |
-            (Template.slug.ilike(search_pattern))
+            (Template.name.ilike(search_pattern)) | (Template.slug.ilike(search_pattern))
         )
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Paginate
     offset = (page - 1) * page_size
     query = query.order_by(Template.created_at.desc()).offset(offset).limit(page_size)
-    
+
     result = await db.execute(query)
     templates = result.scalars().all()
-    
+
     return AdminTemplateListResponse(
         templates=[
             AdminTemplateResponse(
@@ -2589,13 +2611,13 @@ async def get_template_details(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -2625,15 +2647,13 @@ async def create_template(
 ) -> AdminTemplateResponse:
     """Create a new template."""
     # Check slug uniqueness
-    existing = await db.execute(
-        select(Template).where(Template.slug == request.slug)
-    )
+    existing = await db.execute(select(Template).where(Template.slug == request.slug))
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Template with this slug already exists",
         )
-    
+
     template = Template(
         name=request.name,
         slug=request.slug,
@@ -2646,11 +2666,11 @@ async def create_template(
         min_tier=request.min_tier,
         is_active=request.is_active,
     )
-    
+
     db.add(template)
     await db.commit()
     await db.refresh(template)
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -2682,13 +2702,13 @@ async def update_template(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     # Apply updates
     if request.name is not None:
         template.name = request.name
@@ -2710,10 +2730,10 @@ async def update_template(
         template.is_active = request.is_active
     if request.is_featured is not None:
         template.is_featured = request.is_featured
-    
+
     await db.commit()
     await db.refresh(template)
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -2744,13 +2764,13 @@ async def delete_template(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     await db.delete(template)
     await db.commit()
 
@@ -2770,17 +2790,17 @@ async def enable_template(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     template.is_active = True
     await db.commit()
     await db.refresh(template)
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -2811,17 +2831,17 @@ async def disable_template(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     template.is_active = False
     await db.commit()
     await db.refresh(template)
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -2852,17 +2872,17 @@ async def feature_template(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     template.is_featured = True
     await db.commit()
     await db.refresh(template)
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -2893,17 +2913,17 @@ async def unfeature_template(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     template.is_featured = False
     await db.commit()
     await db.refresh(template)
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -2935,16 +2955,16 @@ async def clone_template(
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     # Create clone with unique slug
     new_slug = f"{template.slug}-copy-{uuid4().hex[:8]}"
-    
+
     clone = Template(
         name=f"{template.name} (Copy)",
         slug=new_slug,
@@ -2958,11 +2978,11 @@ async def clone_template(
         is_active=False,  # Clone starts inactive
         is_featured=False,
     )
-    
+
     db.add(clone)
     await db.commit()
     await db.refresh(clone)
-    
+
     return AdminTemplateResponse(
         id=clone.id,
         name=clone.name,
@@ -2991,12 +3011,14 @@ async def upload_template_preview_image(
     db: AsyncSession = Depends(get_db),
 ) -> AdminTemplateResponse:
     """Upload preview image for a template."""
-    from app.core.config import get_settings
-    import aiofiles
     import os
-    
+
+    import aiofiles
+
+    from app.core.config import get_settings
+
     settings = get_settings()
-    
+
     # Validate file type
     allowed_types = {"image/png", "image/jpeg", "image/webp", "image/gif"}
     if file.content_type not in allowed_types:
@@ -3004,7 +3026,7 @@ async def upload_template_preview_image(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid file type. Allowed: {', '.join(allowed_types)}",
         )
-    
+
     # Validate file size (max 5MB)
     max_size = 5 * 1024 * 1024  # 5MB
     content = await file.read()
@@ -3013,33 +3035,33 @@ async def upload_template_preview_image(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File too large. Maximum size is 5MB.",
         )
-    
+
     # Get template
     query = select(Template).where(Template.id == template_id)
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     # Save file
     file_ext = file.filename.split(".")[-1] if file.filename else "png"
     filename = f"template-{template_id}.{file_ext}"
     upload_dir = os.path.join(settings.UPLOAD_DIR, "templates")
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, filename)
-    
+
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)
-    
+
     # Update template with preview URL
     template.preview_url = f"/uploads/templates/{filename}"
     await db.commit()
     await db.refresh(template)
-    
+
     return AdminTemplateResponse(
         id=template.id,
         name=template.name,
@@ -3078,27 +3100,27 @@ async def list_jobs(
 ) -> AdminJobListResponse:
     """List all jobs with pagination."""
     query = select(Job).options(selectinload(Job.user))
-    
+
     if job_type:
         query = query.where(Job.job_type == job_type)
-    
+
     if status_filter:
         query = query.where(Job.status == status_filter)
-    
+
     if user_id:
         query = query.where(Job.user_id == user_id)
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Paginate
     offset = (page - 1) * page_size
     query = query.order_by(Job.created_at.desc()).offset(offset).limit(page_size)
-    
+
     result = await db.execute(query)
     jobs = result.scalars().all()
-    
+
     return AdminJobListResponse(
         jobs=[
             AdminJobResponse(
@@ -3137,13 +3159,13 @@ async def get_job_details(
     query = select(Job).options(selectinload(Job.user)).where(Job.id == job_id)
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     return AdminJobResponse(
         id=job.id,
         job_type=job.job_type,
@@ -3174,24 +3196,24 @@ async def cancel_job(
     query = select(Job).options(selectinload(Job.user)).where(Job.id == job_id)
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     if job.status not in ["pending", "processing"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot cancel job with status: {job.status}",
         )
-    
+
     job.status = "cancelled"
     job.completed_at = datetime.utcnow()
     await db.commit()
     await db.refresh(job)
-    
+
     return AdminJobResponse(
         id=job.id,
         job_type=job.job_type,
@@ -3222,19 +3244,19 @@ async def retry_job(
     query = select(Job).options(selectinload(Job.user)).where(Job.id == job_id)
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     if job.status != "failed":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only failed jobs can be retried",
         )
-    
+
     # Reset job for retry
     job.status = "pending"
     job.progress = 0
@@ -3242,10 +3264,10 @@ async def retry_job(
     job.started_at = None
     job.completed_at = None
     job.retry_count = (job.retry_count or 0) + 1
-    
+
     await db.commit()
     await db.refresh(job)
-    
+
     return AdminJobResponse(
         id=job.id,
         job_type=job.job_type,
@@ -3268,7 +3290,7 @@ async def retry_job(
 
 class AdminSubscriptionResponse(BaseModel):
     """Admin view of a subscription."""
-    
+
     id: UUID
     user_id: UUID
     user_email: str | None = None
@@ -3280,14 +3302,14 @@ class AdminSubscriptionResponse(BaseModel):
     current_period_end: datetime | None = None
     cancel_at_period_end: bool = False
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class SubscriptionListResponse(BaseModel):
     """Paginated subscription list."""
-    
+
     items: list[AdminSubscriptionResponse]
     total: int
     page: int
@@ -3296,14 +3318,14 @@ class SubscriptionListResponse(BaseModel):
 
 class ChangeTierRequest(BaseModel):
     """Request to change a user's tier."""
-    
+
     tier_slug: str = Field(..., description="New tier slug")
     reason: str | None = Field(None, max_length=500)
 
 
 class ExtendSubscriptionRequest(BaseModel):
     """Request to extend a subscription."""
-    
+
     days: int = Field(..., ge=1, le=365)
     reason: str | None = Field(None, max_length=500)
 
@@ -3332,26 +3354,26 @@ async def list_subscriptions(
         selectinload(Subscription.user),
         selectinload(Subscription.tier),
     )
-    
+
     filters = []
     if status_filter:
         filters.append(Subscription.status == status_filter)
     if tier_filter:
         filters.append(Subscription.tier.has(slug=tier_filter))
-    
+
     if filters:
         query = query.where(and_(*filters))
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(Subscription.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     items = result.scalars().all()
-    
+
     return SubscriptionListResponse(
         items=[
             AdminSubscriptionResponse(
@@ -3387,20 +3409,24 @@ async def get_subscription(
     db: AsyncSession = Depends(get_db),
 ) -> AdminSubscriptionResponse:
     """Get subscription by ID."""
-    query = select(Subscription).options(
-        selectinload(Subscription.user),
-        selectinload(Subscription.tier),
-    ).where(Subscription.id == subscription_id)
-    
+    query = (
+        select(Subscription)
+        .options(
+            selectinload(Subscription.user),
+            selectinload(Subscription.tier),
+        )
+        .where(Subscription.id == subscription_id)
+    )
+
     result = await db.execute(query)
     sub = result.scalar_one_or_none()
-    
+
     if not sub:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Subscription not found",
         )
-    
+
     return AdminSubscriptionResponse(
         id=sub.id,
         user_id=sub.user_id,
@@ -3430,37 +3456,39 @@ async def change_subscription_tier(
 ) -> AdminSubscriptionResponse:
     """Change subscription tier."""
     # Get subscription
-    query = select(Subscription).options(
-        selectinload(Subscription.user),
-        selectinload(Subscription.tier),
-    ).where(Subscription.id == subscription_id)
-    
+    query = (
+        select(Subscription)
+        .options(
+            selectinload(Subscription.user),
+            selectinload(Subscription.tier),
+        )
+        .where(Subscription.id == subscription_id)
+    )
+
     result = await db.execute(query)
     sub = result.scalar_one_or_none()
-    
+
     if not sub:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Subscription not found",
         )
-    
+
     # Get new tier
-    tier_query = select(SubscriptionTier).where(
-        SubscriptionTier.slug == request.tier_slug
-    )
+    tier_query = select(SubscriptionTier).where(SubscriptionTier.slug == request.tier_slug)
     tier_result = await db.execute(tier_query)
     new_tier = tier_result.scalar_one_or_none()
-    
+
     if not new_tier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tier '{request.tier_slug}' not found",
         )
-    
+
     sub.tier_id = new_tier.id
     await db.commit()
     await db.refresh(sub)
-    
+
     return AdminSubscriptionResponse(
         id=sub.id,
         user_id=sub.user_id,
@@ -3490,17 +3518,17 @@ async def cancel_subscription_admin(
     query = select(Subscription).where(Subscription.id == subscription_id)
     result = await db.execute(query)
     sub = result.scalar_one_or_none()
-    
+
     if not sub:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Subscription not found",
         )
-    
+
     sub.status = "cancelled"
     sub.cancelled_at = datetime.utcnow()
     await db.commit()
-    
+
     return {"message": "Subscription cancelled"}
 
 
@@ -3517,28 +3545,32 @@ async def extend_subscription(
     db: AsyncSession = Depends(get_db),
 ) -> AdminSubscriptionResponse:
     """Extend subscription end date."""
-    query = select(Subscription).options(
-        selectinload(Subscription.user),
-        selectinload(Subscription.tier),
-    ).where(Subscription.id == subscription_id)
-    
+    query = (
+        select(Subscription)
+        .options(
+            selectinload(Subscription.user),
+            selectinload(Subscription.tier),
+        )
+        .where(Subscription.id == subscription_id)
+    )
+
     result = await db.execute(query)
     sub = result.scalar_one_or_none()
-    
+
     if not sub:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Subscription not found",
         )
-    
+
     if sub.current_period_end:
         sub.current_period_end = sub.current_period_end + timedelta(days=request.days)
     else:
         sub.current_period_end = datetime.utcnow() + timedelta(days=request.days)
-    
+
     await db.commit()
     await db.refresh(sub)
-    
+
     return AdminSubscriptionResponse(
         id=sub.id,
         user_id=sub.user_id,
@@ -3568,10 +3600,10 @@ async def get_user_credits(
     query = select(CreditBalance).where(CreditBalance.user_id == user_id)
     result = await db.execute(query)
     balance = result.scalar_one_or_none()
-    
+
     if not balance:
         return {"user_id": str(user_id), "balance": 0, "lifetime_earned": 0, "lifetime_spent": 0}
-    
+
     return {
         "user_id": str(user_id),
         "balance": balance.balance,
@@ -3596,16 +3628,16 @@ async def add_user_credits(
     query = select(CreditBalance).where(CreditBalance.user_id == user_id)
     result = await db.execute(query)
     balance = result.scalar_one_or_none()
-    
+
     if not balance:
         balance = CreditBalance(user_id=user_id, balance=0, lifetime_earned=0, lifetime_spent=0)
         db.add(balance)
-    
+
     balance.balance += amount
     balance.lifetime_earned += amount
-    
+
     await db.commit()
-    
+
     return {
         "message": f"Added {amount} credits",
         "new_balance": balance.balance,
@@ -3619,7 +3651,7 @@ async def add_user_credits(
 
 class AdminOrganizationResponse(BaseModel):
     """Admin view of an organization."""
-    
+
     id: UUID
     name: str
     slug: str
@@ -3629,14 +3661,14 @@ class AdminOrganizationResponse(BaseModel):
     owner_email: str | None = None
     tier_slug: str | None = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class OrganizationListResponse(BaseModel):
     """Paginated organization list."""
-    
+
     items: list[AdminOrganizationResponse]
     total: int
     page: int
@@ -3645,13 +3677,13 @@ class OrganizationListResponse(BaseModel):
 
 class AdminOrgMemberResponse(BaseModel):
     """Admin view of an organization member."""
-    
+
     id: UUID
     user_id: UUID
     user_email: str | None = None
     role: str
     joined_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -3676,7 +3708,7 @@ async def list_organizations(
 ) -> OrganizationListResponse:
     """List all organizations."""
     query = select(Organization).where(Organization.deleted_at.is_(None))
-    
+
     if search:
         query = query.where(
             or_(
@@ -3684,17 +3716,17 @@ async def list_organizations(
                 Organization.slug.ilike(f"%{search}%"),
             )
         )
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(Organization.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     orgs = result.scalars().all()
-    
+
     items = []
     for org in orgs:
         # Get member count
@@ -3702,31 +3734,37 @@ async def list_organizations(
             OrganizationMember.organization_id == org.id
         )
         member_count = (await db.execute(member_count_query)).scalar_one()
-        
+
         # Get owner
-        owner_query = select(OrganizationMember).options(
-            selectinload(OrganizationMember.user)
-        ).where(
-            and_(
-                OrganizationMember.organization_id == org.id,
-                OrganizationMember.role == "owner",
+        owner_query = (
+            select(OrganizationMember)
+            .options(selectinload(OrganizationMember.user))
+            .where(
+                and_(
+                    OrganizationMember.organization_id == org.id,
+                    OrganizationMember.role == "owner",
+                )
             )
         )
         owner_result = await db.execute(owner_query)
         owner_membership = owner_result.scalar_one_or_none()
-        
-        items.append(AdminOrganizationResponse(
-            id=org.id,
-            name=org.name,
-            slug=org.slug,
-            description=org.description,
-            member_count=member_count,
-            owner_id=owner_membership.user_id if owner_membership else None,
-            owner_email=owner_membership.user.email if owner_membership and owner_membership.user else None,
-            tier_slug=org.tier_slug if hasattr(org, 'tier_slug') else None,
-            created_at=org.created_at,
-        ))
-    
+
+        items.append(
+            AdminOrganizationResponse(
+                id=org.id,
+                name=org.name,
+                slug=org.slug,
+                description=org.description,
+                member_count=member_count,
+                owner_id=owner_membership.user_id if owner_membership else None,
+                owner_email=owner_membership.user.email
+                if owner_membership and owner_membership.user
+                else None,
+                tier_slug=org.tier_slug if hasattr(org, "tier_slug") else None,
+                created_at=org.created_at,
+            )
+        )
+
     return OrganizationListResponse(
         items=items,
         total=total,
@@ -3752,31 +3790,31 @@ async def get_organization(
     )
     result = await db.execute(query)
     org = result.scalar_one_or_none()
-    
+
     if not org:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organization not found",
         )
-    
+
     # Get member count
-    member_count_query = select(func.count()).where(
-        OrganizationMember.organization_id == org.id
-    )
+    member_count_query = select(func.count()).where(OrganizationMember.organization_id == org.id)
     member_count = (await db.execute(member_count_query)).scalar_one()
-    
+
     # Get owner
-    owner_query = select(OrganizationMember).options(
-        selectinload(OrganizationMember.user)
-    ).where(
-        and_(
-            OrganizationMember.organization_id == org.id,
-            OrganizationMember.role == "owner",
+    owner_query = (
+        select(OrganizationMember)
+        .options(selectinload(OrganizationMember.user))
+        .where(
+            and_(
+                OrganizationMember.organization_id == org.id,
+                OrganizationMember.role == "owner",
+            )
         )
     )
     owner_result = await db.execute(owner_query)
     owner_membership = owner_result.scalar_one_or_none()
-    
+
     return AdminOrganizationResponse(
         id=org.id,
         name=org.name,
@@ -3784,8 +3822,10 @@ async def get_organization(
         description=org.description,
         member_count=member_count,
         owner_id=owner_membership.user_id if owner_membership else None,
-        owner_email=owner_membership.user.email if owner_membership and owner_membership.user else None,
-        tier_slug=org.tier_slug if hasattr(org, 'tier_slug') else None,
+        owner_email=owner_membership.user.email
+        if owner_membership and owner_membership.user
+        else None,
+        tier_slug=org.tier_slug if hasattr(org, "tier_slug") else None,
         created_at=org.created_at,
     )
 
@@ -3801,13 +3841,15 @@ async def get_organization_members(
     db: AsyncSession = Depends(get_db),
 ) -> list[AdminOrgMemberResponse]:
     """Get organization members."""
-    query = select(OrganizationMember).options(
-        selectinload(OrganizationMember.user)
-    ).where(OrganizationMember.organization_id == org_id)
-    
+    query = (
+        select(OrganizationMember)
+        .options(selectinload(OrganizationMember.user))
+        .where(OrganizationMember.organization_id == org_id)
+    )
+
     result = await db.execute(query)
     members = result.scalars().all()
-    
+
     return [
         AdminOrgMemberResponse(
             id=m.id,
@@ -3836,16 +3878,16 @@ async def delete_organization(
     )
     result = await db.execute(query)
     org = result.scalar_one_or_none()
-    
+
     if not org:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organization not found",
         )
-    
+
     org.deleted_at = datetime.utcnow()
     await db.commit()
-    
+
     return {"message": "Organization deleted"}
 
 
@@ -3856,7 +3898,7 @@ async def delete_organization(
 
 class AdminComponentResponse(BaseModel):
     """Admin view of a component."""
-    
+
     id: UUID
     name: str
     part_number: str | None = None
@@ -3868,14 +3910,14 @@ class AdminComponentResponse(BaseModel):
     is_verified: bool = False
     is_featured: bool = False
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class ComponentListResponse(BaseModel):
     """Paginated component list."""
-    
+
     items: list[AdminComponentResponse]
     total: int
     page: int
@@ -3903,7 +3945,7 @@ async def list_components(
 ) -> ComponentListResponse:
     """List all components."""
     query = select(ReferenceComponent)
-    
+
     filters = []
     if search:
         filters.append(
@@ -3915,20 +3957,20 @@ async def list_components(
         )
     if library_only:
         filters.append(ReferenceComponent.user_id.is_(None))
-    
+
     if filters:
         query = query.where(and_(*filters))
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(ReferenceComponent.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     components = result.scalars().all()
-    
+
     items = []
     for comp in components:
         # Get user email if user-owned
@@ -3938,21 +3980,23 @@ async def list_components(
             user_result = await db.execute(user_query)
             user = user_result.scalar_one_or_none()
             user_email = user.email if user else None
-        
-        items.append(AdminComponentResponse(
-            id=comp.id,
-            name=comp.name,
-            part_number=comp.part_number,
-            manufacturer=comp.manufacturer,
-            category=comp.category,
-            user_id=comp.user_id,
-            user_email=user_email,
-            is_library=comp.user_id is None,
-            is_verified=getattr(comp, 'is_verified', False),
-            is_featured=getattr(comp, 'is_featured', False),
-            created_at=comp.created_at,
-        ))
-    
+
+        items.append(
+            AdminComponentResponse(
+                id=comp.id,
+                name=comp.name,
+                part_number=comp.part_number,
+                manufacturer=comp.manufacturer,
+                category=comp.category,
+                user_id=comp.user_id,
+                user_email=user_email,
+                is_library=comp.user_id is None,
+                is_verified=getattr(comp, "is_verified", False),
+                is_featured=getattr(comp, "is_featured", False),
+                created_at=comp.created_at,
+            )
+        )
+
     return ComponentListResponse(
         items=items,
         total=total,
@@ -3975,17 +4019,17 @@ async def verify_component(
     query = select(ReferenceComponent).where(ReferenceComponent.id == component_id)
     result = await db.execute(query)
     comp = result.scalar_one_or_none()
-    
+
     if not comp:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Component not found",
         )
-    
-    if hasattr(comp, 'is_verified'):
+
+    if hasattr(comp, "is_verified"):
         comp.is_verified = True
         await db.commit()
-    
+
     return {"message": "Component verified"}
 
 
@@ -4003,17 +4047,17 @@ async def feature_component(
     query = select(ReferenceComponent).where(ReferenceComponent.id == component_id)
     result = await db.execute(query)
     comp = result.scalar_one_or_none()
-    
+
     if not comp:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Component not found",
         )
-    
-    if hasattr(comp, 'is_featured'):
+
+    if hasattr(comp, "is_featured"):
         comp.is_featured = True
         await db.commit()
-    
+
     return {"message": "Component featured"}
 
 
@@ -4031,16 +4075,16 @@ async def delete_component(
     query = select(ReferenceComponent).where(ReferenceComponent.id == component_id)
     result = await db.execute(query)
     comp = result.scalar_one_or_none()
-    
+
     if not comp:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Component not found",
         )
-    
+
     await db.delete(comp)
     await db.commit()
-    
+
     return {"message": "Component deleted"}
 
 
@@ -4051,7 +4095,7 @@ async def delete_component(
 
 class AdminNotificationResponse(BaseModel):
     """Admin view of a notification."""
-    
+
     id: UUID
     user_id: UUID
     user_email: str | None = None
@@ -4060,22 +4104,23 @@ class AdminNotificationResponse(BaseModel):
     message: str | None = None
     is_read: bool = False
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class NotificationListResponse(BaseModel):
     """Paginated notification list."""
-    
+
     items: list[AdminNotificationResponse]
     total: int
     page: int
     page_size: int
 
 
-class RecipientType(str, Enum):
+class RecipientType(StrEnum):
     """Recipient targeting type for notifications."""
+
     ALL = "all"
     TIER = "tier"
     ORGANIZATION = "organization"
@@ -4084,13 +4129,21 @@ class RecipientType(str, Enum):
 
 class CreateAnnouncementRequest(BaseModel):
     """Request to create a system announcement."""
-    
+
     title: str = Field(..., max_length=200)
     message: str = Field(..., max_length=2000)
-    recipient_type: RecipientType = Field(default=RecipientType.ALL, description="Target audience type")
-    target_tier: str | None = Field(None, description="Target specific tier (if recipient_type=tier)")
-    target_organization_id: str | None = Field(None, description="Target org ID (if recipient_type=organization)")
-    target_user_ids: list[str] | None = Field(None, description="Target user IDs (if recipient_type=users)")
+    recipient_type: RecipientType = Field(
+        default=RecipientType.ALL, description="Target audience type"
+    )
+    target_tier: str | None = Field(
+        None, description="Target specific tier (if recipient_type=tier)"
+    )
+    target_organization_id: str | None = Field(
+        None, description="Target org ID (if recipient_type=organization)"
+    )
+    target_user_ids: list[str] | None = Field(
+        None, description="Target user IDs (if recipient_type=users)"
+    )
     scheduled_at: datetime | None = Field(None, description="When to send (None for immediate)")
     expires_at: datetime | None = Field(None, description="When notification expires")
 
@@ -4115,20 +4168,20 @@ async def list_notifications_admin(
 ) -> NotificationListResponse:
     """List all notifications."""
     query = select(Notification).options(selectinload(Notification.user))
-    
+
     if notification_type:
         query = query.where(Notification.notification_type == notification_type)
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(Notification.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     notifications = result.scalars().all()
-    
+
     return NotificationListResponse(
         items=[
             AdminNotificationResponse(
@@ -4160,7 +4213,7 @@ async def create_announcement(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Create a system announcement with various targeting options.
-    
+
     Supports:
     - All users
     - Specific subscription tier users
@@ -4171,7 +4224,9 @@ async def create_announcement(
     """
     # TODO: If scheduled_at is in the future, store in a job queue
     # For now, we send immediately
-    if request.scheduled_at and request.scheduled_at > datetime.now(request.scheduled_at.tzinfo or None):
+    if request.scheduled_at and request.scheduled_at > datetime.now(
+        request.scheduled_at.tzinfo or None
+    ):
         # Return scheduled info but don't send yet
         # This would typically go to a Celery task
         return {
@@ -4179,18 +4234,20 @@ async def create_announcement(
             "scheduled": True,
             "scheduled_at": request.scheduled_at.isoformat(),
         }
-    
+
     # Build user query based on recipient_type
-    user_query = select(User).where(User.is_active == True)
-    
+    user_query = select(User).where(User.is_active)
+
     if request.recipient_type == RecipientType.TIER:
         if not request.target_tier:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="target_tier is required when recipient_type is 'tier'",
             )
-        user_query = user_query.join(Subscription).join(SubscriptionTier).where(
-            SubscriptionTier.slug == request.target_tier
+        user_query = (
+            user_query.join(Subscription)
+            .join(SubscriptionTier)
+            .where(SubscriptionTier.slug == request.target_tier)
         )
     elif request.recipient_type == RecipientType.ORGANIZATION:
         if not request.target_organization_id:
@@ -4210,10 +4267,10 @@ async def create_announcement(
         user_ids = [UUID(uid) for uid in request.target_user_ids]
         user_query = user_query.where(User.id.in_(user_ids))
     # RecipientType.ALL uses the base query without additional filters
-    
+
     result = await db.execute(user_query)
     users = result.scalars().all()
-    
+
     # Create notification for each user
     created_count = 0
     for user in users:
@@ -4226,9 +4283,9 @@ async def create_announcement(
         )
         db.add(notification)
         created_count += 1
-    
+
     await db.commit()
-    
+
     return {
         "message": f"Announcement sent to {created_count} users",
         "sent_count": created_count,
@@ -4254,13 +4311,13 @@ async def send_user_notification(
     user_query = select(User).where(User.id == user_id)
     result = await db.execute(user_query)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     notification = Notification(
         user_id=user_id,
         notification_type="admin_message",
@@ -4269,7 +4326,7 @@ async def send_user_notification(
     )
     db.add(notification)
     await db.commit()
-    
+
     return {"message": "Notification sent"}
 
 
@@ -4288,13 +4345,13 @@ async def delete_notification_admin(
     query = select(Notification).where(Notification.id == notification_id)
     result = await db.execute(query)
     notification = result.scalar_one_or_none()
-    
+
     if not notification:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Notification not found",
         )
-    
+
     await db.delete(notification)
     await db.commit()
 
@@ -4312,43 +4369,47 @@ async def get_notification_stats(
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = now - timedelta(days=7)
-    
+
     # Total notifications
-    total = (await db.execute(
-        select(func.count(Notification.id))
-    )).scalar_one()
-    
+    total = (await db.execute(select(func.count(Notification.id)))).scalar_one()
+
     # Unread notifications
-    unread = (await db.execute(
-        select(func.count(Notification.id)).where(Notification.is_read == False)
-    )).scalar_one()
-    
+    unread = (
+        await db.execute(select(func.count(Notification.id)).where(not Notification.is_read))
+    ).scalar_one()
+
     # Read notifications
-    read = (await db.execute(
-        select(func.count(Notification.id)).where(Notification.is_read == True)
-    )).scalar_one()
-    
+    read = (
+        await db.execute(select(func.count(Notification.id)).where(Notification.is_read))
+    ).scalar_one()
+
     # Notifications sent today
-    sent_today = (await db.execute(
-        select(func.count(Notification.id)).where(Notification.created_at >= today_start)
-    )).scalar_one()
-    
-    # Notifications sent this week
-    sent_week = (await db.execute(
-        select(func.count(Notification.id)).where(Notification.created_at >= week_ago)
-    )).scalar_one()
-    
-    # Expired notifications
-    expired = (await db.execute(
-        select(func.count(Notification.id)).where(
-            Notification.expires_at.isnot(None),
-            Notification.expires_at < now,
+    sent_today = (
+        await db.execute(
+            select(func.count(Notification.id)).where(Notification.created_at >= today_start)
         )
-    )).scalar_one()
-    
+    ).scalar_one()
+
+    # Notifications sent this week
+    sent_week = (
+        await db.execute(
+            select(func.count(Notification.id)).where(Notification.created_at >= week_ago)
+        )
+    ).scalar_one()
+
+    # Expired notifications
+    expired = (
+        await db.execute(
+            select(func.count(Notification.id)).where(
+                Notification.expires_at.isnot(None),
+                Notification.expires_at < now,
+            )
+        )
+    ).scalar_one()
+
     # Calculate read rate
     read_rate = (read / total * 100) if total > 0 else 0
-    
+
     return {
         "total": total,
         "unread": unread,
@@ -4367,7 +4428,7 @@ async def get_notification_stats(
 
 class AdminFileResponse(BaseModel):
     """Admin view of a file."""
-    
+
     id: UUID
     user_id: UUID
     user_email: str | None = None
@@ -4377,14 +4438,14 @@ class AdminFileResponse(BaseModel):
     size_bytes: int
     storage_bucket: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class FileListResponse(BaseModel):
     """Paginated file list."""
-    
+
     items: list[AdminFileResponse]
     total: int
     page: int
@@ -4393,7 +4454,7 @@ class FileListResponse(BaseModel):
 
 class StorageStatsResponse(BaseModel):
     """Storage statistics."""
-    
+
     total_files: int
     total_size_bytes: int
     total_size_gb: float
@@ -4424,7 +4485,7 @@ async def get_storage_stats(
     )
     total_result = await db.execute(total_query)
     total_files, total_size = total_result.one()
-    
+
     # Files by MIME type
     type_query = select(
         FileModel.mime_type,
@@ -4432,31 +4493,38 @@ async def get_storage_stats(
     ).group_by(FileModel.mime_type)
     type_result = await db.execute(type_query)
     files_by_type = {row[0]: row[1] for row in type_result.all()}
-    
+
     # Top users by storage
-    top_query = select(
-        FileModel.user_id,
-        func.count(FileModel.id).label("file_count"),
-        func.sum(FileModel.size_bytes).label("total_size"),
-    ).group_by(FileModel.user_id).order_by(desc("total_size")).limit(10)
+    top_query = (
+        select(
+            FileModel.user_id,
+            func.count(FileModel.id).label("file_count"),
+            func.sum(FileModel.size_bytes).label("total_size"),
+        )
+        .group_by(FileModel.user_id)
+        .order_by(desc("total_size"))
+        .limit(10)
+    )
     top_result = await db.execute(top_query)
-    
+
     top_users = []
     for row in top_result.all():
         user_query = select(User).where(User.id == row[0])
         user_result = await db.execute(user_query)
         user = user_result.scalar_one_or_none()
-        top_users.append({
-            "user_id": str(row[0]),
-            "email": user.email if user else None,
-            "file_count": row[1],
-            "total_size_bytes": row[2] or 0,
-        })
-    
+        top_users.append(
+            {
+                "user_id": str(row[0]),
+                "email": user.email if user else None,
+                "file_count": row[1],
+                "total_size_bytes": row[2] or 0,
+            }
+        )
+
     return StorageStatsResponse(
         total_files=total_files,
         total_size_bytes=total_size,
-        total_size_gb=round(total_size / (1024 ** 3), 2),
+        total_size_gb=round(total_size / (1024**3), 2),
         files_by_type=files_by_type,
         top_users=top_users,
     )
@@ -4478,26 +4546,26 @@ async def list_files_admin(
 ) -> FileListResponse:
     """List all files."""
     query = select(FileModel).options(selectinload(FileModel.user))
-    
+
     filters = []
     if user_id:
         filters.append(FileModel.user_id == user_id)
     if mime_type:
         filters.append(FileModel.mime_type.ilike(f"%{mime_type}%"))
-    
+
     if filters:
         query = query.where(and_(*filters))
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(FileModel.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     files = result.scalars().all()
-    
+
     return FileListResponse(
         items=[
             AdminFileResponse(
@@ -4533,16 +4601,16 @@ async def delete_file_admin(
     query = select(FileModel).where(FileModel.id == file_id)
     result = await db.execute(query)
     file = result.scalar_one_or_none()
-    
+
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     await db.delete(file)
     await db.commit()
-    
+
     return {"message": "File deleted"}
 
 
@@ -4553,7 +4621,7 @@ async def delete_file_admin(
 
 class AdminAuditLogResponse(BaseModel):
     """Admin view of an audit log entry."""
-    
+
     id: UUID
     user_id: UUID | None = None
     user_email: str | None = None
@@ -4563,14 +4631,14 @@ class AdminAuditLogResponse(BaseModel):
     resource_id: str | None = None
     ip_address: str | None = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class AuditLogListResponse(BaseModel):
     """Paginated audit log list."""
-    
+
     items: list[AdminAuditLogResponse]
     total: int
     page: int
@@ -4599,7 +4667,7 @@ async def get_audit_logs(
 ) -> AuditLogListResponse:
     """Get paginated audit logs."""
     query = select(AuditLog).options(selectinload(AuditLog.user))
-    
+
     filters = []
     if user_id:
         filters.append(AuditLog.user_id == user_id)
@@ -4607,20 +4675,20 @@ async def get_audit_logs(
         filters.append(AuditLog.action == action)
     if resource_type:
         filters.append(AuditLog.resource_type == resource_type)
-    
+
     if filters:
         query = query.where(and_(*filters))
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(AuditLog.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     logs = result.scalars().all()
-    
+
     return AuditLogListResponse(
         items=[
             AdminAuditLogResponse(
@@ -4630,8 +4698,10 @@ async def get_audit_logs(
                 actor_type=log.actor_type,
                 action=log.action,
                 resource_type=log.resource_type,
-                resource_id=str(log.resource_id) if hasattr(log, 'resource_id') and log.resource_id else None,
-                ip_address=log.ip_address if hasattr(log, 'ip_address') else None,
+                resource_id=str(log.resource_id)
+                if hasattr(log, "resource_id") and log.resource_id
+                else None,
+                ip_address=log.ip_address if hasattr(log, "ip_address") else None,
                 created_at=log.created_at,
             )
             for log in logs
@@ -4649,7 +4719,7 @@ async def get_audit_logs(
 
 class AdminAPIKeyResponse(BaseModel):
     """Admin view of an API key (masked)."""
-    
+
     id: UUID
     user_id: UUID
     user_email: str | None = None
@@ -4660,14 +4730,14 @@ class AdminAPIKeyResponse(BaseModel):
     last_used_at: datetime | None = None
     expires_at: datetime | None = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class APIKeyListResponse(BaseModel):
     """Paginated API key list."""
-    
+
     items: list[AdminAPIKeyResponse]
     total: int
     page: int
@@ -4694,20 +4764,20 @@ async def list_api_keys(
 ) -> APIKeyListResponse:
     """List all API keys."""
     query = select(APIKey).options(selectinload(APIKey.user))
-    
+
     if user_id:
         query = query.where(APIKey.user_id == user_id)
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(APIKey.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     keys = result.scalars().all()
-    
+
     return APIKeyListResponse(
         items=[
             AdminAPIKeyResponse(
@@ -4744,17 +4814,17 @@ async def revoke_api_key(
     query = select(APIKey).where(APIKey.id == key_id)
     result = await db.execute(query)
     key = result.scalar_one_or_none()
-    
+
     if not key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="API key not found",
         )
-    
+
     key.is_active = False
     key.revoked_at = datetime.utcnow()
     await db.commit()
-    
+
     return {"message": "API key revoked"}
 
 
@@ -4765,7 +4835,7 @@ async def revoke_api_key(
 
 class ServiceStatus(BaseModel):
     """Status of a service."""
-    
+
     name: str
     status: str  # healthy, degraded, unhealthy
     latency_ms: float | None = None
@@ -4774,7 +4844,7 @@ class ServiceStatus(BaseModel):
 
 class SystemHealthResponse(BaseModel):
     """System health overview."""
-    
+
     overall_status: str
     services: list[ServiceStatus]
     version: str
@@ -4799,159 +4869,196 @@ async def get_system_health(
 ) -> SystemHealthResponse:
     """Get system health status for all services."""
     import time
+
     import aiohttp
-    
+
     services = []
-    
+
     # Check database
     try:
         start = time.time()
         await db.execute(select(func.count()).select_from(User))
         db_latency = (time.time() - start) * 1000
-        services.append(ServiceStatus(
-            name="database",
-            status="healthy",
-            latency_ms=round(db_latency, 2),
-            message="PostgreSQL connected",
-        ))
+        services.append(
+            ServiceStatus(
+                name="database",
+                status="healthy",
+                latency_ms=round(db_latency, 2),
+                message="PostgreSQL connected",
+            )
+        )
     except Exception as e:
-        services.append(ServiceStatus(
-            name="database",
-            status="unhealthy",
-            message=f"Database error: {str(e)[:100]}",
-        ))
-    
+        services.append(
+            ServiceStatus(
+                name="database",
+                status="unhealthy",
+                message=f"Database error: {str(e)[:100]}",
+            )
+        )
+
     # Check Redis
     try:
-        from app.core.config import settings
         import redis.asyncio as redis
+
+        from app.core.config import settings
+
         start = time.time()
         r = redis.from_url(settings.REDIS_URL or "redis://localhost:6379")
         await r.ping()
         await r.close()
         redis_latency = (time.time() - start) * 1000
-        services.append(ServiceStatus(
-            name="redis",
-            status="healthy",
-            latency_ms=round(redis_latency, 2),
-            message="Redis connected",
-        ))
+        services.append(
+            ServiceStatus(
+                name="redis",
+                status="healthy",
+                latency_ms=round(redis_latency, 2),
+                message="Redis connected",
+            )
+        )
     except Exception as e:
-        services.append(ServiceStatus(
-            name="redis",
-            status="unhealthy",
-            message=f"Redis error: {str(e)[:100]}",
-        ))
-    
+        services.append(
+            ServiceStatus(
+                name="redis",
+                status="unhealthy",
+                message=f"Redis error: {str(e)[:100]}",
+            )
+        )
+
     # Check Celery (by checking if Redis has celery keys)
     try:
-        from app.core.config import settings
         import redis.asyncio as redis
+
+        from app.core.config import settings
+
         r = redis.from_url(settings.REDIS_URL or "redis://localhost:6379")
         # Check for celery-related keys
         celery_keys = await r.keys("celery*")
         await r.close()
-        services.append(ServiceStatus(
-            name="celery",
-            status="healthy" if celery_keys else "degraded",
-            message=f"Celery queue active" if celery_keys else "No active workers detected",
-        ))
+        services.append(
+            ServiceStatus(
+                name="celery",
+                status="healthy" if celery_keys else "degraded",
+                message="Celery queue active" if celery_keys else "No active workers detected",
+            )
+        )
     except Exception as e:
-        services.append(ServiceStatus(
-            name="celery",
-            status="unhealthy",
-            message=f"Celery check failed: {str(e)[:100]}",
-        ))
-    
+        services.append(
+            ServiceStatus(
+                name="celery",
+                status="unhealthy",
+                message=f"Celery check failed: {str(e)[:100]}",
+            )
+        )
+
     # Check MinIO/S3
     try:
         from app.core.config import settings
+
         if settings.MINIO_ENDPOINT:
             async with aiohttp.ClientSession() as session:
                 start = time.time()
                 async with session.get(
                     f"http://{settings.MINIO_ENDPOINT}/minio/health/live",
-                    timeout=aiohttp.ClientTimeout(total=5)
+                    timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     minio_latency = (time.time() - start) * 1000
                     if resp.status == 200:
-                        services.append(ServiceStatus(
-                            name="storage",
-                            status="healthy",
-                            latency_ms=round(minio_latency, 2),
-                            message="MinIO connected",
-                        ))
+                        services.append(
+                            ServiceStatus(
+                                name="storage",
+                                status="healthy",
+                                latency_ms=round(minio_latency, 2),
+                                message="MinIO connected",
+                            )
+                        )
                     else:
-                        services.append(ServiceStatus(
-                            name="storage",
-                            status="degraded",
-                            latency_ms=round(minio_latency, 2),
-                            message=f"MinIO returned status {resp.status}",
-                        ))
+                        services.append(
+                            ServiceStatus(
+                                name="storage",
+                                status="degraded",
+                                latency_ms=round(minio_latency, 2),
+                                message=f"MinIO returned status {resp.status}",
+                            )
+                        )
         else:
-            services.append(ServiceStatus(
-                name="storage",
-                status="healthy",
-                message="Using local storage",
-            ))
+            services.append(
+                ServiceStatus(
+                    name="storage",
+                    status="healthy",
+                    message="Using local storage",
+                )
+            )
     except Exception as e:
-        services.append(ServiceStatus(
-            name="storage",
-            status="unhealthy",
-            message=f"Storage error: {str(e)[:100]}",
-        ))
-    
+        services.append(
+            ServiceStatus(
+                name="storage",
+                status="unhealthy",
+                message=f"Storage error: {str(e)[:100]}",
+            )
+        )
+
     # Check AI Service (if configured)
     try:
         from app.core.config import settings
-        if hasattr(settings, 'AI_SERVICE_URL') and settings.AI_SERVICE_URL:
+
+        if hasattr(settings, "AI_SERVICE_URL") and settings.AI_SERVICE_URL:
             async with aiohttp.ClientSession() as session:
                 start = time.time()
                 async with session.get(
-                    f"{settings.AI_SERVICE_URL}/health",
-                    timeout=aiohttp.ClientTimeout(total=5)
+                    f"{settings.AI_SERVICE_URL}/health", timeout=aiohttp.ClientTimeout(total=5)
                 ) as resp:
                     ai_latency = (time.time() - start) * 1000
                     if resp.status == 200:
-                        services.append(ServiceStatus(
-                            name="ai",
-                            status="healthy",
-                            latency_ms=round(ai_latency, 2),
-                            message="AI service connected",
-                        ))
+                        services.append(
+                            ServiceStatus(
+                                name="ai",
+                                status="healthy",
+                                latency_ms=round(ai_latency, 2),
+                                message="AI service connected",
+                            )
+                        )
                     else:
-                        services.append(ServiceStatus(
-                            name="ai",
-                            status="degraded",
-                            message=f"AI service returned status {resp.status}",
-                        ))
+                        services.append(
+                            ServiceStatus(
+                                name="ai",
+                                status="degraded",
+                                message=f"AI service returned status {resp.status}",
+                            )
+                        )
         else:
-            services.append(ServiceStatus(
-                name="ai",
-                status="healthy",
-                message="Using embedded AI (no external service)",
-            ))
+            services.append(
+                ServiceStatus(
+                    name="ai",
+                    status="healthy",
+                    message="Using embedded AI (no external service)",
+                )
+            )
     except Exception as e:
-        services.append(ServiceStatus(
-            name="ai",
-            status="degraded",
-            message=f"AI service unavailable: {str(e)[:50]}",
-        ))
-    
+        services.append(
+            ServiceStatus(
+                name="ai",
+                status="degraded",
+                message=f"AI service unavailable: {str(e)[:50]}",
+            )
+        )
+
     # API status (always healthy if we got this far)
-    services.insert(0, ServiceStatus(
-        name="api",
-        status="healthy",
-        message="FastAPI running",
-    ))
-    
+    services.insert(
+        0,
+        ServiceStatus(
+            name="api",
+            status="healthy",
+            message="FastAPI running",
+        ),
+    )
+
     # Overall status
     overall = "healthy"
     if any(s.status == "unhealthy" for s in services):
         overall = "unhealthy"
     elif any(s.status == "degraded" for s in services):
         overall = "degraded"
-    
+
     return SystemHealthResponse(
         overall_status=overall,
         services=services,
@@ -4984,7 +5091,7 @@ async def get_system_version() -> dict:
 
 class AdminCADv2ComponentResponse(BaseModel):
     """Admin view of a CAD v2 component from the registry."""
-    
+
     id: str
     name: str
     category: str
@@ -5001,7 +5108,7 @@ class AdminCADv2ComponentResponse(BaseModel):
 
 class CADv2ComponentListResponse(BaseModel):
     """Paginated CAD v2 component list."""
-    
+
     items: list[AdminCADv2ComponentResponse]
     total: int
     categories: dict[str, int]
@@ -5009,7 +5116,7 @@ class CADv2ComponentListResponse(BaseModel):
 
 class AdminStarterResponse(BaseModel):
     """Admin view of a starter design."""
-    
+
     id: UUID
     name: str
     description: str | None = None
@@ -5026,7 +5133,7 @@ class AdminStarterResponse(BaseModel):
 
 class StarterListResponse(BaseModel):
     """Paginated starter list."""
-    
+
     items: list[AdminStarterResponse]
     total: int
     page: int
@@ -5036,7 +5143,7 @@ class StarterListResponse(BaseModel):
 
 class StarterUpdateRequest(BaseModel):
     """Request to update a starter design."""
-    
+
     name: str | None = None
     description: str | None = None
     category: str | None = None
@@ -5047,7 +5154,7 @@ class StarterUpdateRequest(BaseModel):
 
 class AdminMarketplaceStatsResponse(BaseModel):
     """Marketplace statistics for admin dashboard."""
-    
+
     total_starters: int
     total_public_designs: int
     total_remixes_today: int
@@ -5058,7 +5165,7 @@ class AdminMarketplaceStatsResponse(BaseModel):
 
 class CADv2RegistrySyncResponse(BaseModel):
     """Response from syncing CAD v2 registry to database."""
-    
+
     created: int
     updated: int
     total_in_registry: int
@@ -5083,17 +5190,18 @@ async def list_cad_v2_components(
     db: AsyncSession = Depends(get_db),
 ) -> CADv2ComponentListResponse:
     """List all CAD v2 components from the registry.
-    
+
     Shows components from the in-memory registry and indicates
     which have corresponding database records.
     """
     from app.cad_v2.components import get_registry
-    
+
     registry = get_registry()
-    
+
     # Get all components from registry
     if category:
         from app.cad_v2.schemas.components import ComponentCategory
+
         try:
             cat_enum = ComponentCategory(category)
             components = registry.list_category(cat_enum)
@@ -5101,50 +5209,51 @@ async def list_cad_v2_components(
             components = []
     else:
         components = registry.list_all()
-    
+
     # Filter by search if provided
     if search:
         search_lower = search.lower()
         components = [
-            c for c in components
+            c
+            for c in components
             if search_lower in c.id.lower()
             or search_lower in c.name.lower()
             or any(search_lower in alias.lower() for alias in c.aliases)
         ]
-    
+
     # Get database records for these components
     slugs = [c.id for c in components]
     db_components = await db.execute(
-        select(ReferenceComponent).where(
-            ReferenceComponent.slug.in_(slugs)
-        )
+        select(ReferenceComponent).where(ReferenceComponent.slug.in_(slugs))
     )
     db_comp_map = {c.slug: c for c in db_components.scalars().all()}
-    
+
     # Build category counts
     category_counts: dict[str, int] = {}
     for comp in registry.list_all():
         cat = comp.category.value
         category_counts[cat] = category_counts.get(cat, 0) + 1
-    
+
     items = []
     for comp in components:
         db_record = db_comp_map.get(comp.id)
-        items.append(AdminCADv2ComponentResponse(
-            id=comp.id,
-            name=comp.name,
-            category=comp.category.value,
-            description=comp.description,
-            dimensions_mm=comp.dimensions.to_tuple_mm(),
-            aliases=list(comp.aliases) if comp.aliases else [],
-            mounting_hole_count=len(comp.mounting_holes) if comp.mounting_holes else 0,
-            port_count=len(comp.ports) if comp.ports else 0,
-            is_in_database=db_record is not None,
-            database_id=db_record.id if db_record else None,
-            is_verified=getattr(db_record, "is_verified", False) if db_record else False,
-            is_featured=getattr(db_record, "is_featured", False) if db_record else False,
-        ))
-    
+        items.append(
+            AdminCADv2ComponentResponse(
+                id=comp.id,
+                name=comp.name,
+                category=comp.category.value,
+                description=comp.description,
+                dimensions_mm=comp.dimensions.to_tuple_mm(),
+                aliases=list(comp.aliases) if comp.aliases else [],
+                mounting_hole_count=len(comp.mounting_holes) if comp.mounting_holes else 0,
+                port_count=len(comp.ports) if comp.ports else 0,
+                is_in_database=db_record is not None,
+                database_id=db_record.id if db_record else None,
+                is_verified=getattr(db_record, "is_verified", False) if db_record else False,
+                is_featured=getattr(db_record, "is_featured", False) if db_record else False,
+            )
+        )
+
     return CADv2ComponentListResponse(
         items=items,
         total=len(items),
@@ -5164,24 +5273,22 @@ async def get_cad_v2_component(
 ) -> dict:
     """Get detailed CAD v2 component info."""
     from app.cad_v2.components import get_registry
-    
+
     registry = get_registry()
     comp = registry.get(component_id)
-    
+
     if not comp:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Component '{component_id}' not found in registry",
         )
-    
+
     # Get database record if exists
     db_result = await db.execute(
-        select(ReferenceComponent).where(
-            ReferenceComponent.slug == component_id
-        )
+        select(ReferenceComponent).where(ReferenceComponent.slug == component_id)
     )
     db_record = db_result.scalar_one_or_none()
-    
+
     return {
         "registry": {
             "id": comp.id,
@@ -5229,16 +5336,16 @@ async def sync_cad_v2_registry(
     db: AsyncSession = Depends(get_db),
 ) -> CADv2RegistrySyncResponse:
     """Sync CAD v2 component registry with database.
-    
+
     Creates or updates ReferenceComponent records for all
     components in the in-memory registry.
     """
-    from app.seeds.components_v2 import seed_components_v2
     from app.cad_v2.components import get_registry
-    
+    from app.seeds.components_v2 import seed_components_v2
+
     registry = get_registry()
     created, updated = await seed_components_v2(db)
-    
+
     return CADv2RegistrySyncResponse(
         created=created,
         updated=updated,
@@ -5259,22 +5366,20 @@ async def verify_cad_v2_component(
 ) -> dict:
     """Mark a CAD v2 component as verified."""
     result = await db.execute(
-        select(ReferenceComponent).where(
-            ReferenceComponent.slug == component_id
-        )
+        select(ReferenceComponent).where(ReferenceComponent.slug == component_id)
     )
     comp = result.scalar_one_or_none()
-    
+
     if not comp:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Component '{component_id}' not found in database. Sync first.",
         )
-    
+
     if hasattr(comp, "is_verified"):
         comp.is_verified = True
         await db.commit()
-    
+
     return {"message": f"Component '{component_id}' verified"}
 
 
@@ -5290,22 +5395,20 @@ async def feature_cad_v2_component(
 ) -> dict:
     """Mark a CAD v2 component as featured."""
     result = await db.execute(
-        select(ReferenceComponent).where(
-            ReferenceComponent.slug == component_id
-        )
+        select(ReferenceComponent).where(ReferenceComponent.slug == component_id)
     )
     comp = result.scalar_one_or_none()
-    
+
     if not comp:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Component '{component_id}' not found in database. Sync first.",
         )
-    
+
     if hasattr(comp, "is_featured"):
         comp.is_featured = True
         await db.commit()
-    
+
     return {"message": f"Component '{component_id}' featured"}
 
 
@@ -5330,15 +5433,15 @@ async def list_starters(
 ) -> StarterListResponse:
     """List all starter designs with pagination."""
     from app.models.design import Design
-    
+
     query = select(Design).where(
         Design.source_type == "starter",
         Design.deleted_at.is_(None),
     )
-    
+
     if category:
         query = query.where(Design.category == category)
-    
+
     if search:
         search_pattern = f"%{search}%"
         query = query.where(
@@ -5347,26 +5450,30 @@ async def list_starters(
                 Design.description.ilike(search_pattern),
             )
         )
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Get unique categories
-    cat_query = select(Design.category).where(
-        Design.source_type == "starter",
-        Design.deleted_at.is_(None),
-        Design.category.isnot(None),
-    ).distinct()
+    cat_query = (
+        select(Design.category)
+        .where(
+            Design.source_type == "starter",
+            Design.deleted_at.is_(None),
+            Design.category.isnot(None),
+        )
+        .distinct()
+    )
     cat_result = await db.execute(cat_query)
     categories = [row[0] for row in cat_result.all() if row[0]]
-    
+
     # Fetch page
     offset = (page - 1) * page_size
     query = query.order_by(desc(Design.created_at)).offset(offset).limit(page_size)
     result = await db.execute(query)
     starters = result.scalars().all()
-    
+
     return StarterListResponse(
         items=[
             AdminStarterResponse(
@@ -5405,7 +5512,7 @@ async def get_starter(
 ) -> AdminStarterResponse:
     """Get starter design details."""
     from app.models.design import Design
-    
+
     result = await db.execute(
         select(Design).where(
             Design.id == starter_id,
@@ -5414,13 +5521,13 @@ async def get_starter(
         )
     )
     starter = result.scalar_one_or_none()
-    
+
     if not starter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Starter design not found",
         )
-    
+
     return AdminStarterResponse(
         id=starter.id,
         name=starter.name,
@@ -5451,7 +5558,7 @@ async def update_starter(
 ) -> AdminStarterResponse:
     """Update a starter design."""
     from app.models.design import Design
-    
+
     result = await db.execute(
         select(Design).where(
             Design.id == starter_id,
@@ -5460,13 +5567,13 @@ async def update_starter(
         )
     )
     starter = result.scalar_one_or_none()
-    
+
     if not starter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Starter design not found",
         )
-    
+
     # Apply updates
     if request.name is not None:
         starter.name = request.name
@@ -5480,12 +5587,12 @@ async def update_starter(
         starter.extra_data["is_featured"] = request.is_featured
     if request.is_public is not None:
         starter.is_public = request.is_public
-    
+
     starter.updated_at = datetime.utcnow()
-    
+
     await db.commit()
     await db.refresh(starter)
-    
+
     return AdminStarterResponse(
         id=starter.id,
         name=starter.name,
@@ -5514,7 +5621,7 @@ async def feature_starter(
 ) -> dict:
     """Feature a starter design."""
     from app.models.design import Design
-    
+
     result = await db.execute(
         select(Design).where(
             Design.id == starter_id,
@@ -5522,16 +5629,16 @@ async def feature_starter(
         )
     )
     starter = result.scalar_one_or_none()
-    
+
     if not starter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Starter design not found",
         )
-    
+
     starter.extra_data["is_featured"] = True
     await db.commit()
-    
+
     return {"message": "Starter featured"}
 
 
@@ -5547,7 +5654,7 @@ async def unfeature_starter(
 ) -> dict:
     """Remove featured status from a starter design."""
     from app.models.design import Design
-    
+
     result = await db.execute(
         select(Design).where(
             Design.id == starter_id,
@@ -5555,16 +5662,16 @@ async def unfeature_starter(
         )
     )
     starter = result.scalar_one_or_none()
-    
+
     if not starter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Starter design not found",
         )
-    
+
     starter.extra_data["is_featured"] = False
     await db.commit()
-    
+
     return {"message": "Starter unfeatured"}
 
 
@@ -5581,7 +5688,7 @@ async def delete_starter(
 ) -> None:
     """Soft-delete a starter design."""
     from app.models.design import Design
-    
+
     result = await db.execute(
         select(Design).where(
             Design.id == starter_id,
@@ -5590,13 +5697,13 @@ async def delete_starter(
         )
     )
     starter = result.scalar_one_or_none()
-    
+
     if not starter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Starter design not found",
         )
-    
+
     starter.deleted_at = datetime.utcnow()
     await db.commit()
 
@@ -5612,9 +5719,9 @@ async def reseed_starters(
 ) -> dict:
     """Re-run starter seeding."""
     from app.seeds.starters import seed_starters
-    
+
     created, updated = await seed_starters(db)
-    
+
     return {
         "message": f"Reseeded starters: {created} created, {updated} updated",
         "created": created,
@@ -5639,59 +5746,71 @@ async def get_marketplace_stats(
 ) -> AdminMarketplaceStatsResponse:
     """Get marketplace statistics for admin dashboard."""
     from app.models.design import Design
-    
+
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = datetime.utcnow() - timedelta(days=7)
-    
+
     # Total starters
-    total_starters = (await db.execute(
-        select(func.count()).where(
+    total_starters = (
+        await db.execute(
+            select(func.count()).where(
+                Design.source_type == "starter",
+                Design.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one()
+
+    # Total public designs
+    total_public = (
+        await db.execute(
+            select(func.count()).where(
+                Design.is_public,
+                Design.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one()
+
+    # Remixes today (designs with source_type='remix' created today)
+    remixes_today = (
+        await db.execute(
+            select(func.count()).where(
+                Design.source_type == "remix",
+                Design.created_at >= today_start,
+                Design.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one()
+
+    # Remixes this week
+    remixes_week = (
+        await db.execute(
+            select(func.count()).where(
+                Design.source_type == "remix",
+                Design.created_at >= week_ago,
+                Design.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one()
+
+    # Starters by category
+    cat_query = (
+        select(
+            Design.category,
+            func.count().label("count"),
+        )
+        .where(
             Design.source_type == "starter",
             Design.deleted_at.is_(None),
+            Design.category.isnot(None),
         )
-    )).scalar_one()
-    
-    # Total public designs
-    total_public = (await db.execute(
-        select(func.count()).where(
-            Design.is_public == True,
-            Design.deleted_at.is_(None),
-        )
-    )).scalar_one()
-    
-    # Remixes today (designs with source_type='remix' created today)
-    remixes_today = (await db.execute(
-        select(func.count()).where(
-            Design.source_type == "remix",
-            Design.created_at >= today_start,
-            Design.deleted_at.is_(None),
-        )
-    )).scalar_one()
-    
-    # Remixes this week
-    remixes_week = (await db.execute(
-        select(func.count()).where(
-            Design.source_type == "remix",
-            Design.created_at >= week_ago,
-            Design.deleted_at.is_(None),
-        )
-    )).scalar_one()
-    
-    # Starters by category
-    cat_query = select(
-        Design.category,
-        func.count().label("count"),
-    ).where(
-        Design.source_type == "starter",
-        Design.deleted_at.is_(None),
-        Design.category.isnot(None),
-    ).group_by(Design.category)
+        .group_by(Design.category)
+    )
     cat_result = await db.execute(cat_query)
     starters_by_category = {row[0]: row[1] for row in cat_result.all()}
-    
+
     # Most remixed (would need remix tracking, simplified here)
     most_remixed: list[dict] = []
-    
+
     return AdminMarketplaceStatsResponse(
         total_starters=total_starters,
         total_public_designs=total_public,
@@ -5713,21 +5832,19 @@ async def get_featured_items(
 ) -> dict:
     """Get featured marketplace items."""
     from app.models.design import Design
-    
+
     # Get featured starters
     featured_query = select(Design).where(
         Design.source_type == "starter",
         Design.deleted_at.is_(None),
     )
-    
+
     # Filter by is_featured in extra_data using JSON extraction
-    featured_query = featured_query.where(
-        Design.extra_data["is_featured"].as_boolean() == True
-    )
-    
+    featured_query = featured_query.where(Design.extra_data["is_featured"].as_boolean())
+
     result = await db.execute(featured_query.limit(20))
     featured = result.scalars().all()
-    
+
     return {
         "featured_starters": [
             {
@@ -5753,23 +5870,21 @@ async def reorder_featured(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Reorder featured marketplace items.
-    
+
     Args:
         item_ids: List of design IDs in desired order.
     """
     from app.models.design import Design
-    
+
     # Update display_order for each item
     for idx, item_id in enumerate(item_ids):
-        result = await db.execute(
-            select(Design).where(Design.id == item_id)
-        )
+        result = await db.execute(select(Design).where(Design.id == item_id))
         design = result.scalar_one_or_none()
         if design and hasattr(design, "display_order"):
             design.display_order = idx
-    
+
     await db.commit()
-    
+
     return {
         "message": f"Reordered {len(item_ids)} items",
         "order": [str(id) for id in item_ids],

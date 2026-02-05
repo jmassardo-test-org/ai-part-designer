@@ -5,12 +5,12 @@ Provides event collection, batching, and publishing for analytics
 and business intelligence pipelines.
 """
 
-from datetime import datetime
-from enum import Enum
-from typing import Any
-from uuid import UUID, uuid4
 import json
 import logging
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
@@ -19,8 +19,9 @@ from app.core.cache import redis_client
 logger = logging.getLogger(__name__)
 
 
-class EventCategory(str, Enum):
+class EventCategory(StrEnum):
     """Event categories for analytics."""
+
     USER = "user"
     DESIGN = "design"
     TEMPLATE = "template"
@@ -32,31 +33,31 @@ class EventCategory(str, Enum):
 class AnalyticsEvent(BaseModel):
     """
     Analytics event schema.
-    
+
     All events follow this structure for consistent processing
     in downstream analytics pipelines.
     """
-    
+
     # Event identification
     event_id: UUID = Field(default_factory=uuid4)
     event_name: str
     event_category: EventCategory
-    
+
     # Timestamp
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    
+
     # Context
     user_id: UUID | None = None
     session_id: str | None = None
-    
+
     # Event properties
     properties: dict[str, Any] = Field(default_factory=dict)
-    
+
     # Request context
     ip_address: str | None = None
     user_agent: str | None = None
     referrer: str | None = None
-    
+
     # Environment
     environment: str = "production"
     app_version: str | None = None
@@ -71,12 +72,12 @@ class AnalyticsEvent(BaseModel):
 class EventTracker:
     """
     Analytics event tracker.
-    
+
     Collects events and batches them for efficient processing.
     Events are stored in Redis and can be consumed by
     downstream analytics systems.
     """
-    
+
     EVENTS_KEY = "analytics:events"
     EVENTS_BACKUP_KEY = "analytics:events:backup"
     BATCH_SIZE = 100
@@ -98,7 +99,7 @@ class EventTracker:
     ) -> None:
         """
         Track an analytics event.
-        
+
         Events are buffered and flushed to Redis in batches.
         """
         event = AnalyticsEvent(
@@ -110,9 +111,9 @@ class EventTracker:
             ip_address=ip_address,
             user_agent=user_agent,
         )
-        
+
         self._buffer.append(event)
-        
+
         # Auto-flush when buffer reaches batch size
         if len(self._buffer) >= self.BATCH_SIZE:
             await self.flush()
@@ -120,31 +121,28 @@ class EventTracker:
     async def flush(self) -> int:
         """
         Flush buffered events to Redis.
-        
+
         Returns number of events flushed.
         """
         if not self._buffer:
             return 0
-        
+
         events_to_flush = self._buffer[:]
         self._buffer.clear()
-        
+
         try:
             # Serialize events
-            serialized = [
-                event.model_dump_json()
-                for event in events_to_flush
-            ]
-            
+            serialized = [event.model_dump_json() for event in events_to_flush]
+
             # Push to Redis list
             await redis_client.client.lpush(self.EVENTS_KEY, *serialized)
-            
+
             # Trim to prevent unbounded growth
             await redis_client.client.ltrim(self.EVENTS_KEY, 0, self.MAX_QUEUE_SIZE - 1)
-            
+
             logger.debug(f"Flushed {len(serialized)} analytics events")
             return len(serialized)
-            
+
         except Exception as e:
             logger.error(f"Failed to flush events: {e}")
             # Put events back in buffer for retry
@@ -158,21 +156,21 @@ class EventTracker:
     async def consume_batch(self, batch_size: int = 100) -> list[dict]:
         """
         Consume a batch of events from the queue.
-        
+
         Used by analytics workers to process events.
         """
         events = []
-        
+
         for _ in range(batch_size):
             event_json = await redis_client.rpop(self.EVENTS_KEY)
             if not event_json:
                 break
-            
+
             try:
                 events.append(json.loads(event_json))
             except json.JSONDecodeError:
                 logger.warning(f"Invalid event JSON: {event_json}")
-        
+
         return events
 
     # =========================================================================

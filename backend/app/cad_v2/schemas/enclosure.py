@@ -9,7 +9,7 @@ Enclosures are the primary use case for the CAD v2 system,
 designed to house electronics like Raspberry Pi, LCDs, and buttons.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.cad_v2.schemas.base import BoundingBox, Dimension, Point3D
 
 
-class LidType(str, Enum):
+class LidType(StrEnum):
     """Types of lid attachments."""
 
     SNAP_FIT = "snap_fit"  # Clips that snap together
@@ -28,7 +28,7 @@ class LidType(str, Enum):
     NONE = "none"  # No separate lid (integrated)
 
 
-class WallSide(str, Enum):
+class WallSide(StrEnum):
     """Sides of an enclosure."""
 
     FRONT = "front"  # -Y face (toward user)

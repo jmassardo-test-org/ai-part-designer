@@ -8,9 +8,9 @@ and forwards them to connected WebSocket clients.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
-from typing import Callable
 
 from app.websocket.manager import manager
 
@@ -65,10 +65,8 @@ class RedisSubscriber:
 
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
             self._task = None
 
         logger.info("Redis subscriber stopped")
@@ -129,7 +127,7 @@ class RedisSubscriber:
 
         try:
             from app.core.cache import redis_client
-            
+
             # Use async pubsub from the existing client
             pubsub = redis_client.client.pubsub()
             await pubsub.psubscribe("ws:user:*", "ws:room:*")
@@ -141,11 +139,11 @@ class RedisSubscriber:
                     try:
                         channel = message.get("channel", "")
                         data = message.get("data", "")
-                        
+
                         # Decode bytes if necessary
                         if isinstance(channel, bytes):
                             channel = channel.decode("utf-8")
-                        
+
                         await self._handle_message(channel, data)
                     except Exception as e:
                         logger.error(f"Error handling Redis message: {e}")

@@ -94,11 +94,11 @@ from build123d import BuildPart, Box, Cylinder, Location, Mode, Align, fillet, A
 
 def create_enclosure(length, width, height, wall_thickness, fillet_radius, include_lid, mounting_tabs):
     """Generate a rounded box enclosure using Build123d."""
-    
+
     with BuildPart() as builder:
         # Outer shell
         Box(length, width, height, align=(Align.CENTER, Align.CENTER, Align.CENTER))
-        
+
         # Apply fillet to vertical edges
         try:
             vertical_edges = builder.edges().filter_by(Axis.Z)
@@ -106,7 +106,7 @@ def create_enclosure(length, width, height, wall_thickness, fillet_radius, inclu
                 fillet(vertical_edges, fillet_radius)
         except Exception:
             pass
-        
+
         # Inner cavity (subtract)
         Box(
             length - 2 * wall_thickness,
@@ -115,9 +115,9 @@ def create_enclosure(length, width, height, wall_thickness, fillet_radius, inclu
             align=(Align.CENTER, Align.CENTER, Align.CENTER),
             mode=Mode.SUBTRACT
         ).locate(Location((0, 0, wall_thickness / 2)))
-    
+
     box = builder.part
-    
+
     # Add mounting tabs if requested
     if mounting_tabs == "corners":
         for x, y in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
@@ -128,9 +128,9 @@ def create_enclosure(length, width, height, wall_thickness, fillet_radius, inclu
                 Cylinder(1.5, wall_thickness, align=(Align.CENTER, Align.CENTER, Align.CENTER), mode=Mode.SUBTRACT)
             tab = tab_builder.part.moved(Location((pos_x, pos_y, -height / 2 + wall_thickness / 2)))
             box = box.fuse(tab)
-    
+
     result = {"body": box}
-    
+
     # Create lid if requested
     if include_lid:
         with BuildPart() as lid_builder:
@@ -142,7 +142,7 @@ def create_enclosure(length, width, height, wall_thickness, fillet_radius, inclu
             except Exception:
                 pass
         result["lid"] = lid_builder.part
-    
+
     return result
 
 # Execute with provided parameters
@@ -204,7 +204,6 @@ result = create_enclosure(
         },
         "cadquery_script": "# Raspberry Pi case script placeholder",
     },
-    
     # =============================================
     # MECHANICAL PARTS
     # =============================================
@@ -322,7 +321,6 @@ result = create_enclosure(
         },
         "cadquery_script": "# Shaft coupler script placeholder",
     },
-    
     # =============================================
     # BRACKETS & MOUNTS
     # =============================================
@@ -440,7 +438,6 @@ result = create_enclosure(
         },
         "cadquery_script": "# Phone/tablet stand script placeholder",
     },
-    
     # =============================================
     # FASTENERS
     # =============================================
@@ -498,7 +495,6 @@ result = create_enclosure(
         },
         "cadquery_script": "# Custom spacer script placeholder",
     },
-    
     # =============================================
     # CONTAINERS
     # =============================================
@@ -558,7 +554,6 @@ result = create_enclosure(
         },
         "cadquery_script": "# Stackable storage bin script placeholder",
     },
-    
     # =============================================
     # CONNECTORS
     # =============================================
@@ -617,29 +612,30 @@ result = create_enclosure(
 async def seed_templates(db_session) -> int:
     """
     Seed templates into the database.
-    
+
     Args:
         db_session: AsyncSession database session
-        
+
     Returns:
         Number of templates created
     """
-    from app.models import Template
     from sqlalchemy import select
-    
+
+    from app.models import Template
+
     created_count = 0
-    
+
     for template_data in TEMPLATE_SEEDS:
         # Check if template already exists by slug
         result = await db_session.execute(
             select(Template).where(Template.slug == template_data["slug"])
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             print(f"Template '{template_data['slug']}' already exists, skipping...")
             continue
-        
+
         template = Template(
             id=template_data.get("id"),
             name=template_data["name"],
@@ -655,11 +651,11 @@ async def seed_templates(db_session) -> int:
             is_featured=template_data.get("is_featured", False),
             is_active=True,
         )
-        
+
         db_session.add(template)
         created_count += 1
         print(f"Created template: {template.name}")
-    
+
     await db_session.commit()
     return created_count
 
@@ -667,7 +663,7 @@ async def seed_templates(db_session) -> int:
 async def main():
     """Run template seeding."""
     from app.core.database import async_session_maker
-    
+
     async with async_session_maker() as session:
         count = await seed_templates(session)
         print(f"\nSeeded {count} templates successfully!")

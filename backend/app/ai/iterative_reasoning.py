@@ -18,8 +18,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass, field, asdict
-from enum import Enum
+from dataclasses import asdict, dataclass, field
+from enum import StrEnum
 from typing import Any
 
 from app.ai.client import get_ai_client
@@ -32,9 +32,10 @@ logger = logging.getLogger(__name__)
 # Reasoning States
 # =============================================================================
 
-class ReasoningState(str, Enum):
+
+class ReasoningState(StrEnum):
     """Current state of the reasoning process."""
-    
+
     CLASSIFYING = "classifying"
     EXTRACTING = "extracting"
     VALIDATING = "validating"
@@ -52,10 +53,11 @@ class ReasoningState(str, Enum):
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class PartClassification:
     """High-level classification of the part."""
-    
+
     category: str  # bracket, enclosure, adapter, mount, custom
     subcategory: str | None = None  # L-bracket, U-bracket, etc.
     confidence: float = 0.0
@@ -65,7 +67,7 @@ class PartClassification:
 @dataclass
 class ExtractedDimension:
     """A dimension extracted from user input."""
-    
+
     name: str  # e.g., "length", "flange_length", "thickness"
     value: float
     unit: str = "mm"
@@ -76,7 +78,7 @@ class ExtractedDimension:
 @dataclass
 class ExtractedFeature:
     """A feature extracted from user input."""
-    
+
     feature_type: str  # hole, fillet, chamfer, slot, pocket
     description: str
     parameters: dict[str, Any] = field(default_factory=dict)
@@ -88,7 +90,7 @@ class ExtractedFeature:
 @dataclass
 class ClarificationQuestion:
     """A question to ask the user for clarification."""
-    
+
     question: str
     context: str  # Why we're asking
     options: list[str] = field(default_factory=list)  # Suggested answers
@@ -100,31 +102,31 @@ class ClarificationQuestion:
 @dataclass
 class PartUnderstanding:
     """Complete accumulated understanding of the user's request."""
-    
+
     # Raw input accumulation
     user_messages: list[str] = field(default_factory=list)
-    
+
     # Classification
     classification: PartClassification | None = None
-    
+
     # Extracted information
     dimensions: dict[str, ExtractedDimension] = field(default_factory=dict)
     features: list[ExtractedFeature] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
     hardware_references: list[dict[str, Any]] = field(default_factory=list)
-    
+
     # Validation
     missing_critical: list[str] = field(default_factory=list)
     ambiguities: list[str] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
-    
+
     # Clarification
     questions: list[ClarificationQuestion] = field(default_factory=list)
-    
+
     # Overall readiness
     state: ReasoningState = ReasoningState.CLASSIFYING
     completeness_score: float = 0.0  # 0-1, needs >0.7 to proceed
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -141,20 +143,20 @@ class PartUnderstanding:
             "state": self.state.value,
             "completeness_score": self.completeness_score,
         }
-    
+
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PartUnderstanding":
+    def from_dict(cls, data: dict[str, Any]) -> PartUnderstanding:
         """Create from dictionary."""
         understanding = cls()
         understanding.user_messages = data.get("user_messages", [])
-        
+
         if data.get("classification"):
             try:
                 understanding.classification = PartClassification(**data["classification"])
             except (TypeError, KeyError) as e:
                 logger.warning(f"Failed to parse classification: {e}")
                 understanding.classification = None
-        
+
         for k, v in data.get("dimensions", {}).items():
             try:
                 if isinstance(v, dict) and "name" in v and "value" in v:
@@ -168,7 +170,7 @@ class PartUnderstanding:
                     logger.warning(f"Skipping invalid dimension {k}: {v}")
             except (TypeError, KeyError) as e:
                 logger.warning(f"Failed to parse dimension {k}: {e}")
-        
+
         for f in data.get("features", []):
             try:
                 understanding.features.append(ExtractedFeature(**f))
@@ -179,20 +181,20 @@ class PartUnderstanding:
         understanding.missing_critical = data.get("missing_critical", [])
         understanding.ambiguities = data.get("ambiguities", [])
         understanding.assumptions = data.get("assumptions", [])
-        
+
         for q in data.get("questions", []):
             try:
                 understanding.questions.append(ClarificationQuestion(**q))
             except (TypeError, KeyError) as e:
                 logger.warning(f"Failed to parse question: {e}")
-        
+
         try:
             understanding.state = ReasoningState(data.get("state", "classifying"))
         except ValueError:
             understanding.state = ReasoningState.CLASSIFYING
-            
+
         understanding.completeness_score = data.get("completeness_score", 0.0)
-        
+
         return understanding
 
 
@@ -234,7 +236,7 @@ For {part_type}, the typical dimension names are:
 === CRITICAL: ALL VALUES MUST BE IN MILLIMETERS ===
 Convert ALL dimensions to millimeters before responding:
 - 1 inch = 25.4 mm
-- 1 foot = 304.8 mm  
+- 1 foot = 304.8 mm
 - 1 cm = 10 mm
 
 RECOGNIZE ALL UNIT FORMATS:
@@ -248,7 +250,7 @@ FRACTION TO DECIMAL:
 
 Examples:
 - "2 inches diameter" → diameter: 50.8
-- "1.5\" tall" → height: 38.1  
+- "1.5\" tall" → height: 38.1
 - "make the hole 1/2 inch" → diameter: 12.7
 - "1-1/2\" diameter" → diameter: 38.1
 
@@ -387,7 +389,7 @@ DIMENSION_HINTS = {
     "enclosure": """
 - length: External X dimension
 - width: External Y dimension
-- height: External Z dimension  
+- height: External Z dimension
 - wall_thickness: Thickness of walls
 - lid_thickness: Thickness of lid if separate
 """,
@@ -484,36 +486,36 @@ def _normalize_dimension_name(name: str) -> str:
 # Reasoning Functions
 # =============================================================================
 
+
 def _extract_json(content: str) -> dict[str, Any]:
     """Extract JSON from AI response, handling markdown and extra text."""
-    original_content = content
     content = content.strip()
-    
+
     # Remove markdown code blocks
     if content.startswith("```"):
-        content = re.sub(r'^```(?:json)?\n?', '', content)
-        content = re.sub(r'\n?```$', '', content)
-    
+        content = re.sub(r"^```(?:json)?\n?", "", content)
+        content = re.sub(r"\n?```$", "", content)
+
     # Try to find JSON object
-    json_match = re.search(r'\{[\s\S]*\}', content)
+    json_match = re.search(r"\{[\s\S]*\}", content)
     if json_match:
         content = json_match.group(0)
-    
+
     try:
         return json.loads(content)
     except json.JSONDecodeError as e:
         logger.error(f"JSON parse error: {e}")
         logger.error(f"Content was: {content[:500]}")
-        
+
         # Try to repair common issues
         # Remove trailing commas before } or ]
-        repaired = re.sub(r',\s*([}\]])', r'\1', content)
+        repaired = re.sub(r",\s*([}\]])", r"\1", content)
         # Try again
         try:
             return json.loads(repaired)
         except json.JSONDecodeError:
             pass
-        
+
         raise ValueError(f"Could not parse AI response as JSON: {content[:200]}")
 
 
@@ -522,27 +524,29 @@ async def classify_part(user_input: str) -> PartClassification:
     Pass 1: Classify what type of part the user wants.
     """
     client = get_ai_client()
-    
+
     prompt = CLASSIFY_PROMPT.format(user_input=user_input)
     messages = [{"role": "system", "content": prompt}]
-    
+
     logger.info("Pass 1: Classifying part type...")
-    
+
     try:
         # Use complete_json for JSON response format
         content = await client.complete_json(messages, temperature=0.2)
         data = _extract_json(content)
-        
+
         classification = PartClassification(
             category=data.get("category", "custom"),
             subcategory=data.get("subcategory"),
             confidence=data.get("confidence", 0.5),
             reasoning=data.get("reasoning", ""),
         )
-        
-        logger.info(f"Classified as: {classification.category}/{classification.subcategory} ({classification.confidence})")
+
+        logger.info(
+            f"Classified as: {classification.category}/{classification.subcategory} ({classification.confidence})"
+        )
         return classification
-        
+
     except AIConnectionError:
         # Re-raise connection errors - these need to bubble up
         raise
@@ -560,7 +564,7 @@ async def extract_dimensions(
     Pass 2: Extract dimensions and features from user input.
     """
     client = get_ai_client()
-    
+
     hints = DIMENSION_HINTS.get(part_type, DIMENSION_HINTS["custom"])
     prompt = EXTRACT_PROMPT.format(
         part_type=part_type,
@@ -569,28 +573,27 @@ async def extract_dimensions(
         dimension_hints=hints,
     )
     messages = [{"role": "system", "content": prompt}]
-    
+
     logger.info("Pass 2: Extracting dimensions and features...")
-    
+
     # Detect if user mentioned imperial units - used for sanity checking later
     user_input_lower = user_input.lower()
     user_mentioned_inches = any(
-        pattern in user_input_lower 
-        for pattern in ('inch', 'inches', '"', "''", ' in ', ' in,', ' in.')
+        pattern in user_input_lower
+        for pattern in ("inch", "inches", '"', "''", " in ", " in,", " in.")
     )
     user_mentioned_feet = any(
-        pattern in user_input_lower 
-        for pattern in ('foot', 'feet', "'", ' ft ', ' ft,', ' ft.')
+        pattern in user_input_lower for pattern in ("foot", "feet", "'", " ft ", " ft,", " ft.")
     )
-    
+
     try:
         # Use complete_json for JSON response format
         content = await client.complete_json(messages, temperature=0.2)
         data = _extract_json(content)
-        
+
         dimensions = {}
         for dim in data.get("dimensions", []):
-            # Handle both proper format {"name": "x", "value": 10} 
+            # Handle both proper format {"name": "x", "value": 10}
             # and malformed {"x": 10} responses from AI
             if isinstance(dim, dict) and "name" in dim:
                 # Proper format
@@ -613,10 +616,10 @@ async def extract_dimensions(
             else:
                 logger.warning(f"Skipping invalid dimension entry: {dim}")
                 continue
-                
+
             # Normalize dimension name to canonical form
             canonical_name = _normalize_dimension_name(raw_name)
-            
+
             # Convert to mm if not already (safety net in case AI didn't convert)
             if unit in ("in", "inch", "inches"):
                 value = value * 25.4
@@ -627,18 +630,18 @@ async def extract_dimensions(
             elif unit in ("ft", "feet", "foot"):
                 value = value * 304.8
                 unit = "mm"
-            
+
             # SANITY CHECK: Detect likely unconverted values
             # If user explicitly mentioned inches but the value is very small,
             # the AI likely failed to convert (e.g., returned 2 instead of 50.8 for "2 inches")
             if unit == "mm" and user_mentioned_inches:
                 # Parse numeric values from user input to check for matches
                 import re
+
                 # Find all numbers in the user input that might be inch measurements
                 # Pattern matches: "2 inches", "2 inch", "2\"", "2 in"
                 inch_patterns = re.findall(
-                    r'(\d+(?:\.\d+)?)\s*(?:inch|inches|"|in\b)', 
-                    user_input_lower
+                    r'(\d+(?:\.\d+)?)\s*(?:inch|inches|"|in\b)', user_input_lower
                 )
                 for inch_val_str in inch_patterns:
                     inch_val = float(inch_val_str)
@@ -652,12 +655,12 @@ async def extract_dimensions(
                         )
                         value = expected_mm
                         break
-            
+
             if unit == "mm" and user_mentioned_feet:
                 import re
+
                 feet_patterns = re.findall(
-                    r'(\d+(?:\.\d+)?)\s*(?:foot|feet|\'|ft\b)', 
-                    user_input_lower
+                    r"(\d+(?:\.\d+)?)\s*(?:foot|feet|\'|ft\b)", user_input_lower
                 )
                 for feet_val_str in feet_patterns:
                     feet_val = float(feet_val_str)
@@ -669,7 +672,7 @@ async def extract_dimensions(
                         )
                         value = expected_mm
                         break
-            
+
             dimensions[canonical_name] = ExtractedDimension(
                 name=canonical_name,
                 value=round(value, 2),
@@ -677,7 +680,7 @@ async def extract_dimensions(
                 confidence=dim.get("confidence", 1.0),
                 source=dim.get("source", "explicit"),
             )
-        
+
         features = [
             ExtractedFeature(
                 feature_type=f.get("feature_type", "unknown"),
@@ -688,11 +691,12 @@ async def extract_dimensions(
             )
             for f in data.get("features", [])
         ]
-        
+
         # SAFEGUARD: If there's a center hole feature, remove any inner_diameter dimension
         # (the AI sometimes confuses "center hole" with hollow cylinder)
         has_center_hole_feature = any(
-            f.feature_type == "hole" and ("center" in f.location.lower() or "center" in f.description.lower())
+            f.feature_type == "hole"
+            and ("center" in f.location.lower() or "center" in f.description.lower())
             for f in features
         )
         if has_center_hole_feature and "inner_diameter" in dimensions:
@@ -701,13 +705,13 @@ async def extract_dimensions(
                 "center hole is a feature, not a hollow cylinder"
             )
             del dimensions["inner_diameter"]
-        
+
         hardware = data.get("hardware_references", [])
         constraints = data.get("constraints", [])
-        
+
         logger.info(f"Extracted {len(dimensions)} dimensions, {len(features)} features")
         return dimensions, features, hardware, constraints
-        
+
     except Exception as e:
         logger.error(f"Extraction failed: {e}")
         return {}, [], [], []
@@ -720,43 +724,45 @@ async def validate_completeness(
 ) -> tuple[bool, list[str], list[str], list[str], float]:
     """
     Pass 3: Validate if we have enough information.
-    
+
     Returns: (is_complete, missing_critical, ambiguities, assumptions, completeness_score)
     """
     required = REQUIRED_DIMENSIONS.get(part_type, [])
     optional = OPTIONAL_DIMENSIONS.get(part_type, [])
-    
+
     # Do a simple programmatic check first
     dim_names = set(dimensions.keys())
     missing_required = [r for r in required if r not in dim_names]
-    
+
     # For brackets, also accept horizontal/vertical flange lengths
     if part_type == "bracket" and "flange_length" in missing_required:
         if "horizontal_flange_length" in dim_names or "vertical_flange_length" in dim_names:
             missing_required.remove("flange_length")
-    
+
     # Calculate simple completeness score
     total_required = len(required) if required else 1
     provided = total_required - len(missing_required)
     base_score = provided / total_required if total_required > 0 else 0.5
-    
+
     # Boost score if we have optional dimensions
     optional_count = sum(1 for o in optional if o in dim_names)
     score_boost = optional_count * 0.1
     score = min(1.0, base_score + score_boost)
-    
-    logger.info(f"Completeness check: required={required}, have={list(dim_names)}, missing={missing_required}, score={score:.2f}")
-    
+
+    logger.info(
+        f"Completeness check: required={required}, have={list(dim_names)}, missing={missing_required}, score={score:.2f}"
+    )
+
     # If all required are present, we're complete
     if not missing_required:
         return True, [], [], [], score
-    
+
     # Otherwise call LLM for deeper analysis only if missing something
     client = get_ai_client()
-    
+
     dims_str = json.dumps({k: f"{v.value}mm" for k, v in dimensions.items()})
     features_str = json.dumps([asdict(f) for f in features])
-    
+
     prompt = VALIDATE_PROMPT.format(
         part_type=part_type,
         dimensions=dims_str,
@@ -765,23 +771,23 @@ async def validate_completeness(
         optional_dimensions=", ".join(optional) or "none",
     )
     messages = [{"role": "system", "content": prompt}]
-    
+
     logger.info("Pass 3: Validating completeness...")
-    
+
     try:
         # Use complete_json for JSON response format
         content = await client.complete_json(messages, temperature=0.2)
         data = _extract_json(content)
-        
+
         is_complete = data.get("is_complete", False)
         missing = data.get("missing_critical", [])
         ambiguities = data.get("ambiguities", [])
         assumptions = data.get("assumptions_needed", [])
         score = data.get("completeness_score", 0.5)
-        
+
         logger.info(f"Completeness: {score:.2f}, missing: {missing}")
         return is_complete, missing, ambiguities, assumptions, score
-        
+
     except Exception as e:
         logger.error(f"Validation failed: {e}")
         return False, ["unknown"], [], [], 0.3
@@ -797,9 +803,9 @@ async def generate_clarifications(
     Pass 4: Generate clarifying questions for the user.
     """
     client = get_ai_client()
-    
+
     known_str = json.dumps({k: f"{v.value}mm" for k, v in known.items()})
-    
+
     prompt = CLARIFY_PROMPT.format(
         part_type=part_type,
         known_info=known_str,
@@ -807,14 +813,14 @@ async def generate_clarifications(
         ambiguities=", ".join(ambiguities) or "none",
     )
     messages = [{"role": "system", "content": prompt}]
-    
+
     logger.info("Pass 4: Generating clarifications...")
-    
+
     try:
         # Use complete_json for JSON response format
         content = await client.complete_json(messages, temperature=0.4)
         data = _extract_json(content)
-        
+
         questions = [
             ClarificationQuestion(
                 question=q["question"],
@@ -826,10 +832,10 @@ async def generate_clarifications(
             )
             for q in data.get("questions", [])
         ]
-        
+
         logger.info(f"Generated {len(questions)} clarification questions")
         return questions
-        
+
     except Exception as e:
         logger.error(f"Clarification generation failed: {e}")
         return []
@@ -839,60 +845,65 @@ async def generate_clarifications(
 # Main Reasoning Engine
 # =============================================================================
 
+
 async def process_user_message(
     user_message: str,
     understanding: PartUnderstanding | None = None,
 ) -> PartUnderstanding:
     """
     Process a user message through the iterative reasoning pipeline.
-    
+
     This is the main entry point. It advances the understanding based
     on the current state and new input.
     """
     if understanding is None:
         understanding = PartUnderstanding()
-    
+
     # Add message to history
     understanding.user_messages.append(user_message)
     all_input = " ".join(understanding.user_messages)
-    
+
     # State machine
     if understanding.state == ReasoningState.CLASSIFYING:
         # Pass 1: Classify
         classification = await classify_part(all_input)
         understanding.classification = classification
         understanding.state = ReasoningState.EXTRACTING
-    
+
     if understanding.state == ReasoningState.EXTRACTING:
         # Pass 2: Extract
-        part_type = understanding.classification.category if understanding.classification else "custom"
+        part_type = (
+            understanding.classification.category if understanding.classification else "custom"
+        )
         prev_context = json.dumps({k: f"{v.value}mm" for k, v in understanding.dimensions.items()})
-        
+
         dims, features, hardware, constraints = await extract_dimensions(
             all_input, part_type, prev_context
         )
-        
+
         # Merge with existing (new values override)
         understanding.dimensions.update(dims)
         understanding.features.extend(features)
         understanding.hardware_references.extend(hardware)
         understanding.constraints.extend(constraints)
-        
+
         understanding.state = ReasoningState.VALIDATING
-    
+
     if understanding.state == ReasoningState.VALIDATING:
         # Pass 3: Validate
-        part_type = understanding.classification.category if understanding.classification else "custom"
-        
+        part_type = (
+            understanding.classification.category if understanding.classification else "custom"
+        )
+
         is_complete, missing, ambiguities, assumptions, score = await validate_completeness(
             part_type, understanding.dimensions, understanding.features
         )
-        
+
         understanding.missing_critical = missing
         understanding.ambiguities = ambiguities
         understanding.assumptions = assumptions
         understanding.completeness_score = score
-        
+
         # Ready if explicitly complete, high score, or no missing critical dimensions
         if is_complete or score >= 0.7 or (not missing and score >= 0.5):
             understanding.state = ReasoningState.READY_TO_PLAN
@@ -901,11 +912,13 @@ async def process_user_message(
         else:
             understanding.state = ReasoningState.NEEDS_CLARIFICATION
             logger.info(f"Needs clarification: score={score}, missing={missing}")
-    
+
     if understanding.state == ReasoningState.NEEDS_CLARIFICATION:
         # Pass 4: Generate questions if we don't have them
         if not understanding.questions:
-            part_type = understanding.classification.category if understanding.classification else "custom"
+            part_type = (
+                understanding.classification.category if understanding.classification else "custom"
+            )
             questions = await generate_clarifications(
                 part_type,
                 understanding.dimensions,
@@ -913,7 +926,7 @@ async def process_user_message(
                 understanding.ambiguities,
             )
             understanding.questions = questions
-    
+
     return understanding
 
 
@@ -927,7 +940,7 @@ async def apply_clarification_response(
     # The response is new input, so add it and re-run extraction/validation
     understanding.state = ReasoningState.EXTRACTING
     understanding.questions = []  # Clear old questions
-    
+
     return await process_user_message(response, understanding)
 
 
@@ -937,7 +950,7 @@ def format_questions_for_user(understanding: PartUnderstanding) -> str:
     Falls back to asking about missing_critical if no explicit questions.
     """
     lines = ["I need a bit more information to create your part:\n"]
-    
+
     if understanding.questions:
         # Use AI-generated questions
         for i, q in enumerate(understanding.questions, 1):
@@ -956,12 +969,14 @@ def format_questions_for_user(understanding: PartUnderstanding) -> str:
             # Format the dimension name nicely
             readable_name = missing.replace("_", " ").title()
             lines.append(f"**{i}. {readable_name}**")
-            lines.append(f"   _This dimension is required for your {understanding.classification.category if understanding.classification else 'part'}._")
+            lines.append(
+                f"   _This dimension is required for your {understanding.classification.category if understanding.classification else 'part'}._"
+            )
             lines.append("")
     else:
         # Generic fallback
         lines.append("Could you provide more details about the dimensions and features you need?")
-    
+
     return "\n".join(lines)
 
 
@@ -970,32 +985,32 @@ def format_understanding_summary(understanding: PartUnderstanding) -> str:
     Format current understanding as a confirmation message.
     """
     lines = ["Here's what I understand:\n"]
-    
+
     if understanding.classification:
         lines.append(f"**Part Type:** {understanding.classification.category}")
         if understanding.classification.subcategory:
             lines.append(f" ({understanding.classification.subcategory})")
         lines.append("")
-    
+
     if understanding.dimensions:
         lines.append("**Dimensions:**")
         for name, dim in understanding.dimensions.items():
             source = " (assumed)" if dim.source == "inferred" else ""
             lines.append(f"  - {name}: {dim.value}mm{source}")
         lines.append("")
-    
+
     if understanding.features:
         lines.append("**Features:**")
         for f in understanding.features:
             lines.append(f"  - {f.feature_type}: {f.description}")
         lines.append("")
-    
+
     if understanding.assumptions:
         lines.append("**Assumptions:**")
         for a in understanding.assumptions:
             lines.append(f"  - {a}")
         lines.append("")
-    
+
     lines.append(f"**Confidence:** {understanding.completeness_score:.0%}")
-    
+
     return "\n".join(lines)

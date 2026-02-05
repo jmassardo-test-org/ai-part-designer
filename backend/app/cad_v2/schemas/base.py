@@ -11,8 +11,8 @@ All dimensions default to millimeters for consistency with manufacturing workflo
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Annotated, TYPE_CHECKING
+from enum import StrEnum
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -22,17 +22,17 @@ else:
     try:
         from typing import Self
     except ImportError:
-        from typing_extensions import Self
+        from typing import Self
 
 
-class Unit(str, Enum):
+class Unit(StrEnum):
     """Supported measurement units."""
 
     MILLIMETERS = "mm"
     INCHES = "in"
 
 
-class Axis(str, Enum):
+class Axis(StrEnum):
     """3D coordinate axes."""
 
     X = "x"
@@ -61,7 +61,7 @@ class Dimension(BaseModel):
         """Convert dimension to millimeters."""
         if self.unit == Unit.MILLIMETERS:
             return self.value
-        elif self.unit == Unit.INCHES:
+        if self.unit == Unit.INCHES:
             return self.value * 25.4
         raise ValueError(f"Unknown unit: {self.unit}")
 
@@ -70,7 +70,7 @@ class Dimension(BaseModel):
         """Convert dimension to inches."""
         if self.unit == Unit.INCHES:
             return self.value
-        elif self.unit == Unit.MILLIMETERS:
+        if self.unit == Unit.MILLIMETERS:
             return self.value / 25.4
         raise ValueError(f"Unknown unit: {self.unit}")
 
@@ -222,22 +222,22 @@ class Tolerance(BaseModel):
     )
 
     @classmethod
-    def symmetric(cls, value: float, unit: Unit = Unit.MILLIMETERS) -> "Tolerance":
+    def symmetric(cls, value: float, unit: Unit = Unit.MILLIMETERS) -> Tolerance:
         """Create symmetric tolerance (±value)."""
         dim = Dimension(value=value, unit=unit)
         return cls(plus=dim, minus=dim)
 
     @classmethod
-    def fit_3d_print(cls) -> "Tolerance":
+    def fit_3d_print(cls) -> Tolerance:
         """Standard tolerance for 3D printed parts (±0.2mm)."""
         return cls.symmetric(0.2)
 
     @classmethod
-    def fit_tight(cls) -> "Tolerance":
+    def fit_tight(cls) -> Tolerance:
         """Tight fit tolerance (±0.1mm)."""
         return cls.symmetric(0.1)
 
     @classmethod
-    def fit_loose(cls) -> "Tolerance":
+    def fit_loose(cls) -> Tolerance:
         """Loose fit tolerance (±0.5mm)."""
         return cls.symmetric(0.5)

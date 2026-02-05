@@ -15,7 +15,6 @@ Or via Makefile:
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -141,18 +140,18 @@ async def seed_design_lists_for_user(
     public_designs: list[Design],
 ) -> tuple[int, int]:
     """Create sample design lists for a user.
-    
+
     Args:
         db: Async database session.
         user: The user to create lists for.
         public_designs: List of public designs to potentially add to lists.
-        
+
     Returns:
         Tuple of (lists_created, items_created).
     """
     lists_created = 0
     items_created = 0
-    
+
     for idx, list_data in enumerate(SAMPLE_DESIGN_LISTS):
         # Check if list already exists for this user
         existing = await db.execute(
@@ -163,7 +162,7 @@ async def seed_design_lists_for_user(
         )
         if existing.scalar_one_or_none():
             continue
-        
+
         # Create the design list
         design_list = DesignList(
             id=uuid4(),
@@ -178,11 +177,11 @@ async def seed_design_lists_for_user(
         db.add(design_list)
         await db.flush()
         lists_created += 1
-        
+
         # Add some designs to Favorites list
         if list_data["name"] == "Favorites" and public_designs:
             # Add up to 3 random designs
-            designs_to_add = public_designs[:min(3, len(public_designs))]
+            designs_to_add = public_designs[: min(3, len(public_designs))]
             for pos, design in enumerate(designs_to_add):
                 item = DesignListItem(
                     id=uuid4(),
@@ -192,15 +191,16 @@ async def seed_design_lists_for_user(
                 )
                 db.add(item)
                 items_created += 1
-        
+
         # Add some to Electronics Projects list
         elif list_data["name"] == "Electronics Projects" and public_designs:
             # Filter for electronics-related designs
             electronics_designs = [
-                d for d in public_designs 
-                if d.category and "raspberry" in d.category.lower()
-                or d.category and "arduino" in d.category.lower()
-                or d.category and "esp" in d.category.lower()
+                d
+                for d in public_designs
+                if (d.category and "raspberry" in d.category.lower())
+                or (d.category and "arduino" in d.category.lower())
+                or (d.category and "esp" in d.category.lower())
             ][:2]
             for pos, design in enumerate(electronics_designs):
                 item = DesignListItem(
@@ -212,7 +212,7 @@ async def seed_design_lists_for_user(
                 )
                 db.add(item)
                 items_created += 1
-    
+
     return lists_created, items_created
 
 
@@ -222,26 +222,26 @@ async def seed_design_saves(
     public_designs: list[Design],
 ) -> int:
     """Create sample design saves for popularity metrics.
-    
+
     Args:
         db: Async database session.
         users: List of users to create saves for.
         public_designs: List of public designs that can be saved.
-        
+
     Returns:
         Number of saves created.
     """
     saves_created = 0
-    
+
     for design in public_designs[:5]:  # Only process first 5 designs
         # Simulate saves from multiple users
-        users_to_save = users[:min(3, len(users))]
-        
+        users_to_save = users[: min(3, len(users))]
+
         for user in users_to_save:
             # Don't let users save their own designs (check via project)
-            if hasattr(design, 'project') and design.project and design.project.user_id == user.id:
+            if hasattr(design, "project") and design.project and design.project.user_id == user.id:
                 continue
-            
+
             # Check if save already exists
             existing = await db.execute(
                 select(DesignSave).where(
@@ -251,19 +251,19 @@ async def seed_design_saves(
             )
             if existing.scalar_one_or_none():
                 continue
-            
+
             save = DesignSave(
                 id=uuid4(),
                 user_id=user.id,
                 design_id=design.id,
             )
             db.add(save)
-            
+
             # Increment the design's save count
             design.save_count = (design.save_count or 0) + 1
-            
+
             saves_created += 1
-    
+
     return saves_created
 
 
@@ -272,16 +272,16 @@ async def seed_files_for_user(
     user: User,
 ) -> int:
     """Create sample file records for a user.
-    
+
     Args:
         db: Async database session.
         user: The user to create files for.
-        
+
     Returns:
         Number of files created.
     """
     files_created = 0
-    
+
     for file_data in SAMPLE_FILES:
         # Check if file already exists for this user
         existing = await db.execute(
@@ -292,10 +292,10 @@ async def seed_files_for_user(
         )
         if existing.scalar_one_or_none():
             continue
-        
+
         # Create a unique storage path
         storage_path = f"users/{user.id}/uploads/{file_data['filename']}"
-        
+
         file = File(
             id=uuid4(),
             user_id=user.id,
@@ -314,16 +314,16 @@ async def seed_files_for_user(
         )
         db.add(file)
         files_created += 1
-    
+
     return files_created
 
 
 async def seed_marketplace(db: AsyncSession) -> dict[str, int]:
     """Seed marketplace data including lists, saves, and files.
-    
+
     Args:
         db: Async database session.
-        
+
     Returns:
         Dictionary with counts of created records.
     """
@@ -333,51 +333,53 @@ async def seed_marketplace(db: AsyncSession) -> dict[str, int]:
         "saves_created": 0,
         "files_created": 0,
     }
-    
+
     # Get existing users (excluding vendor/system user)
     users_result = await db.execute(
-        select(User).where(
+        select(User)
+        .where(
             User.status == "active",
             User.id != VENDOR_USER_ID,
-        ).limit(10)
+        )
+        .limit(10)
     )
     users = list(users_result.scalars())
-    
+
     if not users:
         logger.warning("No users found to seed marketplace data for")
         return results
-    
+
     # Get public designs for saving/listing
     designs_result = await db.execute(
-        select(Design).where(
-            Design.is_public == True,
-            Design.deleted_at == None,
-        ).limit(10)
+        select(Design)
+        .where(
+            Design.is_public,
+            Design.deleted_at is None,
+        )
+        .limit(10)
     )
     public_designs = list(designs_result.scalars())
-    
+
     logger.info(f"Found {len(users)} users and {len(public_designs)} public designs")
-    
+
     # Seed design lists for first 3 users
     for user in users[:3]:
-        lists_count, items_count = await seed_design_lists_for_user(
-            db, user, public_designs
-        )
+        lists_count, items_count = await seed_design_lists_for_user(db, user, public_designs)
         results["lists_created"] += lists_count
         results["items_created"] += items_count
         logger.debug(f"Created {lists_count} lists with {items_count} items for {user.email}")
-    
+
     # Seed design saves
     if public_designs:
         results["saves_created"] = await seed_design_saves(db, users, public_designs)
         logger.debug(f"Created {results['saves_created']} design saves")
-    
+
     # Seed files for first 2 users
     for user in users[:2]:
         files_count = await seed_files_for_user(db, user)
         results["files_created"] += files_count
         logger.debug(f"Created {files_count} files for {user.email}")
-    
+
     await db.commit()
     return results
 
@@ -386,7 +388,7 @@ async def main() -> None:
     """Run marketplace seeding."""
     logging.basicConfig(level=logging.INFO)
     logger.info("Seeding marketplace data...")
-    
+
     async with async_session_maker() as db:
         results = await seed_marketplace(db)
         logger.info(

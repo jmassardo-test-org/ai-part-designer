@@ -21,7 +21,6 @@ import argparse
 import asyncio
 import logging
 import random
-import string
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -31,13 +30,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_maker
 from app.core.security import hash_password
-from app.models.user import User, Subscription, UserSettings
-from app.models.project import Project
-from app.models.design import Design
-from app.models.organization import Organization, OrganizationMember
-from app.models.notification import Notification
 from app.models.audit import AuditLog
+from app.models.design import Design
+from app.models.notification import Notification
+from app.models.organization import Organization, OrganizationMember
+from app.models.project import Project
 from app.models.subscription import SubscriptionTier
+from app.models.user import Subscription, User
 
 logger = logging.getLogger(__name__)
 fake = Faker()
@@ -69,10 +68,10 @@ SCALE_PRESETS = {
 
 # Tier distribution (percentages)
 TIER_DISTRIBUTION = {
-    "free": 0.70,      # 70%
-    "starter": 0.15,   # 15%
-    "pro": 0.10,       # 10%
-    "enterprise": 0.05 # 5%
+    "free": 0.70,  # 70%
+    "starter": 0.15,  # 15%
+    "pro": 0.10,  # 10%
+    "enterprise": 0.05,  # 5%
 }
 
 # Status distribution for projects
@@ -91,6 +90,7 @@ DESIGN_SOURCES = ["template", "ai_generated", "imported", "manual"]
 # Batch Insert Helper
 # =============================================================================
 
+
 async def batch_insert(
     session: AsyncSession,
     objects: list[Any],
@@ -100,14 +100,14 @@ async def batch_insert(
     """Insert objects in batches for better performance."""
     total = len(objects)
     inserted = 0
-    
+
     for i in range(0, total, batch_size):
-        batch = objects[i:i + batch_size]
+        batch = objects[i : i + batch_size]
         session.add_all(batch)
         await session.flush()
         inserted += len(batch)
         logger.info(f"  Inserted {inserted}/{total} {label}")
-    
+
     return inserted
 
 
@@ -115,31 +115,36 @@ async def batch_insert(
 # Data Generators
 # =============================================================================
 
+
 def generate_user(tier_slug: str, hashed_pwd: str, index: int) -> User:
     """Generate a random user.
-    
+
     Args:
         tier_slug: The subscription tier for this user.
         hashed_pwd: Pre-hashed password for efficiency.
         index: User index for unique email generation.
-        
+
     Returns:
         A new User model instance.
     """
     created_at = fake.date_time_between(start_date="-2y", end_date="now")
-    last_login = fake.date_time_between(start_date=created_at, end_date="now") if random.random() > 0.1 else None
-    
+    last_login = (
+        fake.date_time_between(start_date=created_at, end_date="now")
+        if random.random() > 0.1
+        else None
+    )
+
     # Use seed_ prefix for easy identification of seeded users
     unique_suffix = f"{index}_{fake.uuid4()[:8]}"
     email = f"seed_{unique_suffix}@{fake.domain_name()}"
-    
+
     # Determine status
     status = "active"
     if random.random() < 0.02:  # 2% suspended
         status = "suspended"
     elif random.random() < 0.05:  # 5% pending verification
         status = "pending_verification"
-    
+
     return User(
         id=uuid4(),
         email=email,
@@ -168,7 +173,7 @@ def generate_project(user_id: str, org_id: str | None = None) -> Project:
     """Generate a random project."""
     status_choices = list(PROJECT_STATUS_DISTRIBUTION.keys())
     status_weights = list(PROJECT_STATUS_DISTRIBUTION.values())
-    
+
     return Project(
         id=uuid4(),
         name=f"{fake.catch_phrase()} {fake.word().capitalize()}",
@@ -182,13 +187,13 @@ def generate_project(user_id: str, org_id: str | None = None) -> Project:
 
 def generate_design(project_id: str, user_id: str) -> Design:
     """Generate a random design.
-    
+
     Args:
         project_id: The project this design belongs to.
         user_id: The owner of the design.
     """
     created_at = fake.date_time_between(start_date="-1y", end_date="now")
-    
+
     return Design(
         id=uuid4(),
         name=f"{fake.word().capitalize()} Design {random.randint(1, 100)}",
@@ -206,15 +211,12 @@ def generate_subscription(user_id: str, tier_slug: str) -> Subscription:
     """Generate a subscription for a user."""
     start_date = fake.date_time_between(start_date="-1y", end_date="now")
     end_date = start_date + timedelta(days=30)
-    
+
     return Subscription(
         id=uuid4(),
         user_id=user_id,
         tier=tier_slug,
-        status=random.choices(
-            ["active", "cancelled", "past_due"],
-            weights=[0.85, 0.10, 0.05]
-        )[0],
+        status=random.choices(["active", "cancelled", "past_due"], weights=[0.85, 0.10, 0.05])[0],
         current_period_start=start_date,
         current_period_end=end_date,
         cancel_at_period_end=random.random() < 0.05,
@@ -225,20 +227,20 @@ def generate_subscription(user_id: str, tier_slug: str) -> Subscription:
 def generate_notification(user_id: str) -> Notification:
     """Generate a notification for a user."""
     from app.models.notification import NotificationType
-    
+
     type_choices = [
         NotificationType.SYSTEM_ANNOUNCEMENT,
         NotificationType.JOB_COMPLETED,
         NotificationType.JOB_FAILED,
     ]
     notif_type = random.choice(type_choices)
-    
+
     titles = {
         NotificationType.SYSTEM_ANNOUNCEMENT: "System Maintenance Notice",
         NotificationType.JOB_COMPLETED: "Your design generation is complete",
         NotificationType.JOB_FAILED: "Design generation failed",
     }
-    
+
     return Notification(
         id=uuid4(),
         user_id=user_id,
@@ -254,7 +256,7 @@ def generate_audit_log(user_id: str | None = None) -> AuditLog:
     """Generate an audit log entry."""
     actions = ["create", "update", "delete", "login", "logout", "view", "export"]
     resources = ["user", "project", "design", "template", "organization"]
-    
+
     return AuditLog(
         id=uuid4(),
         user_id=user_id,
@@ -271,6 +273,7 @@ def generate_audit_log(user_id: str | None = None) -> AuditLog:
 # Main Seeder
 # =============================================================================
 
+
 async def seed_large_scale(
     num_users: int = 1000,
     num_orgs: int = 50,
@@ -279,42 +282,40 @@ async def seed_large_scale(
 ) -> dict[str, int]:
     """
     Generate large-scale seed data.
-    
+
     Args:
         num_users: Number of users to generate
         num_orgs: Number of organizations to generate
         projects_range: (min, max) projects per user
         designs_range: (min, max) designs per project
-    
+
     Returns:
         Dictionary with counts of created entities
     """
     logger.info(f"Starting large-scale seed: {num_users} users, {num_orgs} orgs")
-    
+
     async with async_session_maker() as session:
         # Get subscription tiers
         from sqlalchemy import select
+
         result = await session.execute(select(SubscriptionTier))
         tiers = {t.slug: t.id for t in result.scalars().all()}
-        
+
         if not tiers:
             logger.error("No subscription tiers found! Run regular seeds first.")
             raise RuntimeError("No subscription tiers found. Run regular seeds first.")
-        
+
         # Pre-hash a common password for speed
         common_password = hash_password("seed123!")
-        
+
         # Calculate tier distribution
-        tier_counts = {
-            tier: int(num_users * pct) 
-            for tier, pct in TIER_DISTRIBUTION.items()
-        }
+        tier_counts = {tier: int(num_users * pct) for tier, pct in TIER_DISTRIBUTION.items()}
         # Adjust to match total
         diff = num_users - sum(tier_counts.values())
         tier_counts["free"] += diff
-        
+
         logger.info(f"Tier distribution: {tier_counts}")
-        
+
         # =================================================================
         # Generate Users
         # =================================================================
@@ -322,7 +323,7 @@ async def seed_large_scale(
         users = []
         user_tiers = []
         user_index = 0
-        
+
         # First, create the seed marker user
         marker_user = User(
             id=uuid4(),
@@ -336,46 +337,49 @@ async def seed_large_scale(
         )
         users.append(marker_user)
         user_tiers.append((marker_user.id, "free"))
-        
+
         for tier, count in tier_counts.items():
             tier_id = tiers.get(tier)
             if not tier_id:
                 logger.warning(f"Tier '{tier}' not found, using 'free'")
                 tier = "free"
-            
+
             for _ in range(count):
                 user = generate_user(tier, common_password, user_index)
                 users.append(user)
                 user_tiers.append((user.id, tier))
                 user_index += 1
-        
+
         await batch_insert(session, users, label="users")
-        
+
         # =================================================================
         # Generate Subscriptions
         # =================================================================
         logger.info("Generating subscriptions...")
         subscriptions = [
-            generate_subscription(str(user_id), tier_slug)
-            for user_id, tier_slug in user_tiers
+            generate_subscription(str(user_id), tier_slug) for user_id, tier_slug in user_tiers
         ]
         await batch_insert(session, subscriptions, label="subscriptions")
-        
+
         # =================================================================
         # Generate Organizations
         # =================================================================
         logger.info("Generating organizations...")
         # Pick random enterprise users as org owners
-        enterprise_users = [u for u, (_, tier_slug) in zip(users, user_tiers) if tier_slug == "enterprise"]
+        enterprise_users = [
+            u
+            for u, (_, tier_slug) in zip(users, user_tiers, strict=False)
+            if tier_slug == "enterprise"
+        ]
         org_owners = random.sample(enterprise_users, min(num_orgs, len(enterprise_users)))
-        
+
         organizations = []
         for owner in org_owners:
             org = generate_organization(str(owner.id))
             organizations.append(org)
-        
+
         await batch_insert(session, organizations, label="organizations")
-        
+
         # =================================================================
         # Generate Organization Members
         # =================================================================
@@ -383,27 +387,31 @@ async def seed_large_scale(
         memberships = []
         for org in organizations:
             # Add owner as admin
-            memberships.append(OrganizationMember(
-                id=uuid4(),
-                organization_id=org.id,
-                user_id=org.owner_id,
-                role="admin",
-            ))
-            
+            memberships.append(
+                OrganizationMember(
+                    id=uuid4(),
+                    organization_id=org.id,
+                    user_id=org.owner_id,
+                    role="admin",
+                )
+            )
+
             # Add random members (5-50 per org)
             num_members = random.randint(5, min(50, len(users) // num_orgs))
             member_users = random.sample(users, num_members)
             for user in member_users:
                 if str(user.id) != str(org.owner_id):
-                    memberships.append(OrganizationMember(
-                        id=uuid4(),
-                        organization_id=org.id,
-                        user_id=user.id,
-                        role=random.choice(["member", "member", "admin"]),  # 33% admins
-                    ))
-        
+                    memberships.append(
+                        OrganizationMember(
+                            id=uuid4(),
+                            organization_id=org.id,
+                            user_id=user.id,
+                            role=random.choice(["member", "member", "admin"]),  # 33% admins
+                        )
+                    )
+
         await batch_insert(session, memberships, label="memberships")
-        
+
         # =================================================================
         # Generate Projects
         # =================================================================
@@ -414,7 +422,7 @@ async def seed_large_scale(
             if str(m.user_id) not in user_org_map:
                 user_org_map[str(m.user_id)] = []
             user_org_map[str(m.user_id)].append(str(m.organization_id))
-        
+
         for user in users:
             num_projects = random.randint(*projects_range)
             for _ in range(num_projects):
@@ -422,12 +430,12 @@ async def seed_large_scale(
                 org_id = None
                 if random.random() < 0.3 and str(user.id) in user_org_map:
                     org_id = random.choice(user_org_map[str(user.id)])
-                
+
                 project = generate_project(str(user.id), org_id)
                 projects.append(project)
-        
+
         await batch_insert(session, projects, label="projects")
-        
+
         # =================================================================
         # Generate Designs
         # =================================================================
@@ -438,9 +446,9 @@ async def seed_large_scale(
             for _ in range(num_designs):
                 design = generate_design(str(project.id), str(project.user_id))
                 designs.append(design)
-        
+
         await batch_insert(session, designs, batch_size=1000, label="designs")
-        
+
         # =================================================================
         # Generate Notifications
         # =================================================================
@@ -450,9 +458,9 @@ async def seed_large_scale(
             num_notifs = random.randint(1, 10)
             for _ in range(num_notifs):
                 notifications.append(generate_notification(str(user.id)))
-        
+
         await batch_insert(session, notifications, label="notifications")
-        
+
         # =================================================================
         # Generate Audit Logs
         # =================================================================
@@ -461,15 +469,15 @@ async def seed_large_scale(
         for _ in range(min(2000, num_users)):
             user = random.choice(users) if random.random() > 0.1 else None
             audit_logs.append(generate_audit_log(str(user.id) if user else None))
-        
+
         await batch_insert(session, audit_logs, label="audit_logs")
-        
+
         # =================================================================
         # Commit
         # =================================================================
         await session.commit()
         logger.info("All data committed successfully!")
-        
+
         return {
             "users": len(users),
             "subscriptions": len(subscriptions),
@@ -491,124 +499,119 @@ SEED_MARKER_EMAIL = "seed_marker@assemblematic.ai"
 
 async def check_if_seeded(session: AsyncSession) -> bool:
     """Check if the database has already been seeded.
-    
+
     Looks for the seed marker user to determine if seeding has occurred.
-    
+
     Args:
         session: Database session.
-        
+
     Returns:
         True if already seeded, False otherwise.
     """
     from sqlalchemy import select
-    result = await session.execute(
-        select(User).where(User.email == SEED_MARKER_EMAIL)
-    )
+
+    result = await session.execute(select(User).where(User.email == SEED_MARKER_EMAIL))
     return result.scalar_one_or_none() is not None
 
 
 async def get_existing_seed_counts(session: AsyncSession) -> dict[str, int]:
     """Get counts of existing seeded entities.
-    
+
     Args:
         session: Database session.
-        
+
     Returns:
         Dictionary with entity names and their counts.
     """
     from sqlalchemy import func, select
-    
+
     counts = {}
-    
+
     # Count users with common seed password pattern (email contains seed_)
-    result = await session.execute(
-        select(func.count(User.id)).where(User.email.like("seed_%"))
-    )
+    result = await session.execute(select(func.count(User.id)).where(User.email.like("seed_%")))
     counts["users"] = result.scalar_one()
-    
+
     result = await session.execute(select(func.count(Organization.id)))
     counts["organizations"] = result.scalar_one()
-    
+
     result = await session.execute(select(func.count(Project.id)))
     counts["projects"] = result.scalar_one()
-    
+
     result = await session.execute(select(func.count(Design.id)))
     counts["designs"] = result.scalar_one()
-    
+
     return counts
 
 
 async def clean_seed_data(session: AsyncSession) -> dict[str, int]:
     """Remove all seeded data from the database.
-    
+
     This removes data in dependency order to avoid foreign key constraints.
-    
+
     Args:
         session: Database session.
-        
+
     Returns:
         Dictionary with entity names and counts of deleted records.
     """
     from sqlalchemy import delete
-    
+
     deleted: dict[str, int] = {}
-    
+
     logger.info("Cleaning seed data...")
-    
+
     # Delete in reverse dependency order
     # 1. Audit logs (no dependencies)
     result = await session.execute(delete(AuditLog))
     count = result.rowcount or 0
     deleted["audit_logs"] = count
     logger.info(f"  Deleted {count} audit logs")
-    
+
     # 2. Notifications
     result = await session.execute(delete(Notification))
     count = result.rowcount or 0
     deleted["notifications"] = count
     logger.info(f"  Deleted {count} notifications")
-    
+
     # 3. Designs (depend on projects)
     result = await session.execute(delete(Design))
     count = result.rowcount or 0
     deleted["designs"] = count
     logger.info(f"  Deleted {count} designs")
-    
+
     # 4. Projects (depend on users/orgs)
     result = await session.execute(delete(Project))
     count = result.rowcount or 0
     deleted["projects"] = count
     logger.info(f"  Deleted {count} projects")
-    
+
     # 5. Organization members
     result = await session.execute(delete(OrganizationMember))
     count = result.rowcount or 0
     deleted["memberships"] = count
     logger.info(f"  Deleted {count} memberships")
-    
+
     # 6. Organizations
     result = await session.execute(delete(Organization))
     count = result.rowcount or 0
     deleted["organizations"] = count
     logger.info(f"  Deleted {count} organizations")
-    
+
     # 7. Subscriptions
     result = await session.execute(delete(Subscription))
     count = result.rowcount or 0
     deleted["subscriptions"] = count
     logger.info(f"  Deleted {count} subscriptions")
-    
+
     # 8. Users (seeded users only - based on email pattern)
-    result = await session.execute(
-        delete(User).where(User.email.like("seed_%"))
-    )
+    result = await session.execute(delete(User).where(User.email.like("seed_%")))
     count = result.rowcount or 0
     deleted["users"] = count
     logger.info(f"  Deleted {count} seeded users")
-    
+
     await session.commit()
     logger.info("Seed data cleanup complete!")
-    
+
     return deleted
 
 
@@ -616,9 +619,10 @@ async def clean_seed_data(session: AsyncSession) -> dict[str, int]:
 # CLI Entry Point
 # =============================================================================
 
+
 async def async_main(args) -> int:
     """Async main entry point - all DB operations happen here."""
-    
+
     # Handle --check flag: just check and exit
     if args.check:
         async with async_session_maker() as session:
@@ -631,31 +635,30 @@ async def async_main(args) -> int:
                 print(f"  Projects: {counts.get('projects', 0):,}")
                 print(f"  Designs: {counts.get('designs', 0):,}")
                 return 0
-            else:
-                print("Database is NOT seeded.")
-                return 1
-    
+            print("Database is NOT seeded.")
+            return 1
+
     # Handle --clean flag: remove existing data
     if args.clean:
         print("=" * 60)
         print("Cleaning existing seed data...")
         print("=" * 60)
         print()
-        
+
         async with async_session_maker() as session:
             deleted = await clean_seed_data(session)
-        
+
         print()
         print("Deleted entities:")
         for entity, count in deleted.items():
             print(f"  {entity}: {count:,}")
         print()
-        
+
         if not (args.scale or args.users > 0):
             # Just cleaning, no seeding
             print("Clean complete. Use additional flags to seed new data.")
             return 0
-    
+
     # Check if already seeded (unless --force or --incremental)
     if not args.force and not args.incremental and not args.clean:
         async with async_session_maker() as session:
@@ -670,7 +673,7 @@ async def async_main(args) -> int:
                 print("  --force        Force seed (may cause duplicates)")
                 print()
                 return 1
-    
+
     # Get configuration
     if args.scale:
         config = SCALE_PRESETS[args.scale]
@@ -683,14 +686,14 @@ async def async_main(args) -> int:
         num_orgs = args.orgs
         projects_range = (1, 5)
         designs_range = (1, 10)
-    
+
     mode_label = "INCREMENTAL" if args.incremental else "FRESH"
-    
+
     print("=" * 60)
     print(f"AssemblematicAI - Large-Scale Seeding ({mode_label})")
     print("=" * 60)
     print()
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Users: {num_users}")
     print(f"  Organizations: {num_orgs}")
     print(f"  Projects per user: {projects_range[0]}-{projects_range[1]}")
@@ -704,14 +707,15 @@ async def async_main(args) -> int:
     print()
     print("=" * 60)
     print()
-    
+
     # Skip confirmation if --yes flag is set
     if not args.yes:
-        import sys
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: input("Press Enter to start seeding (Ctrl+C to cancel)..."))
+        await loop.run_in_executor(
+            None, lambda: input("Press Enter to start seeding (Ctrl+C to cancel)...")
+        )
         print()
-    
+
     # Run seeder
     result = await seed_large_scale(
         num_users=num_users,
@@ -719,7 +723,7 @@ async def async_main(args) -> int:
         projects_range=projects_range,
         designs_range=designs_range,
     )
-    
+
     print()
     print("=" * 60)
     print("Seeding Complete!")
@@ -757,7 +761,8 @@ def main():
         help="Number of organizations to generate (default: 50)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable verbose logging",
     )
@@ -782,25 +787,26 @@ def main():
         help="Force seeding even if already seeded (use with caution)",
     )
     parser.add_argument(
-        "--yes", "-y",
+        "--yes",
+        "-y",
         action="store_true",
         help="Skip confirmation prompt (for non-interactive use)",
     )
-    
+
     args = parser.parse_args()
-    
+
     # Setup logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-    
+
     # Run everything in a single async context
     import sys
+
     sys.exit(asyncio.run(async_main(args)))
 
 
 if __name__ == "__main__":
     main()
-

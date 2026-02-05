@@ -14,27 +14,28 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
-    Index,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.project import Project
     from app.models.design import Design
+    from app.models.project import Project
     from app.models.user import User
 
 
 class Assembly(Base, TimestampMixin, SoftDeleteMixin):
     """
     Assembly model representing a collection of components/designs.
-    
+
     Assemblies organize multiple parts into a coherent structure with
     positioning, relationships, and bill of materials tracking.
     """
@@ -166,7 +167,7 @@ class Assembly(Base, TimestampMixin, SoftDeleteMixin):
 class AssemblyComponent(Base, TimestampMixin):
     """
     Component within an assembly.
-    
+
     Links a design to an assembly with position, rotation, and quantity.
     Components can be custom designs or COTS (commercial off-the-shelf) parts.
     """
@@ -294,7 +295,7 @@ class AssemblyComponent(Base, TimestampMixin):
 class ComponentRelationship(Base, TimestampMixin):
     """
     Relationship between components in an assembly.
-    
+
     Defines how components connect: fastened, mated, inserted, etc.
     Used for constraint solving and assembly instructions.
     """
@@ -386,7 +387,7 @@ class ComponentRelationship(Base, TimestampMixin):
 class Vendor(Base, TimestampMixin, SoftDeleteMixin):
     """
     Vendor/supplier for COTS components.
-    
+
     Supports integration with vendor APIs for pricing and availability.
     """
 
@@ -464,7 +465,7 @@ class Vendor(Base, TimestampMixin, SoftDeleteMixin):
 class BOMItem(Base, TimestampMixin):
     """
     Bill of Materials item for an assembly component.
-    
+
     Tracks cost, vendor, lead time, and other procurement info.
     """
 

@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 class OAuthConnection(Base, TimestampMixin):
     """
     OAuth provider connection for a user.
-    
+
     Allows users to link multiple OAuth providers (Google, GitHub)
     to their account for authentication.
     """
@@ -48,17 +49,17 @@ class OAuthConnection(Base, TimestampMixin):
         String(50),
         nullable=False,
     )  # 'google', 'github'
-    
+
     provider_user_id: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )  # User ID from the provider
-    
+
     provider_email: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )  # Email from provider (may differ from account email)
-    
+
     provider_username: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,

@@ -5,10 +5,11 @@ Provides generic CRUD operations with proper async handling,
 pagination, and filtering support.
 """
 
-from typing import Any, Generic, TypeVar, Sequence
+from collections.abc import Sequence
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -20,10 +21,10 @@ ModelType = TypeVar("ModelType", bound=Base)
 class BaseRepository(Generic[ModelType]):
     """
     Base repository with common CRUD operations.
-    
+
     All repositories should inherit from this class
     and specify their model type.
-    
+
     Example:
         class UserRepository(BaseRepository[User]):
             model = User
@@ -43,23 +44,23 @@ class BaseRepository(Generic[ModelType]):
     ) -> ModelType | None:
         """
         Get a single record by ID.
-        
+
         Args:
             id: Record UUID
             include_deleted: Include soft-deleted records
             load_relations: List of relationship names to eager load
         """
         query = select(self.model).where(self.model.id == id)
-        
+
         # Handle soft deletes
         if not include_deleted and hasattr(self.model, "deleted_at"):
             query = query.where(self.model.deleted_at.is_(None))
-        
+
         # Eager load relationships
         if load_relations:
             for relation in load_relations:
                 query = query.options(selectinload(getattr(self.model, relation)))
-        
+
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
@@ -76,7 +77,7 @@ class BaseRepository(Generic[ModelType]):
     ) -> Sequence[ModelType]:
         """
         Get multiple records with filtering and pagination.
-        
+
         Args:
             filters: Dict of field=value filters
             order_by: Field name to order by
@@ -87,7 +88,7 @@ class BaseRepository(Generic[ModelType]):
             load_relations: Relationship names to eager load
         """
         query = select(self.model)
-        
+
         # Apply filters
         if filters:
             conditions = []
@@ -100,26 +101,26 @@ class BaseRepository(Generic[ModelType]):
                         conditions.append(column == value)
             if conditions:
                 query = query.where(and_(*conditions))
-        
+
         # Handle soft deletes
         if not include_deleted and hasattr(self.model, "deleted_at"):
             query = query.where(self.model.deleted_at.is_(None))
-        
+
         # Ordering
         if order_by and hasattr(self.model, order_by):
             order_column = getattr(self.model, order_by)
             query = query.order_by(order_column.desc() if order_desc else order_column.asc())
         elif hasattr(self.model, "created_at"):
             query = query.order_by(self.model.created_at.desc())
-        
+
         # Pagination
         query = query.offset(offset).limit(limit)
-        
+
         # Eager load relationships
         if load_relations:
             for relation in load_relations:
                 query = query.options(selectinload(getattr(self.model, relation)))
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()
 
@@ -131,7 +132,7 @@ class BaseRepository(Generic[ModelType]):
     ) -> int:
         """Count records matching filters."""
         query = select(func.count()).select_from(self.model)
-        
+
         if filters:
             conditions = []
             for field, value in filters.items():
@@ -143,10 +144,10 @@ class BaseRepository(Generic[ModelType]):
                         conditions.append(column == value)
             if conditions:
                 query = query.where(and_(*conditions))
-        
+
         if not include_deleted and hasattr(self.model, "deleted_at"):
             query = query.where(self.model.deleted_at.is_(None))
-        
+
         result = await self.session.execute(query)
         return result.scalar() or 0
 
@@ -167,11 +168,11 @@ class BaseRepository(Generic[ModelType]):
         instance = await self.get_by_id(id)
         if not instance:
             return None
-        
+
         for field, value in kwargs.items():
             if hasattr(instance, field):
                 setattr(instance, field, value)
-        
+
         await self.session.flush()
         await self.session.refresh(instance)
         return instance
@@ -184,7 +185,7 @@ class BaseRepository(Generic[ModelType]):
     ) -> bool:
         """
         Delete a record.
-        
+
         Args:
             id: Record UUID
             soft: Use soft delete if True and model supports it
@@ -192,13 +193,14 @@ class BaseRepository(Generic[ModelType]):
         instance = await self.get_by_id(id)
         if not instance:
             return False
-        
+
         if soft and hasattr(instance, "deleted_at"):
             from datetime import datetime
+
             instance.deleted_at = datetime.utcnow()
         else:
             await self.session.delete(instance)
-        
+
         await self.session.flush()
         return True
 
@@ -210,10 +212,10 @@ class BaseRepository(Generic[ModelType]):
     ) -> bool:
         """Check if a record exists."""
         query = select(func.count()).select_from(self.model).where(self.model.id == id)
-        
+
         if not include_deleted and hasattr(self.model, "deleted_at"):
             query = query.where(self.model.deleted_at.is_(None))
-        
+
         result = await self.session.execute(query)
         return (result.scalar() or 0) > 0
 
@@ -233,24 +235,24 @@ class BaseRepository(Generic[ModelType]):
     ) -> Sequence[ModelType]:
         """
         Search records by text fields.
-        
+
         Uses ILIKE for case-insensitive matching.
         """
         query = select(self.model)
-        
+
         conditions = []
         for field in search_fields:
             if hasattr(self.model, field):
                 column = getattr(self.model, field)
                 conditions.append(column.ilike(f"%{search_term}%"))
-        
+
         if conditions:
             query = query.where(or_(*conditions))
-        
+
         if hasattr(self.model, "deleted_at"):
             query = query.where(self.model.deleted_at.is_(None))
-        
+
         query = query.limit(limit)
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()

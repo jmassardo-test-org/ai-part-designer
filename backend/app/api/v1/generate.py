@@ -13,14 +13,13 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.exceptions import AIError, AIParseError, AIValidationError
 from app.ai.generator import generate_from_description
@@ -31,7 +30,11 @@ from app.cad.export import ExportQuality
 from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.models.job import Job
-from app.models.user import User
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +45,12 @@ router = APIRouter()
 # Deprecation Helpers
 # =============================================================================
 
+
 def add_deprecation_headers(response: Response, settings: Settings) -> None:
     """Add deprecation headers to v1 CAD API responses.
-    
+
     Follows RFC 8594 (Deprecation header) and Sunset header draft.
-    
+
     Args:
         response: FastAPI Response object to add headers to.
         settings: Application settings for feature flag check.
@@ -66,6 +70,7 @@ def add_deprecation_headers(response: Response, settings: Settings) -> None:
 # =============================================================================
 # Request/Response Models
 # =============================================================================
+
 
 class GenerateRequest(BaseModel):
     """Request to generate CAD from description."""
@@ -108,8 +113,12 @@ class GenerateResponse(BaseModel):
 
     # Assembly support
     is_assembly: bool = Field(default=False, description="Whether this is a multi-part assembly")
-    parts: list[dict[str, Any]] = Field(default_factory=list, description="Individual parts in assembly")
-    bom: list[dict[str, Any]] = Field(default_factory=list, description="Bill of materials for hardware")
+    parts: list[dict[str, Any]] = Field(
+        default_factory=list, description="Individual parts in assembly"
+    )
+    bom: list[dict[str, Any]] = Field(
+        default_factory=list, description="Bill of materials for hardware"
+    )
 
 
 class ParseRequest(BaseModel):
@@ -147,13 +156,14 @@ class ErrorResponse(BaseModel):
 # Endpoints
 # =============================================================================
 
+
 @router.post(
     "",
     response_model=GenerateResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Generate CAD from description",
     description="[DEPRECATED] Parse a natural language description and generate CAD files. "
-                "Please migrate to /api/v2/generate/ for the new declarative schema-based system.",
+    "Please migrate to /api/v2/generate/ for the new declarative schema-based system.",
     responses={
         201: {"description": "CAD files generated successfully"},
         400: {"model": ErrorResponse, "description": "Invalid description or parameters"},
@@ -170,15 +180,15 @@ async def generate_cad(
 ) -> GenerateResponse:
     """
     Generate CAD file from natural language description.
-    
+
     DEPRECATED: This endpoint is deprecated. Please use /api/v2/generate/ instead.
-    
+
     This endpoint:
     1. Parses the description using AI to extract parameters
     2. Generates 3D geometry using CadQuery
     3. Exports to STEP and/or STL format
     4. Returns download URLs for the generated files
-    
+
     Example:
         POST /api/v1/generate
         {
@@ -202,7 +212,7 @@ async def _generate_via_v2(
     settings: Settings,
 ) -> GenerateResponse:
     """Generate CAD using the v2 declarative schema pipeline.
-    
+
     Converts v1 request to v2 format, processes through v2 pipeline,
     and converts response back to v1 format for backward compatibility.
     """
@@ -304,7 +314,7 @@ async def _generate_via_v2(
         timing={"total_ms": 0},  # TODO: Add timing
         downloads=downloads,
         is_assembly=len(compilation.parts) > 1,
-        parts=[{"name": name} for name in compilation.parts.keys()],
+        parts=[{"name": name} for name in compilation.parts],
         bom=[],
     )
 
@@ -317,6 +327,7 @@ async def _generate_via_v1(
     """Legacy v1 generation pipeline."""
     # Validate AI is configured (check for any provider)
     from app.ai.providers import get_ai_provider
+
     try:
         provider = get_ai_provider()
         if not provider.is_configured:
@@ -425,14 +436,14 @@ async def download_generated_file(
 ) -> FileResponse:
     """
     Download a generated CAD file.
-    
+
     Files are stored temporarily after generation and can be downloaded
     using the job ID returned from the generate endpoint.
-    
+
     Args:
         job_id: The job ID from generation
         file_format: The format to download (step or stl)
-    
+
     Returns:
         The file content with appropriate content type
     """
@@ -453,7 +464,9 @@ async def download_generated_file(
         job = result.scalar_one_or_none()
 
         if job and job.user_id and job.user_id != current_user.id:
-            logger.warning(f"User {current_user.id} attempted to download job {job_id} owned by {job.user_id}")
+            logger.warning(
+                f"User {current_user.id} attempted to download job {job_id} owned by {job.user_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this file",
@@ -486,7 +499,9 @@ async def download_generated_file(
             break
 
     if not matching_files:
-        logger.warning(f"File not found for job {job_id}, format {file_format}. Searched in {output_path}")
+        logger.warning(
+            f"File not found for job {job_id}, format {file_format}. Searched in {output_path}"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"File not found for job {job_id}. The file may have expired.",
@@ -536,17 +551,17 @@ async def download_assembly_part(
 ) -> FileResponse:
     """
     Download a specific part from an assembly.
-    
+
     Args:
         job_id: The job ID from generation
         file_format: The format to download (step or stl)
         part_name: The part name (e.g., 'enclosure_base', 'enclosure_lid')
-    
+
     Returns:
         The file content with appropriate content type
     """
     import re
-    
+
     # Validate job_id format to prevent path traversal
     try:
         UUID(job_id)
@@ -555,14 +570,14 @@ async def download_assembly_part(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid job ID format",
         )
-    
+
     # Validate part_name format (alphanumeric, underscore, hyphen only)
-    if not re.match(r'^[a-zA-Z0-9_-]+$', part_name):
+    if not re.match(r"^[a-zA-Z0-9_-]+$", part_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid part name format. Use only alphanumeric characters, underscores, and hyphens.",
         )
-    
+
     # If user is authenticated, verify they own the job
     if current_user:
         query = select(Job).where(Job.id == job_id)
@@ -570,7 +585,9 @@ async def download_assembly_part(
         job = result.scalar_one_or_none()
 
         if job and job.user_id and job.user_id != current_user.id:
-            logger.warning(f"User {current_user.id} attempted to download assembly part from job {job_id} owned by {job.user_id}")
+            logger.warning(
+                f"User {current_user.id} attempted to download assembly part from job {job_id} owned by {job.user_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this file",
@@ -581,7 +598,7 @@ async def download_assembly_part(
     # Search for file matching the part name and job_id
     pattern = f"{part_name}_{job_id[:8]}.{file_format}"
     file_path = output_path / pattern
-    
+
     # Security: Verify resolved path is within expected directory
     resolved_path = file_path.resolve()
     resolved_output = output_path.resolve()
@@ -627,7 +644,7 @@ async def download_assembly_part(
     response_model=ParseResponse,
     summary="Parse description only",
     description="[DEPRECATED] Parse a description without generating CAD files. "
-                "Please migrate to /api/v2/generate/preview for the new system.",
+    "Please migrate to /api/v2/generate/preview for the new system.",
     deprecated=True,
 )
 async def parse_description_only(
@@ -637,9 +654,9 @@ async def parse_description_only(
 ) -> ParseResponse:
     """
     Parse a natural language description to preview extracted parameters.
-    
+
     DEPRECATED: This endpoint is deprecated. Please use /api/v2/generate/preview instead.
-    
+
     Useful for:
     - Validating a description before generation
     - Showing users what the AI understood
@@ -727,6 +744,7 @@ async def list_qualities() -> dict[str, Any]:
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _get_required_dimensions(shape: ShapeType) -> list[str]:
     """Get required dimensions for a shape type."""

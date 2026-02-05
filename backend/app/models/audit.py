@@ -9,10 +9,11 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     DateTime,
     ForeignKey,
-    String,
     Index,
+    String,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -24,13 +25,13 @@ if TYPE_CHECKING:
 class AuditLog(Base):
     """
     Comprehensive audit logging for security and compliance.
-    
+
     Records all significant actions in the system for:
     - Security auditing
     - Compliance requirements
     - Debugging and support
     - Analytics and usage patterns
-    
+
     Context schema example:
     {
         "resourceId": "uuid",
@@ -175,10 +176,10 @@ class AuditLog(Base):
     ) -> "AuditLog":
         """
         Create an audit log entry.
-        
+
         This is a convenience method for creating audit logs.
         The caller is responsible for adding to session and committing.
-        
+
         Example:
             log = AuditLog.log(
                 action="create",
@@ -238,36 +239,36 @@ class AuditLog(Base):
 # Common audit action constants
 class AuditActions:
     """Constants for common audit actions."""
-    
+
     # CRUD
     CREATE = "create"
     READ = "read"
     UPDATE = "update"
     DELETE = "delete"
-    
+
     # Auth
     LOGIN = "login"
     LOGOUT = "logout"
     LOGIN_FAILED = "login_failed"
     PASSWORD_CHANGE = "password_change"
     PASSWORD_RESET = "password_reset"
-    
+
     # Sharing
     SHARE = "share"
     UNSHARE = "unshare"
-    
+
     # Export
     EXPORT = "export"
     DOWNLOAD = "download"
-    
+
     # API Keys
     API_KEY_CREATE = "api_key_create"
     API_KEY_REVOKE = "api_key_revoke"
-    
+
     # Moderation
     MODERATE = "moderate"
     APPEAL = "appeal"
-    
+
     # Admin
     ADMIN_ACTION = "admin_action"
     IMPERSONATE = "impersonate"

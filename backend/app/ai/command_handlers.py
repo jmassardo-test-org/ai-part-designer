@@ -10,13 +10,13 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
-from app.ai.commands import CommandParser, ParsedCommand, command_parser
+from app.ai.commands import ParsedCommand, command_parser
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-    from app.models import User, Design, Conversation
+
+    from app.models import Conversation, Design, User
 
 
 logger = logging.getLogger(__name__)
@@ -56,10 +56,10 @@ class CommandHandler:
     async def handle(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None" = None,
-        design: "Design | None" = None,
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None = None,
+        design: Design | None = None,
     ) -> CommandResult:
         """
         Execute a parsed command.
@@ -93,7 +93,7 @@ class CommandHandler:
             logger.exception(f"Error executing command /{command.command}")
             return CommandResult(
                 success=False,
-                message=f"Error executing command: {str(e)}",
+                message=f"Error executing command: {e!s}",
             )
 
     # =========================================================================
@@ -103,10 +103,10 @@ class CommandHandler:
     async def handle_save(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Save the current design."""
         if not design:
@@ -132,10 +132,10 @@ class CommandHandler:
     async def handle_saveas(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Save design with a new name."""
         if not design:
@@ -176,10 +176,10 @@ class CommandHandler:
     async def handle_rename(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Rename the current design."""
         if not design:
@@ -211,10 +211,10 @@ class CommandHandler:
     async def handle_delete(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Delete the current design (soft delete)."""
         if not design:
@@ -242,10 +242,10 @@ class CommandHandler:
     async def handle_export(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Export design to specified format."""
         if not design:
@@ -285,10 +285,10 @@ class CommandHandler:
     async def handle_exportall(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Export all designs in the project."""
         if not design or not design.project_id:
@@ -313,10 +313,10 @@ class CommandHandler:
     async def handle_maketemplate(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Save current design as a template."""
         if not design:
@@ -359,10 +359,10 @@ class CommandHandler:
     async def handle_undo(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Undo last modification."""
         if not design:
@@ -403,10 +403,10 @@ class CommandHandler:
     async def handle_redo(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Redo last undone modification."""
         # TODO: Implement redo stack
@@ -418,10 +418,10 @@ class CommandHandler:
     async def handle_history(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Show version history."""
         if not design:
@@ -457,10 +457,10 @@ class CommandHandler:
     async def handle_restore(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Restore to a specific version."""
         if not design:
@@ -518,10 +518,10 @@ class CommandHandler:
     async def handle_view(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Switch view mode."""
         mode = command.get_arg(0, "").lower()
@@ -543,10 +543,10 @@ class CommandHandler:
     async def handle_zoom(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Zoom to level."""
         level = command.get_arg(0, "fit").lower()
@@ -577,10 +577,10 @@ class CommandHandler:
     async def handle_measure(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Enable measurement tool."""
         return CommandResult(
@@ -596,10 +596,10 @@ class CommandHandler:
     async def handle_help(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Show available commands."""
         help_text = self.parser.get_help()
@@ -615,10 +615,10 @@ class CommandHandler:
     async def handle_debug(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Show debug information."""
         debug_info = {
@@ -642,10 +642,10 @@ class CommandHandler:
     async def handle_clear(
         self,
         command: ParsedCommand,
-        user: "User",
-        db: "AsyncSession",
-        conversation: "Conversation | None",
-        design: "Design | None",
+        user: User,
+        db: AsyncSession,
+        conversation: Conversation | None,
+        design: Design | None,
     ) -> CommandResult:
         """Clear conversation history."""
         if not conversation:

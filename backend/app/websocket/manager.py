@@ -8,15 +8,14 @@ and broadcasting.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Coroutine
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
-from fastapi import WebSocket
+if TYPE_CHECKING:
+    from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -150,16 +149,11 @@ class ConnectionManager:
             room_connections.discard(connection)
 
         # Clean up empty rooms
-        empty_rooms = [
-            room for room, conns in self._rooms.items() if not conns
-        ]
+        empty_rooms = [room for room, conns in self._rooms.items() if not conns]
         for room in empty_rooms:
             del self._rooms[room]
 
-        logger.info(
-            f"WebSocket disconnected: user={user_id}, "
-            f"remaining={self.connection_count}"
-        )
+        logger.info(f"WebSocket disconnected: user={user_id}, remaining={self.connection_count}")
 
     async def send_to_user(
         self,

@@ -8,18 +8,22 @@ import pytest
 
 from app.cad.exceptions import (
     CADError,
-    GeometryError,
     ExportError,
-    ValidationError,
+    GeometryError,
     TemplateError,
-    TimeoutError as CADTimeoutError,
+    ValidationError,
+)
+from app.cad.exceptions import (
     ImportError as CADImportError,
 )
-
+from app.cad.exceptions import (
+    TimeoutError as CADTimeoutError,
+)
 
 # =============================================================================
 # CADError Base Class Tests
 # =============================================================================
+
 
 class TestCADError:
     """Tests for base CADError class."""
@@ -27,7 +31,7 @@ class TestCADError:
     def test_basic_error(self):
         """Test creating basic CAD error."""
         error = CADError("Something went wrong")
-        
+
         assert str(error) == "Something went wrong"
         assert error.message == "Something went wrong"
         assert error.details == {}
@@ -38,7 +42,7 @@ class TestCADError:
             "Failed operation",
             details={"operation": "fillet", "radius": 5.0},
         )
-        
+
         assert error.details["operation"] == "fillet"
         assert error.details["radius"] == 5.0
 
@@ -48,9 +52,9 @@ class TestCADError:
             "Test error",
             details={"key": "value"},
         )
-        
+
         result = error.to_dict()
-        
+
         assert result["error"] == "CADError"
         assert result["message"] == "Test error"
         assert result["details"] == {"key": "value"}
@@ -65,13 +69,14 @@ class TestCADError:
 # GeometryError Tests
 # =============================================================================
 
+
 class TestGeometryError:
     """Tests for geometry errors."""
 
     def test_basic_geometry_error(self):
         """Test creating geometry error."""
         error = GeometryError("Invalid geometry result")
-        
+
         assert error.message == "Invalid geometry result"
 
     def test_geometry_error_with_details(self):
@@ -80,13 +85,13 @@ class TestGeometryError:
             "Boolean operation failed",
             details={"operation": "union", "reason": "empty result"},
         )
-        
+
         assert error.details["operation"] == "union"
 
     def test_to_dict_class_name(self):
         """Test to_dict includes correct class name."""
         error = GeometryError("test")
-        
+
         assert error.to_dict()["error"] == "GeometryError"
 
     def test_inheritance(self):
@@ -99,13 +104,14 @@ class TestGeometryError:
 # ExportError Tests
 # =============================================================================
 
+
 class TestExportError:
     """Tests for export errors."""
 
     def test_basic_export_error(self):
         """Test creating export error."""
         error = ExportError("Cannot export file")
-        
+
         assert error.message == "Cannot export file"
 
     def test_export_error_with_format(self):
@@ -114,13 +120,13 @@ class TestExportError:
             "Export failed",
             details={"format": "STEP", "path": "/tmp/output.step"},
         )
-        
+
         assert error.details["format"] == "STEP"
 
     def test_to_dict_class_name(self):
         """Test to_dict includes correct class name."""
         error = ExportError("test")
-        
+
         assert error.to_dict()["error"] == "ExportError"
 
     def test_inheritance(self):
@@ -133,13 +139,14 @@ class TestExportError:
 # ValidationError Tests
 # =============================================================================
 
+
 class TestValidationError:
     """Tests for validation errors."""
 
     def test_basic_validation_error(self):
         """Test creating validation error."""
         error = ValidationError("Invalid parameter")
-        
+
         assert error.message == "Invalid parameter"
 
     def test_validation_error_with_params(self):
@@ -152,14 +159,14 @@ class TestValidationError:
                 "min": 0.0,
             },
         )
-        
+
         assert error.details["parameter"] == "length"
         assert error.details["value"] == -5.0
 
     def test_to_dict_class_name(self):
         """Test to_dict includes correct class name."""
         error = ValidationError("test")
-        
+
         assert error.to_dict()["error"] == "ValidationError"
 
     def test_inheritance(self):
@@ -172,13 +179,14 @@ class TestValidationError:
 # TemplateError Tests
 # =============================================================================
 
+
 class TestTemplateError:
     """Tests for template errors."""
 
     def test_basic_template_error(self):
         """Test creating template error."""
         error = TemplateError("Template not found")
-        
+
         assert error.message == "Template not found"
 
     def test_template_error_with_name(self):
@@ -187,13 +195,13 @@ class TestTemplateError:
             "Template execution failed",
             details={"template": "box_with_lid", "line": 42},
         )
-        
+
         assert error.details["template"] == "box_with_lid"
 
     def test_to_dict_class_name(self):
         """Test to_dict includes correct class name."""
         error = TemplateError("test")
-        
+
         assert error.to_dict()["error"] == "TemplateError"
 
     def test_inheritance(self):
@@ -206,13 +214,14 @@ class TestTemplateError:
 # TimeoutError Tests
 # =============================================================================
 
+
 class TestCADTimeoutError:
     """Tests for CAD timeout errors."""
 
     def test_basic_timeout_error(self):
         """Test creating timeout error."""
         error = CADTimeoutError("Operation timed out")
-        
+
         assert error.message == "Operation timed out"
 
     def test_timeout_error_with_duration(self):
@@ -221,13 +230,13 @@ class TestCADTimeoutError:
             "Generation timed out",
             details={"timeout_seconds": 30, "operation": "boolean"},
         )
-        
+
         assert error.details["timeout_seconds"] == 30
 
     def test_to_dict_class_name(self):
         """Test to_dict includes correct class name."""
         error = CADTimeoutError("test")
-        
+
         assert error.to_dict()["error"] == "TimeoutError"
 
     def test_inheritance(self):
@@ -240,13 +249,14 @@ class TestCADTimeoutError:
 # ImportError Tests
 # =============================================================================
 
+
 class TestCADImportError:
     """Tests for CAD import errors."""
 
     def test_basic_import_error(self):
         """Test creating import error."""
         error = CADImportError("Cannot import file")
-        
+
         assert error.message == "Cannot import file"
 
     def test_import_error_with_file(self):
@@ -255,13 +265,13 @@ class TestCADImportError:
             "Invalid file format",
             details={"file": "model.xyz", "reason": "unknown format"},
         )
-        
+
         assert error.details["file"] == "model.xyz"
 
     def test_to_dict_class_name(self):
         """Test to_dict includes correct class name."""
         error = CADImportError("test")
-        
+
         assert error.to_dict()["error"] == "ImportError"
 
     def test_inheritance(self):
@@ -273,6 +283,7 @@ class TestCADImportError:
 # =============================================================================
 # Exception Hierarchy Tests
 # =============================================================================
+
 
 class TestExceptionHierarchy:
     """Tests for exception class hierarchy."""
@@ -287,7 +298,7 @@ class TestExceptionHierarchy:
             CADTimeoutError("test"),
             CADImportError("test"),
         ]
-        
+
         for exc in exceptions:
             assert isinstance(exc, CADError)
 
@@ -302,7 +313,7 @@ class TestExceptionHierarchy:
             CADTimeoutError("test"),
             CADImportError("test"),
         ]
-        
+
         for exc in exceptions:
             with pytest.raises(CADError):
                 raise exc
@@ -317,6 +328,7 @@ class TestExceptionHierarchy:
 # Error Serialization Tests
 # =============================================================================
 
+
 class TestErrorSerialization:
     """Tests for error serialization to API responses."""
 
@@ -324,7 +336,7 @@ class TestErrorSerialization:
         """Test to_dict returns proper structure."""
         error = CADError("Test", details={"a": 1})
         result = error.to_dict()
-        
+
         assert "error" in result
         assert "message" in result
         assert "details" in result
@@ -339,6 +351,6 @@ class TestErrorSerialization:
             (CADTimeoutError("test"), "TimeoutError"),
             (CADImportError("test"), "ImportError"),
         ]
-        
+
         for error, expected_name in test_cases:
             assert error.to_dict()["error"] == expected_name

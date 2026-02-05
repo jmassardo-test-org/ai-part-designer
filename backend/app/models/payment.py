@@ -5,7 +5,7 @@ Tracks all payment transactions for audit and billing purposes.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -17,7 +17,8 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -26,9 +27,9 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class PaymentStatus(str, Enum):
+class PaymentStatus(StrEnum):
     """Payment transaction status."""
-    
+
     PENDING = "pending"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
@@ -36,9 +37,9 @@ class PaymentStatus(str, Enum):
     DISPUTED = "disputed"
 
 
-class PaymentType(str, Enum):
+class PaymentType(StrEnum):
     """Payment transaction type."""
-    
+
     SUBSCRIPTION = "subscription"  # Recurring subscription payment
     ONE_TIME = "one_time"  # One-time purchase
     CREDIT_PURCHASE = "credit_purchase"  # Credit pack purchase
@@ -48,7 +49,7 @@ class PaymentType(str, Enum):
 class PaymentHistory(Base, TimestampMixin):
     """
     Payment transaction history.
-    
+
     Records all payment events from Stripe for auditing,
     invoice generation, and customer support.
     """
@@ -100,7 +101,7 @@ class PaymentHistory(Base, TimestampMixin):
         nullable=False,
         default=PaymentStatus.PENDING.value,
     )
-    
+
     # Amount (in cents to avoid float issues)
     amount_cents: Mapped[int] = mapped_column(
         Integer,

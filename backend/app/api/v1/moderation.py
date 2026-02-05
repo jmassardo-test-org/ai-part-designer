@@ -13,24 +13,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.rating import (
-    ReportCreate,
-    ReportResponse,
-    ReportDetailResponse,
-    ReportResolve,
-    ReportListResponse,
     BanCreate,
-    BanResponse,
     BanDetailResponse,
     BanListResponse,
-    UnbanRequest,
-    ModerationStats,
+    BanResponse,
     ModerationQueue,
     ModerationQueueItem,
+    ModerationStats,
+    ReportCreate,
+    ReportDetailResponse,
+    ReportListResponse,
+    ReportResolve,
+    ReportResponse,
+    UnbanRequest,
 )
 from app.services.rating_service import (
-    ReportService,
     BanService,
     ModerationService,
+    ReportService,
 )
 
 router = APIRouter(tags=["reports"])
@@ -52,11 +52,11 @@ async def create_report(
     current_user: User = Depends(get_current_user),
 ) -> ReportResponse:
     """Submit a content report.
-    
+
     Users can report templates, comments, designs, or other users.
     """
     service = ReportService(db)
-    
+
     try:
         report = await service.create_report(current_user.id, data)
         await db.commit()
@@ -68,7 +68,7 @@ async def create_report(
                 detail="You have already reported this content",
             )
         raise
-    
+
     return ReportResponse.model_validate(report)
 
 
@@ -83,8 +83,9 @@ async def get_my_reports(
     """Get current user's submitted reports."""
     # This would need a service method
     from sqlalchemy import select
+
     from app.models.rating import ContentReport
-    
+
     stmt = (
         select(ContentReport)
         .where(ContentReport.reporter_id == current_user.id)
@@ -93,7 +94,7 @@ async def get_my_reports(
     )
     result = await db.execute(stmt)
     reports = result.scalars().all()
-    
+
     return [ReportResponse.model_validate(r) for r in reports]
 
 
@@ -118,29 +119,31 @@ async def get_pending_reports(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = ReportService(db)
     offset = (page - 1) * per_page
     reports, total = await service.get_pending_reports(per_page, offset)
-    
+
     items = []
     for report in reports:
-        items.append(ReportDetailResponse(
-            id=report.id,
-            reporter_id=report.reporter_id,
-            target_type=report.target_type,
-            target_id=report.target_id,
-            reason=report.reason,
-            description=report.description,
-            status=report.status,
-            created_at=report.created_at,
-            resolved_by_id=report.resolved_by_id,
-            resolved_at=report.resolved_at,
-            resolution_notes=report.resolution_notes,
-            action_taken=report.action_taken,
-            reporter_name=report.reporter.display_name if report.reporter else None,
-        ))
-    
+        items.append(
+            ReportDetailResponse(
+                id=report.id,
+                reporter_id=report.reporter_id,
+                target_type=report.target_type,
+                target_id=report.target_id,
+                reason=report.reason,
+                description=report.description,
+                status=report.status,
+                created_at=report.created_at,
+                resolved_by_id=report.resolved_by_id,
+                resolved_at=report.resolved_at,
+                resolution_notes=report.resolution_notes,
+                action_taken=report.action_taken,
+                reporter_name=report.reporter.display_name if report.reporter else None,
+            )
+        )
+
     return ReportListResponse(
         items=items,
         total=total,
@@ -165,16 +168,16 @@ async def get_report(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = ReportService(db)
     report = await service.get_report(report_id)
-    
+
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
-    
+
     return ReportDetailResponse.model_validate(report)
 
 
@@ -194,16 +197,16 @@ async def resolve_report(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = ReportService(db)
     report = await service.resolve_report(report_id, current_user.id, data)
-    
+
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
-    
+
     await db.commit()
     return ReportDetailResponse.model_validate(report)
 
@@ -224,16 +227,16 @@ async def dismiss_report(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = ReportService(db)
     report = await service.dismiss_report(report_id, current_user.id, notes)
-    
+
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
-    
+
     await db.commit()
     return ReportDetailResponse.model_validate(report)
 
@@ -259,16 +262,16 @@ async def ban_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     # Prevent banning yourself
     if data.user_id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot ban yourself",
         )
-    
+
     service = BanService(db)
-    
+
     # Check if user is already banned
     existing_ban = await service.get_active_ban(data.user_id)
     if existing_ban:
@@ -276,10 +279,10 @@ async def ban_user(
             status_code=status.HTTP_409_CONFLICT,
             detail="User is already banned",
         )
-    
+
     ban = await service.ban_user(current_user.id, data)
     await db.commit()
-    
+
     return BanResponse.model_validate(ban)
 
 
@@ -299,26 +302,28 @@ async def get_active_bans(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = BanService(db)
     offset = (page - 1) * per_page
     bans, total = await service.get_active_bans(per_page, offset)
-    
+
     items = []
     for ban in bans:
-        items.append(BanDetailResponse(
-            id=ban.id,
-            user_id=ban.user_id,
-            reason=ban.reason,
-            banned_by_id=ban.banned_by_id,
-            is_permanent=ban.is_permanent,
-            expires_at=ban.expires_at,
-            is_active=ban.is_active,
-            created_at=ban.created_at,
-            user_email=ban.user.email if ban.user else None,
-            user_name=ban.user.display_name if ban.user else None,
-        ))
-    
+        items.append(
+            BanDetailResponse(
+                id=ban.id,
+                user_id=ban.user_id,
+                reason=ban.reason,
+                banned_by_id=ban.banned_by_id,
+                is_permanent=ban.is_permanent,
+                expires_at=ban.expires_at,
+                is_active=ban.is_active,
+                created_at=ban.created_at,
+                user_email=ban.user.email if ban.user else None,
+                user_name=ban.user.display_name if ban.user else None,
+            )
+        )
+
     return BanListResponse(
         items=items,
         total=total,
@@ -344,16 +349,16 @@ async def unban_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = BanService(db)
     ban = await service.unban_user(ban_id, current_user.id, data.reason)
-    
+
     if not ban:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Ban not found",
         )
-    
+
     await db.commit()
     return BanResponse.model_validate(ban)
 
@@ -373,10 +378,10 @@ async def get_user_ban_history(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = BanService(db)
     bans = await service.get_user_ban_history(user_id)
-    
+
     return [BanDetailResponse.model_validate(b) for b in bans]
 
 
@@ -399,7 +404,7 @@ async def get_moderation_stats(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     service = ModerationService(db)
     return await service.get_moderation_stats()
 
@@ -420,33 +425,35 @@ async def get_moderation_queue(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     report_service = ReportService(db)
     offset = (page - 1) * per_page
     reports, total = await report_service.get_pending_reports(per_page, offset)
-    
+
     items = []
     for report in reports:
         reporter_history = await report_service.get_user_report_count(report.reporter_id)
-        items.append(ModerationQueueItem(
-            report=ReportDetailResponse(
-                id=report.id,
-                reporter_id=report.reporter_id,
-                target_type=report.target_type,
-                target_id=report.target_id,
-                reason=report.reason,
-                description=report.description,
-                status=report.status,
-                created_at=report.created_at,
-                resolved_by_id=report.resolved_by_id,
-                resolved_at=report.resolved_at,
-                resolution_notes=report.resolution_notes,
-                action_taken=report.action_taken,
-                reporter_name=report.reporter.display_name if report.reporter else None,
-            ),
-            reporter_history=reporter_history,
-        ))
-    
+        items.append(
+            ModerationQueueItem(
+                report=ReportDetailResponse(
+                    id=report.id,
+                    reporter_id=report.reporter_id,
+                    target_type=report.target_type,
+                    target_id=report.target_id,
+                    reason=report.reason,
+                    description=report.description,
+                    status=report.status,
+                    created_at=report.created_at,
+                    resolved_by_id=report.resolved_by_id,
+                    resolved_at=report.resolved_at,
+                    resolution_notes=report.resolution_notes,
+                    action_taken=report.action_taken,
+                    reporter_name=report.reporter.display_name if report.reporter else None,
+                ),
+                reporter_history=reporter_history,
+            )
+        )
+
     return ModerationQueue(
         items=items,
         total=total,

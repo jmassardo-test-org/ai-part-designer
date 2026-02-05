@@ -6,14 +6,17 @@ Tests async compile endpoint and job status polling.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.job import Job
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest_asyncio.fixture
@@ -86,9 +89,7 @@ class TestJobStatusEndpoint:
         completed_job: Job,
     ):
         """Test getting status of completed job."""
-        response = await client.get(
-            f"/api/v2/generate/job/{completed_job.id}/status"
-        )
+        response = await client.get(f"/api/v2/generate/job/{completed_job.id}/status")
 
         assert response.status_code == 200
         data = response.json()
@@ -107,9 +108,7 @@ class TestJobStatusEndpoint:
         running_job: Job,
     ):
         """Test getting status of running job."""
-        response = await client.get(
-            f"/api/v2/generate/job/{running_job.id}/status"
-        )
+        response = await client.get(f"/api/v2/generate/job/{running_job.id}/status")
 
         assert response.status_code == 200
         data = response.json()
@@ -127,9 +126,7 @@ class TestJobStatusEndpoint:
         failed_job: Job,
     ):
         """Test getting status of failed job."""
-        response = await client.get(
-            f"/api/v2/generate/job/{failed_job.id}/status"
-        )
+        response = await client.get(f"/api/v2/generate/job/{failed_job.id}/status")
 
         assert response.status_code == 200
         data = response.json()
@@ -142,9 +139,7 @@ class TestJobStatusEndpoint:
     async def test_get_job_status_not_found(self, client: AsyncClient):
         """Test getting status of non-existent job."""
         fake_id = str(uuid4())
-        response = await client.get(
-            f"/api/v2/generate/job/{fake_id}/status"
-        )
+        response = await client.get(f"/api/v2/generate/job/{fake_id}/status")
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
@@ -152,9 +147,7 @@ class TestJobStatusEndpoint:
     @pytest.mark.asyncio
     async def test_get_job_status_invalid_id(self, client: AsyncClient):
         """Test getting status with invalid job ID format."""
-        response = await client.get(
-            "/api/v2/generate/job/not-a-uuid/status"
-        )
+        response = await client.get("/api/v2/generate/job/not-a-uuid/status")
 
         assert response.status_code == 400
         assert "invalid" in response.json()["detail"].lower()

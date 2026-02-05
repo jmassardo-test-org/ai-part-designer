@@ -14,13 +14,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, update, and_, or_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.core.config import settings
 from app.models.design import Design
 from app.models.user import User
 
@@ -34,7 +32,7 @@ router = APIRouter()
 
 class TrashedItemResponse(BaseModel):
     """A trashed item."""
-    
+
     id: UUID
     name: str
     item_type: str  # design, project, file
@@ -44,14 +42,14 @@ class TrashedItemResponse(BaseModel):
     size_bytes: int | None = None
     expires_at: datetime
     days_until_deletion: int
-    
+
     class Config:
         from_attributes = True
 
 
 class TrashListResponse(BaseModel):
     """List of trashed items."""
-    
+
     items: list[TrashedItemResponse]
     total: int
     page: int
@@ -61,7 +59,7 @@ class TrashListResponse(BaseModel):
 
 class RestoreResponse(BaseModel):
     """Response after restoring item."""
-    
+
     id: UUID
     name: str
     restored_at: datetime
@@ -70,7 +68,7 @@ class RestoreResponse(BaseModel):
 
 class TrashSettingsRequest(BaseModel):
     """Update trash settings."""
-    
+
     retention_days: int = Field(
         ge=1,
         le=365,
@@ -84,7 +82,7 @@ class TrashSettingsRequest(BaseModel):
 
 class TrashSettingsResponse(BaseModel):
     """Current trash settings."""
-    
+
     retention_days: int
     auto_empty: bool
     next_cleanup: datetime | None
@@ -92,7 +90,7 @@ class TrashSettingsResponse(BaseModel):
 
 class TrashStatsResponse(BaseModel):
     """Trash statistics."""
-    
+
     total_items: int
     total_size_bytes: int
     oldest_item_date: datetime | None
@@ -138,47 +136,44 @@ async def list_trash(
 ) -> TrashListResponse:
     """List all items in user's trash."""
     retention_days = get_retention_days(current_user)
-    
+
     # Base query for soft-deleted designs
     base_query = (
         select(Design)
         .where(Design.deleted_at.isnot(None))
         .where(Design.project.has(user_id=current_user.id))
     )
-    
+
     # Count total
     count_query = select(func.count()).select_from(base_query.subquery())
     total = (await db.execute(count_query)).scalar_one()
-    
+
     # Fetch page
     offset = (page - 1) * page_size
-    query = (
-        base_query
-        .order_by(Design.deleted_at.desc())
-        .offset(offset)
-        .limit(page_size)
-    )
+    query = base_query.order_by(Design.deleted_at.desc()).offset(offset).limit(page_size)
     result = await db.execute(query)
     designs = result.scalars().all()
-    
+
     # Build response
     items = []
     for design in designs:
         expires_at = calculate_expiry(design.deleted_at, retention_days)
         days_left = (expires_at - datetime.utcnow()).days
-        
-        items.append(TrashedItemResponse(
-            id=design.id,
-            name=design.name,
-            item_type="design",
-            deleted_at=design.deleted_at,
-            deleted_by=None,  # Would track who deleted
-            original_location=f"projects/{design.project_id}",
-            size_bytes=None,  # Would get from file storage
-            expires_at=expires_at,
-            days_until_deletion=max(0, days_left),
-        ))
-    
+
+        items.append(
+            TrashedItemResponse(
+                id=design.id,
+                name=design.name,
+                item_type="design",
+                deleted_at=design.deleted_at,
+                deleted_by=None,  # Would track who deleted
+                original_location=f"projects/{design.project_id}",
+                size_bytes=None,  # Would get from file storage
+                expires_at=expires_at,
+                days_until_deletion=max(0, days_left),
+            )
+        )
+
     return TrashListResponse(
         items=items,
         total=total,
@@ -209,19 +204,19 @@ async def restore_from_trash(
     )
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found in trash",
         )
-    
+
     # Restore by clearing deleted_at
     design.deleted_at = None
     design.updated_at = datetime.utcnow()
-    
+
     await db.commit()
-    
+
     return RestoreResponse(
         id=design.id,
         name=design.name,
@@ -251,17 +246,17 @@ async def permanent_delete(
     )
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found in trash",
         )
-    
+
     # Actually delete from database
     await db.delete(design)
     await db.commit()
-    
+
     # Note: In production, also delete associated files from storage
 
 
@@ -284,11 +279,11 @@ async def empty_trash(
     )
     result = await db.execute(query)
     designs = result.scalars().all()
-    
+
     # Delete all
     for design in designs:
         await db.delete(design)
-    
+
     await db.commit()
 
 
@@ -304,39 +299,34 @@ async def get_trash_stats(
 ) -> TrashStatsResponse:
     """Get trash statistics."""
     retention_days = get_retention_days(current_user)
-    expiry_threshold = datetime.utcnow() + timedelta(days=7)
-    
+    datetime.utcnow() + timedelta(days=7)
+
     # Base filter
     base_filter = and_(
         Design.deleted_at.isnot(None),
         Design.project.has(user_id=current_user.id),
     )
-    
+
     # Total count
-    total = (await db.execute(
-        select(func.count()).where(base_filter)
-    )).scalar_one()
-    
+    total = (await db.execute(select(func.count()).where(base_filter))).scalar_one()
+
     # Oldest item
     oldest_query = (
-        select(Design.deleted_at)
-        .where(base_filter)
-        .order_by(Design.deleted_at.asc())
-        .limit(1)
+        select(Design.deleted_at).where(base_filter).order_by(Design.deleted_at.asc()).limit(1)
     )
     oldest_result = await db.execute(oldest_query)
     oldest_date = oldest_result.scalar_one_or_none()
-    
+
     # Items expiring soon (within 7 days)
     # This requires calculating expiry based on deleted_at + retention
     # Simplified: count items deleted more than (retention - 7) days ago
     expiring_threshold = datetime.utcnow() - timedelta(days=retention_days - 7)
-    expiring_soon = (await db.execute(
-        select(func.count())
-        .where(base_filter)
-        .where(Design.deleted_at <= expiring_threshold)
-    )).scalar_one()
-    
+    expiring_soon = (
+        await db.execute(
+            select(func.count()).where(base_filter).where(Design.deleted_at <= expiring_threshold)
+        )
+    ).scalar_one()
+
     return TrashStatsResponse(
         total_items=total,
         total_size_bytes=0,  # Would calculate from file storage
@@ -356,7 +346,7 @@ async def get_trash_settings(
 ) -> TrashSettingsResponse:
     """Get user's trash settings."""
     settings = current_user.extra_data.get("trash_settings", {})
-    
+
     return TrashSettingsResponse(
         retention_days=settings.get("retention_days", DEFAULT_RETENTION_DAYS),
         auto_empty=settings.get("auto_empty", True),
@@ -381,9 +371,9 @@ async def update_trash_settings(
     trash_settings["retention_days"] = request.retention_days
     trash_settings["auto_empty"] = request.auto_empty
     current_user.extra_data["trash_settings"] = trash_settings
-    
+
     await db.commit()
-    
+
     return TrashSettingsResponse(
         retention_days=request.retention_days,
         auto_empty=request.auto_empty,

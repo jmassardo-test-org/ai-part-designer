@@ -10,7 +10,7 @@ This module defines schemas for enclosure features:
 Features are applied to enclosure walls and modify the geometry.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,7 +19,7 @@ from app.cad_v2.schemas.base import Dimension, Point2D, Point3D
 from app.cad_v2.schemas.enclosure import WallSide
 
 
-class CutoutShape(str, Enum):
+class CutoutShape(StrEnum):
     """Shape of cutout openings."""
 
     RECTANGLE = "rectangle"
@@ -98,7 +98,7 @@ CutoutSpec = Union[
 ]
 
 
-class FeatureType(str, Enum):
+class FeatureType(StrEnum):
     """Types of features that can be added to enclosures."""
 
     CUTOUT = "cutout"

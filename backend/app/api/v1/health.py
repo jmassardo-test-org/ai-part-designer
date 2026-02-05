@@ -9,17 +9,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.core.config import get_settings, Settings
+from app.core.config import Settings, get_settings
 
 router = APIRouter()
 
 
 class HealthResponse(BaseModel):
     """Health check response."""
-    
+
     status: str
     version: str
     environment: str
@@ -28,7 +28,7 @@ class HealthResponse(BaseModel):
 
 class ReadinessResponse(BaseModel):
     """Readiness check response with dependency status."""
-    
+
     status: str
     checks: dict[str, bool | str | None]
     timestamp: str
@@ -45,7 +45,7 @@ async def health_check(
 ) -> HealthResponse:
     """
     Basic liveness probe.
-    
+
     Returns immediately if the service is running.
     Used by load balancers and orchestrators.
     """
@@ -68,33 +68,36 @@ async def readiness_check(
 ) -> ReadinessResponse:
     """
     Readiness probe checking dependencies.
-    
+
     Verifies database, cache, and storage connectivity.
     Returns 503 if any critical dependency is down.
     """
     checks = {}
-    
+
     # Check database
     try:
         from app.core.database import async_session_maker
+
         async with async_session_maker() as session:
             await session.execute("SELECT 1")
         checks["database"] = True
     except Exception:
         checks["database"] = False
-    
+
     # Check Redis
     try:
         from app.core.cache import get_redis
+
         redis = await get_redis()
         await redis.ping()
         checks["cache"] = True
     except Exception:
         checks["cache"] = False
-    
+
     # Check AI provider
     try:
         from app.ai.providers import get_ai_provider
+
         provider = get_ai_provider()
         if provider.is_configured:
             # Actually check if we can reach the provider
@@ -112,10 +115,10 @@ async def readiness_check(
         checks["ai"] = False
         checks["ai_provider"] = None
         checks["ai_error"] = str(e)
-    
+
     # Overall status
     all_critical_ok = checks.get("database", False)  # DB is critical
-    
+
     return ReadinessResponse(
         status="ready" if all_critical_ok else "not_ready",
         checks=checks,
@@ -132,10 +135,11 @@ async def service_info(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
     """Return service information for debugging."""
-    
+
     # Get AI provider info
     try:
         from app.ai.providers import get_ai_provider
+
         provider = get_ai_provider()
         ai_info = {
             "enabled": provider.is_configured,
@@ -144,7 +148,7 @@ async def service_info(
         }
     except Exception:
         ai_info = {"enabled": False, "provider": None, "model": None}
-    
+
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,

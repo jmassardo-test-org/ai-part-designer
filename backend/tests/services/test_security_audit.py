@@ -5,19 +5,17 @@ Tests security event types, severity levels, threshold configuration,
 and event severity mappings.
 """
 
-import pytest
-
 from app.services.security_audit import (
+    EVENT_SEVERITY,
     SecurityAuditService,
     SecurityEventType,
     SecuritySeverity,
-    EVENT_SEVERITY,
 )
-
 
 # =============================================================================
 # Security Event Type Tests
 # =============================================================================
+
 
 class TestSecurityEventType:
     """Tests for security event type enum."""
@@ -82,6 +80,7 @@ class TestSecurityEventType:
 # Security Severity Tests
 # =============================================================================
 
+
 class TestSecuritySeverity:
     """Tests for security severity levels."""
 
@@ -118,6 +117,7 @@ class TestSecuritySeverity:
 # =============================================================================
 # Event Severity Mapping Tests
 # =============================================================================
+
 
 class TestEventSeverityMapping:
     """Tests for event to severity mappings."""
@@ -171,6 +171,7 @@ class TestEventSeverityMapping:
 # Threshold Configuration Tests
 # =============================================================================
 
+
 class TestSecurityThresholds:
     """Tests for security threshold configuration."""
 
@@ -193,6 +194,7 @@ class TestSecurityThresholds:
 # =============================================================================
 # Event Prefix Tests
 # =============================================================================
+
 
 class TestEventPrefixes:
     """Tests for event type prefix patterns."""
@@ -236,6 +238,7 @@ class TestEventPrefixes:
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases in security auditing."""

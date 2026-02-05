@@ -2,19 +2,17 @@
 AI processing tasks.
 """
 
+import logging
 from datetime import datetime
 from typing import Any
 from uuid import UUID
-import logging
-import tempfile
-from pathlib import Path
 
 from celery import shared_task
 
 from app.worker.ws_utils import (
-    send_job_progress,
     send_job_complete,
     send_job_failed,
+    send_job_progress,
     send_job_started,
 )
 
@@ -36,22 +34,23 @@ def generate_from_prompt(
 ) -> dict:
     """
     Generate CAD model from natural language prompt.
-    
+
     Uses AI to interpret the prompt and generate CadQuery code,
     then executes the code to create the model.
-    
+
     Args:
         job_id: Job ID to update with progress
         prompt: User's natural language description
         context: Additional context (user preferences, constraints, etc.)
         user_id: User ID for WebSocket updates
-    
+
     Returns:
         Dict with generated model info
     """
+    import asyncio
+
     from app.core.database import async_session_maker
     from app.repositories import JobRepository
-    import asyncio
 
     # Send job started notification
     if user_id:
@@ -118,7 +117,7 @@ def generate_from_prompt(
             # Use the AI generator to create CAD from description
             from app.ai.generator import generate_from_description
             from app.cad.export import ExportQuality
-            
+
             try:
                 generation_result = await generate_from_description(
                     prompt,
@@ -137,10 +136,10 @@ def generate_from_prompt(
                     error_message=str(gen_error),
                 )
                 await session.commit()
-                
+
                 if user_id:
                     send_job_failed(user_id, job_id, str(gen_error), "GenerationError")
-                
+
                 raise ValueError(f"CAD generation failed: {gen_error}")
 
             # Step 3: Upload generated files to storage
@@ -154,10 +153,10 @@ def generate_from_prompt(
             if user_id:
                 send_job_progress(user_id, job_id, 80, "running", "Uploading generated files")
 
-            from app.core.storage import storage_client, StorageBucket
-            
+            from app.core.storage import StorageBucket, storage_client
+
             file_urls = {}
-            
+
             # Upload STEP file if generated
             if generation_result.step_data:
                 step_key = f"designs/{job_id}/model.step"
@@ -172,7 +171,7 @@ def generate_from_prompt(
                     key=step_key,
                     expires_in=86400,
                 )
-            
+
             # Upload STL file if generated
             if generation_result.stl_data:
                 stl_key = f"designs/{job_id}/model.stl"
@@ -193,13 +192,23 @@ def generate_from_prompt(
                 "files": file_urls,
                 "generated_code": generation_result.generated_code,
                 "interpretation": {
-                    "understood_as": generation_result.intent.part_type if generation_result.intent else "Unknown",
-                    "confidence": generation_result.intent.confidence if generation_result.intent else 0.0,
-                    "assumptions": generation_result.intent.assumptions_made if generation_result.intent else [],
+                    "understood_as": generation_result.intent.part_type
+                    if generation_result.intent
+                    else "Unknown",
+                    "confidence": generation_result.intent.confidence
+                    if generation_result.intent
+                    else 0.0,
+                    "assumptions": generation_result.intent.assumptions_made
+                    if generation_result.intent
+                    else [],
                 },
                 "geometry_info": {
-                    "bounding_box": generation_result.geometry_info.get("bounding_box") if generation_result.geometry_info else None,
-                    "volume": generation_result.geometry_info.get("volume") if generation_result.geometry_info else None,
+                    "bounding_box": generation_result.geometry_info.get("bounding_box")
+                    if generation_result.geometry_info
+                    else None,
+                    "volume": generation_result.geometry_info.get("volume")
+                    if generation_result.geometry_info
+                    else None,
                 },
                 "warnings": generation_result.warnings,
                 "timing": {
@@ -239,12 +248,12 @@ def generate_from_prompt(
 async def _check_content_moderation(content: str) -> dict[str, Any]:
     """
     Check content against moderation policies.
-    
+
     Uses AI provider to check for prohibited content categories.
-    
+
     Args:
         content: The text content to moderate
-    
+
     Returns:
         Dict with flagged status, categories, and decision
     """
@@ -254,16 +263,17 @@ async def _check_content_moderation(content: str) -> dict[str, Any]:
         r"\b(drug|narcotic|cocaine|heroin)\b",
         r"\b(harm|kill|attack|destroy)\b",
     ]
-    
+
     import re
+
     content_lower = content.lower()
-    
+
     categories = {
         "weapons": {"score": 0.0, "flagged": False},
         "drugs": {"score": 0.0, "flagged": False},
         "violence": {"score": 0.0, "flagged": False},
     }
-    
+
     # Check for prohibited patterns
     for pattern in prohibited_patterns:
         if re.search(pattern, content_lower):
@@ -276,9 +286,9 @@ async def _check_content_moderation(content: str) -> dict[str, Any]:
             elif "harm" in pattern or "kill" in pattern:
                 categories["violence"]["score"] = 0.9
                 categories["violence"]["flagged"] = True
-    
+
     flagged = any(cat["flagged"] for cat in categories.values())
-    
+
     return {
         "flagged": flagged,
         "categories": categories,
@@ -295,19 +305,20 @@ def suggest_modifications(
 ) -> dict:
     """
     Suggest modifications to a design based on user request.
-    
+
     Uses AI to understand the request and propose parameter changes.
-    
+
     Args:
         design_id: ID of the design to modify
         user_request: User's natural language modification request
-    
+
     Returns:
         Dict with suggested modifications and confidence scores
     """
+    import asyncio
+
     from app.core.database import async_session_maker
     from app.repositories import DesignRepository
-    import asyncio
 
     logger.info(f"Suggesting modifications for design {design_id}")
 
@@ -315,18 +326,18 @@ def suggest_modifications(
         async with async_session_maker() as session:
             design_repo = DesignRepository(session)
             design = await design_repo.get_by_id(UUID(design_id))
-            
+
             if not design:
                 raise ValueError(f"Design not found: {design_id}")
-            
+
             # Get current parameters from design
             current_params = design.parameters or {}
-            
+
             # Use AI to analyze the modification request
             from app.ai.client import get_ai_client
-            
+
             ai_client = get_ai_client()
-            
+
             prompt = f"""Analyze this modification request for a CAD design:
 
 Current parameters: {current_params}
@@ -355,22 +366,20 @@ Only output the JSON. No markdown."""
                     system_prompt="You are a CAD design assistant that suggests parameter modifications.",
                     temperature=0.3,
                 )
-                
+
                 # Parse the response
                 import json
                 import re
-                
+
                 # Extract JSON from response
-                json_match = re.search(r'\{[\s\S]*\}', response)
+                json_match = re.search(r"\{[\s\S]*\}", response)
                 if json_match:
-                    result = json.loads(json_match.group())
-                    return result
-                else:
-                    logger.warning("Failed to parse AI response, returning default")
-                    
+                    return json.loads(json_match.group())
+                logger.warning("Failed to parse AI response, returning default")
+
             except Exception as e:
                 logger.error(f"AI suggestion failed: {e}")
-            
+
             # Fallback response if AI fails
             return {
                 "suggestions": [],
@@ -389,18 +398,18 @@ def moderate_content(
 ) -> dict:
     """
     Check content against moderation policies.
-    
+
     Returns moderation decision and category scores.
-    
+
     Args:
         content: The content to moderate
         content_type: Type of content (prompt, code, description)
-    
+
     Returns:
         Dict with flagged status, categories, and decision
     """
     import asyncio
-    
+
     logger.info(f"Moderating {content_type}")
-    
+
     return asyncio.run(_check_content_moderation(content))

@@ -23,24 +23,28 @@ These endpoints will be removed in a future version.
 from __future__ import annotations
 
 import logging
-import warnings
 import tempfile
+import warnings
 from pathlib import Path
-from typing import Annotated, Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.auth import get_current_user, get_current_user_optional
-from app.models import User
-from app.models.template import Template
-from app.cad.templates import generate_from_template, TEMPLATE_REGISTRY
 from app.cad.export import export_step, export_stl
+from app.cad.templates import TEMPLATE_REGISTRY, generate_from_template
+from app.core.auth import get_current_user, get_current_user_optional
+from app.core.database import get_db
+from app.models.template import Template
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +62,10 @@ router = APIRouter(deprecated=True)
 # Request/Response Models
 # =============================================================================
 
+
 class ParameterDefinition(BaseModel):
     """Template parameter definition."""
-    
+
     type: str = Field(description="Parameter type: number, enum, boolean, string")
     label: str = Field(description="Human-readable label")
     description: str | None = Field(default=None, description="Help text")
@@ -74,7 +79,7 @@ class ParameterDefinition(BaseModel):
 
 class TemplateListItem(BaseModel):
     """Template summary for list views."""
-    
+
     id: UUID
     name: str
     slug: str
@@ -92,7 +97,7 @@ class TemplateListItem(BaseModel):
 
 class TemplateDetail(BaseModel):
     """Full template details including parameters."""
-    
+
     id: UUID
     name: str
     slug: str
@@ -111,7 +116,7 @@ class TemplateDetail(BaseModel):
 
 class TemplateListResponse(BaseModel):
     """Response for template list endpoint."""
-    
+
     templates: list[TemplateListItem]
     total: int
     categories: list[str]
@@ -119,7 +124,7 @@ class TemplateListResponse(BaseModel):
 
 class GenerateRequest(BaseModel):
     """Request to generate from template."""
-    
+
     parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Template parameter values",
@@ -138,7 +143,7 @@ class GenerateRequest(BaseModel):
 
 class GenerateResponse(BaseModel):
     """Response with generation result."""
-    
+
     message: str
     download_url: str
     format: str
@@ -147,13 +152,13 @@ class GenerateResponse(BaseModel):
 
 class PreviewRequest(BaseModel):
     """Request for template preview with custom parameters."""
-    
+
     parameters: dict[str, Any] = Field(default_factory=dict)
 
 
 class TemplateCreateRequest(BaseModel):
     """Request to create a custom template."""
-    
+
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
     category: str = Field(..., min_length=1, max_length=50)
@@ -172,7 +177,7 @@ class TemplateCreateRequest(BaseModel):
 
 class TemplateFromDesignRequest(BaseModel):
     """Request to create a template from a design."""
-    
+
     design_id: UUID = Field(..., description="ID of the design to create template from")
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
@@ -182,7 +187,7 @@ class TemplateFromDesignRequest(BaseModel):
 
 class TemplateCreateResponse(BaseModel):
     """Response after creating a template."""
-    
+
     id: UUID
     name: str
     slug: str
@@ -194,6 +199,7 @@ class TemplateCreateResponse(BaseModel):
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.get(
     "",
@@ -212,47 +218,46 @@ async def list_templates(
 ) -> TemplateListResponse:
     """
     List all available templates.
-    
+
     Templates are filtered based on user tier (if authenticated).
     """
     # Build query
-    query = select(Template).where(Template.is_active == True)
-    
+    query = select(Template).where(Template.is_active)
+
     if category:
         query = query.where(Template.category == category)
-    
+
     if tier:
         query = query.where(Template.min_tier == tier)
-    
+
     if search:
         search_pattern = f"%{search}%"
         query = query.where(
-            Template.name.ilike(search_pattern) |
-            Template.description.ilike(search_pattern)
+            Template.name.ilike(search_pattern) | Template.description.ilike(search_pattern)
         )
-    
+
     # Get total count
-    count_query = select(Template.id).where(Template.is_active == True)
+    count_query = select(Template.id).where(Template.is_active)
     if category:
         count_query = count_query.where(Template.category == category)
     result = await db.execute(count_query)
     total = len(result.all())
-    
+
     # Get categories
-    cat_query = select(Template.category).where(Template.is_active == True).distinct()
+    cat_query = select(Template.category).where(Template.is_active).distinct()
     cat_result = await db.execute(cat_query)
     categories = [row[0] for row in cat_result.all()]
-    
+
     # Get templates
     query = query.order_by(Template.category, Template.name).limit(limit).offset(offset)
     result = await db.execute(query)
     templates = result.scalars().all()
-    
+
     # Filter by user tier if authenticated
     # Admin users can see all templates regardless of tier
     user_tier = current_user.tier if current_user else "free"
     is_admin = current_user.role == "admin" if current_user else False
-    
+
     template_list = []
     for tmpl in templates:
         # Admins bypass tier restrictions
@@ -263,23 +268,25 @@ async def list_templates(
                 for name, config in tmpl.parameters.items():
                     param = {"name": name, **config} if isinstance(config, dict) else {"name": name}
                     params_list.append(param)
-            
-            template_list.append(TemplateListItem(
-                id=tmpl.id,
-                name=tmpl.name,
-                slug=tmpl.slug,
-                category=tmpl.category,
-                description=tmpl.description,
-                min_tier=tmpl.min_tier,
-                tier_required=tmpl.min_tier,
-                thumbnail_url=tmpl.thumbnail_url,
-                use_count=tmpl.use_count or 0,
-                usage_count=tmpl.use_count or 0,
-                tags=tmpl.tags or [],
-                parameters=params_list,
-                is_featured=tmpl.is_featured or False,
-            ))
-    
+
+            template_list.append(
+                TemplateListItem(
+                    id=tmpl.id,
+                    name=tmpl.name,
+                    slug=tmpl.slug,
+                    category=tmpl.category,
+                    description=tmpl.description,
+                    min_tier=tmpl.min_tier,
+                    tier_required=tmpl.min_tier,
+                    thumbnail_url=tmpl.thumbnail_url,
+                    use_count=tmpl.use_count or 0,
+                    usage_count=tmpl.use_count or 0,
+                    tags=tmpl.tags or [],
+                    parameters=params_list,
+                    is_featured=tmpl.is_featured or False,
+                )
+            )
+
     return TemplateListResponse(
         templates=template_list,
         total=total,
@@ -303,17 +310,17 @@ async def get_template(
     """
     query = select(Template).where(
         Template.slug == slug,
-        Template.is_active == True,
+        Template.is_active,
     )
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     # Check tier access
     user_tier = current_user.tier if current_user else "free"
     if not template.is_accessible_by_tier(user_tier):
@@ -321,7 +328,7 @@ async def get_template(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"This template requires {template.min_tier} tier",
         )
-    
+
     # Convert parameters dict to list format for frontend
     # Merge default_values into each parameter
     params_list = []
@@ -333,7 +340,7 @@ async def get_template(
             if "default" not in param or param["default"] is None:
                 param["default"] = default_values.get(name, param.get("min", 0))
             params_list.append(param)
-    
+
     return TemplateDetail(
         id=template.id,
         name=template.name,
@@ -367,34 +374,34 @@ async def generate_template(
 ) -> GenerateResponse:
     """
     Generate a CAD file from template.
-    
+
     Validates parameters and generates the file in the requested format.
     """
     # Get template
     query = select(Template).where(
         Template.slug == slug,
-        Template.is_active == True,
+        Template.is_active,
     )
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     # Check tier access
     if not template.is_accessible_by_tier(current_user.tier):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"This template requires {template.min_tier} tier",
         )
-    
+
     # Merge with defaults
     params = template.get_parameter_defaults()
     params.update(request.parameters)
-    
+
     # Validate parameters
     errors = template.validate_parameters(params)
     if errors:
@@ -402,56 +409,54 @@ async def generate_template(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"message": "Invalid parameters", "errors": errors},
         )
-    
+
     # Check if template generator exists
     if slug not in TEMPLATE_REGISTRY:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Template generator not implemented",
         )
-    
+
     try:
         # Generate CAD geometry
         shape = generate_from_template(slug, params)
-        
+
         # Export to file
         with tempfile.NamedTemporaryFile(
             suffix=f".{request.format}",
             delete=False,
         ) as tmp:
             output_path = Path(tmp.name)
-        
+
         if request.format == "step":
             data = export_step(shape)
             output_path.write_bytes(data)
         else:
             data = export_stl(shape, quality=request.quality)
             output_path.write_bytes(data)
-        
+
         # Increment usage count
         template.usage_count += 1
         await db.commit()
-        
+
         # In production, upload to S3 and return presigned URL
         # For now, return local file path
         download_url = f"/api/v1/templates/{slug}/download/{output_path.name}"
-        
-        logger.info(
-            f"Generated {request.format} from template {slug} for user {current_user.id}"
-        )
-        
+
+        logger.info(f"Generated {request.format} from template {slug} for user {current_user.id}")
+
         return GenerateResponse(
             message="Generation complete",
             download_url=download_url,
             format=request.format,
             parameters_used=params,
         )
-        
+
     except Exception as e:
         logger.error(f"Template generation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Generation failed: {str(e)}",
+            detail=f"Generation failed: {e!s}",
         )
 
 
@@ -468,56 +473,56 @@ async def preview_template(
 ):
     """
     Generate a low-poly STL for preview.
-    
+
     This is optimized for fast loading in the 3D viewer.
     """
     # Get template
     query = select(Template).where(
         Template.slug == slug,
-        Template.is_active == True,
+        Template.is_active,
     )
     result = await db.execute(query)
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     # Check if template generator exists
     if slug not in TEMPLATE_REGISTRY:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Template generator not implemented",
         )
-    
+
     # Merge with defaults
     params = template.get_parameter_defaults()
     params.update(request.parameters)
-    
+
     try:
         # Generate CAD geometry
         shape = generate_from_template(slug, params)
-        
+
         # Export low-quality STL for preview
         with tempfile.NamedTemporaryFile(suffix=".stl", delete=False) as tmp:
             output_path = Path(tmp.name)
-        
+
         data = export_stl(shape, quality="draft")
         output_path.write_bytes(data)
-        
+
         return FileResponse(
             output_path,
             media_type="application/octet-stream",
             filename=f"{slug}-preview.stl",
         )
-        
+
     except Exception as e:
         logger.error(f"Preview generation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Preview failed: {str(e)}",
+            detail=f"Preview failed: {e!s}",
         )
 
 
@@ -532,29 +537,35 @@ async def list_categories(
     """
     Get all template categories with counts.
     """
-    query = select(
-        Template.category,
-    ).where(Template.is_active == True).distinct()
-    
+    query = (
+        select(
+            Template.category,
+        )
+        .where(Template.is_active)
+        .distinct()
+    )
+
     result = await db.execute(query)
     categories = [row[0] for row in result.all()]
-    
+
     # Get counts per category
     category_data = []
     for cat in sorted(categories):
         count_query = select(Template.id).where(
             Template.category == cat,
-            Template.is_active == True,
+            Template.is_active,
         )
         count_result = await db.execute(count_query)
         count = len(count_result.all())
-        
-        category_data.append({
-            "name": cat,
-            "slug": cat.lower().replace(" ", "-"),
-            "count": count,
-        })
-    
+
+        category_data.append(
+            {
+                "name": cat,
+                "slug": cat.lower().replace(" ", "-"),
+                "count": count,
+            }
+        )
+
     return category_data
 
 
@@ -576,24 +587,24 @@ async def list_my_templates(
     query = (
         select(Template)
         .where(Template.created_by_user_id == current_user.id)
-        .where(Template.is_active == True)
+        .where(Template.is_active)
         .order_by(Template.updated_at.desc())
         .limit(limit)
         .offset(offset)
     )
-    
+
     result = await db.execute(query)
     templates = result.scalars().all()
-    
+
     # Get total count
     count_query = (
         select(Template.id)
         .where(Template.created_by_user_id == current_user.id)
-        .where(Template.is_active == True)
+        .where(Template.is_active)
     )
     count_result = await db.execute(count_query)
     total = len(count_result.all())
-    
+
     template_list = [
         TemplateListItem(
             id=tmpl.id,
@@ -607,7 +618,7 @@ async def list_my_templates(
         )
         for tmpl in templates
     ]
-    
+
     return TemplateListResponse(
         templates=template_list,
         total=total,
@@ -629,16 +640,16 @@ async def create_template(
 ) -> TemplateCreateResponse:
     """
     Create a new custom template.
-    
+
     Templates can be kept private or made public for other users.
     """
     import re
     from uuid import uuid4
-    
+
     # Generate slug from name
-    base_slug = re.sub(r'[^a-z0-9]+', '-', request.name.lower()).strip('-')
+    base_slug = re.sub(r"[^a-z0-9]+", "-", request.name.lower()).strip("-")
     slug = f"{base_slug}-{str(uuid4())[:8]}"
-    
+
     template = Template(
         name=request.name,
         slug=slug,
@@ -655,13 +666,13 @@ async def create_template(
         created_by_user_id=current_user.id,
         cadquery_script="# Custom template - script to be defined",
     )
-    
+
     db.add(template)
     await db.commit()
     await db.refresh(template)
-    
+
     logger.info(f"Template created: {template.id} by user {current_user.id}")
-    
+
     return TemplateCreateResponse(
         id=template.id,
         name=template.name,
@@ -686,14 +697,15 @@ async def create_template_from_design(
 ) -> TemplateCreateResponse:
     """
     Create a template from an existing design.
-    
+
     Extracts parameters and configuration from the design.
     """
     import re
     from uuid import uuid4
+
     from app.models.design import Design
     from app.models.project import Project
-    
+
     # Get the design
     design_query = (
         select(Design, Project)
@@ -703,27 +715,27 @@ async def create_template_from_design(
     )
     result = await db.execute(design_query)
     row = result.one_or_none()
-    
+
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     design, project = row
-    
+
     # Check ownership
     if project.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to create a template from this design",
         )
-    
+
     # Extract parameters from design extra_data
     design_data = design.extra_data or {}
     parameters = {}
     default_values = {}
-    
+
     # Extract dimensions as parameters
     dimensions = design_data.get("dimensions", {})
     for key, value in dimensions.items():
@@ -737,14 +749,14 @@ async def create_template_from_design(
                 "step": 0.1 if value < 10 else 1,
             }
             default_values[key] = value
-    
+
     # Generate slug
-    base_slug = re.sub(r'[^a-z0-9]+', '-', request.name.lower()).strip('-')
+    base_slug = re.sub(r"[^a-z0-9]+", "-", request.name.lower()).strip("-")
     slug = f"{base_slug}-{str(uuid4())[:8]}"
-    
+
     # Build CadQuery script placeholder with original parameters
     script = f"""# Template created from design: {design.name}
-# Original description: {design.description or 'N/A'}
+# Original description: {design.description or "N/A"}
 # Source: {design.source_type}
 
 # Parameters are passed as 'params' dict
@@ -752,7 +764,7 @@ async def create_template_from_design(
 
 # TODO: Implement parametric CAD generation
 """
-    
+
     template = Template(
         name=request.name,
         slug=slug,
@@ -769,13 +781,15 @@ async def create_template_from_design(
         source_design_id=design.id,
         cadquery_script=script,
     )
-    
+
     db.add(template)
     await db.commit()
     await db.refresh(template)
-    
-    logger.info(f"Template created from design: {template.id} from {design.id} by user {current_user.id}")
-    
+
+    logger.info(
+        f"Template created from design: {template.id} from {design.id} by user {current_user.id}"
+    )
+
     return TemplateCreateResponse(
         id=template.id,
         name=template.name,

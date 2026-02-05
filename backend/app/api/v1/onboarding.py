@@ -8,14 +8,17 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.database import get_db
 from app.models import User
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +61,9 @@ class OnboardingStatusResponse(BaseModel):
 class OnboardingStepRequest(BaseModel):
     """Request to update onboarding step."""
 
-    step_data: dict = Field(default_factory=dict, description="Optional data about the completed step")
+    step_data: dict = Field(
+        default_factory=dict, description="Optional data about the completed step"
+    )
 
 
 class OnboardingStepResponse(BaseModel):
@@ -232,9 +237,7 @@ async def list_onboarding_steps() -> dict:
     return {
         "total_steps": TOTAL_ONBOARDING_STEPS,
         "steps": [
-            {"step": step, "name": name}
-            for step, name in ONBOARDING_STEPS.items()
-            if step > 0
+            {"step": step, "name": name} for step, name in ONBOARDING_STEPS.items() if step > 0
         ],
     }
 
@@ -270,7 +273,7 @@ async def get_onboarding_metrics(
 ) -> OnboardingMetricsResponse:
     """
     Get aggregated onboarding metrics.
-    
+
     Returns:
         - Total users count
         - Completion and skip rates
@@ -332,7 +335,8 @@ async def get_onboarding_metrics(
                 func.extract(
                     "epoch",
                     User.onboarding_completed_at - User.created_at,
-                ) / 3600
+                )
+                / 3600
             )
         ).where(
             User.onboarding_completed == True,  # noqa: E712

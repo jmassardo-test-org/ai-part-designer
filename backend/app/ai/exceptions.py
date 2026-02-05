@@ -12,7 +12,7 @@ from typing import Any
 
 class AIError(Exception):
     """Base exception for all AI-related errors."""
-    
+
     def __init__(
         self,
         message: str,
@@ -24,7 +24,7 @@ class AIError(Exception):
         self.message = message
         self.details = details or {}
         self.cause = cause
-    
+
     def __str__(self) -> str:
         if self.details:
             return f"{self.message} (details: {self.details})"
@@ -33,7 +33,7 @@ class AIError(Exception):
 
 class AIConnectionError(AIError):
     """Failed to connect to AI provider."""
-    
+
     def __init__(
         self,
         message: str = "Failed to connect to AI provider",
@@ -48,7 +48,7 @@ class AIConnectionError(AIError):
 
 class AIRateLimitError(AIError):
     """Rate limit exceeded on AI provider."""
-    
+
     def __init__(
         self,
         message: str = "AI rate limit exceeded",
@@ -64,7 +64,7 @@ class AIRateLimitError(AIError):
 
 class AIParseError(AIError):
     """Failed to parse AI response."""
-    
+
     def __init__(
         self,
         message: str = "Failed to parse AI response",
@@ -81,7 +81,7 @@ class AIParseError(AIError):
 
 class AITimeoutError(AIError):
     """AI request timed out."""
-    
+
     def __init__(
         self,
         message: str = "AI request timed out",
@@ -101,7 +101,7 @@ class AITimeoutError(AIError):
 
 class AIValidationError(AIError):
     """AI response failed validation."""
-    
+
     def __init__(
         self,
         message: str = "AI response validation failed",
@@ -117,7 +117,7 @@ class AIValidationError(AIError):
 
 class AIGenerationError(AIError):
     """AI code generation failed."""
-    
+
     def __init__(
         self,
         message: str = "AI code generation failed",

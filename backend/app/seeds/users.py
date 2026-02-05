@@ -19,9 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_maker
 from app.core.security import hash_password
-from app.models.user import User, Subscription, UserSettings
-from app.models.project import Project
 from app.models.design import Design, DesignVersion
+from app.models.project import Project
+from app.models.user import Subscription, User, UserSettings
 
 logger = logging.getLogger(__name__)
 
@@ -261,16 +261,15 @@ async def create_user(
     org_name: str | None = None,
 ) -> User | None:
     """Create a user with subscription and settings."""
-    
+
     # Check if user already exists
     from sqlalchemy import select
-    existing = await session.execute(
-        select(User).where(User.email == email)
-    )
+
+    existing = await session.execute(select(User).where(User.email == email))
     if existing.scalar_one_or_none():
         logger.info(f"User {email} already exists, skipping")
         return None
-    
+
     # Create user
     user = User(
         id=uuid4(),
@@ -289,7 +288,7 @@ async def create_user(
     )
     session.add(user)
     await session.flush()
-    
+
     # Create subscription
     subscription = Subscription(
         id=uuid4(),
@@ -300,7 +299,7 @@ async def create_user(
         current_period_end=datetime.utcnow() + timedelta(days=15),
     )
     session.add(subscription)
-    
+
     # Create user settings
     settings = UserSettings(
         id=uuid4(),
@@ -323,7 +322,7 @@ async def create_user(
         },
     )
     session.add(settings)
-    
+
     logger.info(f"Created user: {email} ({tier} tier, {role} role)")
     return user
 
@@ -334,9 +333,9 @@ async def create_sample_data(
     tier: str,
 ) -> None:
     """Create sample projects and designs for a user."""
-    
+
     projects_data = SAMPLE_PROJECTS.get(tier, SAMPLE_PROJECTS["free"])
-    
+
     for project_data in projects_data:
         # Create project
         project = Project(
@@ -347,7 +346,7 @@ async def create_sample_data(
         )
         session.add(project)
         await session.flush()
-        
+
         # Create designs
         for design_data in project_data.get("designs", []):
             design = Design(
@@ -370,7 +369,7 @@ async def create_sample_data(
             )
             session.add(design)
             await session.flush()
-            
+
             # Create initial version
             version = DesignVersion(
                 id=uuid4(),
@@ -392,17 +391,19 @@ async def create_sample_data(
                 },
             )
             session.add(version)
-            
+
             # Update design with current version
             design.current_version_id = version.id
-        
-        logger.info(f"  Created project: {project_data['name']} with {len(project_data.get('designs', []))} designs")
+
+        logger.info(
+            f"  Created project: {project_data['name']} with {len(project_data.get('designs', []))} designs"
+        )
 
 
 async def seed_users() -> dict:
     """
     Seed all users and sample data.
-    
+
     Returns:
         Summary of seeded data
     """
@@ -412,7 +413,7 @@ async def seed_users() -> dict:
         "designs_created": 0,
         "errors": [],
     }
-    
+
     async with async_session_maker() as session:
         try:
             # 1. Create platform admin
@@ -428,7 +429,7 @@ async def seed_users() -> dict:
             if admin:
                 summary["users_created"] += 1
                 await create_sample_data(session, admin, "enterprise")
-            
+
             # 2. Create free tier users
             logger.info("Creating free tier users...")
             for user_data in FREE_USERS:
@@ -442,7 +443,7 @@ async def seed_users() -> dict:
                 if user:
                     summary["users_created"] += 1
                     await create_sample_data(session, user, "free")
-            
+
             # 3. Create pro tier users
             logger.info("Creating pro tier users...")
             for user_data in PRO_USERS:
@@ -456,12 +457,12 @@ async def seed_users() -> dict:
                 if user:
                     summary["users_created"] += 1
                     await create_sample_data(session, user, "pro")
-            
+
             # 4. Create enterprise organizations
             logger.info("Creating enterprise organizations...")
             for org in ENTERPRISE_ORGS:
                 logger.info(f"  Organization: {org['org_name']}")
-                
+
                 # Create org admin
                 org_admin = await create_user(
                     session,
@@ -475,7 +476,7 @@ async def seed_users() -> dict:
                 if org_admin:
                     summary["users_created"] += 1
                     await create_sample_data(session, org_admin, "enterprise")
-                
+
                 # Create org users
                 for user_data in org["users"]:
                     user = await create_user(
@@ -489,16 +490,16 @@ async def seed_users() -> dict:
                     if user:
                         summary["users_created"] += 1
                         await create_sample_data(session, user, "enterprise")
-            
+
             await session.commit()
             logger.info(f"Seeding complete! Created {summary['users_created']} users")
-            
+
         except Exception as e:
             await session.rollback()
             logger.error(f"Seeding failed: {e}")
             summary["errors"].append(str(e))
             raise
-    
+
     return summary
 
 
@@ -511,7 +512,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-    
+
     print("=" * 60)
     print("AssemblematicAI - User Seeding")
     print("=" * 60)
@@ -537,8 +538,8 @@ if __name__ == "__main__":
             print(f"    • {u['email']} (password: {u['password']})")
     print()
     print("=" * 60)
-    
+
     asyncio.run(seed_users())
-    
+
     print()
     print("Done! You can now log in with any of the above credentials.")

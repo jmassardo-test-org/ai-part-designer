@@ -14,13 +14,13 @@ Or via Makefile:
 import asyncio
 import logging
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_maker
-from app.models import Project, Design, User
+from app.models import Design, Project, User
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,8 @@ EXAMPLE_PROJECTS = [
                 "name": "Main Enclosure Body",
                 "description": "The main body of the Raspberry Pi enclosure with ventilation.",
                 "prompt": "Create a Raspberry Pi 4 enclosure body with ventilation slots on top, "
-                         "access holes for USB, Ethernet, HDMI, and power ports on the sides, "
-                         "and mounting holes for M2.5 screws.",
+                "access holes for USB, Ethernet, HDMI, and power ports on the sides, "
+                "and mounting holes for M2.5 screws.",
                 "parameters": {
                     "length": 90,
                     "width": 60,
@@ -81,7 +81,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Cable Clip - Small",
                 "description": "Adhesive-backed cable clip for thin cables (up to 3mm diameter).",
                 "prompt": "Create an adhesive-backed cable clip for cables up to 3mm diameter "
-                         "with a snap-in mechanism.",
+                "with a snap-in mechanism.",
                 "parameters": {
                     "cable_diameter": 3,
                     "clip_count": 1,
@@ -92,7 +92,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Cable Clip - Multi",
                 "description": "Multi-cable clip holding up to 5 cables.",
                 "prompt": "Create a multi-cable organizer clip that can hold 5 cables "
-                         "with adjustable dividers.",
+                "with adjustable dividers.",
                 "parameters": {
                     "cable_count": 5,
                     "cable_diameter": 5,
@@ -103,7 +103,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Under-Desk Cable Tray",
                 "description": "Cable tray that mounts under the desk.",
                 "prompt": "Create an under-desk cable tray with mounting brackets "
-                         "and cable pass-through holes.",
+                "and cable pass-through holes.",
                 "parameters": {
                     "length": 400,
                     "width": 100,
@@ -126,7 +126,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Phone Stand Base",
                 "description": "Weighted base with anti-slip pad.",
                 "prompt": "Create a weighted phone stand base with anti-slip rubber pad area "
-                         "and hinge mount point.",
+                "and hinge mount point.",
                 "parameters": {
                     "base_width": 80,
                     "base_depth": 100,
@@ -137,7 +137,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Adjustable Arm",
                 "description": "Articulating arm with angle adjustment.",
                 "prompt": "Create an adjustable phone stand arm with multiple angle settings "
-                         "from 15 to 75 degrees.",
+                "from 15 to 75 degrees.",
                 "parameters": {
                     "arm_length": 120,
                     "angle_min": 15,
@@ -149,7 +149,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Phone Cradle",
                 "description": "Universal phone cradle with cable routing.",
                 "prompt": "Create a universal phone cradle that fits phones up to 80mm wide "
-                         "with a cutout for charging cables.",
+                "with a cutout for charging cables.",
                 "parameters": {
                     "max_phone_width": 80,
                     "cradle_depth": 25,
@@ -172,7 +172,7 @@ EXAMPLE_PROJECTS = [
                 "name": "PIR Sensor Mount",
                 "description": "Corner-mount bracket for PIR motion sensors.",
                 "prompt": "Create a corner-mount bracket for a PIR motion sensor with "
-                         "adjustable tilt angle.",
+                "adjustable tilt angle.",
                 "parameters": {
                     "sensor_diameter": 25,
                     "tilt_range": 45,
@@ -183,7 +183,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Temperature Sensor Housing",
                 "description": "Ventilated housing for temperature/humidity sensors.",
                 "prompt": "Create a ventilated housing for a DHT22 temperature sensor "
-                         "with wall mount option.",
+                "with wall mount option.",
                 "parameters": {
                     "sensor_type": "DHT22",
                     "ventilation": True,
@@ -194,7 +194,7 @@ EXAMPLE_PROJECTS = [
                 "name": "Ultrasonic Sensor Bracket",
                 "description": "Adjustable bracket for HC-SR04 ultrasonic sensors.",
                 "prompt": "Create an adjustable mounting bracket for HC-SR04 ultrasonic "
-                         "sensor with pan and tilt adjustment.",
+                "sensor with pan and tilt adjustment.",
                 "parameters": {
                     "sensor_type": "HC-SR04",
                     "pan_range": 180,
@@ -228,9 +228,7 @@ SYSTEM_USER = {
 
 async def seed_system_user(session: AsyncSession) -> User:
     """Create or get the system user for example projects."""
-    result = await session.execute(
-        select(User).where(User.id == SYSTEM_USER_ID)
-    )
+    result = await session.execute(select(User).where(User.id == SYSTEM_USER_ID))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -252,9 +250,7 @@ async def seed_example_projects(session: AsyncSession, user: User) -> int:
         project_id = UUID(project_data["id"])
 
         # Check if project already exists
-        existing = await session.execute(
-            select(Project).where(Project.id == project_id)
-        )
+        existing = await session.execute(select(Project).where(Project.id == project_id))
         if existing.scalar_one_or_none():
             logger.info(f"Example project already exists: {project_data['name']}")
             continue
@@ -312,9 +308,7 @@ async def copy_example_project(
         The new project copy, or None if example not found
     """
     # Get the example project
-    result = await session.execute(
-        select(Project).where(Project.id == example_project_id)
-    )
+    result = await session.execute(select(Project).where(Project.id == example_project_id))
     example = result.scalar_one_or_none()
 
     if not example:

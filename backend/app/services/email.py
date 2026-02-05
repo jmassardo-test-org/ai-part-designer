@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from functools import lru_cache
 from typing import Any
 
@@ -19,9 +19,9 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-class EmailTemplate(str, Enum):
+class EmailTemplate(StrEnum):
     """Available email templates."""
-    
+
     VERIFICATION = "verification"
     PASSWORD_RESET = "password_reset"
     WELCOME = "welcome"
@@ -32,7 +32,7 @@ class EmailTemplate(str, Enum):
 @dataclass
 class EmailMessage:
     """Email message to send."""
-    
+
     to: str
     subject: str
     html_body: str
@@ -43,29 +43,28 @@ class EmailMessage:
 
 class EmailBackend(ABC):
     """Abstract base class for email backends."""
-    
+
     @abstractmethod
     async def send(self, message: EmailMessage) -> bool:
         """Send an email message."""
-        pass
 
 
 class ConsoleEmailBackend(EmailBackend):
     """
     Console email backend for development.
-    
+
     Prints emails to the console instead of sending them.
     """
-    
+
     async def send(self, message: EmailMessage) -> bool:
         """Print email to console."""
         logger.info(
-            f"\n{'='*60}\n"
+            f"\n{'=' * 60}\n"
             f"📧 EMAIL TO: {message.to}\n"
             f"📋 SUBJECT: {message.subject}\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
             f"{message.text_body or message.html_body}\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
         )
         return True
 
@@ -73,10 +72,10 @@ class ConsoleEmailBackend(EmailBackend):
 class SMTPEmailBackend(EmailBackend):
     """
     SMTP email backend.
-    
+
     Uses aiosmtplib for async email sending.
     """
-    
+
     def __init__(
         self,
         host: str,
@@ -90,25 +89,28 @@ class SMTPEmailBackend(EmailBackend):
         self.username = username
         self.password = password
         self.use_tls = use_tls
-    
+
     async def send(self, message: EmailMessage) -> bool:
         """Send email via SMTP."""
         try:
-            import aiosmtplib
             from email.mime.multipart import MIMEMultipart
             from email.mime.text import MIMEText
-            
+
+            import aiosmtplib
+
             settings = get_settings()
-            
+
             msg = MIMEMultipart("alternative")
             msg["Subject"] = message.subject
-            msg["From"] = message.from_email or f"noreply@{settings.APP_NAME.lower().replace(' ', '')}.com"
+            msg["From"] = (
+                message.from_email or f"noreply@{settings.APP_NAME.lower().replace(' ', '')}.com"
+            )
             msg["To"] = message.to
-            
+
             if message.text_body:
                 msg.attach(MIMEText(message.text_body, "plain"))
             msg.attach(MIMEText(message.html_body, "html"))
-            
+
             await aiosmtplib.send(
                 msg,
                 hostname=self.host,
@@ -117,10 +119,10 @@ class SMTPEmailBackend(EmailBackend):
                 password=self.password,
                 use_tls=self.use_tls,
             )
-            
+
             logger.info(f"Email sent to {message.to}: {message.subject}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to send email to {message.to}: {e}")
             return False
@@ -129,9 +131,9 @@ class SMTPEmailBackend(EmailBackend):
 class EmailService:
     """
     Email service for sending transactional emails.
-    
+
     Handles template rendering and email delivery.
-    
+
     Example:
         >>> service = get_email_service()
         >>> await service.send_verification_email(
@@ -140,11 +142,11 @@ class EmailService:
         ...     verification_url="https://app.com/verify?token=abc"
         ... )
     """
-    
+
     def __init__(self, backend: EmailBackend):
         self.backend = backend
         self._templates = self._load_templates()
-    
+
     def _load_templates(self) -> dict[EmailTemplate, dict[str, str]]:
         """Load email templates."""
         return {
@@ -331,23 +333,23 @@ If you didn't make this change, please contact support immediately.
     <div class="container">
         <h1>⚠️ Trash Deletion Notice</h1>
         <p>Hi {display_name},</p>
-        
+
         <div class="warning">
             <strong>Action Required:</strong> The following items in your trash will be permanently deleted in {days_until_deletion} day(s).
         </div>
-        
+
         <div class="item-list">
             <h3>Items scheduled for deletion:</h3>
             {item_list_html}
         </div>
-        
+
         <p>
             <a href="{trash_url}" class="button">Review Trash</a>
             <a href="{settings_url}" class="button button-secondary" style="margin-left: 10px;">Manage Settings</a>
         </p>
-        
+
         <p>To keep these items, restore them from your trash before the deletion date.</p>
-        
+
         <div class="footer">
             <p>You're receiving this email because you have items expiring in your trash. You can disable these notifications in your account settings.</p>
             <p>&copy; {year} {app_name}. All rights reserved.</p>
@@ -374,7 +376,7 @@ Manage settings: {settings_url}
 """,
             },
         }
-    
+
     def _render_template(
         self,
         template: EmailTemplate,
@@ -382,29 +384,29 @@ Manage settings: {settings_url}
     ) -> tuple[str, str, str]:
         """
         Render email template with context.
-        
+
         Returns:
             Tuple of (subject, html_body, text_body)
         """
         from datetime import datetime
-        
+
         settings = get_settings()
-        
+
         # Default context
         default_context = {
             "app_name": settings.APP_NAME,
             "year": datetime.utcnow().year,
         }
         full_context = {**default_context, **context}
-        
+
         tmpl = self._templates[template]
-        
+
         subject = tmpl["subject"].format(**full_context)
         html_body = tmpl["html"].format(**full_context)
         text_body = tmpl["text"].format(**full_context)
-        
+
         return subject, html_body, text_body
-    
+
     async def send_verification_email(
         self,
         email: str,
@@ -419,14 +421,16 @@ Manage settings: {settings_url}
                 "verification_url": verification_url,
             },
         )
-        
-        return await self.backend.send(EmailMessage(
-            to=email,
-            subject=subject,
-            html_body=html,
-            text_body=text,
-        ))
-    
+
+        return await self.backend.send(
+            EmailMessage(
+                to=email,
+                subject=subject,
+                html_body=html,
+                text_body=text,
+            )
+        )
+
     async def send_password_reset_email(
         self,
         email: str,
@@ -441,14 +445,16 @@ Manage settings: {settings_url}
                 "reset_url": reset_url,
             },
         )
-        
-        return await self.backend.send(EmailMessage(
-            to=email,
-            subject=subject,
-            html_body=html,
-            text_body=text,
-        ))
-    
+
+        return await self.backend.send(
+            EmailMessage(
+                to=email,
+                subject=subject,
+                html_body=html,
+                text_body=text,
+            )
+        )
+
     async def send_welcome_email(
         self,
         email: str,
@@ -459,14 +465,16 @@ Manage settings: {settings_url}
             EmailTemplate.WELCOME,
             {"display_name": display_name},
         )
-        
-        return await self.backend.send(EmailMessage(
-            to=email,
-            subject=subject,
-            html_body=html,
-            text_body=text,
-        ))
-    
+
+        return await self.backend.send(
+            EmailMessage(
+                to=email,
+                subject=subject,
+                html_body=html,
+                text_body=text,
+            )
+        )
+
     async def send_password_changed_email(
         self,
         email: str,
@@ -474,7 +482,7 @@ Manage settings: {settings_url}
     ) -> bool:
         """Send notification that password was changed."""
         from datetime import datetime
-        
+
         subject, html, text = self._render_template(
             EmailTemplate.PASSWORD_CHANGED,
             {
@@ -482,13 +490,15 @@ Manage settings: {settings_url}
                 "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
             },
         )
-        
-        return await self.backend.send(EmailMessage(
-            to=email,
-            subject=subject,
-            html_body=html,
-            text_body=text,
-        ))
+
+        return await self.backend.send(
+            EmailMessage(
+                to=email,
+                subject=subject,
+                html_body=html,
+                text_body=text,
+            )
+        )
 
     async def send_trash_deletion_warning(
         self,
@@ -501,7 +511,7 @@ Manage settings: {settings_url}
     ) -> bool:
         """
         Send warning about items scheduled for permanent deletion.
-        
+
         Args:
             email: User's email address
             display_name: User's display name
@@ -515,18 +525,17 @@ Manage settings: {settings_url}
         for item in items:
             item_list_html += f"""
             <div class="item">
-                <strong>{item['name']}</strong>
-                <span style="color: #666; margin-left: 10px;">({item['type']})</span>
-                <br><small style="color: #999;">Deleted on {item['deleted_at']}</small>
+                <strong>{item["name"]}</strong>
+                <span style="color: #666; margin-left: 10px;">({item["type"]})</span>
+                <br><small style="color: #999;">Deleted on {item["deleted_at"]}</small>
             </div>
             """
-        
+
         # Build text item list
         item_list_text = "\n".join(
-            f"  • {item['name']} ({item['type']}) - deleted {item['deleted_at']}"
-            for item in items
+            f"  • {item['name']} ({item['type']}) - deleted {item['deleted_at']}" for item in items
         )
-        
+
         subject, html, text = self._render_template(
             EmailTemplate.TRASH_DELETION_WARNING,
             {
@@ -538,28 +547,30 @@ Manage settings: {settings_url}
                 "settings_url": settings_url,
             },
         )
-        
-        return await self.backend.send(EmailMessage(
-            to=email,
-            subject=subject,
-            html_body=html,
-            text_body=text,
-        ))
+
+        return await self.backend.send(
+            EmailMessage(
+                to=email,
+                subject=subject,
+                html_body=html,
+                text_body=text,
+            )
+        )
 
 
 @lru_cache
 def get_email_service() -> EmailService:
     """
     Get cached email service instance.
-    
+
     Uses console backend in development, SMTP/SendGrid in production.
     """
     settings = get_settings()
-    
+
     if settings.ENVIRONMENT == "development" or settings.DEBUG:
         backend = ConsoleEmailBackend()
     else:
         # TODO: Configure SMTP or SendGrid based on settings
         backend = ConsoleEmailBackend()  # Fallback for now
-    
+
     return EmailService(backend)

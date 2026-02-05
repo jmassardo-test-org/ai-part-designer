@@ -6,7 +6,6 @@ These features are used to secure the lid and mount components.
 
 from typing import Any
 
-from app.cad_v2.schemas.base import Dimension, Point3D
 from app.cad_v2.schemas.components import (
     ComponentMount,
     MountingHole,
@@ -18,7 +17,6 @@ from app.cad_v2.schemas.enclosure import (
     EnclosureSpec,
     LidType,
     ScrewSpec,
-    WallSide,
 )
 
 # Import Build123d conditionally
@@ -89,9 +87,9 @@ class MountCompiler:
         # 4 corner positions
         positions = [
             (-ext.width.mm / 2 + inset, -ext.depth.mm / 2 + inset),  # Front-left
-            (ext.width.mm / 2 - inset, -ext.depth.mm / 2 + inset),   # Front-right
-            (-ext.width.mm / 2 + inset, ext.depth.mm / 2 - inset),   # Back-left
-            (ext.width.mm / 2 - inset, ext.depth.mm / 2 - inset),    # Back-right
+            (ext.width.mm / 2 - inset, -ext.depth.mm / 2 + inset),  # Front-right
+            (-ext.width.mm / 2 + inset, ext.depth.mm / 2 - inset),  # Back-left
+            (ext.width.mm / 2 - inset, ext.depth.mm / 2 - inset),  # Back-right
         ]
 
         # Boss height from bottom wall to just below top

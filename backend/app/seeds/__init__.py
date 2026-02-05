@@ -4,34 +4,34 @@ Seed data package.
 Provides database seeding utilities for initial data population.
 """
 
-from app.seeds.templates import seed_templates, TEMPLATE_SEEDS
-from app.seeds.users import seed_users, PLATFORM_ADMIN, FREE_USERS, PRO_USERS, ENTERPRISE_ORGS
 from app.seeds.components_v2 import seed_components_v2
-from app.seeds.starters import seed_starters, STARTER_DESIGNS
-from app.seeds.marketplace import seed_marketplace, SAMPLE_DESIGN_LISTS, SAMPLE_FILES
-from app.seeds.examples import seed_example_projects, copy_example_project, EXAMPLE_PROJECTS
+from app.seeds.examples import EXAMPLE_PROJECTS, copy_example_project, seed_example_projects
+from app.seeds.marketplace import SAMPLE_DESIGN_LISTS, SAMPLE_FILES, seed_marketplace
+from app.seeds.starters import STARTER_DESIGNS, seed_starters
+from app.seeds.templates import TEMPLATE_SEEDS, seed_templates
+from app.seeds.users import ENTERPRISE_ORGS, FREE_USERS, PLATFORM_ADMIN, PRO_USERS, seed_users
 
 __all__ = [
-    # Templates
-    "seed_templates",
-    "TEMPLATE_SEEDS",
-    # Users
-    "seed_users",
-    "PLATFORM_ADMIN",
-    "FREE_USERS",
-    "PRO_USERS",
     "ENTERPRISE_ORGS",
-    # CAD v2 Components
-    "seed_components_v2",
-    # Starters
-    "seed_starters",
-    "STARTER_DESIGNS",
-    # Marketplace
-    "seed_marketplace",
+    "EXAMPLE_PROJECTS",
+    "FREE_USERS",
+    "PLATFORM_ADMIN",
+    "PRO_USERS",
     "SAMPLE_DESIGN_LISTS",
     "SAMPLE_FILES",
+    "STARTER_DESIGNS",
+    "TEMPLATE_SEEDS",
+    "copy_example_project",
+    # CAD v2 Components
+    "seed_components_v2",
     # Examples
     "seed_example_projects",
-    "copy_example_project",
-    "EXAMPLE_PROJECTS",
+    # Marketplace
+    "seed_marketplace",
+    # Starters
+    "seed_starters",
+    # Templates
+    "seed_templates",
+    # Users
+    "seed_users",
 ]

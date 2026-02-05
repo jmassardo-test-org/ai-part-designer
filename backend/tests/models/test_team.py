@@ -2,11 +2,9 @@
 Tests for Team models.
 """
 
-import pytest
-from datetime import datetime, timedelta
 from uuid import uuid4
 
-from app.models.team import Team, TeamMember, TeamRole, ProjectTeam
+from app.models.team import ProjectTeam, Team, TeamMember, TeamRole
 
 
 class TestTeamRole:

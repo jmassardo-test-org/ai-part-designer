@@ -6,8 +6,6 @@ to our Pydantic schemas.
 """
 
 from dataclasses import dataclass
-from typing import Any
-
 
 # =============================================================================
 # System Prompt
@@ -182,12 +180,12 @@ Respond with JSON array:
 @dataclass
 class PromptTemplate:
     """Structured prompt template."""
-    
+
     name: str
     system_prompt: str
     user_template: str
     temperature: float = 0.2
-    
+
     def format_messages(self, user_input: str) -> list[dict[str, str]]:
         """Format into message list for API."""
         return [

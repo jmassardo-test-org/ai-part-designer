@@ -5,10 +5,10 @@ Tests for subscription management, checkout, billing portal,
 and usage endpoints.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import AsyncClient
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from httpx import AsyncClient
 
 
 class TestGetPlans:
@@ -18,7 +18,7 @@ class TestGetPlans:
         """Test getting subscription plans."""
         # Create mock plans in database
         from app.models.subscription import SubscriptionTier
-        
+
         plan = SubscriptionTier(
             slug="free",
             name="Free",
@@ -37,12 +37,12 @@ class TestGetPlans:
         await db_session.commit()
 
         response = await client.get("/api/v1/subscriptions/plans")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
         assert len(data) >= 1
-        
+
         # Check plan structure
         plan_data = data[0]
         assert "slug" in plan_data
@@ -53,7 +53,7 @@ class TestGetPlans:
     async def test_get_plans_public_endpoint(self, client: AsyncClient):
         """Test that plans endpoint is public (no auth required)."""
         response = await client.get("/api/v1/subscriptions/plans")
-        
+
         # Should not return 401/403
         assert response.status_code in [200, 404]  # 404 if no plans seeded
 
@@ -66,12 +66,10 @@ class TestGetCurrentSubscription:
         response = await client.get("/api/v1/subscriptions/current")
         assert response.status_code == 401
 
-    async def test_get_current_subscription_success(
-        self, auth_client: AsyncClient, test_user
-    ):
+    async def test_get_current_subscription_success(self, auth_client: AsyncClient, test_user):
         """Test getting current subscription for authenticated user."""
         response = await auth_client.get("/api/v1/subscriptions/current")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "tier" in data
@@ -79,16 +77,14 @@ class TestGetCurrentSubscription:
         assert "is_active" in data
         assert "is_premium" in data
 
-    async def test_get_current_subscription_free_tier(
-        self, auth_client: AsyncClient, test_user
-    ):
+    async def test_get_current_subscription_free_tier(self, auth_client: AsyncClient, test_user):
         """Test that new user shows free tier."""
         response = await auth_client.get("/api/v1/subscriptions/current")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["tier"] == "free"
-        assert data["is_premium"] == False
+        assert not data["is_premium"]
 
 
 class TestCheckout:
@@ -119,7 +115,7 @@ class TestCheckout:
             "/api/v1/subscriptions/checkout",
             json={"plan_slug": "pro", "billing_interval": "monthly"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "checkout_url" in data
@@ -143,7 +139,7 @@ class TestCheckout:
             "/api/v1/subscriptions/checkout",
             json={"plan_slug": "pro", "billing_interval": "yearly"},
         )
-        
+
         assert response.status_code == 200
         mock_checkout.assert_called_once()
         call_kwargs = mock_checkout.call_args.kwargs
@@ -155,7 +151,7 @@ class TestCheckout:
             "/api/v1/subscriptions/checkout",
             json={"plan_slug": "nonexistent", "billing_interval": "monthly"},
         )
-        
+
         assert response.status_code == 400
 
 
@@ -180,7 +176,7 @@ class TestBillingPortal:
         }
 
         response = await auth_client.post("/api/v1/subscriptions/portal")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "portal_url" in data
@@ -212,10 +208,10 @@ class TestCancelSubscription:
         }
 
         response = await auth_client.post("/api/v1/subscriptions/cancel")
-        
+
         assert response.status_code == 200
         data = response.json()
-        assert data["cancel_at_period_end"] == True
+        assert data["cancel_at_period_end"]
 
     @patch("app.services.payment.PaymentService.cancel_subscription")
     async def test_cancel_immediately(
@@ -237,11 +233,11 @@ class TestCancelSubscription:
             "/api/v1/subscriptions/cancel",
             params={"immediately": True},
         )
-        
+
         assert response.status_code == 200
         mock_cancel.assert_called_once()
         call_kwargs = mock_cancel.call_args.kwargs
-        assert call_kwargs.get("immediately") == True
+        assert call_kwargs.get("immediately")
 
 
 class TestResumeSubscription:
@@ -269,11 +265,11 @@ class TestResumeSubscription:
         }
 
         response = await auth_client.post("/api/v1/subscriptions/resume")
-        
+
         assert response.status_code == 200
         data = response.json()
-        assert data["cancel_at_period_end"] == False
-        assert data["is_active"] == True
+        assert not data["cancel_at_period_end"]
+        assert data["is_active"]
 
 
 class TestUsage:
@@ -287,7 +283,7 @@ class TestUsage:
     async def test_usage_success(self, auth_client: AsyncClient, test_user):
         """Test getting usage statistics."""
         response = await auth_client.get("/api/v1/subscriptions/usage")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "tier" in data
@@ -308,7 +304,7 @@ class TestPaymentHistory:
     async def test_payments_empty(self, auth_client: AsyncClient, test_user):
         """Test getting empty payment history."""
         response = await auth_client.get("/api/v1/subscriptions/payments")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -319,7 +315,7 @@ class TestPaymentHistory:
             "/api/v1/subscriptions/payments",
             params={"limit": 5, "offset": 0},
         )
-        
+
         assert response.status_code == 200
 
 
@@ -332,9 +328,9 @@ class TestStripeConfig:
             mock_client = MagicMock()
             mock_client.get_publishable_key.return_value = "pk_test_123456"
             mock_get_client.return_value = mock_client
-            
+
             response = await client.get("/api/v1/subscriptions/config")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert "publishable_key" in data

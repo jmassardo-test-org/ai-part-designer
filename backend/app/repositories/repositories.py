@@ -5,24 +5,20 @@ Each repository extends BaseRepository with domain-specific
 query methods and business logic.
 """
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, desc
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
 
 from app.models import (
-    User,
-    UserSettings,
-    Subscription,
+    AuditLog,
+    Design,
+    Job,
     Project,
     Template,
-    Design,
-    DesignVersion,
-    Job,
-    AuditLog,
+    User,
 )
 from app.repositories.base import BaseRepository
 
@@ -34,11 +30,7 @@ class UserRepository(BaseRepository[User]):
 
     async def get_by_email(self, email: str) -> User | None:
         """Get user by email address."""
-        query = (
-            select(User)
-            .where(User.email == email)
-            .where(User.deleted_at.is_(None))
-        )
+        query = select(User).where(User.email == email).where(User.deleted_at.is_(None))
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
@@ -92,16 +84,14 @@ class ProjectRepository(BaseRepository[Project]):
     ) -> Sequence[Project]:
         """Get all projects for a user."""
         query = (
-            select(Project)
-            .where(Project.user_id == user_id)
-            .where(Project.deleted_at.is_(None))
+            select(Project).where(Project.user_id == user_id).where(Project.deleted_at.is_(None))
         )
-        
+
         if not include_archived:
             query = query.where(Project.is_archived.is_(False))
-        
+
         query = query.order_by(desc(Project.updated_at)).offset(offset).limit(limit)
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()
 
@@ -124,11 +114,7 @@ class TemplateRepository(BaseRepository[Template]):
 
     async def get_by_slug(self, slug: str) -> Template | None:
         """Get template by slug."""
-        query = (
-            select(Template)
-            .where(Template.slug == slug)
-            .where(Template.is_active.is_(True))
-        )
+        query = select(Template).where(Template.slug == slug).where(Template.is_active.is_(True))
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
@@ -145,15 +131,15 @@ class TemplateRepository(BaseRepository[Template]):
             .where(Template.category == category)
             .where(Template.is_active.is_(True))
         )
-        
+
         if tier:
             # Filter to templates accessible by this tier
             tier_order = {"free": 0, "hobby": 1, "pro": 2, "enterprise": 3}
             accessible_tiers = [t for t, v in tier_order.items() if v <= tier_order.get(tier, 0)]
             query = query.where(Template.min_tier.in_(accessible_tiers))
-        
+
         query = query.order_by(desc(Template.use_count)).limit(limit)
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()
 
@@ -192,16 +178,14 @@ class DesignRepository(BaseRepository[Design]):
     ) -> Sequence[Design]:
         """Get all designs in a project."""
         query = (
-            select(Design)
-            .where(Design.project_id == project_id)
-            .where(Design.deleted_at.is_(None))
+            select(Design).where(Design.project_id == project_id).where(Design.deleted_at.is_(None))
         )
-        
+
         if status:
             query = query.where(Design.status == status)
-        
+
         query = query.order_by(desc(Design.updated_at)).offset(offset).limit(limit)
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()
 
@@ -251,24 +235,19 @@ class DesignRepository(BaseRepository[Design]):
     ) -> Sequence[Design]:
         """Full-text search on designs."""
         # Use PostgreSQL full-text search if search_vector exists
-        from sqlalchemy import text
-        
-        query = (
-            select(Design)
-            .where(Design.deleted_at.is_(None))
-        )
-        
+
+        query = select(Design).where(Design.deleted_at.is_(None))
+
         if public_only:
             query = query.where(Design.is_public.is_(True))
-        
+
         # Search in name and description
         query = query.where(
-            Design.name.ilike(f"%{search_term}%") |
-            Design.description.ilike(f"%{search_term}%")
+            Design.name.ilike(f"%{search_term}%") | Design.description.ilike(f"%{search_term}%")
         )
-        
+
         query = query.limit(limit)
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()
 
@@ -287,12 +266,12 @@ class JobRepository(BaseRepository[Job]):
     ) -> Sequence[Job]:
         """Get jobs for a user."""
         query = select(Job).where(Job.user_id == user_id)
-        
+
         if status:
             query = query.where(Job.status == status)
-        
+
         query = query.order_by(desc(Job.created_at)).limit(limit)
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()
 
@@ -309,54 +288,40 @@ class JobRepository(BaseRepository[Job]):
 
     async def get_running_jobs_count(self) -> int:
         """Count currently running jobs."""
-        query = (
-            select(func.count())
-            .select_from(Job)
-            .where(Job.status == "running")
-        )
+        query = select(func.count()).select_from(Job).where(Job.status == "running")
         result = await self.session.execute(query)
         return result.scalar() or 0
 
     async def get_stale_jobs(self, stale_after_minutes: int = 30) -> Sequence[Job]:
         """Get jobs that have been running too long."""
         threshold = datetime.utcnow() - timedelta(minutes=stale_after_minutes)
-        query = (
-            select(Job)
-            .where(Job.status == "running")
-            .where(Job.started_at < threshold)
-        )
+        query = select(Job).where(Job.status == "running").where(Job.started_at < threshold)
         result = await self.session.execute(query)
         return result.scalars().all()
 
     async def get_job_stats(self, since: datetime | None = None) -> dict:
         """Get job statistics."""
         base_query = select(Job)
-        
+
         if since:
             base_query = base_query.where(Job.created_at >= since)
-        
+
         # Count by status
-        status_query = (
-            select(Job.status, func.count().label("count"))
-            .group_by(Job.status)
-        )
+        status_query = select(Job.status, func.count().label("count")).group_by(Job.status)
         if since:
             status_query = status_query.where(Job.created_at >= since)
-        
+
         status_result = await self.session.execute(status_query)
         status_counts = {row.status: row.count for row in status_result}
-        
+
         # Average execution time
-        avg_time_query = (
-            select(func.avg(Job.execution_time_ms))
-            .where(Job.status == "completed")
-        )
+        avg_time_query = select(func.avg(Job.execution_time_ms)).where(Job.status == "completed")
         if since:
             avg_time_query = avg_time_query.where(Job.created_at >= since)
-        
+
         avg_result = await self.session.execute(avg_time_query)
         avg_execution_time = avg_result.scalar()
-        
+
         return {
             "status_counts": status_counts,
             "avg_execution_time_ms": avg_execution_time,
@@ -423,15 +388,12 @@ class AuditLogRepository(BaseRepository[AuditLog]):
         limit: int = 100,
     ) -> Sequence[AuditLog]:
         """Get audit history for a user."""
-        query = (
-            select(AuditLog)
-            .where(AuditLog.user_id == user_id)
-        )
-        
+        query = select(AuditLog).where(AuditLog.user_id == user_id)
+
         if since:
             query = query.where(AuditLog.created_at >= since)
-        
+
         query = query.order_by(desc(AuditLog.created_at)).limit(limit)
-        
+
         result = await self.session.execute(query)
         return result.scalars().all()

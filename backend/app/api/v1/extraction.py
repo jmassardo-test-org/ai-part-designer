@@ -8,19 +8,17 @@ using GPT-4 Vision.
 from __future__ import annotations
 
 import logging
-from typing import Literal
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.ai.vision import vision_extractor
 from app.core.auth import get_current_user
-from app.models import User
-from app.ai.vision import vision_extractor, ExtractedDimensions
 from app.services.pdf_processor import pdf_processor
+
+if TYPE_CHECKING:
+    from app.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +70,7 @@ async def extraction_status() -> ExtractionStatusResponse:
     # Check if PyMuPDF is available
     try:
         import fitz
+
         pdf_available = True
     except ImportError:
         pdf_available = False
@@ -131,14 +130,13 @@ async def extract_dimensions(
     try:
         if content_type == "application/pdf":
             return await _extract_from_pdf(content, context, analyze_all_pages)
-        else:
-            return await _extract_from_image(content, context, content_type)
+        return await _extract_from_image(content, context, content_type)
 
     except Exception as e:
         logger.exception("Extraction failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Extraction failed: {str(e)}",
+            detail=f"Extraction failed: {e!s}",
         )
 
 
@@ -186,9 +184,7 @@ async def _extract_from_pdf(
         pages_to_analyze = pdf_doc.pages
     elif pdf_doc.drawing_pages:
         pages_to_analyze = [
-            pdf_doc.pages[i]
-            for i in pdf_doc.drawing_pages
-            if i < len(pdf_doc.pages)
+            pdf_doc.pages[i] for i in pdf_doc.drawing_pages if i < len(pdf_doc.pages)
         ]
     else:
         # If no drawing pages detected, analyze first page
@@ -201,10 +197,7 @@ async def _extract_from_pdf(
         )
 
     # Extract from each page
-    images = [
-        (page.image_data, "image/png")
-        for page in pages_to_analyze
-    ]
+    images = [(page.image_data, "image/png") for page in pages_to_analyze]
 
     # Build context with page text
     full_context = context
@@ -267,16 +260,15 @@ async def extract_from_url(
     except httpx.HTTPError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to download file: {str(e)}",
+            detail=f"Failed to download file: {e!s}",
         )
 
     # Process like regular upload
     if content_type == "application/pdf":
         return await _extract_from_pdf(content, context, analyze_all_pages=False)
-    elif content_type.startswith("image/"):
+    if content_type.startswith("image/"):
         return await _extract_from_image(content, context, content_type)
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported content type: {content_type}",
-        )
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Unsupported content type: {content_type}",
+    )

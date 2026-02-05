@@ -8,18 +8,16 @@ Provides:
 - Security metrics collection
 """
 
-import json
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any
-from uuid import UUID
 import hashlib
+import json
 import logging
+from datetime import datetime
+from enum import StrEnum
+from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.cache import redis_client
 from app.models import AuditLog
 
@@ -30,9 +28,10 @@ logger = logging.getLogger("security.audit")
 # Security Event Types
 # =============================================================================
 
-class SecurityEventType(str, Enum):
+
+class SecurityEventType(StrEnum):
     """Types of security events to track."""
-    
+
     # Authentication events
     LOGIN_SUCCESS = "auth.login.success"
     LOGIN_FAILED = "auth.login.failed"
@@ -42,47 +41,48 @@ class SecurityEventType(str, Enum):
     PASSWORD_CHANGED = "auth.password.changed"
     PASSWORD_RESET_REQUESTED = "auth.password.reset_requested"
     PASSWORD_RESET_COMPLETED = "auth.password.reset_completed"
-    
+
     # Authorization events
     ACCESS_DENIED = "authz.access_denied"
     PERMISSION_ESCALATION = "authz.permission_escalation"
     RESOURCE_ACCESS = "authz.resource_access"
-    
+
     # API key events
     API_KEY_CREATED = "apikey.created"
     API_KEY_REVOKED = "apikey.revoked"
     API_KEY_USED = "apikey.used"
     API_KEY_FAILED = "apikey.failed"
-    
+
     # Rate limiting events
     RATE_LIMIT_EXCEEDED = "ratelimit.exceeded"
     RATE_LIMIT_WARNING = "ratelimit.warning"
-    
+
     # Suspicious activity
     SUSPICIOUS_REQUEST = "threat.suspicious_request"
     BRUTE_FORCE_DETECTED = "threat.brute_force"
     INJECTION_ATTEMPT = "threat.injection"
     PATH_TRAVERSAL = "threat.path_traversal"
-    
+
     # Administrative events
     USER_CREATED = "admin.user.created"
     USER_UPDATED = "admin.user.updated"
     USER_DELETED = "admin.user.deleted"
     USER_SUSPENDED = "admin.user.suspended"
     ROLE_CHANGED = "admin.role.changed"
-    
+
     # Data events
     SENSITIVE_DATA_ACCESS = "data.sensitive_access"
     BULK_EXPORT = "data.bulk_export"
     DATA_DELETED = "data.deleted"
-    
+
     # IP events
     IP_BLOCKED = "ip.blocked"
     IP_UNBLOCKED = "ip.unblocked"
 
 
-class SecuritySeverity(str, Enum):
+class SecuritySeverity(StrEnum):
     """Severity levels for security events."""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -110,21 +110,22 @@ EVENT_SEVERITY: dict[SecurityEventType, SecuritySeverity] = {
 # Security Audit Service
 # =============================================================================
 
+
 class SecurityAuditService:
     """
     Service for logging and analyzing security events.
-    
+
     Provides comprehensive security monitoring and threat detection.
     """
-    
+
     # Thresholds for threat detection
     FAILED_LOGIN_THRESHOLD = 5  # Per IP in 15 minutes
     RATE_LIMIT_THRESHOLD = 10  # Hits before warning
     SUSPICIOUS_PATTERN_THRESHOLD = 3  # Matches before alert
-    
+
     def __init__(self, db: AsyncSession = None):
         self.db = db
-    
+
     async def log_event(
         self,
         event_type: SecurityEventType,
@@ -138,7 +139,7 @@ class SecurityAuditService:
     ) -> None:
         """
         Log a security event.
-        
+
         Args:
             event_type: Type of security event
             user_id: User who triggered the event
@@ -150,7 +151,7 @@ class SecurityAuditService:
             request_id: Request correlation ID
         """
         severity = EVENT_SEVERITY.get(event_type, SecuritySeverity.INFO)
-        
+
         event_data = {
             "event_type": event_type.value,
             "severity": severity.value,
@@ -163,7 +164,7 @@ class SecurityAuditService:
             "request_id": request_id,
             "details": details or {},
         }
-        
+
         # Log to standard logger
         log_message = f"Security Event: {event_type.value}"
         if severity == SecuritySeverity.CRITICAL:
@@ -174,29 +175,29 @@ class SecurityAuditService:
             logger.warning(log_message, extra=event_data)
         else:
             logger.info(log_message, extra=event_data)
-        
+
         # Store in Redis for real-time analysis
         await self._store_event(event_data)
-        
+
         # Store in database for audit trail
         if self.db:
             await self._persist_event(event_data)
-        
+
         # Trigger threat detection
         await self._analyze_event(event_data)
-    
+
     async def _store_event(self, event_data: dict) -> None:
         """Store event in Redis for real-time analysis."""
         event_key = f"security:events:{datetime.utcnow().strftime('%Y%m%d%H')}"
         await redis_client.lpush(event_key, json.dumps(event_data))
         await redis_client.expire(event_key, 86400 * 7)  # Keep for 7 days
-        
+
         # Increment event counters
         await redis_client.increment_counter(
             f"security:count:{event_data['event_type']}",
             window_seconds=3600,
         )
-    
+
     async def _persist_event(self, event_data: dict) -> None:
         """Persist event to database audit log."""
         audit_entry = AuditLog(
@@ -211,12 +212,12 @@ class SecurityAuditService:
         )
         self.db.add(audit_entry)
         await self.db.flush()
-    
+
     async def _analyze_event(self, event_data: dict) -> None:
         """Analyze event for threat patterns."""
         event_type = event_data["event_type"]
         client_ip = event_data.get("client_ip")
-        
+
         # Check for brute force attacks
         if event_type == SecurityEventType.LOGIN_FAILED.value and client_ip:
             failed_count = await self._get_failed_login_count(client_ip)
@@ -228,13 +229,13 @@ class SecurityAuditService:
                 )
                 # Auto-block IP
                 await self._auto_block_ip(client_ip, "brute_force")
-    
+
     async def _get_failed_login_count(self, client_ip: str) -> int:
         """Get failed login count for IP in last 15 minutes."""
         key = f"security:failed_login:{client_ip}"
         count = await redis_client.get(key)
         return int(count) if count else 0
-    
+
     async def _auto_block_ip(
         self,
         ip_address: str,
@@ -243,8 +244,9 @@ class SecurityAuditService:
     ) -> None:
         """Automatically block an IP address."""
         from app.middleware.security import block_ip
+
         await block_ip(ip_address, duration_seconds, reason)
-        
+
         await self.log_event(
             SecurityEventType.IP_BLOCKED,
             client_ip=ip_address,
@@ -254,11 +256,11 @@ class SecurityAuditService:
                 "auto_blocked": True,
             },
         )
-    
+
     # =========================================================================
     # Authentication Event Helpers
     # =========================================================================
-    
+
     async def log_login_success(
         self,
         user_id: UUID,
@@ -274,10 +276,10 @@ class SecurityAuditService:
             user_agent=user_agent,
             details={"mfa_used": mfa_used},
         )
-        
+
         # Clear failed login counter
         await redis_client.delete(f"security:failed_login:{client_ip}")
-    
+
     async def log_login_failed(
         self,
         email: str,
@@ -289,10 +291,10 @@ class SecurityAuditService:
         # Increment failed login counter
         key = f"security:failed_login:{client_ip}"
         await redis_client.increment_counter(key, window_seconds=900)
-        
+
         # Hash email for privacy
         email_hash = hashlib.sha256(email.encode()).hexdigest()[:16]
-        
+
         await self.log_event(
             SecurityEventType.LOGIN_FAILED,
             client_ip=client_ip,
@@ -302,7 +304,7 @@ class SecurityAuditService:
                 "reason": reason,
             },
         )
-    
+
     async def log_logout(
         self,
         user_id: UUID,
@@ -316,7 +318,7 @@ class SecurityAuditService:
             client_ip=client_ip,
             details={"reason": reason},
         )
-    
+
     async def log_password_change(
         self,
         user_id: UUID,
@@ -330,11 +332,11 @@ class SecurityAuditService:
             client_ip=client_ip,
             details={"forced": forced},
         )
-    
+
     # =========================================================================
     # Authorization Event Helpers
     # =========================================================================
-    
+
     async def log_access_denied(
         self,
         user_id: UUID,
@@ -352,11 +354,11 @@ class SecurityAuditService:
             client_ip=client_ip,
             details={"required_permission": required_permission},
         )
-    
+
     # =========================================================================
     # Threat Detection Helpers
     # =========================================================================
-    
+
     async def log_suspicious_request(
         self,
         client_ip: str,
@@ -374,18 +376,18 @@ class SecurityAuditService:
                 "pattern": pattern,
             },
         )
-    
+
     # =========================================================================
     # Security Metrics
     # =========================================================================
-    
+
     async def get_security_metrics(
         self,
         hours: int = 24,
     ) -> dict:
         """
         Get security metrics for monitoring.
-        
+
         Returns counts of various security events.
         """
         metrics = {
@@ -394,15 +396,15 @@ class SecurityAuditService:
             "top_blocked_ips": [],
             "top_failed_logins": [],
         }
-        
+
         # Get event counts
         for event_type in SecurityEventType:
             count = await redis_client.get(f"security:count:{event_type.value}")
             if count:
                 metrics["events"][event_type.value] = int(count)
-        
+
         return metrics
-    
+
     async def get_user_security_events(
         self,
         user_id: UUID,
@@ -411,7 +413,7 @@ class SecurityAuditService:
         """Get recent security events for a user."""
         if not self.db:
             return []
-        
+
         result = await self.db.execute(
             select(AuditLog)
             .where(AuditLog.user_id == user_id)
@@ -419,7 +421,7 @@ class SecurityAuditService:
             .order_by(AuditLog.created_at.desc())
             .limit(limit)
         )
-        
+
         events = result.scalars().all()
         return [
             {
@@ -435,6 +437,7 @@ class SecurityAuditService:
 # =============================================================================
 # Global Instance
 # =============================================================================
+
 
 def get_security_audit_service(db: AsyncSession = None) -> SecurityAuditService:
     """Get security audit service instance."""

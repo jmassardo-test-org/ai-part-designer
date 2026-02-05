@@ -4,20 +4,18 @@ Tests for AI Iterative Reasoning Module.
 Tests reasoning states, data structures, and classification.
 """
 
-import pytest
-
 from app.ai.iterative_reasoning import (
-    ReasoningState,
-    PartClassification,
+    ClarificationQuestion,
     ExtractedDimension,
     ExtractedFeature,
-    ClarificationQuestion,
+    PartClassification,
+    ReasoningState,
 )
-
 
 # =============================================================================
 # ReasoningState Tests
 # =============================================================================
+
 
 class TestReasoningState:
     """Tests for ReasoningState enum."""
@@ -76,6 +74,7 @@ class TestReasoningState:
 # PartClassification Tests
 # =============================================================================
 
+
 class TestPartClassification:
     """Tests for PartClassification dataclass."""
 
@@ -84,7 +83,7 @@ class TestPartClassification:
         classification = PartClassification(
             category="bracket",
         )
-        
+
         assert classification.category == "bracket"
         assert classification.subcategory is None
         assert classification.confidence == 0.0
@@ -98,7 +97,7 @@ class TestPartClassification:
             confidence=0.95,
             reasoning="Two perpendicular flanges forming an L shape",
         )
-        
+
         assert classification.category == "bracket"
         assert classification.subcategory == "L-bracket"
         assert classification.confidence == 0.95
@@ -111,7 +110,7 @@ class TestPartClassification:
             subcategory="project box",
             confidence=0.88,
         )
-        
+
         assert classification.category == "enclosure"
         assert classification.subcategory == "project box"
 
@@ -119,6 +118,7 @@ class TestPartClassification:
 # =============================================================================
 # ExtractedDimension Tests
 # =============================================================================
+
 
 class TestExtractedDimension:
     """Tests for ExtractedDimension dataclass."""
@@ -129,7 +129,7 @@ class TestExtractedDimension:
             name="length",
             value=100.0,
         )
-        
+
         assert dim.name == "length"
         assert dim.value == 100.0
         assert dim.unit == "mm"
@@ -143,7 +143,7 @@ class TestExtractedDimension:
             value=2.0,
             unit="inches",
         )
-        
+
         assert dim.value == 2.0
         assert dim.unit == "inches"
 
@@ -155,7 +155,7 @@ class TestExtractedDimension:
             source="inferred",
             confidence=0.7,
         )
-        
+
         assert dim.source == "inferred"
         assert dim.confidence == 0.7
 
@@ -167,13 +167,14 @@ class TestExtractedDimension:
             source="default",
             confidence=0.5,
         )
-        
+
         assert dim.source == "default"
 
 
 # =============================================================================
 # ExtractedFeature Tests
 # =============================================================================
+
 
 class TestExtractedFeature:
     """Tests for ExtractedFeature dataclass."""
@@ -187,7 +188,7 @@ class TestExtractedFeature:
             location="corners",
             count=4,
         )
-        
+
         assert feature.feature_type == "hole"
         assert feature.count == 4
         assert feature.parameters["diameter"] == 5.2
@@ -200,7 +201,7 @@ class TestExtractedFeature:
             parameters={"radius": 3.0},
             location="outer edges",
         )
-        
+
         assert feature.feature_type == "fillet"
         assert feature.parameters["radius"] == 3.0
 
@@ -210,7 +211,7 @@ class TestExtractedFeature:
             feature_type="slot",
             description="Slot for adjustment",
         )
-        
+
         assert feature.parameters == {}
         assert feature.location == ""
         assert feature.count == 1
@@ -221,6 +222,7 @@ class TestExtractedFeature:
 # ClarificationQuestion Tests
 # =============================================================================
 
+
 class TestClarificationQuestion:
     """Tests for ClarificationQuestion dataclass."""
 
@@ -230,7 +232,7 @@ class TestClarificationQuestion:
             question="What is the material thickness?",
             context="Need thickness to create proper geometry",
         )
-        
+
         assert "thickness" in question.question
         assert question.context != ""
 
@@ -242,7 +244,7 @@ class TestClarificationQuestion:
             options=["rounded", "chamfered", "sharp"],
             default="rounded",
         )
-        
+
         assert len(question.options) == 3
         assert "rounded" in question.options
         assert question.default == "rounded"
@@ -254,19 +256,19 @@ class TestClarificationQuestion:
             context="Required for generation",
             priority=1,
         )
-        
+
         important = ClarificationQuestion(
             question="What hole size?",
             context="For mounting",
             priority=2,
         )
-        
+
         optional = ClarificationQuestion(
             question="Prefer any specific fillet radius?",
             context="Aesthetic choice",
             priority=3,
         )
-        
+
         assert critical.priority == 1
         assert important.priority == 2
         assert optional.priority == 3
@@ -278,13 +280,14 @@ class TestClarificationQuestion:
             context="L-bracket dimension needed",
             dimension_key="flange_length",
         )
-        
+
         assert question.dimension_key == "flange_length"
 
 
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestIterativeReasoningEdgeCases:
     """Tests for edge cases."""
@@ -295,7 +298,7 @@ class TestIterativeReasoningEdgeCases:
             category="unknown",
             confidence=0.0,
         )
-        
+
         assert classification.confidence == 0.0
 
     def test_full_confidence(self):
@@ -304,7 +307,7 @@ class TestIterativeReasoningEdgeCases:
             category="box",
             confidence=1.0,
         )
-        
+
         assert classification.confidence == 1.0
 
     def test_negative_dimension_value(self):
@@ -313,7 +316,7 @@ class TestIterativeReasoningEdgeCases:
             name="offset",
             value=-5.0,
         )
-        
+
         assert dim.value == -5.0
 
     def test_zero_dimension_value(self):
@@ -322,7 +325,7 @@ class TestIterativeReasoningEdgeCases:
             name="gap",
             value=0.0,
         )
-        
+
         assert dim.value == 0.0
 
     def test_empty_feature_parameters(self):
@@ -331,7 +334,7 @@ class TestIterativeReasoningEdgeCases:
             feature_type="chamfer",
             description="Simple edge chamfer",
         )
-        
+
         assert feature.parameters == {}
 
     def test_empty_question_options(self):
@@ -340,6 +343,6 @@ class TestIterativeReasoningEdgeCases:
             question="Any specific requirements?",
             context="Open-ended question",
         )
-        
+
         assert question.options == []
         assert question.default is None

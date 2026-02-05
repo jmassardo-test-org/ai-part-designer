@@ -3,12 +3,12 @@
 # Converts natural language intent into validated schemas using Claude.
 
 from app.cad_v2.ai.intent import IntentParser, ParsedIntent
-from app.cad_v2.ai.schema_generator import SchemaGenerator
 from app.cad_v2.ai.prompts import CAD_V2_SYSTEM_PROMPT
+from app.cad_v2.ai.schema_generator import SchemaGenerator
 
 __all__ = [
+    "CAD_V2_SYSTEM_PROMPT",
     "IntentParser",
     "ParsedIntent",
     "SchemaGenerator",
-    "CAD_V2_SYSTEM_PROMPT",
 ]

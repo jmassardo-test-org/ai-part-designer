@@ -6,7 +6,7 @@ Handles subscription tiers, credit balances, and usage tracking.
 
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -16,12 +16,11 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    Numeric,
     String,
     Text,
-    func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -30,9 +29,9 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class TierSlug(str, Enum):
+class TierSlug(StrEnum):
     """Subscription tier identifiers."""
-    
+
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
@@ -41,7 +40,7 @@ class TierSlug(str, Enum):
 class SubscriptionTier(Base, TimestampMixin):
     """
     Subscription tier definition.
-    
+
     Defines the limits, features, and pricing for each subscription level.
     """
 
@@ -59,14 +58,14 @@ class SubscriptionTier(Base, TimestampMixin):
         String(50),
         nullable=False,
     )  # "Free", "Pro", "Enterprise"
-    
+
     slug: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         unique=True,
         index=True,
     )  # "free", "pro", "enterprise"
-    
+
     description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
@@ -138,7 +137,7 @@ class SubscriptionTier(Base, TimestampMixin):
         nullable=False,
         default=0,
     )
-    
+
     # Stripe
     stripe_price_id_monthly: Mapped[str | None] = mapped_column(
         String(100),
@@ -181,9 +180,9 @@ class SubscriptionTier(Base, TimestampMixin):
         return Decimal(self.price_yearly_cents) / 100
 
 
-class TransactionType(str, Enum):
+class TransactionType(StrEnum):
     """Credit transaction types."""
-    
+
     MONTHLY_REFILL = "monthly_refill"
     GENERATION = "generation"
     REFINEMENT = "refinement"
@@ -197,7 +196,7 @@ class TransactionType(str, Enum):
 class CreditBalance(Base, TimestampMixin):
     """
     User's credit balance.
-    
+
     Tracks current credits and refill timing.
     """
 
@@ -282,7 +281,7 @@ class CreditBalance(Base, TimestampMixin):
 class CreditTransaction(Base, TimestampMixin):
     """
     Credit transaction history.
-    
+
     Records all credit additions and deductions.
     """
 
@@ -313,12 +312,12 @@ class CreditTransaction(Base, TimestampMixin):
         Integer,
         nullable=False,
     )  # Positive = add, Negative = spend
-    
+
     transaction_type: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
     )  # TransactionType enum value
-    
+
     description: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -364,13 +363,15 @@ class CreditTransaction(Base, TimestampMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<CreditTransaction(id={self.id}, amount={self.amount}, type={self.transaction_type})>"
+        return (
+            f"<CreditTransaction(id={self.id}, amount={self.amount}, type={self.transaction_type})>"
+        )
 
 
 class UsageQuota(Base, TimestampMixin):
     """
     User's current usage against their tier quotas.
-    
+
     Tracks storage used, active jobs, etc.
     """
 

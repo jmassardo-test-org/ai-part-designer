@@ -11,11 +11,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     String,
     Text,
-    Index,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -28,10 +29,10 @@ if TYPE_CHECKING:
 class ModerationLog(Base):
     """
     Content moderation tracking for AI-generated designs.
-    
+
     Records moderation decisions (automated and manual) for
     designs to ensure compliance with content policies.
-    
+
     Details schema example:
     {
         "categories": {
@@ -203,6 +204,6 @@ class ModerationLog(Base):
         self.appeal_decision = decision
         self.reviewer_id = reviewer_id
         self.reviewed_at = datetime.utcnow()
-        
+
         if decision == "overturned":
             self.decision = "approved"

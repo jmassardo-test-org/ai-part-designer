@@ -11,11 +11,9 @@ import io
 import json
 import re
 from pathlib import Path
-from typing import Optional
 
 from pdf2image import convert_from_path
 from PIL import Image
-from pydantic import BaseModel
 
 from app.core.config import settings
 from app.schemas.component_specs import (
@@ -34,7 +32,6 @@ from app.schemas.component_specs import (
     ThermalProperties,
     ThreadSize,
 )
-
 
 # =============================================================================
 # Configuration
@@ -136,15 +133,15 @@ Return as JSON:
 # Helper Functions
 # =============================================================================
 
+
 def pdf_to_images(pdf_path: Path, max_pages: int = MAX_PAGES_TO_ANALYZE) -> list[Image.Image]:
     """Convert PDF pages to images for GPT-4V analysis."""
-    images = convert_from_path(
+    return convert_from_path(
         pdf_path,
         first_page=1,
         last_page=max_pages,
         dpi=150,  # Good balance of quality and size
     )
-    return images
 
 
 def resize_image(image: Image.Image, target_width: int = TARGET_IMAGE_WIDTH) -> Image.Image:
@@ -165,13 +162,13 @@ def image_to_base64(image: Image.Image) -> str:
     return base64.b64encode(buffer.read()).decode("utf-8")
 
 
-def parse_thread_size(thread_str: Optional[str]) -> Optional[ThreadSize]:
+def parse_thread_size(thread_str: str | None) -> ThreadSize | None:
     """Parse thread size string to enum."""
     if not thread_str:
         return None
-    
+
     thread_str = thread_str.upper().strip()
-    
+
     mapping = {
         "M2": ThreadSize.M2,
         "M2.5": ThreadSize.M2_5,
@@ -182,14 +179,14 @@ def parse_thread_size(thread_str: Optional[str]) -> Optional[ThreadSize]:
         "#6-32": ThreadSize.INCH_6_32,
         "#8-32": ThreadSize.INCH_8_32,
     }
-    
+
     return mapping.get(thread_str)
 
 
 def parse_connector_type(type_str: str) -> ConnectorType:
     """Parse connector type string to enum."""
     type_str = type_str.lower().strip().replace("-", "_").replace(" ", "_")
-    
+
     mapping = {
         "usb_a": ConnectorType.USB_A,
         "usb_b": ConnectorType.USB_B,
@@ -214,14 +211,14 @@ def parse_connector_type(type_str: str) -> ConnectorType:
         "audio_35mm": ConnectorType.AUDIO_35MM,
         "3.5mm": ConnectorType.AUDIO_35MM,
     }
-    
+
     return mapping.get(type_str, ConnectorType.OTHER)
 
 
 def parse_face(face_str: str) -> Face:
     """Parse face string to enum."""
     face_str = face_str.lower().strip()
-    
+
     mapping = {
         "top": Face.TOP,
         "bottom": Face.BOTTOM,
@@ -231,14 +228,14 @@ def parse_face(face_str: str) -> Face:
         "left": Face.LEFT,
         "right": Face.RIGHT,
     }
-    
+
     return mapping.get(face_str, Face.FRONT)
 
 
 def parse_clearance_type(type_str: str) -> ClearanceType:
     """Parse clearance type string to enum."""
     type_str = type_str.lower().strip().replace("-", "_").replace(" ", "_")
-    
+
     mapping = {
         "heat_sink": ClearanceType.HEAT_SINK,
         "heatsink": ClearanceType.HEAT_SINK,
@@ -253,7 +250,7 @@ def parse_clearance_type(type_str: str) -> ClearanceType:
         "led_visibility": ClearanceType.LED_VISIBILITY,
         "antenna": ClearanceType.ANTENNA,
     }
-    
+
     return mapping.get(type_str, ClearanceType.OTHER)
 
 
@@ -261,16 +258,18 @@ def parse_clearance_type(type_str: str) -> ClearanceType:
 # Datasheet Parser Service
 # =============================================================================
 
+
 class DatasheetParserService:
     """Service to extract mechanical specifications from PDF datasheets."""
-    
+
     def __init__(self):
         if settings.ANTHROPIC_API_KEY:
             from anthropic import AsyncAnthropic
+
             self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         else:
             self.client = None
-    
+
     async def parse_datasheet(
         self,
         pdf_path: Path,
@@ -278,7 +277,7 @@ class DatasheetParserService:
     ) -> DatasheetExtraction:
         """
         Parse a PDF datasheet and extract mechanical specifications.
-        
+
         Steps:
         1. Convert PDF pages to images
         2. Send each page to GPT-4V for analysis
@@ -288,27 +287,23 @@ class DatasheetParserService:
         # Convert PDF to images
         images = pdf_to_images(pdf_path, max_pages)
         page_count = len(images)
-        
+
         # Analyze first page for component identification
         component_info = await self._identify_component(images[0])
-        
+
         # Analyze all pages for dimensions
         page_results = await asyncio.gather(
-            *[
-                self._analyze_page(image, page_num + 1)
-                for page_num, image in enumerate(images)
-            ]
+            *[self._analyze_page(image, page_num + 1) for page_num, image in enumerate(images)]
         )
-        
+
         # Merge results
         specs = self._merge_page_results(page_results)
-        
+
         # Find pages with dimensions
         pages_with_dims = [
-            i + 1 for i, result in enumerate(page_results)
-            if result.get("page_has_dimensions")
+            i + 1 for i, result in enumerate(page_results) if result.get("page_has_dimensions")
         ]
-        
+
         # Find mechanical drawings
         mechanical_drawings = [
             MechanicalDrawing(
@@ -318,11 +313,11 @@ class DatasheetParserService:
             for i, result in enumerate(page_results)
             if result.get("is_mechanical_drawing")
         ]
-        
+
         # Calculate overall confidence
         confidences = [r.get("confidence", 0) for r in page_results if r.get("page_has_dimensions")]
         overall_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-        
+
         return DatasheetExtraction(
             page_count=page_count,
             manufacturer=component_info.get("manufacturer"),
@@ -333,12 +328,12 @@ class DatasheetParserService:
             pages_with_dimensions=pages_with_dims,
             extraction_confidence=overall_confidence,
         )
-    
+
     async def _identify_component(self, image: Image.Image) -> dict:
         """Identify component manufacturer and model from first page."""
         resized = resize_image(image)
         image_b64 = image_to_base64(resized)
-        
+
         try:
             response = await self.client.messages.create(
                 model=VISION_MODEL,
@@ -361,24 +356,24 @@ class DatasheetParserService:
                 ],
                 temperature=0.1,
             )
-            
+
             content = response.content[0].text
-            
+
             # Parse JSON from response
-            json_match = re.search(r'\{[^{}]*\}', content, re.DOTALL)
+            json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group())
-            
+
         except Exception as e:
             print(f"Error identifying component: {e}")
-        
+
         return {}
-    
+
     async def _analyze_page(self, image: Image.Image, page_num: int) -> dict:
         """Analyze a single page for mechanical specifications."""
         resized = resize_image(image)
         image_b64 = image_to_base64(resized)
-        
+
         try:
             response = await self.client.messages.create(
                 model=VISION_MODEL,
@@ -401,35 +396,35 @@ class DatasheetParserService:
                 ],
                 temperature=0.1,
             )
-            
+
             content = response.content[0].text
-            
+
             # Parse JSON from response
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
             if json_match:
                 result = json.loads(json_match.group())
                 result["page_number"] = page_num
                 return result
-            
+
         except Exception as e:
             print(f"Error analyzing page {page_num}: {e}")
-        
+
         return {"page_has_dimensions": False, "page_number": page_num}
-    
+
     def _merge_page_results(self, page_results: list[dict]) -> ComponentSpecifications:
         """Merge extraction results from multiple pages."""
         # Find best dimensions (highest confidence)
         dimensions = None
         best_dim_confidence = 0
-        
+
         all_mounting_holes = []
         all_connectors = []
         all_clearance_zones = []
         thermal = None
-        
+
         for result in page_results:
             confidence = result.get("confidence", 0)
-            
+
             # Get dimensions from most confident source
             if result.get("dimensions") and confidence > best_dim_confidence:
                 dim_data = result["dimensions"]
@@ -441,49 +436,60 @@ class DatasheetParserService:
                         unit=LengthUnit(dim_data.get("unit", "mm")),
                     )
                     best_dim_confidence = confidence
-            
+
             # Collect mounting holes
             for hole in result.get("mounting_holes", []):
-                all_mounting_holes.append(MountingHole(
-                    x=hole["x"],
-                    y=hole["y"],
-                    diameter=hole["diameter"],
-                    thread_size=parse_thread_size(hole.get("thread_size")),
-                    is_threaded=bool(hole.get("thread_size")),
-                    label=hole.get("label"),
-                    from_corner=hole.get("from_corner"),
-                    confidence=confidence,
-                ))
-            
+                all_mounting_holes.append(
+                    MountingHole(
+                        x=hole["x"],
+                        y=hole["y"],
+                        diameter=hole["diameter"],
+                        thread_size=parse_thread_size(hole.get("thread_size")),
+                        is_threaded=bool(hole.get("thread_size")),
+                        label=hole.get("label"),
+                        from_corner=hole.get("from_corner"),
+                        confidence=confidence,
+                    )
+                )
+
             # Collect connectors
             for conn in result.get("connectors", []):
                 if conn.get("name"):
-                    all_connectors.append(Connector(
-                        name=conn["name"],
-                        type=parse_connector_type(conn.get("type", "other")),
-                        position=Position3D(x=0, y=0, z=0),  # Will be refined
-                        face=parse_face(conn.get("face", "front")),
-                        cutout_width=conn.get("cutout_width") or 15.0,
-                        cutout_height=conn.get("cutout_height") or 10.0,
-                        confidence=confidence,
-                    ))
-            
+                    all_connectors.append(
+                        Connector(
+                            name=conn["name"],
+                            type=parse_connector_type(conn.get("type", "other")),
+                            position=Position3D(x=0, y=0, z=0),  # Will be refined
+                            face=parse_face(conn.get("face", "front")),
+                            cutout_width=conn.get("cutout_width") or 15.0,
+                            cutout_height=conn.get("cutout_height") or 10.0,
+                            confidence=confidence,
+                        )
+                    )
+
             # Collect clearance zones
             for zone in result.get("clearance_zones", []):
                 if zone.get("name"):
                     from app.schemas.component_specs import BoundingBox
-                    all_clearance_zones.append(ClearanceZone(
-                        name=zone["name"],
-                        type=parse_clearance_type(zone.get("type", "other")),
-                        description=zone.get("description"),
-                        bounds=BoundingBox(
-                            min_x=0, min_y=0, min_z=0,
-                            max_x=0, max_y=0, max_z=zone.get("height", 10),
-                        ),
-                        requires_venting=zone.get("type") in ("heat_sink", "airflow"),
-                        confidence=confidence,
-                    ))
-            
+
+                    all_clearance_zones.append(
+                        ClearanceZone(
+                            name=zone["name"],
+                            type=parse_clearance_type(zone.get("type", "other")),
+                            description=zone.get("description"),
+                            bounds=BoundingBox(
+                                min_x=0,
+                                min_y=0,
+                                min_z=0,
+                                max_x=0,
+                                max_y=0,
+                                max_z=zone.get("height", 10),
+                            ),
+                            requires_venting=zone.get("type") in ("heat_sink", "airflow"),
+                            confidence=confidence,
+                        )
+                    )
+
             # Get thermal properties
             if result.get("thermal") and not thermal:
                 t = result["thermal"]
@@ -493,15 +499,15 @@ class DatasheetParserService:
                     requires_heatsink=t.get("requires_heatsink", False),
                     requires_venting=t.get("requires_venting", False),
                 )
-        
+
         # Create default dimensions if none found
         if not dimensions:
             dimensions = Dimensions(length=0, width=0, height=0)
-        
+
         # Calculate overall confidence
         confidences = [r.get("confidence", 0) for r in page_results if r.get("page_has_dimensions")]
         overall_confidence = max(confidences) if confidences else 0.0
-        
+
         return ComponentSpecifications(
             dimensions=dimensions,
             mounting_holes=all_mounting_holes,
@@ -511,27 +517,27 @@ class DatasheetParserService:
             extraction_method="datasheet",
             overall_confidence=overall_confidence,
         )
-    
+
     async def extract_mechanical_drawing(
         self,
         pdf_path: Path,
-    ) -> Optional[MechanicalDrawing]:
+    ) -> MechanicalDrawing | None:
         """Find and extract the mechanical drawing page."""
         images = pdf_to_images(pdf_path, MAX_PAGES_TO_ANALYZE)
-        
+
         for i, image in enumerate(images):
             result = await self._analyze_page(image, i + 1)
             if result.get("is_mechanical_drawing"):
                 # Save the drawing image
                 resized = resize_image(image, 1600)
                 image_b64 = image_to_base64(resized)
-                
+
                 return MechanicalDrawing(
                     page_number=i + 1,
                     image_data=image_b64,
                     view_type="mechanical",
                 )
-        
+
         return None
 
 

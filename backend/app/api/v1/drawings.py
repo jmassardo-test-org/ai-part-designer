@@ -5,11 +5,9 @@ Generate and manage technical 2D drawings from 3D CAD models.
 """
 
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Response
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,44 +15,48 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.cad.drawing_generator import (
+    DimensionStyle,
     DrawingConfig,
     DrawingFormat,
-    DrawingGenerator,
     DrawingView,
     DrawingViewType,
-    DimensionStyle,
     PaperSize,
     TitleBlock,
     drawing_generator,
 )
 from app.models import Design, User
 
-
 router = APIRouter(prefix="/designs/{design_id}/drawings", tags=["drawings"])
 
 
 # --- Schemas ---
 
+
 class ViewConfig(BaseModel):
     """Configuration for a drawing view."""
-    view_type: str = Field(..., description="View type: front, back, left, right, top, bottom, isometric, section, detail")
+
+    view_type: str = Field(
+        ...,
+        description="View type: front, back, left, right, top, bottom, isometric, section, detail",
+    )
     position_x: float = Field(default=0.5, ge=0, le=1, description="X position on sheet (0-1)")
     position_y: float = Field(default=0.5, ge=0, le=1, description="Y position on sheet (0-1)")
     scale: float = Field(default=1.0, gt=0, le=10, description="View scale")
     show_hidden_lines: bool = False
     show_center_lines: bool = True
-    label: Optional[str] = None
-    
+    label: str | None = None
+
     # Section view options
-    section_plane: Optional[str] = None
+    section_plane: str | None = None
     section_offset: float = 0.0
-    
+
     # Detail view options
     detail_scale: float = 2.0
 
 
 class DimensionStyleConfig(BaseModel):
     """Dimension style configuration."""
+
     font_size: float = Field(default=3.5, gt=0, le=10)
     arrow_size: float = Field(default=3.0, gt=0, le=10)
     decimal_places: int = Field(default=2, ge=0, le=6)
@@ -64,6 +66,7 @@ class DimensionStyleConfig(BaseModel):
 
 class TitleBlockConfig(BaseModel):
     """Title block configuration."""
+
     company_name: str = ""
     project_name: str = ""
     drawing_title: str = ""
@@ -82,12 +85,18 @@ class TitleBlockConfig(BaseModel):
 
 class DrawingRequest(BaseModel):
     """Request to generate a 2D drawing."""
-    paper_size: str = Field(default="A4", description="Paper size: A4, A3, A2, A1, A0, letter, legal, tabloid")
+
+    paper_size: str = Field(
+        default="A4", description="Paper size: A4, A3, A2, A1, A0, letter, legal, tabloid"
+    )
     orientation: str = Field(default="landscape", pattern="^(portrait|landscape)$")
     output_format: str = Field(default="svg", description="Output format: svg, pdf, dxf, png")
-    views: list[ViewConfig] = Field(default_factory=list, description="View configurations. If empty, uses default 3-view layout.")
-    dimension_style: Optional[DimensionStyleConfig] = None
-    title_block: Optional[TitleBlockConfig] = None
+    views: list[ViewConfig] = Field(
+        default_factory=list,
+        description="View configurations. If empty, uses default 3-view layout.",
+    )
+    dimension_style: DimensionStyleConfig | None = None
+    title_block: TitleBlockConfig | None = None
     auto_dimensions: bool = True
     show_border: bool = True
     projection_type: str = Field(default="third_angle", pattern="^(third_angle|first_angle)$")
@@ -95,6 +104,7 @@ class DrawingRequest(BaseModel):
 
 class DrawingPreviewResponse(BaseModel):
     """Preview of drawing configuration."""
+
     paper_size: str
     orientation: str
     width_mm: float
@@ -105,6 +115,7 @@ class DrawingPreviewResponse(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 async def get_design_or_404(
     design_id: UUID,
@@ -121,23 +132,23 @@ async def get_design_or_404(
         )
     )
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     if design.project.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return design
 
 
-def get_step_file_path(design: Design) -> Optional[str]:
+def get_step_file_path(design: Design) -> str | None:
     """Get the STEP file path for a design."""
     # Check file_formats for STEP file
     if design.current_version:
@@ -145,50 +156,59 @@ def get_step_file_path(design: Design) -> Optional[str]:
         step_url = formats.get("step") or formats.get("STEP")
         if step_url and Path(step_url).exists():
             return step_url
-    
+
     # Check versions for STEP file
     for version in design.versions:
         formats = version.file_formats or {}
         step_url = formats.get("step") or formats.get("STEP")
         if step_url and Path(step_url).exists():
             return step_url
-    
+
     # Fall back to file_url if it's a STEP file
     if design.current_version and design.current_version.file_url:
         file_url = design.current_version.file_url
-        if file_url.lower().endswith(('.step', '.stp')):
-            if Path(file_url).exists():
-                return file_url
-    
+        if file_url.lower().endswith((".step", ".stp")) and Path(file_url).exists():
+            return file_url
+
     return None
 
 
 def parse_drawing_config(request: DrawingRequest, design: Design, user: User) -> DrawingConfig:
     """Parse request into DrawingConfig."""
     # Parse paper size
-    paper_size = PaperSize(request.paper_size.upper()) if request.paper_size.upper() in [p.value for p in PaperSize] else PaperSize.A4
-    
+    paper_size = (
+        PaperSize(request.paper_size.upper())
+        if request.paper_size.upper() in [p.value for p in PaperSize]
+        else PaperSize.A4
+    )
+
     # Parse views
     views = []
     if request.views:
         for v in request.views:
-            view_type = DrawingViewType(v.view_type.lower()) if v.view_type.lower() in [t.value for t in DrawingViewType] else DrawingViewType.FRONT
-            views.append(DrawingView(
-                view_type=view_type,
-                position_x=v.position_x,
-                position_y=v.position_y,
-                scale=v.scale,
-                show_hidden_lines=v.show_hidden_lines,
-                show_center_lines=v.show_center_lines,
-                label=v.label,
-                section_plane=v.section_plane,
-                section_offset=v.section_offset,
-                detail_scale=v.detail_scale,
-            ))
+            view_type = (
+                DrawingViewType(v.view_type.lower())
+                if v.view_type.lower() in [t.value for t in DrawingViewType]
+                else DrawingViewType.FRONT
+            )
+            views.append(
+                DrawingView(
+                    view_type=view_type,
+                    position_x=v.position_x,
+                    position_y=v.position_y,
+                    scale=v.scale,
+                    show_hidden_lines=v.show_hidden_lines,
+                    show_center_lines=v.show_center_lines,
+                    label=v.label,
+                    section_plane=v.section_plane,
+                    section_offset=v.section_offset,
+                    detail_scale=v.detail_scale,
+                )
+            )
     else:
         # Use default views
         views = drawing_generator.get_default_views(request.projection_type)
-    
+
     # Parse dimension style
     dim_style = DimensionStyle()
     if request.dimension_style:
@@ -199,7 +219,7 @@ def parse_drawing_config(request: DrawingRequest, design: Design, user: User) ->
             units=request.dimension_style.units,
             show_units=request.dimension_style.show_units,
         )
-    
+
     # Parse title block
     title = TitleBlock()
     if request.title_block:
@@ -226,7 +246,7 @@ def parse_drawing_config(request: DrawingRequest, design: Design, user: User) ->
             drawing_title=design.name,
             drawn_by=user.display_name or user.email,
         )
-    
+
     return DrawingConfig(
         paper_size=paper_size,
         orientation=request.orientation,
@@ -241,6 +261,7 @@ def parse_drawing_config(request: DrawingRequest, design: Design, user: User) ->
 
 # --- Endpoints ---
 
+
 @router.post("/generate")
 async def generate_drawing(
     design_id: UUID,
@@ -250,11 +271,11 @@ async def generate_drawing(
 ):
     """
     Generate a 2D technical drawing from a 3D design.
-    
+
     Returns the drawing file in the requested format (SVG, PDF, DXF, or PNG).
     """
     design = await get_design_or_404(design_id, db, current_user)
-    
+
     # Get STEP file path
     step_path = get_step_file_path(design)
     if not step_path:
@@ -262,23 +283,23 @@ async def generate_drawing(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Design does not have a STEP file for drawing generation",
         )
-    
+
     # Parse configuration
     config = parse_drawing_config(request, design, current_user)
-    
+
     # Parse output format
     try:
         output_format = DrawingFormat(request.output_format.lower())
     except ValueError:
         output_format = DrawingFormat.SVG
-    
+
     # Generate drawing
     drawing_bytes = await drawing_generator.generate_drawing(
         step_path,
         config,
         output_format,
     )
-    
+
     # Set content type
     content_types = {
         DrawingFormat.SVG: "image/svg+xml",
@@ -287,10 +308,10 @@ async def generate_drawing(
         DrawingFormat.PNG: "image/png",
     }
     content_type = content_types.get(output_format, "application/octet-stream")
-    
+
     # Set filename
     filename = f"{design.name}_drawing.{output_format.value}"
-    
+
     return Response(
         content=drawing_bytes,
         media_type=content_type,
@@ -309,18 +330,19 @@ async def preview_drawing(
 ):
     """
     Preview drawing configuration without generating the actual file.
-    
+
     Returns information about the drawing that would be generated.
     """
     design = await get_design_or_404(design_id, db, current_user)
     config = parse_drawing_config(request, design, current_user)
-    
+
     # Get paper dimensions
     from app.cad.drawing_generator import PAPER_DIMENSIONS
+
     width, height = PAPER_DIMENSIONS[config.paper_size]
     if config.orientation == "landscape":
         width, height = height, width
-    
+
     # Estimate file size based on format and view count
     base_size = 10  # KB
     per_view_size = 5  # KB per view
@@ -332,7 +354,7 @@ async def preview_drawing(
     }
     multiplier = format_multipliers.get(request.output_format.lower(), 1.0)
     estimated_size = int((base_size + len(config.views) * per_view_size) * multiplier)
-    
+
     return DrawingPreviewResponse(
         paper_size=config.paper_size.value,
         orientation=config.orientation,
@@ -388,7 +410,7 @@ async def list_formats():
 async def list_paper_sizes():
     """List available paper sizes."""
     from app.cad.drawing_generator import PAPER_DIMENSIONS
-    
+
     return {
         "paper_sizes": [
             {
@@ -414,7 +436,15 @@ async def list_view_types():
             {"id": "top", "name": "Top View", "description": "View from above"},
             {"id": "bottom", "name": "Bottom View", "description": "View from below"},
             {"id": "isometric", "name": "Isometric View", "description": "3D isometric projection"},
-            {"id": "section", "name": "Section View", "description": "Cross-section through the part"},
-            {"id": "detail", "name": "Detail View", "description": "Magnified detail of a specific area"},
+            {
+                "id": "section",
+                "name": "Section View",
+                "description": "Cross-section through the part",
+            },
+            {
+                "id": "detail",
+                "name": "Detail View",
+                "description": "Magnified detail of a specific area",
+            },
         ],
     }

@@ -3,7 +3,7 @@
 Handles exporting compiled geometry to various file formats.
 """
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +17,7 @@ except ImportError:
     Part = Any  # type: ignore
 
 
-class ExportFormat(str, Enum):
+class ExportFormat(StrEnum):
     """Supported export formats."""
 
     STEP = "step"
@@ -26,8 +26,6 @@ class ExportFormat(str, Enum):
 
 class ExportError(Exception):
     """Error during export."""
-
-    pass
 
 
 def export_part(

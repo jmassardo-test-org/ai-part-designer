@@ -6,7 +6,7 @@ organization and access control within an organization.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class TeamRole(str, Enum):
+class TeamRole(StrEnum):
     """
     Role within a team.
 
@@ -146,7 +146,7 @@ class Team(Base, TimestampMixin, SoftDeleteMixin):
     @property
     def member_count(self) -> int:
         """Count of active team members."""
-        return self.members.filter(TeamMember.is_active == True).count()
+        return self.members.filter(TeamMember.is_active).count()
 
     @property
     def color(self) -> str | None:

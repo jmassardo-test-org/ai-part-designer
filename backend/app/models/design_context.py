@@ -7,7 +7,7 @@ Tracks conversation history and parameters for iterative design refinement.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -25,19 +25,19 @@ if TYPE_CHECKING:
 class DesignContext(Base):
     """
     Stores conversation context for iterative design refinement.
-    
+
     Enables AI to understand the history of changes and user intent
     when refining a design with follow-up instructions.
     """
-    
+
     __tablename__ = "design_contexts"
-    
+
     # Primary key
     id: Mapped[UUID] = mapped_column(
         primary_key=True,
         default=uuid4,
     )
-    
+
     # Foreign keys
     design_id: Mapped[UUID] = mapped_column(
         ForeignKey("designs.id", ondelete="CASCADE"),
@@ -45,7 +45,7 @@ class DesignContext(Base):
         unique=True,
         index=True,
     )
-    
+
     # Conversation history - list of messages
     # [{"role": "user", "content": "...", "timestamp": "..."}, ...]
     messages: Mapped[list] = mapped_column(
@@ -53,7 +53,7 @@ class DesignContext(Base):
         nullable=False,
         default=list,
     )
-    
+
     # Current parameters - flattened parameter state
     # {"length": 100, "width": 50, "height": 30, ...}
     parameters: Mapped[dict] = mapped_column(
@@ -61,7 +61,7 @@ class DesignContext(Base):
         nullable=False,
         default=dict,
     )
-    
+
     # Parameter history - track changes over iterations
     # [{"version": 1, "parameters": {...}, "instruction": "..."}, ...]
     parameter_history: Mapped[list] = mapped_column(
@@ -69,27 +69,27 @@ class DesignContext(Base):
         nullable=False,
         default=list,
     )
-    
+
     # Iteration tracking
     iteration_count: Mapped[int] = mapped_column(
         Integer,
         default=0,
         nullable=False,
     )
-    
+
     # Last instruction for quick reference
-    last_instruction: Mapped[Optional[str]] = mapped_column(
+    last_instruction: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
-    
+
     # AI model context (for advanced use)
-    ai_context: Mapped[Optional[dict]] = mapped_column(
+    ai_context: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Cached AI embeddings or context for faster inference",
     )
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -102,16 +102,16 @@ class DesignContext(Base):
         onupdate=func.now(),
         nullable=False,
     )
-    
+
     # Relationships
-    design: Mapped["Design"] = relationship(
+    design: Mapped[Design] = relationship(
         "Design",
         back_populates="context",
     )
-    
+
     def __repr__(self) -> str:
         return f"<DesignContext {self.id} iterations={self.iteration_count}>"
-    
+
     def add_user_message(self, content: str) -> None:
         """Add a user message to the conversation."""
         message = {
@@ -119,10 +119,10 @@ class DesignContext(Base):
             "content": content,
             "timestamp": datetime.now().isoformat(),
         }
-        self.messages = self.messages + [message]
+        self.messages = [*self.messages, message]
         self.last_instruction = content
-    
-    def add_assistant_message(self, content: str, parameters: Optional[dict] = None) -> None:
+
+    def add_assistant_message(self, content: str, parameters: dict | None = None) -> None:
         """Add an assistant message to the conversation."""
         message = {
             "role": "assistant",
@@ -131,8 +131,8 @@ class DesignContext(Base):
         }
         if parameters:
             message["parameters"] = parameters
-        self.messages = self.messages + [message]
-    
+        self.messages = [*self.messages, message]
+
     def add_system_message(self, content: str) -> None:
         """Add a system message to the conversation."""
         message = {
@@ -140,12 +140,12 @@ class DesignContext(Base):
             "content": content,
             "timestamp": datetime.now().isoformat(),
         }
-        self.messages = self.messages + [message]
-    
+        self.messages = [*self.messages, message]
+
     def increment_iteration(self, instruction: str, new_parameters: dict) -> None:
         """Record a new iteration with parameter changes."""
         self.iteration_count += 1
-        
+
         # Record parameter history
         history_entry = {
             "version": self.iteration_count,
@@ -153,40 +153,44 @@ class DesignContext(Base):
             "instruction": instruction,
             "timestamp": datetime.now().isoformat(),
         }
-        self.parameter_history = self.parameter_history + [history_entry]
-        
+        self.parameter_history = [*self.parameter_history, history_entry]
+
         # Update current parameters
         self.parameters = new_parameters.copy()
         self.last_instruction = instruction
-    
+
     def get_conversation_for_ai(self) -> list[dict]:
         """
         Get conversation formatted for AI API.
-        
+
         Returns a list of messages suitable for chat completion APIs.
         """
         ai_messages = []
-        
+
         # Add system context
-        ai_messages.append({
-            "role": "system",
-            "content": self._get_system_prompt(),
-        })
-        
+        ai_messages.append(
+            {
+                "role": "system",
+                "content": self._get_system_prompt(),
+            }
+        )
+
         # Add conversation history (limit to last N messages)
         recent_messages = self.messages[-20:]  # Keep last 20 messages
         for msg in recent_messages:
-            ai_messages.append({
-                "role": msg["role"],
-                "content": msg["content"],
-            })
-        
+            ai_messages.append(
+                {
+                    "role": msg["role"],
+                    "content": msg["content"],
+                }
+            )
+
         return ai_messages
-    
+
     def _get_system_prompt(self) -> str:
         """Generate system prompt with current context."""
         param_str = ", ".join([f"{k}={v}" for k, v in self.parameters.items()])
-        
+
         return f"""You are an AI assistant helping to refine a 3D CAD design.
 
 Current design parameters:
@@ -201,7 +205,7 @@ When the user asks to modify the design:
 4. Respond with the changes you'll make
 
 Be concise and specific about what changes you'll make."""
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for API response."""
         return {
@@ -219,18 +223,18 @@ Be concise and specific about what changes you'll make."""
 class DesignRefinementJob(Base):
     """
     Tracks async refinement jobs for designs.
-    
+
     Used when design refinement requires background processing.
     """
-    
+
     __tablename__ = "design_refinement_jobs"
-    
+
     # Primary key
     id: Mapped[UUID] = mapped_column(
         primary_key=True,
         default=uuid4,
     )
-    
+
     # Foreign keys
     design_id: Mapped[UUID] = mapped_column(
         ForeignKey("designs.id", ondelete="CASCADE"),
@@ -242,13 +246,13 @@ class DesignRefinementJob(Base):
         nullable=False,
         index=True,
     )
-    
+
     # Job details
     instruction: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
-    
+
     # Status
     status: Mapped[str] = mapped_column(
         String(20),
@@ -256,62 +260,62 @@ class DesignRefinementJob(Base):
         nullable=False,
         index=True,
     )  # pending, processing, completed, failed
-    
+
     # Results
-    result_version_id: Mapped[Optional[UUID]] = mapped_column(
+    result_version_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("design_versions.id", ondelete="SET NULL"),
         nullable=True,
     )
-    error_message: Mapped[Optional[str]] = mapped_column(
+    error_message: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
-    
+
     # Parameter changes
-    old_parameters: Mapped[Optional[dict]] = mapped_column(
+    old_parameters: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,
     )
-    new_parameters: Mapped[Optional[dict]] = mapped_column(
+    new_parameters: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,
     )
-    
+
     # AI response
-    ai_response: Mapped[Optional[str]] = mapped_column(
+    ai_response: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
-    
+
     # Timing
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
-    
+
     # Relationships
-    design: Mapped["Design"] = relationship("Design")
-    user: Mapped["User"] = relationship("User")
-    
+    design: Mapped[Design] = relationship("Design")
+    user: Mapped[User] = relationship("User")
+
     def __repr__(self) -> str:
         return f"<DesignRefinementJob {self.id} status={self.status}>"
-    
+
     def start(self) -> None:
         """Mark job as started."""
         self.status = "processing"
         self.started_at = datetime.now()
-    
+
     def complete(self, version_id: UUID, new_params: dict, ai_response: str) -> None:
         """Mark job as completed."""
         self.status = "completed"
@@ -319,13 +323,13 @@ class DesignRefinementJob(Base):
         self.result_version_id = version_id
         self.new_parameters = new_params
         self.ai_response = ai_response
-    
+
     def fail(self, error: str) -> None:
         """Mark job as failed."""
         self.status = "failed"
         self.completed_at = datetime.now()
         self.error_message = error
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for API response."""
         return {

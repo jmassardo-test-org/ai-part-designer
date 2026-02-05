@@ -7,11 +7,10 @@ Stores chat sessions with message history for iterative part design.
 from __future__ import annotations
 
 import enum
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func, JSON
+from sqlalchemy import JSON, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,9 +20,9 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class ConversationStatus(str, enum.Enum):
+class ConversationStatus(enum.StrEnum):
     """Status of a conversation."""
-    
+
     ACTIVE = "active"  # Ongoing conversation
     CLARIFYING = "clarifying"  # Waiting for user response to clarification
     READY = "ready"  # Has enough info to generate
@@ -33,17 +32,17 @@ class ConversationStatus(str, enum.Enum):
     ABANDONED = "abandoned"  # User left without completing
 
 
-class MessageRole(str, enum.Enum):
+class MessageRole(enum.StrEnum):
     """Role of a message sender."""
-    
+
     USER = "user"  # User input
     ASSISTANT = "assistant"  # AI response
     SYSTEM = "system"  # System messages (errors, status updates)
 
 
-class MessageType(str, enum.Enum):
+class MessageType(enum.StrEnum):
     """Type of message content."""
-    
+
     TEXT = "text"  # Plain text
     CLARIFICATION = "clarification"  # AI asking for clarification
     CONFIRMATION = "confirmation"  # AI confirming understanding
@@ -55,9 +54,9 @@ class MessageType(str, enum.Enum):
 
 class Conversation(Base, TimestampMixin):
     """A chat conversation for CAD generation."""
-    
+
     __tablename__ = "conversations"
-    
+
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
@@ -69,7 +68,7 @@ class Conversation(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    
+
     # Conversation metadata
     title: Mapped[str | None] = mapped_column(
         String(200),
@@ -81,7 +80,7 @@ class Conversation(Base, TimestampMixin):
         default=ConversationStatus.ACTIVE.value,
         nullable=False,
     )
-    
+
     # Accumulated understanding (updated as conversation progresses)
     intent_data: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
@@ -93,7 +92,7 @@ class Conversation(Base, TimestampMixin):
         nullable=True,
         default=None,
     )
-    
+
     # Result data (populated on completion)
     result_job_id: Mapped[str | None] = mapped_column(
         String(100),
@@ -104,24 +103,24 @@ class Conversation(Base, TimestampMixin):
         nullable=True,
         default=None,
     )
-    
+
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="conversations")
-    messages: Mapped[list["ConversationMessage"]] = relationship(
+    user: Mapped[User] = relationship(back_populates="conversations")
+    messages: Mapped[list[ConversationMessage]] = relationship(
         back_populates="conversation",
         order_by="ConversationMessage.created_at",
         cascade="all, delete-orphan",
     )
-    
+
     def __repr__(self) -> str:
         return f"<Conversation(id={self.id}, status={self.status})>"
 
 
 class ConversationMessage(Base, TimestampMixin):
     """A single message in a conversation."""
-    
+
     __tablename__ = "conversation_messages"
-    
+
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
@@ -133,7 +132,7 @@ class ConversationMessage(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    
+
     # Message content
     # Using String instead of Enum to avoid PostgreSQL enum creation issues
     role: Mapped[str] = mapped_column(
@@ -149,16 +148,16 @@ class ConversationMessage(Base, TimestampMixin):
         Text,
         nullable=False,
     )
-    
+
     # Structured data (for clarifications, plans, results)
     extra_data: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         nullable=True,
         default=None,
     )
-    
+
     # Relationship
-    conversation: Mapped["Conversation"] = relationship(back_populates="messages")
-    
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+
     def __repr__(self) -> str:
         return f"<Message(id={self.id}, role={self.role}, type={self.message_type})>"

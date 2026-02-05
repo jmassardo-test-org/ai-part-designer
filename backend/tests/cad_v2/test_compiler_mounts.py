@@ -141,9 +141,7 @@ class TestMountCompilerImport:
 class TestMountCompilerScrew:
     """Tests for screw boss compilation."""
 
-    def test_screw_bosses_only_for_screw_on(
-        self, simple_enclosure: EnclosureSpec
-    ) -> None:
+    def test_screw_bosses_only_for_screw_on(self, simple_enclosure: EnclosureSpec) -> None:
         """Screw bosses should only be added for SCREW_ON lid type."""
         from app.cad_v2.compiler.mounts import MountCompiler
 
@@ -154,9 +152,7 @@ class TestMountCompilerScrew:
         assert result == mock_body
 
     @pytest.mark.skipif(not BUILD123D_AVAILABLE, reason="Build123d not available")
-    def test_screw_bosses_with_screw_on_lid(
-        self, screw_on_enclosure: EnclosureSpec
-    ) -> None:
+    def test_screw_bosses_with_screw_on_lid(self, screw_on_enclosure: EnclosureSpec) -> None:
         """Screw bosses should be added for SCREW_ON lid."""
         from app.cad_v2.compiler import CompilationEngine
 
@@ -175,9 +171,7 @@ class TestMountCompilerScrew:
 class TestMountCompilerStandoff:
     """Tests for standoff compilation."""
 
-    def test_standoffs_without_positions_noop(
-        self, simple_enclosure: EnclosureSpec
-    ) -> None:
+    def test_standoffs_without_positions_noop(self, simple_enclosure: EnclosureSpec) -> None:
         """Standoffs with empty positions should return unchanged body."""
         from app.cad_v2.compiler.mounts import MountCompiler
 
@@ -252,9 +246,7 @@ class TestMountCompilerStandoff:
 class TestMountCompilerComponentStandoffs:
     """Tests for component-based standoff mounting."""
 
-    def test_component_standoffs_with_mounting_holes(
-        self, simple_enclosure: EnclosureSpec
-    ) -> None:
+    def test_component_standoffs_with_mounting_holes(self, simple_enclosure: EnclosureSpec) -> None:
         """Should add standoffs at component mounting hole positions."""
         from app.cad_v2.compiler.mounts import MountCompiler
 
@@ -281,9 +273,7 @@ class TestMountCompilerComponentStandoffs:
             result = compiler.add_component_standoffs(mock_body, mount, mounting_holes)
             assert result == mock_body
 
-    def test_no_standoffs_for_surface_mount(
-        self, simple_enclosure: EnclosureSpec
-    ) -> None:
+    def test_no_standoffs_for_surface_mount(self, simple_enclosure: EnclosureSpec) -> None:
         """Should not add standoffs for SURFACE mounting type."""
         from app.cad_v2.compiler.mounts import MountCompiler
 

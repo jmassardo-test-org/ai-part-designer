@@ -16,7 +16,7 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.core.stripe import get_stripe_client
 from app.models.user import User
-from app.services.payment import PaymentService, PaymentError
+from app.services.payment import PaymentError, PaymentService
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 logger = logging.getLogger(__name__)
@@ -26,8 +26,10 @@ logger = logging.getLogger(__name__)
 # Schemas
 # =============================
 
+
 class FeatureSet(BaseModel):
     """Feature flags for a plan."""
+
     ai_generation: bool = True
     export_2d: bool = False
     hardware_library: bool = True
@@ -39,10 +41,11 @@ class FeatureSet(BaseModel):
 
 class PlanResponse(BaseModel):
     """Subscription plan response."""
+
     slug: str
     name: str
     description: str | None
-    
+
     # Limits
     monthly_credits: int
     max_concurrent_jobs: int
@@ -50,28 +53,28 @@ class PlanResponse(BaseModel):
     max_projects: int
     max_designs_per_project: int
     max_file_size_mb: int
-    
+
     # Features
     features: dict
-    
+
     # Pricing
     price_monthly: float
     price_yearly: float
-    
+
     # Stripe (for checkout)
     stripe_price_id_monthly: str | None = None
     stripe_price_id_yearly: str | None = None
-    
+
     class Config:
         from_attributes = True
 
 
 class CheckoutRequest(BaseModel):
     """Request to create a checkout session."""
+
     plan_slug: str = Field(..., description="Plan to subscribe to: 'pro' or 'enterprise'")
     billing_interval: Literal["monthly", "yearly"] = Field(
-        default="monthly",
-        description="Billing frequency"
+        default="monthly", description="Billing frequency"
     )
     success_url: str | None = Field(None, description="Override success redirect URL")
     cancel_url: str | None = Field(None, description="Override cancel redirect URL")
@@ -79,17 +82,20 @@ class CheckoutRequest(BaseModel):
 
 class CheckoutResponse(BaseModel):
     """Checkout session response."""
+
     checkout_url: str
     session_id: str
 
 
 class PortalResponse(BaseModel):
     """Billing portal session response."""
+
     portal_url: str
 
 
 class SubscriptionResponse(BaseModel):
     """Current subscription status."""
+
     tier: str
     status: str
     is_active: bool
@@ -103,6 +109,7 @@ class SubscriptionResponse(BaseModel):
 
 class PaymentHistoryItem(BaseModel):
     """Payment history entry."""
+
     id: str
     payment_type: str
     status: str
@@ -111,28 +118,29 @@ class PaymentHistoryItem(BaseModel):
     description: str
     paid_at: datetime | None
     invoice_url: str | None
-    
+
     class Config:
         from_attributes = True
 
 
 class UsageResponse(BaseModel):
     """Current usage statistics."""
+
     tier: str
-    
+
     # Credit usage
     credits_used: int
     credits_remaining: int
     credits_total: int
-    
+
     # Storage usage
     storage_used_gb: float
     storage_limit_gb: int
-    
+
     # Generation usage
     generations_this_period: int
     generations_limit: int
-    
+
     # Period info
     period_start: str | None
     period_end: str | None
@@ -140,6 +148,7 @@ class UsageResponse(BaseModel):
 
 class PublishableKeyResponse(BaseModel):
     """Stripe publishable key for frontend."""
+
     publishable_key: str
 
 
@@ -147,17 +156,16 @@ class PublishableKeyResponse(BaseModel):
 # Endpoints
 # =============================
 
+
 @router.get("/config")
 async def get_stripe_config() -> PublishableKeyResponse:
     """
     Get Stripe configuration for frontend.
-    
+
     Returns the publishable key needed to initialize Stripe.js.
     """
     stripe_client = get_stripe_client()
-    return PublishableKeyResponse(
-        publishable_key=stripe_client.get_publishable_key()
-    )
+    return PublishableKeyResponse(publishable_key=stripe_client.get_publishable_key())
 
 
 @router.get("/plans")
@@ -166,13 +174,13 @@ async def list_plans(
 ) -> list[PlanResponse]:
     """
     List all available subscription plans.
-    
+
     Returns active subscription tiers with pricing and features.
     Public endpoint - no authentication required.
     """
     payment_service = PaymentService(db)
     plans = await payment_service.get_subscription_plans()
-    
+
     return [
         PlanResponse(
             slug=p.slug,
@@ -201,12 +209,12 @@ async def get_current_subscription(
 ) -> SubscriptionResponse:
     """
     Get the current user's subscription status.
-    
+
     Returns subscription tier, status, and billing period details.
     """
     payment_service = PaymentService(db)
     status = await payment_service.get_subscription_status(user)
-    
+
     return SubscriptionResponse(**status)
 
 
@@ -218,17 +226,17 @@ async def create_checkout(
 ) -> CheckoutResponse:
     """
     Create a Stripe Checkout session for subscription.
-    
+
     Redirects the user to Stripe's hosted checkout page.
-    
+
     Args:
         request: Checkout details including plan and billing interval
-        
+
     Returns:
         Checkout URL to redirect the user to
     """
     payment_service = PaymentService(db)
-    
+
     try:
         result = await payment_service.create_checkout_session(
             user=user,
@@ -237,12 +245,12 @@ async def create_checkout(
             success_url=request.success_url,
             cancel_url=request.cancel_url,
         )
-        
+
         return CheckoutResponse(
             checkout_url=result["checkout_url"],
             session_id=result["session_id"],
         )
-        
+
     except PaymentError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -258,23 +266,23 @@ async def create_portal_session(
 ) -> PortalResponse:
     """
     Create a Stripe Billing Portal session.
-    
+
     Allows users to manage payment methods, view invoices,
     and update subscription.
-    
+
     Returns:
         Portal URL to redirect the user to
     """
     payment_service = PaymentService(db)
-    
+
     try:
         result = await payment_service.create_billing_portal_session(
             user=user,
             return_url=return_url,
         )
-        
+
         return PortalResponse(portal_url=result["portal_url"])
-        
+
     except PaymentError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -290,26 +298,26 @@ async def cancel_subscription(
 ) -> SubscriptionResponse:
     """
     Cancel the current subscription.
-    
+
     By default, cancels at the end of the current billing period.
     User retains access until then.
-    
+
     Args:
         immediately: If True, cancel immediately instead of at period end
-        
+
     Returns:
         Updated subscription status
     """
     payment_service = PaymentService(db)
-    
+
     try:
         status_dict = await payment_service.cancel_subscription(
             user=user,
             immediately=immediately,
         )
-        
+
         return SubscriptionResponse(**status_dict)
-        
+
     except PaymentError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -324,19 +332,19 @@ async def resume_subscription(
 ) -> SubscriptionResponse:
     """
     Resume a subscription that was set to cancel.
-    
+
     Only works if the subscription was canceled at period end
     and the period hasn't ended yet.
-    
+
     Returns:
         Updated subscription status
     """
     payment_service = PaymentService(db)
-    
+
     try:
         status_dict = await payment_service.resume_subscription(user)
         return SubscriptionResponse(**status_dict)
-        
+
     except PaymentError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -351,20 +359,20 @@ async def get_usage(
 ) -> UsageResponse:
     """
     Get current usage statistics.
-    
+
     Shows credits used, storage consumed, and generation counts
     against the user's tier limits.
     """
     # Get subscription info
     sub = user.subscription
     tier = sub.tier if sub else "free"
-    
+
     # Get usage quota
     usage = user.usage_quota
-    
+
     # Get credit balance
     credits = user.credit_balance
-    
+
     # Determine limits based on tier
     tier_limits = {
         "free": {"credits": 10, "storage_gb": 1, "generations": 10},
@@ -372,7 +380,7 @@ async def get_usage(
         "enterprise": {"credits": 1000, "storage_gb": 500, "generations": 1000},
     }
     limits = tier_limits.get(tier, tier_limits["free"])
-    
+
     return UsageResponse(
         tier=tier,
         credits_used=credits.lifetime_spent if credits else 0,
@@ -382,7 +390,9 @@ async def get_usage(
         storage_limit_gb=limits["storage_gb"],
         generations_this_period=usage.period_generations if usage else 0,
         generations_limit=limits["generations"],
-        period_start=sub.current_period_start.isoformat() if sub and sub.current_period_start else None,
+        period_start=sub.current_period_start.isoformat()
+        if sub and sub.current_period_start
+        else None,
         period_end=sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
     )
 
@@ -396,7 +406,7 @@ async def get_payment_history(
 ) -> list[PaymentHistoryItem]:
     """
     Get payment history.
-    
+
     Returns a list of past payments with invoice links.
     """
     payment_service = PaymentService(db)
@@ -405,7 +415,7 @@ async def get_payment_history(
         limit=limit,
         offset=offset,
     )
-    
+
     return [
         PaymentHistoryItem(
             id=str(p.id),

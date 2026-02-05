@@ -23,6 +23,7 @@ from app.cad_v2.schemas.enclosure import (
 # Import conditionally to handle Build123d availability
 try:
     from app.cad_v2.compiler.engine import CompilationEngine
+
     BUILD123D_AVAILABLE = True
 except ImportError:
     BUILD123D_AVAILABLE = False
@@ -81,7 +82,7 @@ class TestCompilationPerformance:
             start = time.perf_counter()
             result = engine.compile_enclosure(spec)
             elapsed = time.perf_counter() - start
-            
+
             assert result.success, f"Compilation failed: {result.errors}"
             times.append(elapsed)
 
@@ -99,77 +100,83 @@ class TestCompilationPerformance:
     ) -> None:
         """
         Benchmark: Simple enclosure should compile in under 3 seconds.
-        
+
         Target: < 3s mean compilation time
         Acceptable: < 5s max compilation time
         """
         stats = self._benchmark_compilation(engine, simple_spec)
-        
-        print(f"\n=== Simple Enclosure Benchmark ===")
+
+        print("\n=== Simple Enclosure Benchmark ===")
         print(f"  Min:    {stats['min']:.3f}s")
         print(f"  Max:    {stats['max']:.3f}s")
         print(f"  Mean:   {stats['mean']:.3f}s")
         print(f"  Median: {stats['median']:.3f}s")
         print(f"  StdDev: {stats['stdev']:.3f}s")
-        
+
         assert stats["mean"] < 3.0, f"Mean compile time {stats['mean']:.2f}s exceeds 3s target"
-        assert stats["max"] < 5.0, f"Max compile time {stats['max']:.2f}s exceeds 5s acceptable limit"
+        assert stats["max"] < 5.0, (
+            f"Max compile time {stats['max']:.2f}s exceeds 5s acceptable limit"
+        )
 
     def test_complex_enclosure_performance(
         self, engine: CompilationEngine, complex_spec: EnclosureSpec
     ) -> None:
         """
         Benchmark: Complex enclosure should compile in under 10 seconds.
-        
+
         Target: < 10s mean compilation time
         Acceptable: < 15s max compilation time
         """
         stats = self._benchmark_compilation(engine, complex_spec)
-        
-        print(f"\n=== Complex Enclosure Benchmark ===")
+
+        print("\n=== Complex Enclosure Benchmark ===")
         print(f"  Min:    {stats['min']:.3f}s")
         print(f"  Max:    {stats['max']:.3f}s")
         print(f"  Mean:   {stats['mean']:.3f}s")
         print(f"  Median: {stats['median']:.3f}s")
         print(f"  StdDev: {stats['stdev']:.3f}s")
-        
+
         assert stats["mean"] < 10.0, f"Mean compile time {stats['mean']:.2f}s exceeds 10s target"
-        assert stats["max"] < 15.0, f"Max compile time {stats['max']:.2f}s exceeds 15s acceptable limit"
+        assert stats["max"] < 15.0, (
+            f"Max compile time {stats['max']:.2f}s exceeds 15s acceptable limit"
+        )
 
     def test_memory_efficiency(
         self, engine: CompilationEngine, complex_spec: EnclosureSpec
     ) -> None:
         """
         Test that repeated compilations don't leak memory.
-        
+
         Run 10 compilations and check memory usage stays reasonable.
         """
         import tracemalloc
-        
+
         tracemalloc.start()
-        
+
         initial_snapshot = tracemalloc.take_snapshot()
-        
+
         # Run several compilations
         for _ in range(10):
             result = engine.compile_enclosure(complex_spec)
             assert result.success
-        
+
         final_snapshot = tracemalloc.take_snapshot()
-        
+
         # Compare memory usage
-        top_stats = final_snapshot.compare_to(initial_snapshot, 'lineno')
-        
+        top_stats = final_snapshot.compare_to(initial_snapshot, "lineno")
+
         # Calculate total memory increase
         total_increase = sum(stat.size_diff for stat in top_stats if stat.size_diff > 0)
         total_increase_mb = total_increase / (1024 * 1024)
-        
-        print(f"\n=== Memory Benchmark ===")
+
+        print("\n=== Memory Benchmark ===")
         print(f"  Total memory increase: {total_increase_mb:.2f} MB")
-        
+
         # Should not increase by more than 100 MB for 10 compilations
-        assert total_increase_mb < 100, f"Memory increase {total_increase_mb:.2f}MB exceeds 100MB limit"
-        
+        assert total_increase_mb < 100, (
+            f"Memory increase {total_increase_mb:.2f}MB exceeds 100MB limit"
+        )
+
         tracemalloc.stop()
 
 
@@ -202,21 +209,21 @@ class TestExportPerformance:
         Benchmark: STEP export should complete in under 2 seconds.
         """
         from app.cad_v2.compiler.export import ExportFormat
-        
+
         times = []
         for i in range(3):
             output_dir = tmp_path / f"step_export_{i}"
             output_dir.mkdir()
-            
+
             start = time.perf_counter()
             compiled_result.export(output_dir, ExportFormat.STEP)
             elapsed = time.perf_counter() - start
             times.append(elapsed)
-        
+
         mean_time = statistics.mean(times)
-        print(f"\n=== STEP Export Benchmark ===")
+        print("\n=== STEP Export Benchmark ===")
         print(f"  Mean export time: {mean_time:.3f}s")
-        
+
         assert mean_time < 2.0, f"STEP export time {mean_time:.2f}s exceeds 2s target"
 
     def test_stl_export_performance(self, compiled_result: Any, tmp_path) -> None:
@@ -224,21 +231,21 @@ class TestExportPerformance:
         Benchmark: STL export should complete in under 3 seconds.
         """
         from app.cad_v2.compiler.export import ExportFormat
-        
+
         times = []
         for i in range(3):
             output_dir = tmp_path / f"stl_export_{i}"
             output_dir.mkdir()
-            
+
             start = time.perf_counter()
             compiled_result.export(output_dir, ExportFormat.STL)
             elapsed = time.perf_counter() - start
             times.append(elapsed)
-        
+
         mean_time = statistics.mean(times)
-        print(f"\n=== STL Export Benchmark ===")
+        print("\n=== STL Export Benchmark ===")
         print(f"  Mean export time: {mean_time:.3f}s")
-        
+
         assert mean_time < 3.0, f"STL export time {mean_time:.2f}s exceeds 3s target"
 
 
@@ -249,8 +256,9 @@ class TestAPIPerformance:
     def client(self):
         """Create async test client."""
         from httpx import AsyncClient
+
         from app.main import create_app
-        
+
         app = create_app()
         return AsyncClient(app=app, base_url="http://test")
 
@@ -258,7 +266,7 @@ class TestAPIPerformance:
     async def test_compile_endpoint_performance(self, client) -> None:
         """
         Benchmark: /api/v2/generate/compile should respond within targets.
-        
+
         Target: < 10s for simple enclosures
         """
         spec = {
@@ -271,18 +279,18 @@ class TestAPIPerformance:
                 "walls": {"thickness": {"value": 2.5, "unit": "mm"}},
             }
         }
-        
+
         times = []
         for _ in range(3):
             start = time.perf_counter()
-            response = await client.post("/api/v2/generate/compile", json=spec)
+            await client.post("/api/v2/generate/compile", json=spec)
             elapsed = time.perf_counter() - start
-            
+
             # May fail without auth or actual CAD backend, that's okay for benchmark
             times.append(elapsed)
-        
+
         mean_time = statistics.mean(times)
-        print(f"\n=== Compile API Benchmark ===")
+        print("\n=== Compile API Benchmark ===")
         print(f"  Mean response time: {mean_time:.3f}s")
 
     @pytest.mark.asyncio
@@ -293,12 +301,12 @@ class TestAPIPerformance:
         times = []
         for _ in range(10):
             start = time.perf_counter()
-            response = await client.get("/health")
+            await client.get("/health")
             elapsed = time.perf_counter() - start
             times.append(elapsed)
-        
+
         mean_time = statistics.mean(times)
-        print(f"\n=== Health Check Benchmark ===")
+        print("\n=== Health Check Benchmark ===")
         print(f"  Mean response time: {mean_time * 1000:.1f}ms")
-        
+
         assert mean_time < 0.1, f"Health check {mean_time * 1000:.1f}ms exceeds 100ms target"

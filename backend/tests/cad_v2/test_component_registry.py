@@ -3,8 +3,6 @@
 import pytest
 
 from app.cad_v2.components.registry import (
-    AmbiguousMatchError,
-    ComponentMatch,
     ComponentNotFoundError,
     ComponentRegistry,
     get_registry,
@@ -125,21 +123,27 @@ class TestComponentSearch:
     def populated_registry(self) -> ComponentRegistry:
         """Create a registry with test components."""
         registry = ComponentRegistry()
-        registry.register(_create_test_component(
-            "raspberry-pi-5",
-            "Raspberry Pi 5",
-            aliases=["rpi5", "pi 5"],
-        ))
-        registry.register(_create_test_component(
-            "raspberry-pi-4b",
-            "Raspberry Pi 4 Model B",
-            aliases=["rpi4", "pi 4"],
-        ))
-        registry.register(_create_test_component(
-            "arduino-uno",
-            "Arduino Uno R3",
-            aliases=["uno", "arduino"],
-        ))
+        registry.register(
+            _create_test_component(
+                "raspberry-pi-5",
+                "Raspberry Pi 5",
+                aliases=["rpi5", "pi 5"],
+            )
+        )
+        registry.register(
+            _create_test_component(
+                "raspberry-pi-4b",
+                "Raspberry Pi 4 Model B",
+                aliases=["rpi4", "pi 4"],
+            )
+        )
+        registry.register(
+            _create_test_component(
+                "arduino-uno",
+                "Arduino Uno R3",
+                aliases=["uno", "arduino"],
+            )
+        )
         return registry
 
     def test_search_exact_id(self, populated_registry: ComponentRegistry) -> None:
@@ -193,16 +197,20 @@ class TestComponentLookup:
     def populated_registry(self) -> ComponentRegistry:
         """Create a registry with test components."""
         registry = ComponentRegistry()
-        registry.register(_create_test_component(
-            "raspberry-pi-5",
-            "Raspberry Pi 5",
-            aliases=["rpi5", "pi 5"],
-        ))
-        registry.register(_create_test_component(
-            "raspberry-pi-4b",
-            "Raspberry Pi 4 Model B",
-            aliases=["rpi4", "pi 4"],
-        ))
+        registry.register(
+            _create_test_component(
+                "raspberry-pi-5",
+                "Raspberry Pi 5",
+                aliases=["rpi5", "pi 5"],
+            )
+        )
+        registry.register(
+            _create_test_component(
+                "raspberry-pi-4b",
+                "Raspberry Pi 4 Model B",
+                aliases=["rpi4", "pi 4"],
+            )
+        )
         return registry
 
     def test_lookup_exact_match(self, populated_registry: ComponentRegistry) -> None:
@@ -238,38 +246,44 @@ class TestCategoryListing:
         registry = ComponentRegistry()
 
         # Board
-        registry.register(ComponentDefinition(
-            id="board-1",
-            name="Board One",
-            category=ComponentCategory.BOARD,
-            dimensions=BoundingBox(
-                width=Dimension(value=50),
-                depth=Dimension(value=30),
-                height=Dimension(value=10),
-            ),
-        ))
+        registry.register(
+            ComponentDefinition(
+                id="board-1",
+                name="Board One",
+                category=ComponentCategory.BOARD,
+                dimensions=BoundingBox(
+                    width=Dimension(value=50),
+                    depth=Dimension(value=30),
+                    height=Dimension(value=10),
+                ),
+            )
+        )
 
         # Display
-        registry.register(ComponentDefinition(
-            id="display-1",
-            name="Display One",
-            category=ComponentCategory.DISPLAY,
-            dimensions=BoundingBox(
-                width=Dimension(value=100),
-                depth=Dimension(value=60),
-                height=Dimension(value=12),
-            ),
-        ))
-        registry.register(ComponentDefinition(
-            id="display-2",
-            name="Display Two",
-            category=ComponentCategory.DISPLAY,
-            dimensions=BoundingBox(
-                width=Dimension(value=80),
-                depth=Dimension(value=36),
-                height=Dimension(value=12),
-            ),
-        ))
+        registry.register(
+            ComponentDefinition(
+                id="display-1",
+                name="Display One",
+                category=ComponentCategory.DISPLAY,
+                dimensions=BoundingBox(
+                    width=Dimension(value=100),
+                    depth=Dimension(value=60),
+                    height=Dimension(value=12),
+                ),
+            )
+        )
+        registry.register(
+            ComponentDefinition(
+                id="display-2",
+                name="Display Two",
+                category=ComponentCategory.DISPLAY,
+                dimensions=BoundingBox(
+                    width=Dimension(value=80),
+                    depth=Dimension(value=36),
+                    height=Dimension(value=12),
+                ),
+            )
+        )
 
         return registry
 

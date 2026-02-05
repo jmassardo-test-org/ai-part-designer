@@ -6,16 +6,19 @@ Tests template listing, detail retrieval, parameter validation, and generation.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
 # List Templates Tests
 # =============================================================================
+
 
 class TestListTemplates:
     """Tests for template listing endpoint."""
@@ -27,10 +30,10 @@ class TestListTemplates:
     ):
         """Test listing templates when none exist."""
         response = await client.get("/api/v1/templates")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["templates"] == []
         assert data["total"] == 0
 
@@ -45,12 +48,12 @@ class TestListTemplates:
         await template_factory.create(db=db_session, name="Box", category="mechanical")
         await template_factory.create(db=db_session, name="Cylinder", category="mechanical")
         await template_factory.create(db=db_session, name="Bracket", category="mechanical")
-        
+
         response = await client.get("/api/v1/templates")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["templates"]) == 3
         assert data["total"] == 3
         assert "mechanical" in data["categories"]
@@ -66,15 +69,15 @@ class TestListTemplates:
         await template_factory.create(db=db_session, category="mechanical")
         await template_factory.create(db=db_session, category="enclosures")
         await template_factory.create(db=db_session, category="mechanical")
-        
+
         response = await client.get(
             "/api/v1/templates",
             params={"category": "mechanical"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["templates"]) == 2
         assert all(t["category"] == "mechanical" for t in data["templates"])
 
@@ -89,15 +92,15 @@ class TestListTemplates:
         await template_factory.create(db=db_session, min_tier="free")
         await template_factory.create(db=db_session, min_tier="pro")
         await template_factory.create(db=db_session, min_tier="free")
-        
+
         response = await client.get(
             "/api/v1/templates",
             params={"tier": "free"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Free users can only see free templates
         assert len(data["templates"]) == 2
 
@@ -112,15 +115,15 @@ class TestListTemplates:
         await template_factory.create(db=db_session, name="Mounting Bracket")
         await template_factory.create(db=db_session, name="Cable Gland")
         await template_factory.create(db=db_session, name="Bracket Assembly")
-        
+
         response = await client.get(
             "/api/v1/templates",
             params={"search": "bracket"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["templates"]) == 2
         assert all("Bracket" in t["name"] for t in data["templates"])
 
@@ -134,12 +137,12 @@ class TestListTemplates:
         """Test that inactive templates are excluded."""
         await template_factory.create(db=db_session, is_active=True)
         await template_factory.create(db=db_session, is_active=False)
-        
+
         response = await client.get("/api/v1/templates")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["templates"]) == 1
 
     @pytest.mark.asyncio
@@ -152,15 +155,15 @@ class TestListTemplates:
         """Test template listing pagination."""
         for i in range(5):
             await template_factory.create(db=db_session, name=f"Template {i}")
-        
+
         response = await client.get(
             "/api/v1/templates",
             params={"limit": 2, "offset": 0},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["templates"]) == 2
         assert data["total"] == 5
 
@@ -168,6 +171,7 @@ class TestListTemplates:
 # =============================================================================
 # Get Template Tests
 # =============================================================================
+
 
 class TestGetTemplate:
     """Tests for getting individual template details."""
@@ -204,12 +208,12 @@ class TestGetTemplate:
                 },
             },
         )
-        
+
         response = await client.get(f"/api/v1/templates/{template.slug}")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["name"] == "Test Box"
         assert data["slug"] == "test-box"
         assert data["category"] == "mechanical"
@@ -224,7 +228,7 @@ class TestGetTemplate:
     ):
         """Test getting non-existent template."""
         response = await client.get("/api/v1/templates/non-existent-template")
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -236,9 +240,9 @@ class TestGetTemplate:
     ):
         """Test getting inactive template returns 404."""
         template = await template_factory.create(db=db_session, is_active=False)
-        
+
         response = await client.get(f"/api/v1/templates/{template.slug}")
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -253,10 +257,10 @@ class TestGetTemplate:
             db=db_session,
             min_tier="pro",
         )
-        
+
         # Request without auth (treated as free tier)
         response = await client.get(f"/api/v1/templates/{template.slug}")
-        
+
         assert response.status_code == 403
         assert "requires pro tier" in response.json()["detail"]
 
@@ -264,6 +268,7 @@ class TestGetTemplate:
 # =============================================================================
 # Generate Template Tests
 # =============================================================================
+
 
 class TestGenerateTemplate:
     """Tests for template generation endpoint."""
@@ -277,12 +282,12 @@ class TestGenerateTemplate:
     ):
         """Test that generation requires authentication."""
         template = await template_factory.create(db=db_session)
-        
+
         response = await client.post(
             f"/api/v1/templates/{template.slug}/generate",
             json={"parameters": {}, "format": "step"},
         )
-        
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -298,7 +303,7 @@ class TestGenerateTemplate:
             headers=auth_headers,
             json={"parameters": {}, "format": "step"},
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -324,7 +329,7 @@ class TestGenerateTemplate:
                 },
             },
         )
-        
+
         response = await client.post(
             f"/api/v1/templates/{template.slug}/generate",
             headers=auth_headers,
@@ -333,7 +338,7 @@ class TestGenerateTemplate:
                 "format": "step",
             },
         )
-        
+
         assert response.status_code == 422
         assert "Invalid parameters" in response.json()["detail"]["message"]
 
@@ -351,19 +356,20 @@ class TestGenerateTemplate:
             db=db_session,
             min_tier="pro",
         )
-        
+
         response = await client.post(
             f"/api/v1/templates/{template.slug}/generate",
             headers=auth_headers,
             json={"parameters": {}, "format": "step"},
         )
-        
+
         assert response.status_code == 403
 
 
 # =============================================================================
 # Parameter Validation Tests
 # =============================================================================
+
 
 class TestParameterValidation:
     """Tests for template parameter validation."""
@@ -388,7 +394,7 @@ class TestParameterValidation:
                 },
             },
         )
-        
+
         # Valid value should work
         response = await client.get(f"/api/v1/templates/{template.slug}")
         assert response.status_code == 200
@@ -412,18 +418,19 @@ class TestParameterValidation:
                 },
             },
         )
-        
+
         response = await client.get(f"/api/v1/templates/{template.slug}")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["parameters"]["style"]["options"] == ["rounded", "chamfered", "sharp"]
 
 
 # =============================================================================
 # Categories Tests
 # =============================================================================
+
 
 class TestCategories:
     """Tests for template categories."""
@@ -439,12 +446,12 @@ class TestCategories:
         await template_factory.create(db=db_session, category="mechanical")
         await template_factory.create(db=db_session, category="enclosures")
         await template_factory.create(db=db_session, category="hardware")
-        
+
         response = await client.get("/api/v1/templates")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "mechanical" in data["categories"]
         assert "enclosures" in data["categories"]
         assert "hardware" in data["categories"]
@@ -460,12 +467,12 @@ class TestCategories:
         await template_factory.create(db=db_session, category="mechanical")
         await template_factory.create(db=db_session, category="mechanical")
         await template_factory.create(db=db_session, category="mechanical")
-        
+
         response = await client.get("/api/v1/templates")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Should only have one "mechanical" entry
         assert data["categories"].count("mechanical") == 1
 
@@ -473,6 +480,7 @@ class TestCategories:
 # =============================================================================
 # Create Template Tests
 # =============================================================================
+
 
 class TestCreateTemplate:
     """Tests for template creation endpoint."""
@@ -501,10 +509,10 @@ class TestCreateTemplate:
                 "is_public": False,
             },
         )
-        
+
         assert response.status_code == 201
         data = response.json()
-        
+
         assert data["name"] == "My Custom Box"
         assert data["category"] == "enclosures"
         assert "slug" in data
@@ -523,7 +531,7 @@ class TestCreateTemplate:
                 "category": "custom",
             },
         )
-        
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -542,7 +550,7 @@ class TestCreateTemplate:
                 "category": "custom",
             },
         )
-        
+
         assert response.status_code == 422
 
     @pytest.mark.asyncio
@@ -560,7 +568,7 @@ class TestCreateTemplate:
                 "name": "Template Without Category",
             },
         )
-        
+
         assert response.status_code == 422
 
     @pytest.mark.asyncio
@@ -578,7 +586,7 @@ class TestCreateTemplate:
             json={"name": "My Template", "category": "custom"},
         )
         assert response1.status_code == 201
-        
+
         # Create second template with same name
         response2 = await client.post(
             "/api/v1/templates",
@@ -586,7 +594,7 @@ class TestCreateTemplate:
             json={"name": "My Template", "category": "custom"},
         )
         assert response2.status_code == 201
-        
+
         # Slugs should be different
         data1 = response1.json()
         data2 = response2.json()
@@ -596,6 +604,7 @@ class TestCreateTemplate:
 # =============================================================================
 # Create Template From Design Tests
 # =============================================================================
+
 
 class TestCreateTemplateFromDesign:
     """Tests for creating templates from existing designs."""
@@ -612,8 +621,8 @@ class TestCreateTemplateFromDesign:
     ):
         """Test creating a template from an existing design."""
         # Create project and design for the user
-        from tests.factories import ProjectFactory, DesignFactory
-        
+        from tests.factories import DesignFactory, ProjectFactory
+
         project = await ProjectFactory.create(db=db_session, user=test_user)
         design = await DesignFactory.create(
             db=db_session,
@@ -627,7 +636,7 @@ class TestCreateTemplateFromDesign:
                 }
             },
         )
-        
+
         response = await client.post(
             "/api/v1/templates/from-design",
             headers=auth_headers,
@@ -639,10 +648,10 @@ class TestCreateTemplateFromDesign:
                 "tags": ["converted", "design"],
             },
         )
-        
+
         assert response.status_code == 201
         data = response.json()
-        
+
         assert data["name"] == "Template From Design"
         assert data["category"] == "custom"
 
@@ -654,8 +663,7 @@ class TestCreateTemplateFromDesign:
         auth_headers,
     ):
         """Test creating template from non-existent design."""
-        from uuid import uuid4
-        
+
         response = await client.post(
             "/api/v1/templates/from-design",
             headers=auth_headers,
@@ -665,7 +673,7 @@ class TestCreateTemplateFromDesign:
                 "category": "custom",
             },
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -678,13 +686,13 @@ class TestCreateTemplateFromDesign:
         user_factory,
     ):
         """Test creating template from another user's design."""
-        from tests.factories import UserFactory, ProjectFactory, DesignFactory
-        
+        from tests.factories import DesignFactory, ProjectFactory, UserFactory
+
         # Create another user's design
         other_user = await UserFactory.create(db=db_session)
         other_project = await ProjectFactory.create(db=db_session, user=other_user)
         other_design = await DesignFactory.create(db=db_session, project=other_project)
-        
+
         response = await client.post(
             "/api/v1/templates/from-design",
             headers=auth_headers,
@@ -694,7 +702,7 @@ class TestCreateTemplateFromDesign:
                 "category": "custom",
             },
         )
-        
+
         assert response.status_code == 403
 
     @pytest.mark.asyncio
@@ -703,8 +711,7 @@ class TestCreateTemplateFromDesign:
         client: AsyncClient,
     ):
         """Test that creating from design requires authentication."""
-        from uuid import uuid4
-        
+
         response = await client.post(
             "/api/v1/templates/from-design",
             json={
@@ -713,5 +720,5 @@ class TestCreateTemplateFromDesign:
                 "category": "custom",
             },
         )
-        
+
         assert response.status_code == 401

@@ -10,33 +10,34 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
-    Index,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.project import Project
-    from app.models.template import Template
-    from app.models.job import Job
-    from app.models.user import User
     from app.models.annotation import DesignAnnotation
     from app.models.design_context import DesignContext
+    from app.models.job import Job
     from app.models.marketplace import DesignSave
+    from app.models.project import Project
+    from app.models.template import Template
+    from app.models.user import User
 
 
 class Design(Base, TimestampMixin, SoftDeleteMixin):
     """
     Design model representing a user's CAD design.
-    
+
     Designs can be created from templates, AI generation, or imports.
     Each design can have multiple versions tracking changes over time.
-    
+
     Metadata schema example:
     {
         "parameters": {"length": 100, "width": 50},
@@ -146,7 +147,7 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         default=0,
     )
-    
+
     # Marketplace stats
     save_count: Mapped[int] = mapped_column(
         Integer,
@@ -158,7 +159,7 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         default=0,
     )
-    
+
     # Marketplace discoverability
     category: Mapped[str | None] = mapped_column(
         String(50),
@@ -173,7 +174,7 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         DateTime(timezone=True),
         nullable=True,
     )
-    
+
     # Starter design flag
     is_starter: Mapped[bool] = mapped_column(
         Boolean,
@@ -181,13 +182,13 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         default=False,
         index=True,
     )
-    
+
     # Thumbnail for design preview
     thumbnail_url: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
-    
+
     # Enclosure specification (CAD v2)
     enclosure_spec: Mapped[dict | None] = mapped_column(
         JSONB,
@@ -263,16 +264,31 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
 
     # Indexes
     __table_args__ = (
-        Index("idx_designs_public", "is_public", "created_at",
-              postgresql_where="deleted_at IS NULL AND is_public = TRUE"),
-        Index("idx_designs_tags", "tags", postgresql_using="gin",
-              postgresql_where="deleted_at IS NULL"),
+        Index(
+            "idx_designs_public",
+            "is_public",
+            "created_at",
+            postgresql_where="deleted_at IS NULL AND is_public = TRUE",
+        ),
+        Index(
+            "idx_designs_tags",
+            "tags",
+            postgresql_using="gin",
+            postgresql_where="deleted_at IS NULL",
+        ),
         Index("idx_designs_extra_data", "extra_data", postgresql_using="gin"),
         Index("idx_designs_search", "search_vector", postgresql_using="gin"),
-        Index("idx_designs_starter", "is_starter",
-              postgresql_where="deleted_at IS NULL AND is_starter = TRUE"),
-        Index("idx_designs_enclosure_spec", "enclosure_spec", postgresql_using="gin",
-              postgresql_where="enclosure_spec IS NOT NULL"),
+        Index(
+            "idx_designs_starter",
+            "is_starter",
+            postgresql_where="deleted_at IS NULL AND is_starter = TRUE",
+        ),
+        Index(
+            "idx_designs_enclosure_spec",
+            "enclosure_spec",
+            postgresql_using="gin",
+            postgresql_where="enclosure_spec IS NOT NULL",
+        ),
     )
 
     def __repr__(self) -> str:
@@ -301,7 +317,7 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
 class DesignVersion(Base):
     """
     Version history for a design.
-    
+
     Each modification to a design creates a new version,
     preserving the complete history of changes.
     """
@@ -423,7 +439,7 @@ class DesignVersion(Base):
 class DesignShare(Base, TimestampMixin):
     """
     Design sharing configuration.
-    
+
     Supports both user-to-user sharing and public link sharing.
     """
 

@@ -4,23 +4,21 @@ Tests for CAD Drawing Generator Module.
 Tests drawing view types, formats, paper sizes, and configuration dataclasses.
 """
 
-import pytest
-
 from app.cad.drawing_generator import (
-    DrawingViewType,
-    DrawingFormat,
-    PaperSize,
     PAPER_DIMENSIONS,
-    DrawingView,
     DimensionStyle,
-    TitleBlock,
     DrawingConfig,
+    DrawingFormat,
+    DrawingView,
+    DrawingViewType,
+    PaperSize,
+    TitleBlock,
 )
-
 
 # =============================================================================
 # DrawingViewType Tests
 # =============================================================================
+
 
 class TestDrawingViewType:
     """Tests for DrawingViewType enum."""
@@ -71,6 +69,7 @@ class TestDrawingViewType:
 # DrawingFormat Tests
 # =============================================================================
 
+
 class TestDrawingFormat:
     """Tests for DrawingFormat enum."""
 
@@ -100,6 +99,7 @@ class TestDrawingFormat:
 # PaperSize Tests
 # =============================================================================
 
+
 class TestPaperSize:
     """Tests for PaperSize enum."""
 
@@ -127,6 +127,7 @@ class TestPaperSize:
 # Paper Dimensions Tests
 # =============================================================================
 
+
 class TestPaperDimensions:
     """Tests for paper dimension constants."""
 
@@ -142,7 +143,7 @@ class TestPaperDimensions:
 
     def test_dimensions_are_tuples(self):
         """Test dimensions are (width, height) tuples."""
-        for size, dims in PAPER_DIMENSIONS.items():
+        for _size, dims in PAPER_DIMENSIONS.items():
             assert isinstance(dims, tuple)
             assert len(dims) == 2
             assert isinstance(dims[0], (int, float))
@@ -173,6 +174,7 @@ class TestPaperDimensions:
 # DrawingView Tests
 # =============================================================================
 
+
 class TestDrawingView:
     """Tests for DrawingView dataclass."""
 
@@ -183,7 +185,7 @@ class TestDrawingView:
             position_x=0.5,
             position_y=0.5,
         )
-        
+
         assert view.view_type == DrawingViewType.FRONT
         assert view.position_x == 0.5
         assert view.position_y == 0.5
@@ -195,7 +197,7 @@ class TestDrawingView:
             position_x=0,
             position_y=0,
         )
-        
+
         assert view.scale == 1.0
         assert view.show_hidden_lines is False
         assert view.show_center_lines is True
@@ -215,7 +217,7 @@ class TestDrawingView:
             section_plane="A-A",
             section_offset=25.0,
         )
-        
+
         assert view.view_type == DrawingViewType.SECTION
         assert view.section_plane == "A-A"
         assert view.section_offset == 25.0
@@ -230,7 +232,7 @@ class TestDrawingView:
             detail_radius=15.0,
             detail_scale=4.0,
         )
-        
+
         assert view.view_type == DrawingViewType.DETAIL
         assert view.detail_center == (50.0, 25.0, 0.0)
         assert view.detail_radius == 15.0
@@ -241,13 +243,14 @@ class TestDrawingView:
 # DimensionStyle Tests
 # =============================================================================
 
+
 class TestDimensionStyle:
     """Tests for DimensionStyle dataclass."""
 
     def test_default_creation(self):
         """Test default dimension style."""
         style = DimensionStyle()
-        
+
         assert style.font_size == 3.5
         assert style.arrow_size == 3.0
         assert style.line_thickness == 0.35
@@ -265,7 +268,7 @@ class TestDimensionStyle:
             units="in",
             show_units=True,
         )
-        
+
         assert style.font_size == 5.0
         assert style.decimal_places == 3
         assert style.units == "in"
@@ -276,13 +279,14 @@ class TestDimensionStyle:
 # TitleBlock Tests
 # =============================================================================
 
+
 class TestTitleBlock:
     """Tests for TitleBlock dataclass."""
 
     def test_default_creation(self):
         """Test default title block."""
         title_block = TitleBlock()
-        
+
         assert title_block.company_name == ""
         assert title_block.project_name == ""
         assert title_block.drawing_title == ""
@@ -303,7 +307,7 @@ class TestTitleBlock:
             material="Aluminum 6061",
             notes=["All dimensions in mm", "Deburr all edges"],
         )
-        
+
         assert title_block.company_name == "ACME Corp"
         assert title_block.project_name == "Widget Assembly"
         assert title_block.drawing_title == "Main Housing"
@@ -317,13 +321,14 @@ class TestTitleBlock:
 # DrawingConfig Tests
 # =============================================================================
 
+
 class TestDrawingConfig:
     """Tests for DrawingConfig dataclass."""
 
     def test_default_config(self):
         """Test default drawing configuration."""
         config = DrawingConfig()
-        
+
         assert config.paper_size == PaperSize.A4
         assert config.orientation == "landscape"
         assert config.views == []
@@ -345,7 +350,7 @@ class TestDrawingConfig:
             paper_size=PaperSize.A3,
             views=views,
         )
-        
+
         assert config.paper_size == PaperSize.A3
         assert len(config.views) == 3
 
@@ -356,20 +361,21 @@ class TestDrawingConfig:
             drawing_title="Test Part",
         )
         config = DrawingConfig(title_block=title_block)
-        
+
         assert config.title_block.company_name == "Test Co"
         assert config.title_block.drawing_title == "Test Part"
 
     def test_first_angle_projection(self):
         """Test first angle projection setting."""
         config = DrawingConfig(projection_type="first_angle")
-        
+
         assert config.projection_type == "first_angle"
 
 
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestDrawingEdgeCases:
     """Tests for edge cases in drawing generator."""
@@ -381,7 +387,7 @@ class TestDrawingEdgeCases:
             position_x=0.0,
             position_y=0.0,
         )
-        
+
         assert view.position_x == 0.0
         assert view.position_y == 0.0
 
@@ -392,7 +398,7 @@ class TestDrawingEdgeCases:
             position_x=1.0,
             position_y=1.0,
         )
-        
+
         assert view.position_x == 1.0
         assert view.position_y == 1.0
 
@@ -404,7 +410,7 @@ class TestDrawingEdgeCases:
             position_y=0.5,
             scale=0.01,
         )
-        
+
         assert view.scale == 0.01
 
     def test_large_scale(self):
@@ -416,14 +422,14 @@ class TestDrawingEdgeCases:
             scale=10.0,
             detail_scale=20.0,
         )
-        
+
         assert view.scale == 10.0
         assert view.detail_scale == 20.0
 
     def test_empty_notes_list(self):
         """Test title block with empty notes."""
         title_block = TitleBlock()
-        
+
         assert title_block.notes == []
         title_block.notes.append("Test note")
         assert len(title_block.notes) == 1
@@ -431,11 +437,11 @@ class TestDrawingEdgeCases:
     def test_portrait_orientation(self):
         """Test portrait orientation."""
         config = DrawingConfig(orientation="portrait")
-        
+
         assert config.orientation == "portrait"
 
     def test_no_border(self):
         """Test configuration without border."""
         config = DrawingConfig(show_border=False)
-        
+
         assert config.show_border is False

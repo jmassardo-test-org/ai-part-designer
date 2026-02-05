@@ -2,31 +2,32 @@
 Tests for Backup and Disaster Recovery Service.
 
 Tests backup types, status enums, and backup record management.
-Note: The backup module has external dependencies, so we test the 
+Note: The backup module has external dependencies, so we test the
 enums and dataclasses by redefining them here for isolated testing.
 """
 
-import pytest
-from datetime import datetime, timedelta
-from uuid import UUID, uuid4
 from dataclasses import dataclass, field
-from enum import Enum
-
+from datetime import datetime, timedelta
+from enum import StrEnum
+from uuid import UUID, uuid4
 
 # =============================================================================
 # Local definitions for testing (matching backup.py)
 # =============================================================================
 
-class BackupType(str, Enum):
+
+class BackupType(StrEnum):
     """Types of backups."""
+
     FULL = "full"
     DATABASE = "database"
     FILES = "files"
     INCREMENTAL = "incremental"
 
 
-class BackupStatus(str, Enum):
+class BackupStatus(StrEnum):
     """Backup operation status."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -38,6 +39,7 @@ class BackupStatus(str, Enum):
 @dataclass
 class BackupRecord:
     """Record of a backup operation."""
+
     id: UUID = field(default_factory=uuid4)
     backup_type: BackupType = BackupType.FULL
     status: BackupStatus = BackupStatus.PENDING
@@ -49,7 +51,7 @@ class BackupRecord:
     checksum: str = ""
     metadata: dict = field(default_factory=dict)
     error_message: str | None = None
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for storage."""
         return {
@@ -65,7 +67,7 @@ class BackupRecord:
             "metadata": self.metadata,
             "error_message": self.error_message,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "BackupRecord":
         """Create from dictionary."""
@@ -74,7 +76,9 @@ class BackupRecord:
             backup_type=BackupType(data["backup_type"]),
             status=BackupStatus(data["status"]),
             created_at=datetime.fromisoformat(data["created_at"]),
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
+            completed_at=datetime.fromisoformat(data["completed_at"])
+            if data.get("completed_at")
+            else None,
             size_bytes=data.get("size_bytes", 0),
             file_count=data.get("file_count", 0),
             location=data.get("location", ""),
@@ -87,6 +91,7 @@ class BackupRecord:
 # =============================================================================
 # BackupType Tests
 # =============================================================================
+
 
 class TestBackupType:
     """Tests for BackupType enum."""
@@ -116,6 +121,7 @@ class TestBackupType:
 # =============================================================================
 # BackupStatus Tests
 # =============================================================================
+
 
 class TestBackupStatus:
     """Tests for BackupStatus enum."""
@@ -149,13 +155,14 @@ class TestBackupStatus:
 # BackupRecord Tests
 # =============================================================================
 
+
 class TestBackupRecord:
     """Tests for BackupRecord dataclass."""
 
     def test_default_creation(self):
         """Test creating a backup record with defaults."""
         record = BackupRecord()
-        
+
         assert record.backup_type == BackupType.FULL
         assert record.status == BackupStatus.PENDING
         assert record.size_bytes == 0
@@ -169,7 +176,7 @@ class TestBackupRecord:
         """Test creating a backup record with custom values."""
         backup_id = uuid4()
         now = datetime.utcnow()
-        
+
         record = BackupRecord(
             id=backup_id,
             backup_type=BackupType.DATABASE,
@@ -182,7 +189,7 @@ class TestBackupRecord:
             checksum="abc123",
             metadata={"compression": "gzip"},
         )
-        
+
         assert record.id == backup_id
         assert record.backup_type == BackupType.DATABASE
         assert record.status == BackupStatus.COMPLETED
@@ -197,9 +204,9 @@ class TestBackupRecord:
             size_bytes=500000,
             location="/backups/files.tar.gz",
         )
-        
+
         data = record.to_dict()
-        
+
         assert data["backup_type"] == "files"
         assert data["status"] == "verified"
         assert data["size_bytes"] == 500000
@@ -213,17 +220,17 @@ class TestBackupRecord:
         record = BackupRecord(
             completed_at=now,
         )
-        
+
         data = record.to_dict()
-        
+
         assert data["completed_at"] is not None
 
     def test_to_dict_without_completed_at(self):
         """Test to_dict handles None completed_at."""
         record = BackupRecord()
-        
+
         data = record.to_dict()
-        
+
         assert data["completed_at"] is None
 
     def test_from_dict(self):
@@ -241,9 +248,9 @@ class TestBackupRecord:
             "metadata": {"tables": ["users", "designs"]},
             "error_message": None,
         }
-        
+
         record = BackupRecord.from_dict(data)
-        
+
         assert record.backup_type == BackupType.DATABASE
         assert record.status == BackupStatus.COMPLETED
         assert record.size_bytes == 2048000
@@ -258,9 +265,9 @@ class TestBackupRecord:
             "status": "pending",
             "created_at": "2024-01-15T10:00:00",
         }
-        
+
         record = BackupRecord.from_dict(data)
-        
+
         assert record.backup_type == BackupType.FULL
         assert record.status == BackupStatus.PENDING
         assert record.size_bytes == 0
@@ -275,10 +282,10 @@ class TestBackupRecord:
             error_message="Disk full",
             metadata={"attempt": 3},
         )
-        
+
         data = original.to_dict()
         restored = BackupRecord.from_dict(data)
-        
+
         assert restored.backup_type == original.backup_type
         assert restored.status == original.status
         assert restored.size_bytes == original.size_bytes
@@ -290,34 +297,35 @@ class TestBackupRecord:
 # Edge Cases
 # =============================================================================
 
+
 class TestBackupEdgeCases:
     """Tests for edge cases in backup module."""
 
     def test_uuid_generation(self):
         """Test that UUID is auto-generated."""
         record = BackupRecord()
-        
+
         assert record.id is not None
         assert isinstance(record.id, UUID)
 
     def test_datetime_generation(self):
         """Test that created_at is auto-generated."""
         record = BackupRecord()
-        
+
         assert record.created_at is not None
         assert isinstance(record.created_at, datetime)
 
     def test_empty_metadata(self):
         """Test default empty metadata."""
         record = BackupRecord()
-        
+
         assert record.metadata == {}
         assert isinstance(record.metadata, dict)
 
     def test_large_size_bytes(self):
         """Test handling of large backup sizes."""
         record = BackupRecord(size_bytes=10_000_000_000)  # 10 GB
-        
+
         assert record.size_bytes == 10_000_000_000
         data = record.to_dict()
         assert data["size_bytes"] == 10_000_000_000
@@ -326,7 +334,7 @@ class TestBackupEdgeCases:
         """Test error messages are preserved."""
         error_msg = "Connection timeout: failed to reach S3 bucket"
         record = BackupRecord(error_message=error_msg)
-        
+
         data = record.to_dict()
         assert data["error_message"] == error_msg
 
@@ -345,7 +353,7 @@ class TestBackupEdgeCases:
             },
         }
         record = BackupRecord(metadata=metadata)
-        
+
         data = record.to_dict()
         assert data["metadata"]["tables"] == ["users", "designs", "versions"]
         assert data["metadata"]["encryption"]["algorithm"] == "AES-256"

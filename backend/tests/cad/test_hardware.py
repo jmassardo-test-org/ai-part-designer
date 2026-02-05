@@ -5,21 +5,19 @@ Tests hardware specifications, dimensions, screw configurations,
 and bill of materials generation.
 """
 
-import pytest
-
 from app.cad.hardware import (
-    HardwareType,
-    ScrewHead,
-    ScrewDrive,
-    HardwareSpec,
-    METRIC_SOCKET_HEAD_SCREWS,
     COMMON_SCREW_LENGTHS,
+    METRIC_SOCKET_HEAD_SCREWS,
+    HardwareSpec,
+    HardwareType,
+    ScrewDrive,
+    ScrewHead,
 )
-
 
 # =============================================================================
 # Hardware Type Tests
 # =============================================================================
+
 
 class TestHardwareType:
     """Tests for hardware type enum."""
@@ -42,6 +40,7 @@ class TestHardwareType:
 # Screw Head Tests
 # =============================================================================
 
+
 class TestScrewHead:
     """Tests for screw head styles."""
 
@@ -62,6 +61,7 @@ class TestScrewHead:
 # Screw Drive Tests
 # =============================================================================
 
+
 class TestScrewDrive:
     """Tests for screw drive types."""
 
@@ -76,6 +76,7 @@ class TestScrewDrive:
 # =============================================================================
 # Hardware Spec Tests
 # =============================================================================
+
 
 class TestHardwareSpec:
     """Tests for hardware specification dataclass."""
@@ -93,7 +94,7 @@ class TestHardwareSpec:
                 "length": 10.0,
             },
         )
-        
+
         assert spec.type == HardwareType.SCREW
         assert spec.name == "M3x10 Socket Head"
         assert spec.dimensions["thread_diameter"] == 3.0
@@ -111,7 +112,7 @@ class TestHardwareSpec:
             },
             material="Brass",
         )
-        
+
         assert spec.type == HardwareType.THREADED_INSERT
         assert spec.material == "Brass"
 
@@ -122,7 +123,7 @@ class TestHardwareSpec:
             name="Test Screw",
             description="Test",
         )
-        
+
         assert spec.material == "Steel"
         assert spec.finish == "Black Oxide"
 
@@ -134,7 +135,7 @@ class TestHardwareSpec:
             description="Test",
             dimensions={"length": 20.0, "diameter": 5.0},
         )
-        
+
         assert spec.get_dimension("length") == 20.0
         assert spec.get_dimension("diameter") == 5.0
 
@@ -146,7 +147,7 @@ class TestHardwareSpec:
             description="Test",
             dimensions={},
         )
-        
+
         assert spec.get_dimension("missing") == 0.0
         assert spec.get_dimension("missing", 10.0) == 10.0
 
@@ -158,7 +159,7 @@ class TestHardwareSpec:
             description="Socket head cap screw",
             mcmaster_pn="91290A115",
         )
-        
+
         assert spec.mcmaster_pn == "91290A115"
 
     def test_supplier_url(self):
@@ -169,7 +170,7 @@ class TestHardwareSpec:
             description="Standard washer",
             supplier_url="https://example.com/washer",
         )
-        
+
         assert spec.supplier_url == "https://example.com/washer"
 
 
@@ -177,13 +178,14 @@ class TestHardwareSpec:
 # Metric Screw Catalog Tests
 # =============================================================================
 
+
 class TestMetricScrewCatalog:
     """Tests for metric screw dimensions catalog."""
 
     def test_m3_dimensions(self):
         """Test M3 screw dimensions."""
         dims = METRIC_SOCKET_HEAD_SCREWS["M3"]
-        
+
         thread_dia, head_dia, head_height, hex_size = dims
         assert thread_dia == 3.0
         assert head_dia == 5.5
@@ -193,21 +195,21 @@ class TestMetricScrewCatalog:
     def test_m4_dimensions(self):
         """Test M4 screw dimensions."""
         dims = METRIC_SOCKET_HEAD_SCREWS["M4"]
-        
-        thread_dia, head_dia, head_height, hex_size = dims
+
+        thread_dia, head_dia, _head_height, _hex_size = dims
         assert thread_dia == 4.0
         assert head_dia == 7.0
 
     def test_m5_dimensions(self):
         """Test M5 screw dimensions."""
         dims = METRIC_SOCKET_HEAD_SCREWS["M5"]
-        
+
         assert dims[0] == 5.0  # thread diameter
 
     def test_common_sizes_exist(self):
         """Test all common metric sizes exist."""
         common_sizes = ["M2", "M2.5", "M3", "M4", "M5", "M6", "M8", "M10"]
-        
+
         for size in common_sizes:
             assert size in METRIC_SOCKET_HEAD_SCREWS
 
@@ -227,12 +229,13 @@ class TestMetricScrewCatalog:
 # Common Screw Lengths Tests
 # =============================================================================
 
+
 class TestCommonScrewLengths:
     """Tests for common screw length catalog."""
 
     def test_lengths_are_sorted(self):
         """Test lengths are in ascending order."""
-        assert COMMON_SCREW_LENGTHS == sorted(COMMON_SCREW_LENGTHS)
+        assert sorted(COMMON_SCREW_LENGTHS) == COMMON_SCREW_LENGTHS
 
     def test_common_lengths_exist(self):
         """Test common lengths are included."""
@@ -259,6 +262,7 @@ class TestCommonScrewLengths:
 # Edge Cases
 # =============================================================================
 
+
 class TestEdgeCases:
     """Tests for edge cases."""
 
@@ -270,7 +274,7 @@ class TestEdgeCases:
             description="Custom gasket",
             dimensions={},
         )
-        
+
         assert len(spec.dimensions) == 0
 
     def test_custom_properties(self):
@@ -285,7 +289,7 @@ class TestEdgeCases:
                 "corrosion_resistant": True,
             },
         )
-        
+
         assert spec.properties["torque_nm"] == 1.5
         assert spec.properties["corrosion_resistant"] is True
 
@@ -301,6 +305,6 @@ class TestEdgeCases:
                 "length": 10.0,
             },
         )
-        
+
         assert spec.type == HardwareType.STANDOFF
         assert spec.get_dimension("length") == 10.0

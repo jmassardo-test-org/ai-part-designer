@@ -7,20 +7,20 @@ for clean separation of data access from business logic.
 
 from app.repositories.base import BaseRepository
 from app.repositories.repositories import (
-    UserRepository,
-    ProjectRepository,
-    TemplateRepository,
+    AuditLogRepository,
     DesignRepository,
     JobRepository,
-    AuditLogRepository,
+    ProjectRepository,
+    TemplateRepository,
+    UserRepository,
 )
 
 __all__ = [
+    "AuditLogRepository",
     "BaseRepository",
-    "UserRepository",
-    "ProjectRepository",
-    "TemplateRepository",
     "DesignRepository",
     "JobRepository",
-    "AuditLogRepository",
+    "ProjectRepository",
+    "TemplateRepository",
+    "UserRepository",
 ]

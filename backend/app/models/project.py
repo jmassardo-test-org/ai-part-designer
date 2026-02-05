@@ -12,17 +12,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.design import Design
-    from app.models.spatial_layout import SpatialLayout
     from app.models.organization import Organization
+    from app.models.spatial_layout import SpatialLayout
     from app.models.team import ProjectTeam
+    from app.models.user import User
 
 
 class Project(Base, TimestampMixin, SoftDeleteMixin):
     """
     Project model for organizing designs.
-    
+
     Projects are containers that group related designs together.
     Each user can have multiple projects. Projects can optionally
     be owned by an organization for team collaboration.

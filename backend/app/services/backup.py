@@ -13,35 +13,27 @@ import asyncio
 import gzip
 import hashlib
 import json
-import os
-import subprocess
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.config import settings
-from app.core.storage import storage_backend
 
 
-class BackupType(str, Enum):
+class BackupType(StrEnum):
     """Types of backups."""
-    
-    FULL = "full"           # Complete database + files
-    DATABASE = "database"   # Database only
-    FILES = "files"         # File storage only
+
+    FULL = "full"  # Complete database + files
+    DATABASE = "database"  # Database only
+    FILES = "files"  # File storage only
     INCREMENTAL = "incremental"  # Changes since last backup
 
 
-class BackupStatus(str, Enum):
+class BackupStatus(StrEnum):
     """Backup operation status."""
-    
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -53,7 +45,7 @@ class BackupStatus(str, Enum):
 @dataclass
 class BackupRecord:
     """Record of a backup operation."""
-    
+
     id: UUID = field(default_factory=uuid4)
     backup_type: BackupType = BackupType.FULL
     status: BackupStatus = BackupStatus.PENDING
@@ -65,7 +57,7 @@ class BackupRecord:
     checksum: str = ""  # SHA-256 hash
     metadata: dict = field(default_factory=dict)
     error_message: str | None = None
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for storage."""
         return {
@@ -81,7 +73,7 @@ class BackupRecord:
             "metadata": self.metadata,
             "error_message": self.error_message,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "BackupRecord":
         """Create from dictionary."""
@@ -90,7 +82,9 @@ class BackupRecord:
             backup_type=BackupType(data["backup_type"]),
             status=BackupStatus(data["status"]),
             created_at=datetime.fromisoformat(data["created_at"]),
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
+            completed_at=datetime.fromisoformat(data["completed_at"])
+            if data.get("completed_at")
+            else None,
             size_bytes=data.get("size_bytes", 0),
             file_count=data.get("file_count", 0),
             location=data.get("location", ""),
@@ -103,7 +97,7 @@ class BackupRecord:
 @dataclass
 class RestoreResult:
     """Result of a restore operation."""
-    
+
     success: bool
     backup_id: UUID
     restored_at: datetime = field(default_factory=datetime.utcnow)
@@ -115,7 +109,7 @@ class RestoreResult:
 @dataclass
 class VerificationResult:
     """Result of backup verification."""
-    
+
     backup_id: UUID
     is_valid: bool
     verified_at: datetime = field(default_factory=datetime.utcnow)
@@ -128,14 +122,14 @@ class VerificationResult:
 class BackupService:
     """
     Service for managing backups and disaster recovery.
-    
+
     Supports:
     - PostgreSQL database backups via pg_dump
     - File storage backups to S3
     - Incremental backups
     - Point-in-time recovery
     """
-    
+
     def __init__(
         self,
         backup_dir: str | None = None,
@@ -146,7 +140,7 @@ class BackupService:
         self.s3_bucket = s3_bucket or settings.BACKUP_S3_BUCKET
         self._backup_index: dict[str, BackupRecord] = {}
         self._load_backup_index()
-    
+
     def _load_backup_index(self) -> None:
         """Load backup index from disk."""
         index_path = self.backup_dir / "backup_index.json"
@@ -154,13 +148,10 @@ class BackupService:
             try:
                 with open(index_path) as f:
                     data = json.load(f)
-                    self._backup_index = {
-                        k: BackupRecord.from_dict(v)
-                        for k, v in data.items()
-                    }
+                    self._backup_index = {k: BackupRecord.from_dict(v) for k, v in data.items()}
             except Exception:
                 self._backup_index = {}
-    
+
     def _save_backup_index(self) -> None:
         """Save backup index to disk."""
         index_path = self.backup_dir / "backup_index.json"
@@ -170,7 +161,7 @@ class BackupService:
                 f,
                 indent=2,
             )
-    
+
     async def create_backup(
         self,
         backup_type: BackupType = BackupType.FULL,
@@ -178,11 +169,11 @@ class BackupService:
     ) -> BackupRecord:
         """
         Create a new backup.
-        
+
         Args:
             backup_type: Type of backup to create
             description: Optional description
-            
+
         Returns:
             BackupRecord with backup details
         """
@@ -191,7 +182,7 @@ class BackupService:
             status=BackupStatus.IN_PROGRESS,
             metadata={"description": description} if description else {},
         )
-        
+
         try:
             if backup_type == BackupType.DATABASE:
                 await self._backup_database(record)
@@ -202,31 +193,31 @@ class BackupService:
                 await self._backup_files(record)
             elif backup_type == BackupType.INCREMENTAL:
                 await self._backup_incremental(record)
-            
+
             record.status = BackupStatus.COMPLETED
             record.completed_at = datetime.utcnow()
-            
+
         except Exception as e:
             record.status = BackupStatus.FAILED
             record.error_message = str(e)
-        
+
         # Save to index
         self._backup_index[str(record.id)] = record
         self._save_backup_index()
-        
+
         return record
-    
+
     async def _backup_database(self, record: BackupRecord) -> None:
         """Create database backup using pg_dump."""
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"db_backup_{timestamp}.sql.gz"
         backup_path = self.backup_dir / backup_filename
-        
+
         # Build pg_dump command
         db_url = settings.DATABASE_URL
         # Parse connection string (simplified)
         # In production, use proper URL parsing
-        
+
         cmd = [
             "pg_dump",
             "--format=plain",
@@ -234,7 +225,7 @@ class BackupService:
             "--no-privileges",
             db_url,
         ]
-        
+
         try:
             # Run pg_dump and compress
             process = await asyncio.create_subprocess_exec(
@@ -243,48 +234,48 @@ class BackupService:
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await process.communicate()
-            
+
             if process.returncode != 0:
                 raise Exception(f"pg_dump failed: {stderr.decode()}")
-            
+
             # Compress and write
             with gzip.open(backup_path, "wb") as f:
                 f.write(stdout)
-            
+
             # Calculate checksum
             checksum = hashlib.sha256(stdout).hexdigest()
-            
+
             # Update record
             record.location = str(backup_path)
             record.size_bytes = backup_path.stat().st_size
             record.checksum = checksum
             record.metadata["database_backup"] = backup_filename
-            
+
             # Upload to S3 if configured
             if self.s3_bucket:
                 s3_key = f"backups/database/{backup_filename}"
                 await self._upload_to_s3(backup_path, s3_key)
                 record.metadata["s3_location"] = f"s3://{self.s3_bucket}/{s3_key}"
-                
+
         except FileNotFoundError:
             # pg_dump not available, create a mock backup for development
             record.metadata["mock_backup"] = True
             record.location = str(backup_path)
             record.size_bytes = 0
-    
+
     async def _backup_files(self, record: BackupRecord) -> None:
         """Backup file storage."""
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"files_backup_{timestamp}.tar.gz"
         backup_path = self.backup_dir / backup_filename
-        
+
         # Get file storage path
         file_storage_path = Path(settings.FILE_STORAGE_PATH or "/tmp/uploads")
-        
+
         if not file_storage_path.exists():
             record.metadata["files_backup"] = "no_files"
             return
-        
+
         # Create tar archive
         cmd = [
             "tar",
@@ -294,7 +285,7 @@ class BackupService:
             str(file_storage_path.parent),
             file_storage_path.name,
         ]
-        
+
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -302,32 +293,32 @@ class BackupService:
                 stderr=asyncio.subprocess.PIPE,
             )
             _, stderr = await process.communicate()
-            
+
             if process.returncode != 0:
                 raise Exception(f"tar failed: {stderr.decode()}")
-            
+
             # Count files
             file_count = sum(1 for _ in file_storage_path.rglob("*") if _.is_file())
-            
+
             # Calculate checksum
             with open(backup_path, "rb") as f:
                 checksum = hashlib.sha256(f.read()).hexdigest()
-            
+
             # Update record
             record.file_count += file_count
             record.size_bytes += backup_path.stat().st_size
             record.metadata["files_backup"] = backup_filename
             record.metadata["files_checksum"] = checksum
-            
+
             # Upload to S3 if configured
             if self.s3_bucket:
                 s3_key = f"backups/files/{backup_filename}"
                 await self._upload_to_s3(backup_path, s3_key)
                 record.metadata["files_s3_location"] = f"s3://{self.s3_bucket}/{s3_key}"
-                
+
         except Exception as e:
             record.metadata["files_backup_error"] = str(e)
-    
+
     async def _backup_incremental(self, record: BackupRecord) -> None:
         """Create incremental backup since last full backup."""
         # Find last full backup
@@ -340,27 +331,26 @@ class BackupService:
             if backup.backup_type == BackupType.FULL and backup.status == BackupStatus.COMPLETED:
                 last_full = backup
                 break
-        
+
         if not last_full:
             # No full backup, create one instead
             await self._backup_database(record)
             await self._backup_files(record)
             record.backup_type = BackupType.FULL
             return
-        
+
         record.metadata["incremental_base"] = str(last_full.id)
         record.metadata["incremental_since"] = last_full.created_at.isoformat()
-        
+
         # For database, could use WAL archiving
         # For files, backup only modified files
         # Simplified implementation for now
         await self._backup_database(record)
-    
+
     async def _upload_to_s3(self, local_path: Path, s3_key: str) -> None:
         """Upload file to S3."""
         # Would use boto3 or storage_backend
-        pass
-    
+
     async def restore_backup(
         self,
         backup_id: UUID,
@@ -368,11 +358,11 @@ class BackupService:
     ) -> RestoreResult:
         """
         Restore from a backup.
-        
+
         Args:
             backup_id: ID of backup to restore
             target_time: Optional point-in-time for incremental restore
-            
+
         Returns:
             RestoreResult with operation details
         """
@@ -383,17 +373,17 @@ class BackupService:
                 backup_id=backup_id,
                 error_message="Backup not found",
             )
-        
+
         if record.status not in (BackupStatus.COMPLETED, BackupStatus.VERIFIED):
             return RestoreResult(
                 success=False,
                 backup_id=backup_id,
                 error_message=f"Backup not ready: {record.status.value}",
             )
-        
+
         warnings = []
         items_restored = 0
-        
+
         try:
             # Restore database
             if "database_backup" in record.metadata:
@@ -402,32 +392,32 @@ class BackupService:
                     items_restored += 1
                 else:
                     warnings.append("Database restore skipped")
-            
+
             # Restore files
             if "files_backup" in record.metadata:
                 files_restored = await self._restore_files(record)
                 items_restored += files_restored
-            
+
             return RestoreResult(
                 success=True,
                 backup_id=backup_id,
                 items_restored=items_restored,
                 warnings=warnings,
             )
-            
+
         except Exception as e:
             return RestoreResult(
                 success=False,
                 backup_id=backup_id,
                 error_message=str(e),
             )
-    
+
     async def _restore_database(self, record: BackupRecord) -> bool:
         """Restore database from backup."""
         backup_file = record.metadata.get("database_backup")
         if not backup_file:
             return False
-        
+
         backup_path = self.backup_dir / backup_file
         if not backup_path.exists():
             # Try to download from S3
@@ -436,32 +426,32 @@ class BackupService:
                 pass
             else:
                 return False
-        
+
         # Decompress and restore
         # In production, this would use psql
         # CAUTION: This is destructive!
-        
+
         return True  # Simplified
-    
+
     async def _restore_files(self, record: BackupRecord) -> int:
         """Restore files from backup."""
         backup_file = record.metadata.get("files_backup")
         if not backup_file or backup_file == "no_files":
             return 0
-        
+
         backup_path = self.backup_dir / backup_file
         if not backup_path.exists():
             return 0
-        
+
         # Extract files
         # In production, this would extract to file storage
-        
+
         return record.file_count
-    
+
     async def verify_backup(self, backup_id: UUID) -> VerificationResult:
         """
         Verify backup integrity.
-        
+
         Checks:
         - File exists and is readable
         - Checksum matches
@@ -474,11 +464,11 @@ class BackupService:
                 is_valid=False,
                 issues=["Backup not found"],
             )
-        
+
         issues = []
         checksum_match = True
         file_readable = True
-        
+
         # Check database backup
         if "database_backup" in record.metadata:
             db_file = self.backup_dir / record.metadata["database_backup"]
@@ -497,23 +487,23 @@ class BackupService:
                 except Exception as e:
                     issues.append(f"Cannot read database backup: {e}")
                     file_readable = False
-        
+
         # Check files backup
         if "files_backup" in record.metadata and record.metadata["files_backup"] != "no_files":
             files_backup = self.backup_dir / record.metadata["files_backup"]
             if not files_backup.exists():
                 issues.append("Files backup missing")
                 file_readable = False
-        
+
         is_valid = len(issues) == 0
-        
+
         # Update record status
         if is_valid:
             record.status = BackupStatus.VERIFIED
         else:
             record.status = BackupStatus.CORRUPTED
         self._save_backup_index()
-        
+
         return VerificationResult(
             backup_id=backup_id,
             is_valid=is_valid,
@@ -521,7 +511,7 @@ class BackupService:
             sample_files_readable=file_readable,
             issues=issues,
         )
-    
+
     async def list_backups(
         self,
         backup_type: BackupType | None = None,
@@ -530,41 +520,41 @@ class BackupService:
     ) -> list[BackupRecord]:
         """List available backups."""
         backups = list(self._backup_index.values())
-        
+
         if backup_type:
             backups = [b for b in backups if b.backup_type == backup_type]
-        
+
         if status:
             backups = [b for b in backups if b.status == status]
-        
+
         # Sort by date descending
         backups.sort(key=lambda x: x.created_at, reverse=True)
-        
+
         return backups[:limit]
-    
+
     async def delete_backup(self, backup_id: UUID) -> bool:
         """Delete a backup."""
         record = self._backup_index.get(str(backup_id))
         if not record:
             return False
-        
+
         # Delete files
         if "database_backup" in record.metadata:
             db_file = self.backup_dir / record.metadata["database_backup"]
             if db_file.exists():
                 db_file.unlink()
-        
+
         if "files_backup" in record.metadata:
             files_backup = self.backup_dir / record.metadata["files_backup"]
             if files_backup.exists():
                 files_backup.unlink()
-        
+
         # Remove from index
         del self._backup_index[str(backup_id)]
         self._save_backup_index()
-        
+
         return True
-    
+
     async def cleanup_old_backups(
         self,
         retention_days: int = 30,
@@ -572,30 +562,29 @@ class BackupService:
     ) -> int:
         """
         Clean up old backups based on retention policy.
-        
+
         Args:
             retention_days: Delete backups older than this
             keep_minimum: Always keep at least this many backups
-            
+
         Returns:
             Number of backups deleted
         """
         cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
         backups = await self.list_backups()
-        
+
         # Sort by date, keep newest
         backups.sort(key=lambda x: x.created_at, reverse=True)
-        
+
         # Keep minimum backups
-        to_keep = backups[:keep_minimum]
+        backups[:keep_minimum]
         to_check = backups[keep_minimum:]
-        
+
         deleted = 0
         for backup in to_check:
-            if backup.created_at < cutoff_date:
-                if await self.delete_backup(backup.id):
-                    deleted += 1
-        
+            if backup.created_at < cutoff_date and await self.delete_backup(backup.id):
+                deleted += 1
+
         return deleted
 
 
@@ -614,7 +603,7 @@ def create_daily_backup():
     '''Create daily database backup.'''
     import asyncio
     from app.services.backup import BackupService, BackupType
-    
+
     service = BackupService()
     result = asyncio.run(service.create_backup(
         backup_type=BackupType.DATABASE,
@@ -628,7 +617,7 @@ def create_weekly_full_backup():
     '''Create weekly full backup.'''
     import asyncio
     from app.services.backup import BackupService, BackupType
-    
+
     service = BackupService()
     result = asyncio.run(service.create_backup(
         backup_type=BackupType.FULL,
@@ -642,7 +631,7 @@ def cleanup_old_backups():
     '''Clean up old backups.'''
     import asyncio
     from app.services.backup import BackupService
-    
+
     service = BackupService()
     deleted = asyncio.run(service.cleanup_old_backups())
     return {"deleted_count": deleted}

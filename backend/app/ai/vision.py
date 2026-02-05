@@ -110,6 +110,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
     def __init__(self):
         if settings.ANTHROPIC_API_KEY:
             from anthropic import AsyncAnthropic
+
             self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         else:
             self.client = None
@@ -146,23 +147,29 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
             # Build the user message
             user_content = []
             if context:
-                user_content.append({
-                    "type": "text",
-                    "text": f"Context: {context}\n\nExtract all dimensions from this image:",
-                })
+                user_content.append(
+                    {
+                        "type": "text",
+                        "text": f"Context: {context}\n\nExtract all dimensions from this image:",
+                    }
+                )
             else:
-                user_content.append({
-                    "type": "text",
-                    "text": "Extract all dimensions and specifications from this mechanical drawing or datasheet image:",
-                })
+                user_content.append(
+                    {
+                        "type": "text",
+                        "text": "Extract all dimensions and specifications from this mechanical drawing or datasheet image:",
+                    }
+                )
 
-            user_content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{image_type};base64,{base64_image}",
-                    "detail": "high",  # Use high detail for better accuracy
-                },
-            })
+            user_content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{image_type};base64,{base64_image}",
+                        "detail": "high",  # Use high detail for better accuracy
+                    },
+                }
+            )
 
             # Call Claude Vision
             response = await self.client.messages.create(
@@ -182,7 +189,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
         except Exception as e:
             logger.exception("Vision extraction failed")
             return ExtractedDimensions(
-                notes=[f"Extraction failed: {str(e)}"],
+                notes=[f"Extraction failed: {e!s}"],
                 raw_response=str(e),
                 confidence=0.0,
             )
@@ -251,7 +258,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON: {e}")
             return ExtractedDimensions(
-                notes=[f"JSON parse error: {str(e)}"],
+                notes=[f"JSON parse error: {e!s}"],
                 raw_response=content,
                 confidence=0.0,
             )

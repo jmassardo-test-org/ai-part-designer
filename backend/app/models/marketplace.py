@@ -5,18 +5,16 @@ Enables the community marketplace where users can browse public designs,
 save them to organized lists, and track popularity.
 """
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
-    DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
-    Index,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -32,9 +30,10 @@ if TYPE_CHECKING:
 class DesignList(Base, TimestampMixin, SoftDeleteMixin):
     """
     User-created list for organizing saved designs.
-    
+
     Examples: "Electronics enclosures", "Favorites", "Project A components"
     """
+
     __tablename__ = "design_lists"
 
     id: Mapped[UUID] = mapped_column(
@@ -48,7 +47,7 @@ class DesignList(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         index=True,
     )
-    
+
     # List metadata
     name: Mapped[str] = mapped_column(
         String(100),
@@ -68,21 +67,21 @@ class DesignList(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         default="#6366f1",
     )  # hex color
-    
+
     # Visibility
     is_public: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=False,
     )
-    
+
     # Ordering
     position: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
     )
-    
+
     # Relationships
     user: Mapped["User"] = relationship(
         "User",
@@ -94,7 +93,7 @@ class DesignList(Base, TimestampMixin, SoftDeleteMixin):
         cascade="all, delete-orphan",
         order_by="DesignListItem.position",
     )
-    
+
     @property
     def item_count(self) -> int:
         """Get number of items in list."""
@@ -108,6 +107,7 @@ class DesignListItem(Base, TimestampMixin):
     """
     A design saved to a list.
     """
+
     __tablename__ = "design_list_items"
 
     id: Mapped[UUID] = mapped_column(
@@ -127,20 +127,20 @@ class DesignListItem(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    
+
     # User note for this saved design
     note: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
-    
+
     # Position in list
     position: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
     )
-    
+
     # Relationships
     list: Mapped["DesignList"] = relationship(
         "DesignList",
@@ -150,7 +150,7 @@ class DesignListItem(Base, TimestampMixin):
         "Design",
         lazy="joined",
     )
-    
+
     __table_args__ = (
         # Prevent duplicate saves to same list
         UniqueConstraint("list_id", "design_id", name="uq_list_design"),
@@ -165,11 +165,12 @@ class DesignListItem(Base, TimestampMixin):
 class DesignSave(Base, TimestampMixin):
     """
     Track when a user saves someone else's design.
-    
+
     This is separate from list items - it tracks the "save" action itself.
     A design can be saved to multiple lists.
     Used for popularity metrics and "saved" state.
     """
+
     __tablename__ = "design_saves"
 
     id: Mapped[UUID] = mapped_column(
@@ -189,14 +190,14 @@ class DesignSave(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    
+
     # Relationships
     user: Mapped["User"] = relationship("User")
     design: Mapped["Design"] = relationship(
         "Design",
         back_populates="saves",
     )
-    
+
     __table_args__ = (
         UniqueConstraint("user_id", "design_id", name="uq_user_design_save"),
         Index("idx_design_saves_design", "design_id"),

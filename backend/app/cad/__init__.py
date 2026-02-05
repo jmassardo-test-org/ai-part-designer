@@ -17,16 +17,17 @@ Modules:
 Migration Guide:
     - Old: from app.cad import create_box
     - New: from app.cad_v2.compiler import CompilationEngine
-    
+
     - Old: generate_from_template("enclosure", params)
     - New: engine.compile_enclosure(EnclosureSpec(...))
-    
+
     See docs/adrs/adr-016-declarative-cad-schema.md for details.
 """
 
 # IMPORTANT: Apply OCP compatibility patch BEFORE any build123d imports
 # This fixes the HashCode() → __hash__() API change in OCP 7.9.x
-from app.cad.ocp_compat import apply_ocp_compat_patch  # noqa: E402
+from app.cad.ocp_compat import apply_ocp_compat_patch
+
 apply_ocp_compat_patch()
 
 import warnings
@@ -40,71 +41,71 @@ warnings.warn(
     stacklevel=2,
 )
 
-from app.cad.exceptions import CADError, GeometryError, ExportError
-from app.cad.primitives import (
-    create_box,
-    create_cylinder,
-    create_sphere,
-    create_cone,
+# Import Gridfinity module to register templates
+# Import dovetail module to register templates
+from app.cad import (
+    dovetails,  # noqa: F401
+    gridfinity,  # noqa: F401
 )
-from app.cad.operations import (
-    union,
-    difference,
-    intersection,
-    translate,
-    rotate,
-    scale,
-    fillet,
-    chamfer,
-)
+from app.cad.exceptions import CADError, ExportError, GeometryError
 from app.cad.export import (
+    ExportFormat,
+    ExportQuality,
     export_step,
     export_stl,
     export_to_format,
-    ExportFormat,
-    ExportQuality,
+)
+from app.cad.operations import (
+    chamfer,
+    difference,
+    fillet,
+    intersection,
+    rotate,
+    scale,
+    translate,
+    union,
+)
+from app.cad.primitives import (
+    create_box,
+    create_cone,
+    create_cylinder,
+    create_sphere,
 )
 from app.cad.templates import (
+    TEMPLATE_REGISTRY,
     generate_from_template,
     get_template_generator,
     register_template,
-    TEMPLATE_REGISTRY,
 )
 
-# Import Gridfinity module to register templates
-from app.cad import gridfinity  # noqa: F401
-
-# Import dovetail module to register templates
-from app.cad import dovetails  # noqa: F401
-
 __all__ = [
+    "TEMPLATE_REGISTRY",
     # Exceptions
     "CADError",
-    "GeometryError",
     "ExportError",
+    "ExportFormat",
+    "ExportQuality",
+    "GeometryError",
+    "chamfer",
     # Primitives
     "create_box",
+    "create_cone",
     "create_cylinder",
     "create_sphere",
-    "create_cone",
-    # Operations
-    "union",
     "difference",
-    "intersection",
-    "translate",
-    "rotate",
-    "scale",
-    "fillet",
-    "chamfer",
     # Export
     "export_step",
     "export_stl",
     "export_to_format",
-    "ExportFormat",
-    "ExportQuality",
+    "fillet",
     # Templates
     "generate_from_template",
     "get_template_generator",
+    "intersection",
     "register_template",
-    "TEMPLATE_REGISTRY",
+    "rotate",
+    "scale",
+    "translate",
+    # Operations
+    "union",
 ]

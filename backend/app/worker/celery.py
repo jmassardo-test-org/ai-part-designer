@@ -33,30 +33,23 @@ celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-    
     # Timezone
     timezone="UTC",
     enable_utc=True,
-    
     # Task execution
     task_track_started=True,
     task_time_limit=settings.CAD_WORKER_TIMEOUT,
     task_soft_time_limit=settings.CAD_WORKER_TIMEOUT - 30,
-    
     # Result backend
     result_expires=3600,  # 1 hour
-    
     # Worker settings
     worker_prefetch_multiplier=1,  # Disable prefetch for long-running tasks
     worker_concurrency=settings.MAX_CONCURRENT_JOBS,
-    
     # Rate limiting
     task_default_rate_limit="100/m",
-    
     # Retry settings
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    
     # Task routing
     task_routes={
         "app.worker.tasks.cad.*": {"queue": "cad"},
@@ -65,7 +58,6 @@ celery_app.conf.update(
         "app.worker.tasks.analytics.*": {"queue": "analytics"},
         "app.worker.tasks.maintenance.*": {"queue": "maintenance"},
     },
-    
     # Queue configuration
     task_queues={
         "cad": {
@@ -89,7 +81,6 @@ celery_app.conf.update(
             "routing_key": "maintenance",
         },
     },
-    
     # Beat schedule for periodic tasks
     beat_schedule={
         "cleanup-old-jobs": {

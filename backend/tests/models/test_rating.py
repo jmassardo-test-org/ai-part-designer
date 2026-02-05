@@ -7,18 +7,16 @@ Tests TemplateRating, TemplateFeedback, TemplateComment, ContentReport, and User
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-import pytest
-
 from app.models.rating import (
-    TemplateRating,
-    TemplateFeedback,
-    TemplateComment,
     ContentReport,
-    UserBan,
     FeedbackType,
     ReportReason,
     ReportStatus,
     ReportTargetType,
+    TemplateComment,
+    TemplateFeedback,
+    TemplateRating,
+    UserBan,
 )
 
 
@@ -29,13 +27,13 @@ class TestTemplateRating:
         """Test creating a rating with required fields."""
         template_id = uuid4()
         user_id = uuid4()
-        
+
         rating = TemplateRating(
             template_id=template_id,
             user_id=user_id,
             rating=5,
         )
-        
+
         assert rating.template_id == template_id
         assert rating.user_id == user_id
         assert rating.rating == 5
@@ -49,7 +47,7 @@ class TestTemplateRating:
             rating=4,
             review="Great template!",
         )
-        
+
         assert rating.rating == 4
         assert rating.review == "Great template!"
 
@@ -57,13 +55,13 @@ class TestTemplateRating:
         """Test rating string representation."""
         template_id = uuid4()
         user_id = uuid4()
-        
+
         rating = TemplateRating(
             template_id=template_id,
             user_id=user_id,
             rating=3,
         )
-        
+
         repr_str = repr(rating)
         assert "TemplateRating" in repr_str
         assert str(template_id) in repr_str
@@ -79,7 +77,7 @@ class TestTemplateFeedback:
             user_id=uuid4(),
             feedback_type=FeedbackType.THUMBS_UP.value,
         )
-        
+
         assert feedback.feedback_type == "thumbs_up"
 
     def test_create_thumbs_down_feedback(self) -> None:
@@ -89,7 +87,7 @@ class TestTemplateFeedback:
             user_id=uuid4(),
             feedback_type=FeedbackType.THUMBS_DOWN.value,
         )
-        
+
         assert feedback.feedback_type == "thumbs_down"
 
     def test_feedback_repr(self) -> None:
@@ -99,7 +97,7 @@ class TestTemplateFeedback:
             user_id=uuid4(),
             feedback_type=FeedbackType.THUMBS_UP.value,
         )
-        
+
         assert "TemplateFeedback" in repr(feedback)
 
 
@@ -115,7 +113,7 @@ class TestTemplateComment:
             is_hidden=False,
             is_edited=False,
         )
-        
+
         assert comment.content == "This is a great template!"
         assert comment.parent_id is None
         assert comment.is_hidden is False
@@ -124,21 +122,21 @@ class TestTemplateComment:
     def test_create_reply_comment(self) -> None:
         """Test creating a reply comment."""
         parent_id = uuid4()
-        
+
         comment = TemplateComment(
             template_id=uuid4(),
             user_id=uuid4(),
             content="I agree!",
             parent_id=parent_id,
         )
-        
+
         assert comment.parent_id == parent_id
 
     def test_comment_with_moderation_fields(self) -> None:
         """Test comment with moderation status."""
         moderator_id = uuid4()
         hidden_at = datetime.utcnow()
-        
+
         comment = TemplateComment(
             template_id=uuid4(),
             user_id=uuid4(),
@@ -148,7 +146,7 @@ class TestTemplateComment:
             hidden_at=hidden_at,
             hidden_reason="Spam content",
         )
-        
+
         assert comment.is_hidden is True
         assert comment.hidden_by_id == moderator_id
         assert comment.hidden_reason == "Spam content"
@@ -156,7 +154,7 @@ class TestTemplateComment:
     def test_edited_comment(self) -> None:
         """Test edited comment fields."""
         edited_at = datetime.utcnow()
-        
+
         comment = TemplateComment(
             template_id=uuid4(),
             user_id=uuid4(),
@@ -164,7 +162,7 @@ class TestTemplateComment:
             is_edited=True,
             edited_at=edited_at,
         )
-        
+
         assert comment.is_edited is True
         assert comment.edited_at == edited_at
 
@@ -175,7 +173,7 @@ class TestTemplateComment:
             user_id=uuid4(),
             content="Test",
         )
-        
+
         assert "TemplateComment" in repr(comment)
 
 
@@ -191,7 +189,7 @@ class TestContentReport:
             reason=ReportReason.SPAM.value,
             status=ReportStatus.PENDING.value,  # Set explicitly since DB default
         )
-        
+
         assert report.target_type == "template"
         assert report.reason == "spam"
         assert report.status == ReportStatus.PENDING.value
@@ -206,7 +204,7 @@ class TestContentReport:
             reason=ReportReason.OFFENSIVE.value,
             description="Contains offensive language",
         )
-        
+
         assert report.target_type == "comment"
         assert report.reason == "offensive"
         assert report.description == "Contains offensive language"
@@ -215,7 +213,7 @@ class TestContentReport:
         """Test report with resolution details."""
         moderator_id = uuid4()
         resolved_at = datetime.utcnow()
-        
+
         report = ContentReport(
             reporter_id=uuid4(),
             target_type=ReportTargetType.USER.value,
@@ -227,7 +225,7 @@ class TestContentReport:
             resolution_notes="Content removed",
             action_taken="remove_content",
         )
-        
+
         assert report.status == "resolved"
         assert report.resolved_by_id == moderator_id
         assert report.action_taken == "remove_content"
@@ -256,7 +254,7 @@ class TestContentReport:
             target_id=uuid4(),
             reason="spam",
         )
-        
+
         assert "ContentReport" in repr(report)
 
 
@@ -266,7 +264,7 @@ class TestUserBan:
     def test_create_temporary_ban(self) -> None:
         """Test creating a temporary ban."""
         expires_at = datetime.utcnow() + timedelta(days=7)
-        
+
         ban = UserBan(
             user_id=uuid4(),
             reason="Repeated spam violations",
@@ -275,7 +273,7 @@ class TestUserBan:
             expires_at=expires_at,
             is_active=True,  # Set explicitly since DB default
         )
-        
+
         assert ban.is_permanent is False
         assert ban.expires_at == expires_at
         assert ban.is_active is True
@@ -288,28 +286,28 @@ class TestUserBan:
             banned_by_id=uuid4(),
             is_permanent=True,
         )
-        
+
         assert ban.is_permanent is True
         assert ban.expires_at is None
 
     def test_ban_with_related_report(self) -> None:
         """Test ban linked to a report."""
         report_id = uuid4()
-        
+
         ban = UserBan(
             user_id=uuid4(),
             reason="Based on user report",
             banned_by_id=uuid4(),
             related_report_id=report_id,
         )
-        
+
         assert ban.related_report_id == report_id
 
     def test_unbanned_user(self) -> None:
         """Test unban fields."""
         unbanned_by = uuid4()
         unbanned_at = datetime.utcnow()
-        
+
         ban = UserBan(
             user_id=uuid4(),
             reason="Original reason",
@@ -319,7 +317,7 @@ class TestUserBan:
             unbanned_at=unbanned_at,
             unban_reason="Appeal accepted",
         )
-        
+
         assert ban.is_active is False
         assert ban.unbanned_by_id == unbanned_by
         assert ban.unban_reason == "Appeal accepted"
@@ -331,7 +329,7 @@ class TestUserBan:
             reason="Permanent ban",
             is_permanent=True,
         )
-        
+
         assert ban.is_expired is False
 
     def test_is_expired_active_ban(self) -> None:
@@ -342,7 +340,7 @@ class TestUserBan:
             is_permanent=False,
             expires_at=datetime.utcnow() + timedelta(days=7),
         )
-        
+
         assert ban.is_expired is False
 
     def test_is_expired_expired_ban(self) -> None:
@@ -353,18 +351,18 @@ class TestUserBan:
             is_permanent=False,
             expires_at=datetime.utcnow() - timedelta(days=1),
         )
-        
+
         assert ban.is_expired is True
 
     def test_ban_repr(self) -> None:
         """Test ban string representation."""
         user_id = uuid4()
-        
+
         ban = UserBan(
             user_id=user_id,
             reason="Test ban",
         )
-        
+
         repr_str = repr(ban)
         assert "UserBan" in repr_str
         assert str(user_id) in repr_str

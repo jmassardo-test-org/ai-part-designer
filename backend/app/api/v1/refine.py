@@ -4,11 +4,9 @@ Design Refinement API endpoints.
 Handles iterative design refinement with AI.
 """
 
-from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,18 +17,18 @@ from app.models import (
     Design,
     DesignContext,
     DesignRefinementJob,
-    DesignVersion,
     User,
 )
-
 
 router = APIRouter(prefix="/designs/{design_id}/refine", tags=["refine"])
 
 
 # --- Schemas ---
 
+
 class RefineRequest(BaseModel):
     """Request to refine a design."""
+
     instruction: str = Field(..., min_length=1, max_length=2000)
     apply_immediately: bool = Field(
         default=True,
@@ -40,6 +38,7 @@ class RefineRequest(BaseModel):
 
 class RefinePreviewResponse(BaseModel):
     """Preview of refinement changes."""
+
     ai_response: str
     suggested_parameters: dict
     current_parameters: dict
@@ -49,52 +48,57 @@ class RefinePreviewResponse(BaseModel):
 
 class RefineResponse(BaseModel):
     """Result of refinement."""
+
     success: bool
-    job_id: Optional[str] = None
+    job_id: str | None = None
     message: str
-    ai_response: Optional[str] = None
-    new_version_id: Optional[str] = None
-    old_parameters: Optional[dict] = None
-    new_parameters: Optional[dict] = None
+    ai_response: str | None = None
+    new_version_id: str | None = None
+    old_parameters: dict | None = None
+    new_parameters: dict | None = None
 
 
 class ConversationMessage(BaseModel):
     """A message in the design conversation."""
+
     role: str
     content: str
     timestamp: str
-    parameters: Optional[dict] = None
+    parameters: dict | None = None
 
 
 class DesignContextResponse(BaseModel):
     """Design context response."""
+
     id: str
     design_id: str
     messages: list[ConversationMessage]
     parameters: dict
     iteration_count: int
-    last_instruction: Optional[str]
+    last_instruction: str | None
     created_at: str
     updated_at: str
 
 
 class RefineJobResponse(BaseModel):
     """Refinement job status."""
+
     id: str
     design_id: str
     instruction: str
     status: str
-    old_parameters: Optional[dict]
-    new_parameters: Optional[dict]
-    ai_response: Optional[str]
-    result_version_id: Optional[str]
-    error_message: Optional[str]
+    old_parameters: dict | None
+    new_parameters: dict | None
+    ai_response: str | None
+    result_version_id: str | None
+    error_message: str | None
     created_at: str
-    started_at: Optional[str]
-    completed_at: Optional[str]
+    started_at: str | None
+    completed_at: str | None
 
 
 # --- Helper Functions ---
+
 
 async def get_design_or_404(
     design_id: UUID,
@@ -111,19 +115,19 @@ async def get_design_or_404(
         )
     )
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     if design.project.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return design
 
 
@@ -134,22 +138,20 @@ async def get_or_create_context(
     """Get or create design context."""
     if design.context:
         return design.context
-    
+
     # Create new context
     context = DesignContext(
         design_id=design.id,
         parameters=design.extra_data.get("parameters", {}),
     )
-    
+
     # Add initial system message
-    context.add_system_message(
-        f"Design '{design.name}' created from {design.source_type}."
-    )
-    
+    context.add_system_message(f"Design '{design.name}' created from {design.source_type}.")
+
     db.add(context)
     await db.commit()
     await db.refresh(context)
-    
+
     return context
 
 
@@ -159,17 +161,17 @@ async def refine_design_ai(
 ) -> tuple[str, dict]:
     """
     Call AI to interpret instruction and return parameter changes.
-    
+
     Returns (ai_response, new_parameters).
     """
     # TODO: Replace with actual AI call
     # For now, return a mock response
-    
+
     current_params = context.parameters.copy()
-    
+
     # Simple parameter modification based on keywords
     instruction_lower = instruction.lower()
-    
+
     if "taller" in instruction_lower or "higher" in instruction_lower:
         if "height" in current_params:
             current_params["height"] = current_params["height"] * 1.2
@@ -196,11 +198,12 @@ async def refine_design_ai(
         response = "I'll decrease the length by 20%."
     else:
         response = f"I understand you want to: {instruction}. I'll process this change."
-    
+
     return response, current_params
 
 
 # --- Endpoints ---
+
 
 @router.get("/context", response_model=DesignContextResponse)
 async def get_design_context(
@@ -211,7 +214,7 @@ async def get_design_context(
     """Get the conversation context for a design."""
     design = await get_design_or_404(design_id, db, current_user)
     context = await get_or_create_context(design, db)
-    
+
     return DesignContextResponse(
         id=str(context.id),
         design_id=str(context.design_id),
@@ -242,41 +245,41 @@ async def refine_design(
 ):
     """
     Refine a design with a natural language instruction.
-    
+
     The AI interprets the instruction, determines parameter changes,
     and creates a new version of the design.
     """
     design = await get_design_or_404(design_id, db, current_user)
     context = await get_or_create_context(design, db)
-    
+
     # Record user message
     context.add_user_message(request.instruction)
-    
+
     try:
         # Get AI response and new parameters
         ai_response, new_parameters = await refine_design_ai(
             request.instruction,
             context,
         )
-        
+
         # Record assistant response
         context.add_assistant_message(ai_response, new_parameters)
-        
+
         if request.apply_immediately:
             # Create new version with updated parameters
             old_params = context.parameters.copy()
-            
+
             # Update context with new iteration
             context.increment_iteration(request.instruction, new_parameters)
-            
+
             # Update design extra_data with new parameters
             design.extra_data = {
                 **design.extra_data,
                 "parameters": new_parameters,
             }
-            
+
             await db.commit()
-            
+
             return RefineResponse(
                 success=True,
                 message="Design refined successfully",
@@ -284,25 +287,24 @@ async def refine_design(
                 old_parameters=old_params,
                 new_parameters=new_parameters,
             )
-        else:
-            # Return preview only
-            await db.commit()
-            
-            return RefineResponse(
-                success=True,
-                message="Preview generated. Call again with apply_immediately=true to apply.",
-                ai_response=ai_response,
-                old_parameters=context.parameters,
-                new_parameters=new_parameters,
-            )
-            
-    except Exception as e:
-        context.add_system_message(f"Refinement failed: {str(e)}")
+        # Return preview only
         await db.commit()
-        
+
+        return RefineResponse(
+            success=True,
+            message="Preview generated. Call again with apply_immediately=true to apply.",
+            ai_response=ai_response,
+            old_parameters=context.parameters,
+            new_parameters=new_parameters,
+        )
+
+    except Exception as e:
+        context.add_system_message(f"Refinement failed: {e!s}")
+        await db.commit()
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to refine design: {str(e)}",
+            detail=f"Failed to refine design: {e!s}",
         )
 
 
@@ -318,20 +320,20 @@ async def preview_refinement(
     """
     design = await get_design_or_404(design_id, db, current_user)
     context = await get_or_create_context(design, db)
-    
+
     # Get AI response and new parameters
     ai_response, new_parameters = await refine_design_ai(
         request.instruction,
         context,
     )
-    
+
     # Calculate changes
     changes = []
     for key, new_value in new_parameters.items():
         old_value = context.parameters.get(key)
         if old_value != new_value:
             changes.append(f"{key}: {old_value} → {new_value}")
-    
+
     return RefinePreviewResponse(
         ai_response=ai_response,
         suggested_parameters=new_parameters,
@@ -349,19 +351,17 @@ async def reset_context(
 ):
     """
     Reset the conversation context for a design.
-    
+
     This clears all conversation history but preserves current parameters.
     """
     design = await get_design_or_404(design_id, db, current_user)
-    
+
     if design.context:
         # Reset messages but keep parameters
         design.context.messages = []
         design.context.iteration_count = 0
         design.context.last_instruction = None
-        design.context.add_system_message(
-            f"Conversation reset for design '{design.name}'."
-        )
+        design.context.add_system_message(f"Conversation reset for design '{design.name}'.")
         await db.commit()
 
 
@@ -372,8 +372,8 @@ async def list_refinement_jobs(
     current_user: User = Depends(get_current_user),
 ):
     """List refinement jobs for a design."""
-    design = await get_design_or_404(design_id, db, current_user)
-    
+    await get_design_or_404(design_id, db, current_user)
+
     result = await db.execute(
         select(DesignRefinementJob)
         .where(DesignRefinementJob.design_id == design_id)
@@ -381,11 +381,8 @@ async def list_refinement_jobs(
         .limit(20)
     )
     jobs = result.scalars().all()
-    
-    return [
-        RefineJobResponse(**job.to_dict())
-        for job in jobs
-    ]
+
+    return [RefineJobResponse(**job.to_dict()) for job in jobs]
 
 
 @router.get("/jobs/{job_id}", response_model=RefineJobResponse)
@@ -396,8 +393,8 @@ async def get_refinement_job(
     current_user: User = Depends(get_current_user),
 ):
     """Get a specific refinement job."""
-    design = await get_design_or_404(design_id, db, current_user)
-    
+    await get_design_or_404(design_id, db, current_user)
+
     result = await db.execute(
         select(DesignRefinementJob).where(
             DesignRefinementJob.id == job_id,
@@ -405,11 +402,11 @@ async def get_refinement_job(
         )
     )
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Refinement job not found",
         )
-    
+
     return RefineJobResponse(**job.to_dict())

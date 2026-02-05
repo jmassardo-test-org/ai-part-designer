@@ -1,15 +1,15 @@
 """Tests for CAD v2 schema generator."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from app.cad_v2.ai.intent import IntentType, ParsedIntent
 from app.cad_v2.ai.schema_generator import (
-    SchemaGenerator,
     GenerationResult,
     SchemaGenerationError,
-    generate_enclosure,
+    SchemaGenerator,
 )
-from app.cad_v2.ai.intent import IntentType, ParsedIntent
 from app.cad_v2.schemas.enclosure import EnclosureSpec
 
 
@@ -140,6 +140,7 @@ class TestSchemaGeneratorValidation:
             "walls": {"thickness": {"value": 2.5, "unit": "mm"}},
         }
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             generator._validate_and_build(invalid_json)
 
@@ -153,6 +154,7 @@ class TestSchemaGeneratorValidation:
             },
         }
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             generator._validate_and_build(invalid_json)
 
@@ -224,9 +226,7 @@ class TestSchemaGeneratorIntentHandling:
         return SchemaGenerator()
 
     @pytest.mark.asyncio
-    async def test_unclear_intent_returns_clarification(
-        self, generator: SchemaGenerator
-    ) -> None:
+    async def test_unclear_intent_returns_clarification(self, generator: SchemaGenerator) -> None:
         """Unclear intent should request clarification."""
         # Mock intent parser to return unclear
         with patch.object(

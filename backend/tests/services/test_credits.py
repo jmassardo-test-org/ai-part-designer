@@ -5,27 +5,23 @@ Tests credit balance operations, transactions, deductions,
 and quota enforcement.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
+import pytest
+
+from app.models.subscription import (
+    CreditBalance,
+    TransactionType,
+)
 from app.services.credits import (
     CreditService,
     InsufficientCreditsError,
-    QuotaExceededError,
 )
-from app.models.subscription import (
-    CreditBalance,
-    CreditTransaction,
-    TransactionType,
-    SubscriptionTier,
-    TierSlug,
-)
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def credit_service(db_session):
@@ -36,6 +32,7 @@ def credit_service(db_session):
 # =============================================================================
 # Balance Operations Tests
 # =============================================================================
+
 
 class TestBalanceOperations:
     """Tests for credit balance operations."""
@@ -106,6 +103,7 @@ class TestBalanceOperations:
 # Can Afford Tests
 # =============================================================================
 
+
 class TestCanAfford:
     """Tests for affordability checks."""
 
@@ -152,7 +150,7 @@ class TestCanAfford:
         db_session.add(balance)
         await db_session.commit()
 
-        can_afford, cost, current = await credit_service.can_afford(
+        can_afford, _cost, current = await credit_service.can_afford(
             test_user.id,
             TransactionType.GENERATION,
         )
@@ -164,6 +162,7 @@ class TestCanAfford:
 # =============================================================================
 # Check and Deduct Tests
 # =============================================================================
+
 
 class TestCheckAndDeduct:
     """Tests for credit deduction operations."""
@@ -263,6 +262,7 @@ class TestCheckAndDeduct:
 # =============================================================================
 # Add Credits Tests
 # =============================================================================
+
 
 class TestAddCredits:
     """Tests for adding credits."""
@@ -376,6 +376,7 @@ class TestAddCredits:
 # Transaction History Tests
 # =============================================================================
 
+
 class TestTransactionHistory:
     """Tests for transaction tracking."""
 
@@ -419,6 +420,7 @@ class TestTransactionHistory:
 # Edge Cases
 # =============================================================================
 
+
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
@@ -431,9 +433,9 @@ class TestEdgeCases:
     ):
         """Test deduction when balance exactly matches cost."""
         from app.models.subscription import get_operation_cost
-        
+
         cost = get_operation_cost(TransactionType.GENERATION)
-        
+
         balance = CreditBalance(
             user_id=test_user.id,
             balance=cost,  # Exactly enough

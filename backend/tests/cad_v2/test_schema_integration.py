@@ -149,9 +149,7 @@ class TestPi5EnclosureSpec:
         assert spec.mounting_tabs.enabled is True
         assert WallSide.BOTTOM in spec.mounting_tabs.sides
 
-    def test_pi5_enclosure_serialization_roundtrip(
-        self, pi5_enclosure_spec: EnclosureSpec
-    ) -> None:
+    def test_pi5_enclosure_serialization_roundtrip(self, pi5_enclosure_spec: EnclosureSpec) -> None:
         """Pi 5 enclosure should survive JSON roundtrip."""
         # Serialize to JSON
         json_str = pi5_enclosure_spec.model_dump_json()

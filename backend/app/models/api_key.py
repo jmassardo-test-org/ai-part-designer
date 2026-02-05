@@ -2,21 +2,22 @@
 API Key model for programmatic access.
 """
 
+import hashlib
+import secrets
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
-import secrets
-import hashlib
 
 from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
-    Index,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -28,10 +29,10 @@ if TYPE_CHECKING:
 class APIKey(Base, TimestampMixin):
     """
     API key for programmatic access to the platform.
-    
+
     Keys are stored as SHA-256 hashes. The actual key is only
     shown once at creation time and cannot be recovered.
-    
+
     Scopes define granular permissions:
     - designs:read - Read designs
     - designs:write - Create/modify designs
@@ -145,7 +146,7 @@ class APIKey(Base, TimestampMixin):
     def generate_key(cls) -> tuple[str, str, str]:
         """
         Generate a new API key.
-        
+
         Returns:
             Tuple of (full_key, key_prefix, key_hash)
         """
@@ -153,13 +154,13 @@ class APIKey(Base, TimestampMixin):
         # Format: apd_{32 random chars} (36 chars total)
         random_part = secrets.token_urlsafe(24)[:32]
         full_key = f"apd_{random_part}"
-        
+
         # Extract prefix for identification
         key_prefix = full_key[:8]
-        
+
         # Hash the full key for storage
         key_hash = hashlib.sha256(full_key.encode()).hexdigest()
-        
+
         return full_key, key_prefix, key_hash
 
     @classmethod
@@ -179,14 +180,14 @@ class APIKey(Base, TimestampMixin):
     ) -> tuple["APIKey", str]:
         """
         Create a new API key instance with a generated key.
-        
+
         Returns:
             Tuple of (APIKey instance, raw_key)
-            
+
         Note: The raw_key should be shown to the user once and never stored.
         """
         full_key, key_prefix, key_hash = cls.generate_key()
-        
+
         api_key = cls(
             user_id=user_id,
             name=name,
@@ -197,7 +198,7 @@ class APIKey(Base, TimestampMixin):
             expires_at=expires_at,
             rate_limit=rate_limit,
         )
-        
+
         return api_key, full_key
 
     @property
@@ -217,18 +218,18 @@ class APIKey(Base, TimestampMixin):
         # Check for wildcard scope
         if "*" in self.scopes:
             return True
-        
+
         # Check exact match
         if scope in self.scopes:
             return True
-        
+
         # Check partial match (e.g., "designs:*" matches "designs:read")
         scope_parts = scope.split(":")
         if len(scope_parts) == 2:
             wildcard_scope = f"{scope_parts[0]}:*"
             if wildcard_scope in self.scopes:
                 return True
-        
+
         return False
 
     def record_usage(self, ip_address: str | None = None) -> None:

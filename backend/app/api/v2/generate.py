@@ -7,21 +7,22 @@ Generates CAD files from natural language using the declarative schema approach.
 from __future__ import annotations
 
 import logging
-import tempfile
-from pathlib import Path
-from typing import Any
-from uuid import uuid4, UUID
+from typing import TYPE_CHECKING, Any
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cad_v2.ai import SchemaGenerator
-from app.cad_v2.compiler import CompilationEngine, CompilationResult
+from app.cad_v2.compiler import CompilationEngine
 from app.cad_v2.compiler.export import ExportFormat
-from app.core.database import get_db
 from app.core.auth import get_current_user_optional
-from app.models.user import User
+from app.core.database import get_db
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +58,13 @@ class GenerateV2Response(BaseModel):
 
     job_id: str = Field(description="Unique job identifier")
     success: bool = Field(description="Whether generation succeeded")
-    
+
     # Schema information
     generated_schema: dict[str, Any] | None = Field(
         default=None,
         description="Generated schema (for debugging/preview)",
     )
-    
+
     # Results
     parts: list[str] = Field(
         default_factory=list,
@@ -73,7 +74,7 @@ class GenerateV2Response(BaseModel):
         default_factory=dict,
         description="Download URLs for generated files",
     )
-    
+
     # Metadata
     warnings: list[str] = Field(
         default_factory=list,
@@ -83,7 +84,7 @@ class GenerateV2Response(BaseModel):
         default_factory=list,
         description="Errors (if failed)",
     )
-    
+
     # Clarification (if needed)
     clarification_needed: str | None = Field(
         default=None,
@@ -161,7 +162,7 @@ class JobStatusResponse(BaseModel):
 )
 async def generate_from_description(request: GenerateV2Request) -> GenerateV2Response:
     """Generate CAD files from natural language description.
-    
+
     Uses the CAD v2 declarative schema pipeline:
     1. Parse intent from description
     2. Generate EnclosureSpec schema via Claude
@@ -169,10 +170,10 @@ async def generate_from_description(request: GenerateV2Request) -> GenerateV2Res
     4. Export to requested format
     """
     job_id = str(uuid4())
-    
+
     # Step 1: Generate schema from description
     generator = SchemaGenerator()
-    
+
     try:
         result = await generator.generate(request.description)
     except Exception as e:
@@ -180,9 +181,9 @@ async def generate_from_description(request: GenerateV2Request) -> GenerateV2Res
         return GenerateV2Response(
             job_id=job_id,
             success=False,
-            errors=[f"Schema generation failed: {str(e)}"],
+            errors=[f"Schema generation failed: {e!s}"],
         )
-    
+
     # Check if clarification needed
     if result.clarification_needed:
         return GenerateV2Response(
@@ -190,7 +191,7 @@ async def generate_from_description(request: GenerateV2Request) -> GenerateV2Res
             success=False,
             clarification_needed=result.clarification_needed,
         )
-    
+
     # Check for validation errors
     if not result.success or result.spec is None:
         return GenerateV2Response(
@@ -199,10 +200,10 @@ async def generate_from_description(request: GenerateV2Request) -> GenerateV2Res
             errors=result.validation_errors or ["Unknown error"],
             generated_schema=result.raw_json,
         )
-    
+
     # Step 2: Compile to geometry
     engine = CompilationEngine()
-    
+
     try:
         compilation = engine.compile_enclosure(result.spec)
     except Exception as e:
@@ -210,10 +211,10 @@ async def generate_from_description(request: GenerateV2Request) -> GenerateV2Res
         return GenerateV2Response(
             job_id=job_id,
             success=False,
-            errors=[f"Compilation failed: {str(e)}"],
+            errors=[f"Compilation failed: {e!s}"],
             generated_schema=result.raw_json,
         )
-    
+
     if not compilation.success:
         return GenerateV2Response(
             job_id=job_id,
@@ -221,32 +222,29 @@ async def generate_from_description(request: GenerateV2Request) -> GenerateV2Res
             errors=compilation.errors,
             generated_schema=result.raw_json,
         )
-    
+
     # Step 3: Export files to persistent storage
     export_format = (
-        ExportFormat.STL if request.export_format.lower() == "stl"
-        else ExportFormat.STEP
+        ExportFormat.STL if request.export_format.lower() == "stl" else ExportFormat.STEP
     )
-    
+
     try:
         from app.api.v2.downloads import get_job_dir
+
         job_dir = get_job_dir(job_id)
         job_dir.mkdir(parents=True, exist_ok=True)
-        
+
         paths = compilation.export(str(job_dir), export_format)
-        downloads = {
-            p.stem: f"/api/v2/downloads/{job_id}/{p.name}"
-            for p in paths
-        }
+        downloads = {p.stem: f"/api/v2/downloads/{job_id}/{p.name}" for p in paths}
     except Exception as e:
         logger.exception("Export failed")
         return GenerateV2Response(
             job_id=job_id,
             success=False,
-            errors=[f"Export failed: {str(e)}"],
+            errors=[f"Export failed: {e!s}"],
             generated_schema=result.raw_json,
         )
-    
+
     return GenerateV2Response(
         job_id=job_id,
         success=True,
@@ -265,14 +263,14 @@ async def generate_from_description(request: GenerateV2Request) -> GenerateV2Res
 )
 async def preview_schema(request: SchemaPreviewRequest) -> SchemaPreviewResponse:
     """Preview the generated schema without compiling to CAD.
-    
+
     Useful for:
     - Debugging schema generation
     - Previewing before expensive compilation
     - Interactive refinement
     """
     generator = SchemaGenerator()
-    
+
     try:
         result = await generator.generate(request.description)
     except Exception as e:
@@ -281,13 +279,13 @@ async def preview_schema(request: SchemaPreviewRequest) -> SchemaPreviewResponse
             success=False,
             validation_errors=[str(e)],
         )
-    
+
     if result.clarification_needed:
         return SchemaPreviewResponse(
             success=False,
             clarification_needed=result.clarification_needed,
         )
-    
+
     return SchemaPreviewResponse(
         success=result.success,
         generated_schema=result.raw_json,
@@ -311,16 +309,17 @@ async def compile_schema(
     db: AsyncSession = Depends(get_db),
 ) -> GenerateV2Response | AsyncCompileResponse:
     """Compile a schema directly without AI generation.
-    
+
     Useful when schema is known or was refined by user.
-    
+
     If async_mode=true, returns immediately with job_id for polling.
     """
-    from app.cad_v2.schemas.enclosure import EnclosureSpec
     from pydantic import ValidationError
-    
+
+    from app.cad_v2.schemas.enclosure import EnclosureSpec
+
     job_id = str(uuid4())
-    
+
     # Validate schema first (fast, always sync)
     try:
         spec = EnclosureSpec.model_validate(request.enclosure_schema)
@@ -332,12 +331,12 @@ async def compile_schema(
             errors=errors,
             generated_schema=request.enclosure_schema,
         )
-    
+
     # Async mode: queue job and return immediately
     if request.async_mode:
         from app.models.job import Job
         from app.worker.tasks.cad_v2 import compile_enclosure_v2
-        
+
         # Create job record
         job = Job(
             id=UUID(job_id),
@@ -351,7 +350,7 @@ async def compile_schema(
         )
         db.add(job)
         await db.commit()
-        
+
         # Queue Celery task
         user_id = str(user.id) if user else None
         compile_enclosure_v2.delay(
@@ -360,16 +359,16 @@ async def compile_schema(
             export_format=request.export_format,
             user_id=user_id,
         )
-        
+
         return AsyncCompileResponse(
             job_id=job_id,
             status="queued",
             message="Compilation queued. Poll /job/{job_id}/status for updates.",
         )
-    
+
     # Sync mode: compile immediately
     engine = CompilationEngine()
-    
+
     try:
         compilation = engine.compile_enclosure(spec)
     except Exception as e:
@@ -379,7 +378,7 @@ async def compile_schema(
             errors=[str(e)],
             generated_schema=request.enclosure_schema,
         )
-    
+
     if not compilation.success:
         return GenerateV2Response(
             job_id=job_id,
@@ -387,23 +386,20 @@ async def compile_schema(
             errors=compilation.errors,
             generated_schema=request.enclosure_schema,
         )
-    
+
     # Export to persistent storage
     export_format = (
-        ExportFormat.STL if request.export_format.lower() == "stl"
-        else ExportFormat.STEP
+        ExportFormat.STL if request.export_format.lower() == "stl" else ExportFormat.STEP
     )
-    
+
     from app.api.v2.downloads import get_job_dir
+
     job_dir = get_job_dir(job_id)
     job_dir.mkdir(parents=True, exist_ok=True)
-    
+
     paths = compilation.export(str(job_dir), export_format)
-    downloads = {
-        p.stem: f"/api/v2/downloads/{job_id}/{p.name}"
-        for p in paths
-    }
-    
+    downloads = {p.stem: f"/api/v2/downloads/{job_id}/{p.name}" for p in paths}
+
     return GenerateV2Response(
         job_id=job_id,
         success=True,
@@ -424,12 +420,13 @@ async def get_job_status(
     db: AsyncSession = Depends(get_db),
 ) -> JobStatusResponse:
     """Get the status of an async compilation job.
-    
+
     Returns current progress and result when complete.
     """
     from sqlalchemy import select
+
     from app.models.job import Job
-    
+
     # Validate job_id format
     try:
         job_uuid = UUID(job_id)
@@ -438,19 +435,17 @@ async def get_job_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid job_id format",
         )
-    
+
     # Get job from database
-    result = await db.execute(
-        select(Job).where(Job.id == job_uuid)
-    )
+    result = await db.execute(select(Job).where(Job.id == job_uuid))
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     return JobStatusResponse(
         job_id=job_id,
         status=job.status,

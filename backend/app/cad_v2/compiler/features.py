@@ -5,7 +5,7 @@ Compiles feature schemas (cutouts, ports, vents) into Build123d operations.
 
 from typing import Any
 
-from app.cad_v2.schemas.base import Dimension, Point2D
+from app.cad_v2.schemas.base import Point2D
 from app.cad_v2.schemas.enclosure import EnclosureSpec, WallSide
 from app.cad_v2.schemas.features import (
     BaseCutout,
@@ -84,19 +84,18 @@ class FeatureCompiler:
 
         if isinstance(feature, BaseCutout):
             return self._apply_cutout(body, feature)
-        elif isinstance(feature, PortCutout):
+        if isinstance(feature, PortCutout):
             return self._apply_port_cutout(body, feature)
-        elif isinstance(feature, ButtonCutout):
+        if isinstance(feature, ButtonCutout):
             return self._apply_button_cutout(body, feature)
-        elif isinstance(feature, DisplayCutout):
+        if isinstance(feature, DisplayCutout):
             return self._apply_display_cutout(body, feature)
-        elif isinstance(feature, VentPattern):
+        if isinstance(feature, VentPattern):
             return self._apply_vent_pattern(body, feature)
-        elif isinstance(feature, TextFeature):
+        if isinstance(feature, TextFeature):
             return self._apply_text_feature(body, feature)
-        else:
-            # Unknown feature type - return unchanged
-            return body
+        # Unknown feature type - return unchanged
+        return body
 
     def _get_wall_position(
         self,
@@ -113,22 +112,20 @@ class FeatureCompiler:
             (x, y, z) position in enclosure coordinates.
         """
         ext = self.spec.exterior
-        wall = self.spec.walls.thickness.mm
 
         if side == WallSide.FRONT:
             return (position.x, -ext.depth_mm / 2, position.y + ext.height_mm / 2)
-        elif side == WallSide.BACK:
+        if side == WallSide.BACK:
             return (position.x, ext.depth_mm / 2, position.y + ext.height_mm / 2)
-        elif side == WallSide.LEFT:
+        if side == WallSide.LEFT:
             return (-ext.width_mm / 2, position.x, position.y + ext.height_mm / 2)
-        elif side == WallSide.RIGHT:
+        if side == WallSide.RIGHT:
             return (ext.width_mm / 2, position.x, position.y + ext.height_mm / 2)
-        elif side == WallSide.TOP:
+        if side == WallSide.TOP:
             return (position.x, position.y, ext.height_mm / 2)
-        elif side == WallSide.BOTTOM:
+        if side == WallSide.BOTTOM:
             return (position.x, position.y, -ext.height_mm / 2)
-        else:
-            raise ValueError(f"Unknown wall side: {side}")
+        raise ValueError(f"Unknown wall side: {side}")
 
     def _get_wall_normal(self, side: WallSide) -> tuple[float, float, float]:
         """Get the outward normal vector for a wall.
@@ -159,27 +156,26 @@ class FeatureCompiler:
 
             add(body)
 
-            with BuildPart(mode=Mode.SUBTRACT):
-                with Location(pos):
-                    if isinstance(cutout.cutout, RectangleCutout):
-                        rect = cutout.cutout
-                        # Depth needs to go through wall
-                        depth = (cutout.depth.mm if cutout.depth else wall) + 1
-                        Box(rect.width.mm, depth, rect.height.mm)
+            with BuildPart(mode=Mode.SUBTRACT), Location(pos):
+                if isinstance(cutout.cutout, RectangleCutout):
+                    rect = cutout.cutout
+                    # Depth needs to go through wall
+                    depth = (cutout.depth.mm if cutout.depth else wall) + 1
+                    Box(rect.width.mm, depth, rect.height.mm)
 
-                    elif isinstance(cutout.cutout, CircleCutout):
-                        circle = cutout.cutout
-                        depth = (cutout.depth.mm if cutout.depth else wall) + 1
-                        Cylinder(circle.diameter.mm / 2, depth)
+                elif isinstance(cutout.cutout, CircleCutout):
+                    circle = cutout.cutout
+                    depth = (cutout.depth.mm if cutout.depth else wall) + 1
+                    Cylinder(circle.diameter.mm / 2, depth)
 
-                    elif isinstance(cutout.cutout, SlotCutout):
-                        slot = cutout.cutout
-                        depth = (cutout.depth.mm if cutout.depth else wall) + 1
-                        # Create slot as box with rounded ends
-                        if slot.orientation == "horizontal":
-                            Box(slot.length.mm, depth, slot.width.mm)
-                        else:
-                            Box(slot.width.mm, depth, slot.length.mm)
+                elif isinstance(cutout.cutout, SlotCutout):
+                    slot = cutout.cutout
+                    depth = (cutout.depth.mm if cutout.depth else wall) + 1
+                    # Create slot as box with rounded ends
+                    if slot.orientation == "horizontal":
+                        Box(slot.length.mm, depth, slot.width.mm)
+                    else:
+                        Box(slot.width.mm, depth, slot.length.mm)
 
         return result.part
 
@@ -206,10 +202,9 @@ class FeatureCompiler:
 
             add(body)
 
-            with BuildPart(mode=Mode.SUBTRACT):
-                with Locations([pos]):
-                    depth = wall + 1
-                    Box(width, depth, height)
+            with BuildPart(mode=Mode.SUBTRACT), Locations([pos]):
+                depth = wall + 1
+                Box(width, depth, height)
 
         return result.part
 
@@ -223,10 +218,9 @@ class FeatureCompiler:
 
             add(body)
 
-            with BuildPart(mode=Mode.SUBTRACT):
-                with Locations([pos]):
-                    # Circular hole for button actuator
-                    Cylinder(button.diameter.mm / 2, wall + 1)
+            with BuildPart(mode=Mode.SUBTRACT), Locations([pos]):
+                # Circular hole for button actuator
+                Cylinder(button.diameter.mm / 2, wall + 1)
 
         return result.part
 
@@ -240,10 +234,9 @@ class FeatureCompiler:
 
             add(body)
 
-            with BuildPart(mode=Mode.SUBTRACT):
-                with Locations([pos]):
-                    # Viewing area cutout
-                    Box(display.viewing_width.mm, wall + 1, display.viewing_height.mm)
+            with BuildPart(mode=Mode.SUBTRACT), Locations([pos]):
+                # Viewing area cutout
+                Box(display.viewing_width.mm, wall + 1, display.viewing_height.mm)
 
         return result.part
 
@@ -269,7 +262,6 @@ class FeatureCompiler:
         """
         from build123d import add
 
-        wall = self.spec.walls.thickness.mm
         pos = self._get_wall_position(text_feature.side, text_feature.position)
 
         # Calculate text dimensions (rough approximation)
@@ -292,12 +284,11 @@ class FeatureCompiler:
                     )
             else:
                 # Engraved text - subtract geometry
-                with BuildPart(mode=Mode.SUBTRACT):
-                    with Locations([pos]):
-                        Box(
-                            text_width,
-                            depth + 0.5,  # Slightly deeper than surface
-                            text_height,
-                        )
+                with BuildPart(mode=Mode.SUBTRACT), Locations([pos]):
+                    Box(
+                        text_width,
+                        depth + 0.5,  # Slightly deeper than surface
+                        text_height,
+                    )
 
         return result.part

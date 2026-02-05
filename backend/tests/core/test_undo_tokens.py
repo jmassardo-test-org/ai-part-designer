@@ -4,27 +4,27 @@ Tests for Undo Token Service.
 Tests Redis-backed undo token storage and retrieval.
 """
 
-import pytest
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-from app.core.undo_tokens import (
-    UndoToken,
-    generate_undo_token,
-    store_undo_token,
-    get_undo_token,
-    invalidate_undo_token,
-    validate_undo_token,
-    store_undo_token_fallback,
-    get_undo_token_fallback,
-    DEFAULT_TTL_SECONDS,
-)
+import pytest
 
+from app.core.undo_tokens import (
+    DEFAULT_TTL_SECONDS,
+    generate_undo_token,
+    get_undo_token,
+    get_undo_token_fallback,
+    invalidate_undo_token,
+    store_undo_token,
+    store_undo_token_fallback,
+    validate_undo_token,
+)
 
 # =============================================================================
 # Token Generation Tests
 # =============================================================================
+
 
 class TestGenerateUndoToken:
     """Tests for undo token generation."""
@@ -51,6 +51,7 @@ class TestGenerateUndoToken:
 # Redis Storage Tests (Mocked)
 # =============================================================================
 
+
 class TestRedisStorage:
     """Tests for Redis-backed undo token storage."""
 
@@ -68,19 +69,19 @@ class TestRedisStorage:
         """Test storing an undo token in Redis."""
         design_id = uuid4()
         user_id = uuid4()
-        
+
         result = await store_undo_token(
             design_id=design_id,
             user_id=user_id,
             operation="delete",
             ttl_seconds=30,
         )
-        
+
         assert result.design_id == design_id
         assert result.user_id == user_id
         assert result.operation == "delete"
         assert result.token is not None
-        
+
         mock_redis.set_json.assert_called_once()
 
     @pytest.mark.asyncio
@@ -89,13 +90,13 @@ class TestRedisStorage:
         design_id = uuid4()
         user_id = uuid4()
         metadata = {"design_name": "Test Design", "project_id": str(uuid4())}
-        
+
         result = await store_undo_token(
             design_id=design_id,
             user_id=user_id,
             metadata=metadata,
         )
-        
+
         assert result.metadata == metadata
 
     @pytest.mark.asyncio
@@ -104,7 +105,7 @@ class TestRedisStorage:
         design_id = uuid4()
         user_id = uuid4()
         expires_at = (datetime.now(UTC) + timedelta(seconds=30)).isoformat()
-        
+
         mock_redis.get_json.return_value = {
             "design_id": str(design_id),
             "user_id": str(user_id),
@@ -113,9 +114,9 @@ class TestRedisStorage:
             "expires_at": expires_at,
             "metadata": {},
         }
-        
+
         result = await get_undo_token("test-token")
-        
+
         assert result is not None
         assert result.design_id == design_id
         assert result.user_id == user_id
@@ -124,16 +125,16 @@ class TestRedisStorage:
     async def test_get_undo_token_not_found(self, mock_redis):
         """Test retrieving a non-existent token."""
         mock_redis.get_json.return_value = None
-        
+
         result = await get_undo_token("nonexistent-token")
-        
+
         assert result is None
 
     @pytest.mark.asyncio
     async def test_invalidate_undo_token_success(self, mock_redis):
         """Test invalidating an existing token."""
         result = await invalidate_undo_token("test-token")
-        
+
         assert result is True
         mock_redis.delete.assert_called_once()
 
@@ -141,9 +142,9 @@ class TestRedisStorage:
     async def test_invalidate_undo_token_not_found(self, mock_redis):
         """Test invalidating a non-existent token."""
         mock_redis.delete.return_value = 0
-        
+
         result = await invalidate_undo_token("nonexistent-token")
-        
+
         assert result is False
 
     @pytest.mark.asyncio
@@ -151,7 +152,7 @@ class TestRedisStorage:
         """Test validating a token with correct user."""
         user_id = uuid4()
         expires_at = (datetime.now(UTC) + timedelta(seconds=30)).isoformat()
-        
+
         mock_redis.get_json.return_value = {
             "design_id": str(uuid4()),
             "user_id": str(user_id),
@@ -160,9 +161,9 @@ class TestRedisStorage:
             "expires_at": expires_at,
             "metadata": {},
         }
-        
+
         result = await validate_undo_token("test-token", user_id)
-        
+
         assert result is not None
         assert result.user_id == user_id
 
@@ -172,7 +173,7 @@ class TestRedisStorage:
         owner_id = uuid4()
         wrong_user_id = uuid4()
         expires_at = (datetime.now(UTC) + timedelta(seconds=30)).isoformat()
-        
+
         mock_redis.get_json.return_value = {
             "design_id": str(uuid4()),
             "user_id": str(owner_id),
@@ -181,9 +182,9 @@ class TestRedisStorage:
             "expires_at": expires_at,
             "metadata": {},
         }
-        
+
         result = await validate_undo_token("test-token", wrong_user_id)
-        
+
         # Should return None, not the token (security)
         assert result is None
 
@@ -191,6 +192,7 @@ class TestRedisStorage:
 # =============================================================================
 # Fallback Storage Tests
 # =============================================================================
+
 
 class TestFallbackStorage:
     """Tests for in-memory fallback storage."""
@@ -200,14 +202,14 @@ class TestFallbackStorage:
         """Test storing and retrieving from fallback storage."""
         design_id = uuid4()
         user_id = uuid4()
-        
+
         token = await store_undo_token_fallback(
             design_id=design_id,
             user_id=user_id,
         )
-        
+
         result = get_undo_token_fallback(token.token)
-        
+
         assert result is not None
         assert result.design_id == design_id
         assert result.user_id == user_id
@@ -223,15 +225,15 @@ class TestFallbackStorage:
     async def test_fallback_preserves_metadata(self):
         """Test that fallback storage preserves metadata."""
         metadata = {"key": "value"}
-        
+
         token = await store_undo_token_fallback(
             design_id=uuid4(),
             user_id=uuid4(),
             metadata=metadata,
         )
-        
+
         result = get_undo_token_fallback(token.token)
-        
+
         assert result is not None
         assert result.metadata == metadata
 
@@ -239,6 +241,7 @@ class TestFallbackStorage:
 # =============================================================================
 # Constants Tests
 # =============================================================================
+
 
 class TestConstants:
     """Tests for module constants."""

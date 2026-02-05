@@ -4,7 +4,7 @@ Sharing API endpoints.
 Handles design sharing, permission management, and shared design access.
 
 DEPRECATED: This module is deprecated as of v2.0.
-Use the new Marketplace (/api/v2/marketplace), Lists (/api/v2/lists), 
+Use the new Marketplace (/api/v2/marketplace), Lists (/api/v2/lists),
 and Saves (/api/v2/saves) endpoints instead.
 
 Migration guide:
@@ -17,17 +17,16 @@ These endpoints will be removed in a future version.
 
 import warnings
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select, and_, or_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.auth import get_current_user
 from app.core.database import get_db
-from app.models import User, Design, DesignShare
+from app.models import Design, DesignShare, User
 
 # Emit deprecation warning when this module is imported
 warnings.warn(
@@ -37,7 +36,7 @@ warnings.warn(
 )
 
 router = APIRouter(
-    prefix="/shares", 
+    prefix="/shares",
     tags=["shares (deprecated)"],
     deprecated=True,
 )
@@ -47,19 +46,22 @@ router = APIRouter(
 # Schemas
 # =============================================================================
 
+
 class ShareRequest(BaseModel):
     """Request to share a design."""
+
     email: EmailStr
     permission: str = Field(
         default="view",
         pattern="^(view|comment|edit)$",
-        description="Permission level: view, comment, or edit"
+        description="Permission level: view, comment, or edit",
     )
-    message: Optional[str] = Field(None, max_length=500)
+    message: str | None = Field(None, max_length=500)
 
 
 class ShareResponse(BaseModel):
     """Share response."""
+
     id: UUID
     design_id: UUID
     shared_with_id: UUID
@@ -67,17 +69,18 @@ class ShareResponse(BaseModel):
     shared_with_name: str
     permission: str
     shared_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class SharedDesignResponse(BaseModel):
     """Design shared with the current user."""
+
     id: UUID
     design_id: UUID
     design_name: str
-    design_thumbnail_url: Optional[str]
+    design_thumbnail_url: str | None
     shared_by_id: UUID
     shared_by_name: str
     shared_by_email: str
@@ -87,32 +90,33 @@ class SharedDesignResponse(BaseModel):
 
 class ShareLinkRequest(BaseModel):
     """Request to create a share link."""
+
     permission: str = Field(
         default="view",
         pattern="^(view|comment)$",
-        description="Permission for link: view or comment (not edit)"
+        description="Permission for link: view or comment (not edit)",
     )
-    expires_in_days: Optional[int] = Field(None, ge=1, le=30)
+    expires_in_days: int | None = Field(None, ge=1, le=30)
 
 
 class ShareLinkResponse(BaseModel):
     """Share link response."""
+
     link: str
     token: str
     permission: str
-    expires_at: Optional[datetime]
+    expires_at: datetime | None
 
 
 class UpdateShareRequest(BaseModel):
     """Request to update share permission."""
-    permission: str = Field(
-        pattern="^(view|comment|edit)$",
-        description="New permission level"
-    )
+
+    permission: str = Field(pattern="^(view|comment|edit)$", description="New permission level")
 
 
 class PaginatedSharesResponse(BaseModel):
     """Paginated list of shares."""
+
     items: list[ShareResponse]
     total: int
     page: int
@@ -122,6 +126,7 @@ class PaginatedSharesResponse(BaseModel):
 
 class PaginatedSharedWithMeResponse(BaseModel):
     """Paginated list of designs shared with user."""
+
     items: list[SharedDesignResponse]
     total: int
     page: int
@@ -133,7 +138,10 @@ class PaginatedSharedWithMeResponse(BaseModel):
 # Endpoints
 # =============================================================================
 
-@router.post("/designs/{design_id}", response_model=ShareResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/designs/{design_id}", response_model=ShareResponse, status_code=status.HTTP_201_CREATED
+)
 async def share_design(
     design_id: UUID,
     request: ShareRequest,
@@ -142,7 +150,7 @@ async def share_design(
 ):
     """
     Share a design with another user by email.
-    
+
     - **email**: Email of user to share with
     - **permission**: view, comment, or edit
     - **message**: Optional message to include in notification
@@ -157,44 +165,41 @@ async def share_design(
         )
     )
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     # Check ownership via project
     from app.models import Project
-    result = await db.execute(
-        select(Project).where(Project.id == design.project_id)
-    )
+
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
     project = result.scalar_one_or_none()
-    
+
     if not project or project.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to share this design",
         )
-    
+
     # Find user to share with
-    result = await db.execute(
-        select(User).where(User.email == request.email)
-    )
+    result = await db.execute(select(User).where(User.email == request.email))
     share_with_user = result.scalar_one_or_none()
-    
+
     if not share_with_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User with that email not found",
         )
-    
+
     if share_with_user.id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot share a design with yourself",
         )
-    
+
     # Check if already shared
     result = await db.execute(
         select(DesignShare).where(
@@ -205,14 +210,14 @@ async def share_design(
         )
     )
     existing_share = result.scalar_one_or_none()
-    
+
     if existing_share:
         # Update permission
         existing_share.permission = request.permission
         existing_share.updated_at = datetime.utcnow()
         await db.commit()
         await db.refresh(existing_share)
-        
+
         return ShareResponse(
             id=existing_share.id,
             design_id=existing_share.design_id,
@@ -222,7 +227,7 @@ async def share_design(
             permission=existing_share.permission,
             shared_at=existing_share.created_at,
         )
-    
+
     # Create new share
     share = DesignShare(
         design_id=design_id,
@@ -233,9 +238,9 @@ async def share_design(
     db.add(share)
     await db.commit()
     await db.refresh(share)
-    
+
     # TODO: Send notification email with request.message
-    
+
     return ShareResponse(
         id=share.id,
         design_id=share.design_id,
@@ -257,32 +262,29 @@ async def list_design_shares(
 ):
     """List all shares for a design."""
     # Get design and verify ownership via project
-    result = await db.execute(
-        select(Design).where(Design.id == design_id)
-    )
+    result = await db.execute(select(Design).where(Design.id == design_id))
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     from app.models import Project
-    result = await db.execute(
-        select(Project).where(Project.id == design.project_id)
-    )
+
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
     project = result.scalar_one_or_none()
-    
+
     if not project or project.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view shares for this design",
         )
-    
+
     # Get shares with user info
     offset = (page - 1) * page_size
-    
+
     result = await db.execute(
         select(DesignShare, User)
         .join(User, DesignShare.shared_with_user_id == User.id)
@@ -292,16 +294,14 @@ async def list_design_shares(
         .limit(page_size + 1)
     )
     rows = result.all()
-    
+
     has_more = len(rows) > page_size
     rows = rows[:page_size]
-    
+
     # Get total count
-    count_result = await db.execute(
-        select(DesignShare).where(DesignShare.design_id == design_id)
-    )
+    count_result = await db.execute(select(DesignShare).where(DesignShare.design_id == design_id))
     total = len(count_result.scalars().all())
-    
+
     items = [
         ShareResponse(
             id=share.id,
@@ -314,7 +314,7 @@ async def list_design_shares(
         )
         for share, user in rows
     ]
-    
+
     return PaginatedSharesResponse(
         items=items,
         total=total,
@@ -328,13 +328,13 @@ async def list_design_shares(
 async def get_shared_with_me(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    permission: Optional[str] = Query(None, pattern="^(view|comment|edit)$"),
+    permission: str | None = Query(None, pattern="^(view|comment|edit)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get designs shared with the current user."""
     offset = (page - 1) * page_size
-    
+
     # Build query - use deleted_at.is_(None) for soft delete check
     query = (
         select(DesignShare, Design, User)
@@ -347,18 +347,18 @@ async def get_shared_with_me(
             )
         )
     )
-    
+
     if permission:
         query = query.where(DesignShare.permission == permission)
-    
+
     query = query.order_by(DesignShare.created_at.desc()).offset(offset).limit(page_size + 1)
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     has_more = len(rows) > page_size
     rows = rows[:page_size]
-    
+
     # Get total count
     count_query = (
         select(DesignShare)
@@ -372,35 +372,38 @@ async def get_shared_with_me(
     )
     if permission:
         count_query = count_query.where(DesignShare.permission == permission)
-    
+
     count_result = await db.execute(count_query)
     total = len(count_result.scalars().all())
-    
+
     # Get thumbnails from current version
     items = []
     for share, design, user in rows:
         thumbnail_url = None
         if design.current_version_id:
             from app.models import DesignVersion
+
             version_result = await db.execute(
                 select(DesignVersion).where(DesignVersion.id == design.current_version_id)
             )
             version = version_result.scalar_one_or_none()
             if version:
                 thumbnail_url = version.thumbnail_url
-        
-        items.append(SharedDesignResponse(
-            id=share.id,
-            design_id=design.id,
-            design_name=design.name,
-            design_thumbnail_url=thumbnail_url,
-            shared_by_id=user.id,
-            shared_by_name=user.display_name or user.email,
-            shared_by_email=user.email,
-            permission=share.permission,
-            shared_at=share.created_at,
-        ))
-    
+
+        items.append(
+            SharedDesignResponse(
+                id=share.id,
+                design_id=design.id,
+                design_name=design.name,
+                design_thumbnail_url=thumbnail_url,
+                shared_by_id=user.id,
+                shared_by_name=user.display_name or user.email,
+                shared_by_email=user.email,
+                permission=share.permission,
+                shared_at=share.created_at,
+            )
+        )
+
     return PaginatedSharedWithMeResponse(
         items=items,
         total=total,
@@ -426,34 +429,33 @@ async def update_share(
         .where(DesignShare.id == share_id)
     )
     row = result.first()
-    
+
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Share not found",
         )
-    
+
     share, design, shared_with_user = row
-    
+
     # Check ownership via project
     from app.models import Project
-    result = await db.execute(
-        select(Project).where(Project.id == design.project_id)
-    )
+
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
     project = result.scalar_one_or_none()
-    
+
     if not project or project.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to modify this share",
         )
-    
+
     # Update permission
     share.permission = request.permission
     share.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(share)
-    
+
     return ShareResponse(
         id=share.id,
         design_id=share.design_id,
@@ -479,31 +481,30 @@ async def revoke_share(
         .where(DesignShare.id == share_id)
     )
     row = result.first()
-    
+
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Share not found",
         )
-    
+
     share, design = row
-    
+
     # Check ownership via project or if user is removing their own access
     from app.models import Project
-    result = await db.execute(
-        select(Project).where(Project.id == design.project_id)
-    )
+
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
     project = result.scalar_one_or_none()
-    
+
     is_owner = project and project.user_id == current_user.id
     is_shared_with = share.shared_with_user_id == current_user.id
-    
+
     if not is_owner and not is_shared_with:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to revoke this share",
         )
-    
+
     await db.delete(share)
     await db.commit()
 
@@ -517,12 +518,12 @@ async def create_share_link(
 ):
     """
     Create a shareable link for a design.
-    
+
     Anyone with the link can access the design with the specified permission.
     """
     import secrets
     from datetime import timedelta
-    
+
     # Get design and verify ownership
     result = await db.execute(
         select(Design).where(
@@ -533,33 +534,32 @@ async def create_share_link(
         )
     )
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     from app.models import Project
-    result = await db.execute(
-        select(Project).where(Project.id == design.project_id)
-    )
+
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
     project = result.scalar_one_or_none()
-    
+
     if not project or project.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to create a share link for this design",
         )
-    
+
     # Generate token
     token = secrets.token_urlsafe(32)
-    
+
     # Calculate expiration
     expires_at = None
     if request.expires_in_days:
         expires_at = datetime.utcnow() + timedelta(days=request.expires_in_days)
-    
+
     # Create link share record
     link_share = DesignShare(
         design_id=design_id,
@@ -572,11 +572,11 @@ async def create_share_link(
     )
     db.add(link_share)
     await db.commit()
-    
+
     # Build link
     base_url = "https://app.aipartdesigner.com"  # TODO: Get from config
     link = f"{base_url}/shared/{design_id}?token={token}"
-    
+
     return ShareLinkResponse(
         link=link,
         token=token,
@@ -593,41 +593,38 @@ async def revoke_share_link(
 ):
     """Revoke all share links for a design."""
     # Get design and verify ownership
-    result = await db.execute(
-        select(Design).where(Design.id == design_id)
-    )
+    result = await db.execute(select(Design).where(Design.id == design_id))
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     from app.models import Project
-    result = await db.execute(
-        select(Project).where(Project.id == design.project_id)
-    )
+
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
     project = result.scalar_one_or_none()
-    
+
     if not project or project.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to revoke share links for this design",
         )
-    
+
     # Delete all link shares
     result = await db.execute(
         select(DesignShare).where(
             and_(
                 DesignShare.design_id == design_id,
-                DesignShare.is_link_share == True,
+                DesignShare.is_link_share,
             )
         )
     )
     link_shares = result.scalars().all()
-    
+
     for share in link_shares:
         await db.delete(share)
-    
+
     await db.commit()

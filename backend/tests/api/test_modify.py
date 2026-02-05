@@ -6,18 +6,19 @@ Tests CAD file modification, preview, and combine operations.
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
 # Modify File Tests
 # =============================================================================
+
 
 class TestModifyFile:
     """Tests for file modification endpoint."""
@@ -33,14 +34,14 @@ class TestModifyFile:
         """Test that modification requires authentication."""
         user = await user_factory.create(db=db_session)
         file = await file_factory.create(db=db_session, user=user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/modify",
             json={
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
             },
         )
-        
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -58,7 +59,7 @@ class TestModifyFile:
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
             },
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -74,7 +75,7 @@ class TestModifyFile:
         """Test modifying another user's file returns 404."""
         other_user = await user_factory.create(db=db_session)
         other_file = await file_factory.create(db=db_session, user=other_user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{other_file.id}/modify",
             headers=auth_headers,
@@ -82,7 +83,7 @@ class TestModifyFile:
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
             },
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -96,7 +97,7 @@ class TestModifyFile:
     ):
         """Test modification with invalid operation type."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
@@ -104,7 +105,7 @@ class TestModifyFile:
                 "operations": [{"type": "invalid_operation", "params": {}}],
             },
         )
-        
+
         assert response.status_code == 400
         assert "Unknown operation type" in response.json()["detail"]
 
@@ -119,7 +120,7 @@ class TestModifyFile:
     ):
         """Test modification with empty operations list."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
@@ -127,7 +128,7 @@ class TestModifyFile:
                 "operations": [],  # Empty
             },
         )
-        
+
         assert response.status_code == 422
 
     @pytest.mark.asyncio
@@ -141,16 +142,16 @@ class TestModifyFile:
     ):
         """Test modification with too many operations."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         # 21 operations (max is 20)
         operations = [{"type": "translate", "params": {"x": 1}} for _ in range(21)]
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
             json={"operations": operations},
         )
-        
+
         assert response.status_code == 422
 
     @pytest.mark.asyncio
@@ -170,7 +171,7 @@ class TestModifyFile:
             cad_format=None,
             mime_type="image/png",
         )
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/modify",
             headers=auth_headers,
@@ -178,7 +179,7 @@ class TestModifyFile:
                 "operations": [{"type": "scale", "params": {"factor": 2.0}}],
             },
         )
-        
+
         assert response.status_code == 400
         assert "not a CAD file" in response.json()["detail"]
 
@@ -186,6 +187,7 @@ class TestModifyFile:
 # =============================================================================
 # Operation Type Tests
 # =============================================================================
+
 
 class TestOperationTypes:
     """Tests for different operation types."""
@@ -201,13 +203,13 @@ class TestOperationTypes:
     ):
         """Test translate operation accepts x, y, z parameters."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         # Valid translate params
         operation = {
             "type": "translate",
             "params": {"x": 10, "y": 20, "z": 30},
         }
-        
+
         # We're just testing that the API accepts this format
         # Actual execution would require file content
         response = await client.post(
@@ -215,7 +217,7 @@ class TestOperationTypes:
             headers=auth_headers,
             json={"operations": [operation]},
         )
-        
+
         # Should not fail on params validation
         assert response.status_code in [200, 400, 404]
 
@@ -230,18 +232,18 @@ class TestOperationTypes:
     ):
         """Test rotate operation accepts angle and axis parameters."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         operation = {
             "type": "rotate",
             "params": {"angle": 45, "axis": "z"},
         }
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/preview",
             headers=auth_headers,
             json={"operations": [operation]},
         )
-        
+
         assert response.status_code in [200, 400, 404]
 
     @pytest.mark.asyncio
@@ -255,24 +257,25 @@ class TestOperationTypes:
     ):
         """Test scale operation accepts factor parameter."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         operation = {
             "type": "scale",
             "params": {"factor": 2.0},
         }
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/preview",
             headers=auth_headers,
             json={"operations": [operation]},
         )
-        
+
         assert response.status_code in [200, 400, 404]
 
 
 # =============================================================================
 # Preview Tests
 # =============================================================================
+
 
 class TestPreviewModifications:
     """Tests for preview endpoint."""
@@ -288,12 +291,12 @@ class TestPreviewModifications:
         """Test that preview requires authentication."""
         user = await user_factory.create(db=db_session)
         file = await file_factory.create(db=db_session, user=user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/preview",
             json={"operations": [{"type": "scale", "params": {"factor": 2.0}}]},
         )
-        
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -309,7 +312,7 @@ class TestPreviewModifications:
             headers=auth_headers,
             json={"operations": [{"type": "scale", "params": {"factor": 2.0}}]},
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -323,7 +326,7 @@ class TestPreviewModifications:
     ):
         """Test preview with invalid operation returns errors."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/preview",
             headers=auth_headers,
@@ -331,7 +334,7 @@ class TestPreviewModifications:
                 "operations": [{"type": "unknown_op", "params": {}}],
             },
         )
-        
+
         # Should return preview response with errors
         assert response.status_code == 200
         data = response.json()
@@ -342,6 +345,7 @@ class TestPreviewModifications:
 # =============================================================================
 # Combine Tests
 # =============================================================================
+
 
 class TestCombineFiles:
     """Tests for file combination endpoint."""
@@ -358,7 +362,7 @@ class TestCombineFiles:
         user = await user_factory.create(db=db_session)
         file1 = await file_factory.create(db=db_session, user=user)
         file2 = await file_factory.create(db=db_session, user=user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file1.id}/combine",
             json={
@@ -366,7 +370,7 @@ class TestCombineFiles:
                 "operation": "union",
             },
         )
-        
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -380,7 +384,7 @@ class TestCombineFiles:
     ):
         """Test combining with non-existent file."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/combine",
             headers=auth_headers,
@@ -389,7 +393,7 @@ class TestCombineFiles:
                 "operation": "union",
             },
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -406,7 +410,7 @@ class TestCombineFiles:
         other_user = await user_factory.create(db=db_session)
         my_file = await file_factory.create(db=db_session, user=test_user)
         their_file = await file_factory.create(db=db_session, user=other_user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{my_file.id}/combine",
             headers=auth_headers,
@@ -415,7 +419,7 @@ class TestCombineFiles:
                 "operation": "union",
             },
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -429,7 +433,7 @@ class TestCombineFiles:
     ):
         """Test combining with empty file IDs list."""
         file = await file_factory.create(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/cad/{file.id}/combine",
             headers=auth_headers,
@@ -438,13 +442,14 @@ class TestCombineFiles:
                 "operation": "union",
             },
         )
-        
+
         assert response.status_code == 422
 
 
 # =============================================================================
 # Geometry Info Tests
 # =============================================================================
+
 
 class TestGeometryInfo:
     """Tests for geometry info endpoint."""
@@ -460,9 +465,9 @@ class TestGeometryInfo:
         """Test that geometry info requires authentication."""
         user = await user_factory.create(db=db_session)
         file = await file_factory.create(db=db_session, user=user)
-        
+
         response = await client.get(f"/api/v1/cad/{file.id}/geometry")
-        
+
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -477,7 +482,7 @@ class TestGeometryInfo:
             f"/api/v1/cad/{uuid4()}/geometry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -493,12 +498,12 @@ class TestGeometryInfo:
         """Test getting geometry info for another user's file."""
         other_user = await user_factory.create(db=db_session)
         other_file = await file_factory.create(db=db_session, user=other_user)
-        
+
         response = await client.get(
             f"/api/v1/cad/{other_file.id}/geometry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -520,14 +525,14 @@ class TestGeometryInfo:
                 "bounding_box": {"x": 100, "y": 50, "z": 25},
             },
         )
-        
+
         response = await client.get(
             f"/api/v1/cad/{file.id}/geometry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["volume"] == 125000.0
         assert data["area"] == 23000.0

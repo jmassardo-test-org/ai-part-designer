@@ -5,11 +5,10 @@ Provides secure, distributed undo token management for
 operations like delete with time-limited recovery.
 """
 
-import json
 import logging
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from typing import TypedDict
 from uuid import UUID
 
@@ -22,8 +21,10 @@ logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 class UndoTokenData(TypedDict):
     """Data stored with an undo token."""
+
     design_id: str
     user_id: str
     operation: str
@@ -35,6 +36,7 @@ class UndoTokenData(TypedDict):
 @dataclass
 class UndoToken:
     """Undo token with associated data."""
+
     token: str
     design_id: UUID
     user_id: UUID
@@ -55,6 +57,7 @@ DEFAULT_TTL_SECONDS = 30
 # Token Operations
 # =============================================================================
 
+
 def generate_undo_token() -> str:
     """Generate a cryptographically secure undo token."""
     return secrets.token_urlsafe(32)
@@ -69,20 +72,20 @@ async def store_undo_token(
 ) -> UndoToken:
     """
     Store an undo token in Redis with expiration.
-    
+
     Args:
         design_id: ID of the design being operated on
         user_id: ID of the user who performed the operation
         operation: Type of operation (e.g., "delete", "move")
         ttl_seconds: Time-to-live in seconds
         metadata: Additional data to store
-        
+
     Returns:
         UndoToken with the generated token and data
     """
     token = generate_undo_token()
     expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
-    
+
     data: UndoTokenData = {
         "design_id": str(design_id),
         "user_id": str(user_id),
@@ -91,16 +94,16 @@ async def store_undo_token(
         "expires_at": expires_at.isoformat(),
         "metadata": metadata or {},
     }
-    
+
     key = f"{UNDO_TOKEN_PREFIX}:{token}"
-    
+
     try:
         await redis_client.set_json(key, data, ttl=ttl_seconds)
         logger.debug(f"Stored undo token: {token[:8]}... for design {design_id}")
     except Exception as e:
         logger.error(f"Failed to store undo token in Redis: {e}")
         raise
-    
+
     return UndoToken(
         token=token,
         design_id=design_id,
@@ -114,22 +117,22 @@ async def store_undo_token(
 async def get_undo_token(token: str) -> UndoToken | None:
     """
     Retrieve an undo token from Redis.
-    
+
     Args:
         token: The undo token string
-        
+
     Returns:
         UndoToken if valid and not expired, None otherwise
     """
     key = f"{UNDO_TOKEN_PREFIX}:{token}"
-    
+
     try:
         data: UndoTokenData | None = await redis_client.get_json(key)
-        
+
         if not data:
             logger.debug(f"Undo token not found or expired: {token[:8]}...")
             return None
-        
+
         return UndoToken(
             token=token,
             design_id=UUID(data["design_id"]),
@@ -146,15 +149,15 @@ async def get_undo_token(token: str) -> UndoToken | None:
 async def invalidate_undo_token(token: str) -> bool:
     """
     Invalidate (delete) an undo token.
-    
+
     Args:
         token: The undo token to invalidate
-        
+
     Returns:
         True if token was deleted, False if it didn't exist
     """
     key = f"{UNDO_TOKEN_PREFIX}:{token}"
-    
+
     try:
         deleted = await redis_client.delete(key)
         if deleted:
@@ -168,26 +171,24 @@ async def invalidate_undo_token(token: str) -> bool:
 async def validate_undo_token(token: str, user_id: UUID) -> UndoToken | None:
     """
     Validate an undo token for a specific user.
-    
+
     Args:
         token: The undo token to validate
         user_id: Expected user ID (must match token's user_id)
-        
+
     Returns:
         UndoToken if valid and owned by user, None otherwise
     """
     undo_token = await get_undo_token(token)
-    
+
     if not undo_token:
         return None
-    
+
     if undo_token.user_id != user_id:
         # Log potential security issue but don't reveal to caller
-        logger.warning(
-            f"Undo token user mismatch: expected {user_id}, got {undo_token.user_id}"
-        )
+        logger.warning(f"Undo token user mismatch: expected {user_id}, got {undo_token.user_id}")
         return None
-    
+
     return undo_token
 
 
@@ -207,14 +208,14 @@ async def store_undo_token_fallback(
 ) -> UndoToken:
     """
     Fallback in-memory storage when Redis is unavailable.
-    
+
     WARNING: This is NOT suitable for production multi-instance deployments.
     """
     logger.warning("Using in-memory fallback for undo token storage")
-    
+
     token = generate_undo_token()
     expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
-    
+
     data: UndoTokenData = {
         "design_id": str(design_id),
         "user_id": str(user_id),
@@ -223,9 +224,9 @@ async def store_undo_token_fallback(
         "expires_at": expires_at.isoformat(),
         "metadata": metadata or {},
     }
-    
+
     _fallback_tokens[token] = data
-    
+
     return UndoToken(
         token=token,
         design_id=design_id,
@@ -239,15 +240,15 @@ async def store_undo_token_fallback(
 def get_undo_token_fallback(token: str) -> UndoToken | None:
     """Fallback retrieval from in-memory storage."""
     data = _fallback_tokens.get(token)
-    
+
     if not data:
         return None
-    
+
     expires_at = datetime.fromisoformat(data["expires_at"])
     if datetime.now(UTC) > expires_at:
         del _fallback_tokens[token]
         return None
-    
+
     return UndoToken(
         token=token,
         design_id=UUID(data["design_id"]),

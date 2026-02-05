@@ -5,11 +5,12 @@ Provides async Redis client with caching utilities,
 rate limiting support, and distributed locking.
 """
 
-import json
-from datetime import timedelta
-from typing import Any, Callable, TypeVar
-from functools import wraps
 import hashlib
+import json
+from collections.abc import Callable
+from datetime import timedelta
+from functools import wraps
+from typing import Any, TypeVar
 
 import redis.asyncio as redis
 from redis.asyncio.lock import Lock
@@ -22,7 +23,7 @@ T = TypeVar("T")
 class RedisClient:
     """
     Async Redis client wrapper with caching utilities.
-    
+
     Provides:
     - Key-value caching with TTL
     - JSON serialization
@@ -127,17 +128,18 @@ class RedisClient:
     ):
         """
         Decorator for caching function results.
-        
+
         Args:
             key_prefix: Prefix for cache keys
             ttl: Time-to-live in seconds or timedelta
             key_builder: Custom function to build cache key from args
-            
+
         Example:
             @redis_client.cached("user", ttl=300)
             async def get_user(user_id: str) -> User:
                 ...
         """
+
         def decorator(func: Callable[..., T]) -> Callable[..., T]:
             @wraps(func)
             async def wrapper(*args, **kwargs) -> T:
@@ -145,25 +147,28 @@ class RedisClient:
                 if key_builder:
                     cache_key = f"{key_prefix}:{key_builder(*args, **kwargs)}"
                 else:
-                    key_parts = [str(a) for a in args] + [f"{k}={v}" for k, v in sorted(kwargs.items())]
+                    key_parts = [str(a) for a in args] + [
+                        f"{k}={v}" for k, v in sorted(kwargs.items())
+                    ]
                     key_hash = hashlib.md5(":".join(key_parts).encode()).hexdigest()[:12]
                     cache_key = f"{key_prefix}:{key_hash}"
-                
+
                 # Try cache
                 cached_value = await self.get_json(cache_key)
                 if cached_value is not None:
                     return cached_value
-                
+
                 # Execute function
                 result = await func(*args, **kwargs)
-                
+
                 # Cache result
                 if result is not None:
                     await self.set_json(cache_key, result, ttl=ttl)
-                
+
                 return result
-            
+
             return wrapper
+
         return decorator
 
     async def invalidate_pattern(self, pattern: str) -> int:
@@ -171,7 +176,7 @@ class RedisClient:
         keys = []
         async for key in self.client.scan_iter(match=pattern):
             keys.append(key)
-        
+
         if keys:
             return await self.delete(*keys)
         return 0
@@ -188,26 +193,26 @@ class RedisClient:
     ) -> tuple[bool, int]:
         """
         Check and increment rate limit counter.
-        
+
         Returns:
             Tuple of (is_allowed, remaining_requests)
         """
         pipe = self.client.pipeline()
-        
+
         pipe.incr(key)
         pipe.ttl(key)
-        
+
         results = await pipe.execute()
         current_count = results[0]
         current_ttl = results[1]
-        
+
         # Set TTL if this is a new key
         if current_ttl == -1:
             await self.expire(key, window_seconds)
-        
+
         remaining = max(0, max_requests - current_count)
         is_allowed = current_count <= max_requests
-        
+
         return is_allowed, remaining
 
     async def get_rate_limit_status(
@@ -218,10 +223,10 @@ class RedisClient:
         """Get current rate limit status."""
         current = await self.get(key)
         ttl = await self.ttl(key)
-        
+
         current_count = int(current) if current else 0
         remaining = max(0, max_requests - current_count)
-        
+
         return {
             "limit": max_requests,
             "remaining": remaining,
@@ -242,7 +247,7 @@ class RedisClient:
     ) -> Lock:
         """
         Get a distributed lock.
-        
+
         Example:
             async with redis_client.lock("resource:123"):
                 # Do exclusive work

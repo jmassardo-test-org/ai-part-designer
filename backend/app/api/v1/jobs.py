@@ -7,23 +7,25 @@ Provides REST API for tracking async job status and results.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Annotated, Optional
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_, desc, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, desc, select
 
-from app.core.database import get_db
-from app.core.config import get_settings, Settings
-from app.models.job import Job
-from app.models.user import User
-from app.models.design import Design
-from app.models.design import DesignVersion
-from app.models.project import Project
 from app.api.deps import get_current_user
+from app.core.database import get_db
+from app.models.design import Design, DesignVersion
+from app.models.job import Job
+from app.models.project import Project
+
+if TYPE_CHECKING:
+    from datetime import datetime
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -34,32 +36,33 @@ router = APIRouter()
 # Request/Response Models
 # =============================================================================
 
+
 class JobResponse(BaseModel):
     """Job status response."""
-    
+
     id: str = Field(description="Job UUID")
     job_type: str = Field(description="Type of job")
     status: str = Field(description="Current status")
     priority: int = Field(description="Job priority (lower = higher)")
     progress: int = Field(description="Progress percentage (0-100)")
     progress_message: str | None = Field(description="Current progress message")
-    
+
     input_params: dict = Field(description="Input parameters")
     result: dict | None = Field(description="Result data (when complete)")
     error_message: str | None = Field(description="Error message (when failed)")
-    
+
     created_at: datetime = Field(description="When job was created")
     started_at: datetime | None = Field(description="When job started running")
     completed_at: datetime | None = Field(description="When job completed")
     execution_time_ms: int | None = Field(description="Execution time in ms")
-    
+
     class Config:
         from_attributes = True
 
 
 class JobListResponse(BaseModel):
     """Paginated list of jobs."""
-    
+
     jobs: list[JobResponse]
     total: int
     skip: int
@@ -69,7 +72,7 @@ class JobListResponse(BaseModel):
 
 class CancelJobResponse(BaseModel):
     """Response after cancelling a job."""
-    
+
     id: str
     status: str
     message: str
@@ -78,6 +81,7 @@ class CancelJobResponse(BaseModel):
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.get(
     "/",
@@ -95,22 +99,22 @@ async def list_jobs(
 ) -> JobListResponse:
     """
     List jobs for the current user.
-    
+
     Supports pagination and filtering by status/type.
     """
     # Build query
     conditions = [Job.user_id == current_user.id]
-    
+
     if status_filter:
         conditions.append(Job.status == status_filter)
     if job_type:
         conditions.append(Job.job_type == job_type)
-    
+
     # Count total
     count_query = select(Job).where(and_(*conditions))
     count_result = await db.execute(count_query)
     total = len(count_result.scalars().all())
-    
+
     # Get page
     query = (
         select(Job)
@@ -121,7 +125,7 @@ async def list_jobs(
     )
     result = await db.execute(query)
     jobs = result.scalars().all()
-    
+
     return JobListResponse(
         jobs=[
             JobResponse(
@@ -164,7 +168,7 @@ async def get_job(
 ) -> JobResponse:
     """
     Get status for a specific job.
-    
+
     Returns current status, progress, and results if complete.
     """
     query = select(Job).where(
@@ -175,13 +179,13 @@ async def get_job(
     )
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     return JobResponse(
         id=str(job.id),
         job_type=job.job_type,
@@ -216,7 +220,7 @@ async def cancel_job(
 ) -> CancelJobResponse:
     """
     Cancel a job.
-    
+
     Only pending or running jobs can be cancelled.
     """
     query = select(Job).where(
@@ -227,29 +231,29 @@ async def cancel_job(
     )
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     if job.is_terminal:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Job is already {job.status} and cannot be cancelled",
         )
-    
+
     # Cancel the job
     job.cancel()
     await db.commit()
-    
+
     # TODO: Also cancel the Celery task if running
     # if job.celery_task_id:
     #     celery_app.control.revoke(job.celery_task_id, terminate=True)
-    
+
     logger.info(f"Job {job_id} cancelled by user {current_user.id}")
-    
+
     return CancelJobResponse(
         id=str(job.id),
         status=job.status,
@@ -274,7 +278,7 @@ async def retry_job(
 ) -> JobResponse:
     """
     Retry a failed job.
-    
+
     Only failed jobs with remaining retries can be retried.
     """
     query = select(Job).where(
@@ -285,25 +289,24 @@ async def retry_job(
     )
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     if not job.can_retry:
         if job.status != "failed":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Job is {job.status}, only failed jobs can be retried",
             )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Job has exhausted all {job.max_retries} retries",
-            )
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Job has exhausted all {job.max_retries} retries",
+        )
+
     # Reset job for retry
     job.status = "pending"
     job.started_at = None
@@ -313,16 +316,16 @@ async def retry_job(
     job.progress = 0
     job.progress_message = None
     job.retry_count += 1
-    
+
     await db.commit()
-    
+
     # TODO: Re-queue the Celery task
     # task = celery_app.send_task(...)
     # job.celery_task_id = task.id
     # await db.commit()
-    
+
     logger.info(f"Job {job_id} queued for retry ({job.retry_count}/{job.max_retries})")
-    
+
     return JobResponse(
         id=str(job.id),
         job_type=job.job_type,
@@ -356,7 +359,7 @@ async def get_job_stats(
     query = select(Job).where(Job.user_id == current_user.id)
     result = await db.execute(query)
     jobs = result.scalars().all()
-    
+
     stats = {
         "total": len(jobs),
         "pending": sum(1 for j in jobs if j.status == "pending"),
@@ -366,12 +369,12 @@ async def get_job_stats(
         "cancelled": sum(1 for j in jobs if j.status == "cancelled"),
         "avg_execution_time_ms": None,
     }
-    
+
     # Calculate average execution time
     completed_times = [j.execution_time_ms for j in jobs if j.execution_time_ms]
     if completed_times:
         stats["avg_execution_time_ms"] = sum(completed_times) // len(completed_times)
-    
+
     return stats
 
 
@@ -379,25 +382,28 @@ async def get_job_stats(
 # Save Generation Endpoint
 # =============================================================================
 
+
 class SaveGenerationRequest(BaseModel):
     """Request to save a generated design."""
-    
+
     name: str = Field(..., min_length=1, max_length=255, description="Name for the saved design")
-    description: Optional[str] = Field(None, max_length=2000, description="Design description")
-    project_id: Optional[UUID] = Field(None, description="Project to save to (uses default if not provided)")
+    description: str | None = Field(None, max_length=2000, description="Design description")
+    project_id: UUID | None = Field(
+        None, description="Project to save to (uses default if not provided)"
+    )
     tags: list[str] = Field(default_factory=list, max_length=10, description="Tags for the design")
 
 
 class SavedDesignResponse(BaseModel):
     """Response after saving a design."""
-    
+
     design_id: str = Field(description="Created design UUID")
     version_id: str = Field(description="Initial version UUID")
     project_id: str = Field(description="Project the design was saved to")
     project_name: str = Field(description="Name of the project")
     name: str = Field(description="Design name")
     status: str = Field(description="Design status")
-    thumbnail_url: Optional[str] = Field(description="Thumbnail URL if available")
+    thumbnail_url: str | None = Field(description="Thumbnail URL if available")
     file_urls: dict = Field(description="URLs for CAD files by format")
     message: str = Field(description="Success message")
 
@@ -420,10 +426,10 @@ async def save_generation(
 ) -> SavedDesignResponse:
     """
     Save a generated design to the user's account.
-    
+
     This persists the temporary generation files to permanent storage
     and creates a Design record with initial version.
-    
+
     - If project_id is provided, saves to that project
     - Otherwise saves to user's default "My Designs" project
     - Can only be called once per job (idempotent check)
@@ -437,33 +443,33 @@ async def save_generation(
     )
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found",
         )
-    
+
     # Check job is completed generation
     if job.status != "completed":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Job is {job.status}, only completed jobs can be saved",
         )
-    
+
     if job.job_type != "ai_generation":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only AI generation jobs can be saved as designs",
         )
-    
+
     # Check if already saved (job already linked to a design)
     if job.design_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This generation has already been saved",
         )
-    
+
     # Get or create target project
     project: Project
     if request.project_id:
@@ -477,7 +483,7 @@ async def save_generation(
         )
         project_result = await db.execute(project_query)
         project = project_result.scalar_one_or_none()
-        
+
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -494,7 +500,7 @@ async def save_generation(
         )
         default_result = await db.execute(default_query)
         project = default_result.scalar_one_or_none()
-        
+
         if not project:
             project = Project(
                 user_id=current_user.id,
@@ -503,21 +509,21 @@ async def save_generation(
             )
             db.add(project)
             await db.flush()
-    
+
     # Extract result data from job
     job_result = job.result or {}
     file_urls = job_result.get("file_urls", {})
     thumbnail_url = job_result.get("thumbnail_url")
     geometry_info = job_result.get("geometry_info", {})
-    
+
     # Get primary file URL (prefer STEP format)
     primary_file_url = (
-        file_urls.get("step") or 
-        file_urls.get("stl") or 
-        file_urls.get("3mf") or
-        next(iter(file_urls.values()), "")
+        file_urls.get("step")
+        or file_urls.get("stl")
+        or file_urls.get("3mf")
+        or next(iter(file_urls.values()), "")
     )
-    
+
     # Create the Design
     design = Design(
         project_id=project.id,
@@ -539,7 +545,7 @@ async def save_generation(
     )
     db.add(design)
     await db.flush()
-    
+
     # Create initial version
     version = DesignVersion(
         design_id=design.id,
@@ -554,17 +560,17 @@ async def save_generation(
     )
     db.add(version)
     await db.flush()
-    
+
     # Link design to version
     design.current_version_id = version.id
-    
+
     # Link job to design (prevents saving again)
     job.design_id = design.id
-    
+
     await db.commit()
-    
+
     logger.info(f"Saved generation {job_id} as design {design.id} for user {current_user.id}")
-    
+
     return SavedDesignResponse(
         design_id=str(design.id),
         version_id=str(version.id),

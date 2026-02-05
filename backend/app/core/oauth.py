@@ -59,16 +59,17 @@ else:
 # OAuth Helper Functions
 # =============================
 
+
 def get_oauth_client(provider: str):
     """
     Get the OAuth client for a provider.
-    
+
     Args:
         provider: Provider name ('google' or 'github')
-        
+
     Returns:
         OAuth client instance
-        
+
     Raises:
         ValueError: If provider is not configured
     """
@@ -81,11 +82,11 @@ def get_oauth_client(provider: str):
 async def get_oauth_redirect_uri(request: Request, provider: str) -> str:
     """
     Generate the OAuth callback URI.
-    
+
     Args:
         request: The incoming request
         provider: Provider name
-        
+
     Returns:
         Full callback URL
     """
@@ -97,19 +98,19 @@ async def get_oauth_redirect_uri(request: Request, provider: str) -> str:
 async def fetch_google_user_info(token: dict) -> dict[str, Any]:
     """
     Fetch user information from Google.
-    
+
     Args:
         token: OAuth access token dict
-        
+
     Returns:
         User info dict with id, email, name, picture
     """
     client = get_oauth_client("google")
-    
+
     # Use userinfo endpoint
     resp = await client.get("https://openidconnect.googleapis.com/v1/userinfo", token=token)
     user_info = resp.json()
-    
+
     return {
         "provider": "google",
         "provider_user_id": user_info.get("sub"),
@@ -123,39 +124,39 @@ async def fetch_google_user_info(token: dict) -> dict[str, Any]:
 async def fetch_github_user_info(token: dict) -> dict[str, Any]:
     """
     Fetch user information from GitHub.
-    
+
     Args:
         token: OAuth access token dict
-        
+
     Returns:
         User info dict with id, email, name, picture
     """
     client = get_oauth_client("github")
-    
+
     # Fetch user profile
     resp = await client.get("user", token=token)
     user_info = resp.json()
-    
+
     # GitHub may not return email in profile, need to fetch separately
     email = user_info.get("email")
     if not email:
         # Fetch emails endpoint
         emails_resp = await client.get("user/emails", token=token)
         emails = emails_resp.json()
-        
+
         # Get primary verified email
         for e in emails:
             if e.get("primary") and e.get("verified"):
                 email = e.get("email")
                 break
-        
+
         # Fallback to any verified email
         if not email:
             for e in emails:
                 if e.get("verified"):
                     email = e.get("email")
                     break
-    
+
     return {
         "provider": "github",
         "provider_user_id": str(user_info.get("id")),
@@ -170,27 +171,26 @@ async def fetch_github_user_info(token: dict) -> dict[str, Any]:
 async def fetch_user_info(provider: str, token: dict) -> dict[str, Any]:
     """
     Fetch user information from an OAuth provider.
-    
+
     Args:
         provider: Provider name
         token: OAuth access token dict
-        
+
     Returns:
         Normalized user info dict
     """
     if provider == "google":
         return await fetch_google_user_info(token)
-    elif provider == "github":
+    if provider == "github":
         return await fetch_github_user_info(token)
-    else:
-        raise ValueError(f"Unknown OAuth provider: {provider}")
+    raise ValueError(f"Unknown OAuth provider: {provider}")
 
 
 def is_provider_configured(provider: str) -> bool:
     """Check if an OAuth provider is configured."""
     if provider == "google":
         return bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET)
-    elif provider == "github":
+    if provider == "github":
         return bool(settings.GITHUB_CLIENT_ID and settings.GITHUB_CLIENT_SECRET)
     return False
 
@@ -207,11 +207,11 @@ def get_configured_providers() -> list[str]:
 
 # Re-export for convenience
 __all__ = [
-    "oauth",
     "OAuthError",
+    "fetch_user_info",
+    "get_configured_providers",
     "get_oauth_client",
     "get_oauth_redirect_uri",
-    "fetch_user_info",
     "is_provider_configured",
-    "get_configured_providers",
+    "oauth",
 ]

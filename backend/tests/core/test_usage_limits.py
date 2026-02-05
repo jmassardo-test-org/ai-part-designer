@@ -4,17 +4,15 @@ Tests for Core Usage Limits Module.
 Tests user tiers, tier limits configuration, and quota management.
 """
 
-import pytest
-
 from app.core.usage_limits import (
-    UserTier,
     TIER_LIMITS,
+    UserTier,
 )
-
 
 # =============================================================================
 # UserTier Tests
 # =============================================================================
+
 
 class TestUserTier:
     """Tests for UserTier enum."""
@@ -45,6 +43,7 @@ class TestUserTier:
 # TIER_LIMITS Configuration Tests
 # =============================================================================
 
+
 class TestTierLimits:
     """Tests for TIER_LIMITS configuration."""
 
@@ -61,7 +60,7 @@ class TestTierLimits:
     def test_free_tier_generation_limits(self):
         """Test free tier has generation limits."""
         limits = TIER_LIMITS[UserTier.FREE]
-        
+
         assert "generations_per_day" in limits
         assert "generations_per_month" in limits
         assert "concurrent_generations" in limits
@@ -69,7 +68,7 @@ class TestTierLimits:
     def test_free_tier_values(self):
         """Test free tier has restrictive limits."""
         limits = TIER_LIMITS[UserTier.FREE]
-        
+
         assert limits["generations_per_day"] == 5
         assert limits["generations_per_month"] == 50
         assert limits["concurrent_generations"] == 1
@@ -77,7 +76,7 @@ class TestTierLimits:
     def test_pro_tier_generation_limits(self):
         """Test pro tier has higher generation limits."""
         limits = TIER_LIMITS[UserTier.PRO]
-        
+
         assert limits["generations_per_day"] == 50
         assert limits["generations_per_month"] == 500
         assert limits["concurrent_generations"] == 3
@@ -93,7 +92,7 @@ class TestTierLimits:
     def test_free_storage_limits(self):
         """Test free tier storage limits."""
         limits = TIER_LIMITS[UserTier.FREE]
-        
+
         # 500 MB
         assert limits["storage_bytes"] == 500 * 1024 * 1024
         # 25 MB max file
@@ -103,7 +102,7 @@ class TestTierLimits:
     def test_pro_storage_limits(self):
         """Test pro tier storage limits."""
         limits = TIER_LIMITS[UserTier.PRO]
-        
+
         # 10 GB
         assert limits["storage_bytes"] == 10 * 1024 * 1024 * 1024
         # 100 MB max file
@@ -119,7 +118,7 @@ class TestTierLimits:
     def test_free_project_limits(self):
         """Test free tier project limits."""
         limits = TIER_LIMITS[UserTier.FREE]
-        
+
         assert limits["max_projects"] == 5
         assert limits["max_designs_per_project"] == 20
 
@@ -127,7 +126,7 @@ class TestTierLimits:
         """Test pro tier has more projects than free."""
         free_limits = TIER_LIMITS[UserTier.FREE]
         pro_limits = TIER_LIMITS[UserTier.PRO]
-        
+
         assert pro_limits["max_projects"] > free_limits["max_projects"]
         assert pro_limits["max_designs_per_project"] > free_limits["max_designs_per_project"]
 
@@ -171,6 +170,7 @@ class TestTierLimits:
 # Tier Comparison Tests
 # =============================================================================
 
+
 class TestTierComparison:
     """Tests for comparing tier limits."""
 
@@ -178,7 +178,7 @@ class TestTierComparison:
         """Test pro tier is more generous than free."""
         free = TIER_LIMITS[UserTier.FREE]
         pro = TIER_LIMITS[UserTier.PRO]
-        
+
         assert pro["generations_per_day"] > free["generations_per_day"]
         assert pro["generations_per_month"] > free["generations_per_month"]
         assert pro["storage_bytes"] > free["storage_bytes"]
@@ -200,6 +200,7 @@ class TestTierComparison:
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestUsageLimitsEdgeCases:
     """Tests for edge cases in usage limits."""
@@ -226,9 +227,9 @@ class TestUsageLimitsEdgeCases:
             "api_calls_per_minute",
             "api_calls_per_day",
         ]
-        
+
         free_limits = TIER_LIMITS[UserTier.FREE]
-        
+
         for key in required_keys:
             assert key in free_limits, f"Missing key: {key}"
 
@@ -236,10 +237,10 @@ class TestUsageLimitsEdgeCases:
         """Test storage limits are reasonable values."""
         free_storage = TIER_LIMITS[UserTier.FREE]["storage_bytes"]
         pro_storage = TIER_LIMITS[UserTier.PRO]["storage_bytes"]
-        
+
         # Free should be at least 100 MB
         assert free_storage >= 100 * 1024 * 1024
-        
+
         # Pro should be at least 1 GB
         assert pro_storage >= 1 * 1024 * 1024 * 1024
 
@@ -247,7 +248,7 @@ class TestUsageLimitsEdgeCases:
         """Test concurrent limits are reasonable."""
         free = TIER_LIMITS[UserTier.FREE]["concurrent_generations"]
         pro = TIER_LIMITS[UserTier.PRO]["concurrent_generations"]
-        
+
         # Should allow at least 1
         assert free >= 1
         # Pro should allow more

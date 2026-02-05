@@ -4,21 +4,19 @@ Tests for Data Integrity Service.
 Tests integrity check types, severity levels, issue tracking, and report generation.
 """
 
-import pytest
 from datetime import datetime
-from uuid import uuid4
 
 from app.services.integrity import (
     IntegrityCheckType,
-    IntegritySeverity,
     IntegrityIssue,
     IntegrityReport,
+    IntegritySeverity,
 )
-
 
 # =============================================================================
 # IntegrityCheckType Tests
 # =============================================================================
+
 
 class TestIntegrityCheckType:
     """Tests for IntegrityCheckType enum."""
@@ -53,6 +51,7 @@ class TestIntegrityCheckType:
 # IntegritySeverity Tests
 # =============================================================================
 
+
 class TestIntegritySeverity:
     """Tests for IntegritySeverity enum."""
 
@@ -82,6 +81,7 @@ class TestIntegritySeverity:
 # IntegrityIssue Tests
 # =============================================================================
 
+
 class TestIntegrityIssue:
     """Tests for IntegrityIssue dataclass."""
 
@@ -91,7 +91,7 @@ class TestIntegrityIssue:
             check_type=IntegrityCheckType.ORPHANED_RECORDS,
             severity=IntegritySeverity.WARNING,
         )
-        
+
         assert issue.check_type == IntegrityCheckType.ORPHANED_RECORDS
         assert issue.severity == IntegritySeverity.WARNING
         assert issue.table is None
@@ -109,7 +109,7 @@ class TestIntegrityIssue:
             message="Referenced file not found in storage",
             details={"file_path": "/uploads/design.step"},
         )
-        
+
         assert issue.table == "design_files"
         assert issue.record_id == "abc123"
         assert "file not found" in issue.message
@@ -124,9 +124,9 @@ class TestIntegrityIssue:
             record_id="backup-001",
             message="Checksum mismatch",
         )
-        
+
         data = issue.to_dict()
-        
+
         assert data["check_type"] == "checksum_validation"
         assert data["severity"] == "critical"
         assert data["table"] == "backups"
@@ -140,7 +140,7 @@ class TestIntegrityIssue:
             check_type=IntegrityCheckType.STORAGE_CONSISTENCY,
             severity=IntegritySeverity.INFO,
         )
-        
+
         assert issue.detected_at is not None
         assert isinstance(issue.detected_at, datetime)
 
@@ -149,13 +149,14 @@ class TestIntegrityIssue:
 # IntegrityReport Tests
 # =============================================================================
 
+
 class TestIntegrityReport:
     """Tests for IntegrityReport dataclass."""
 
     def test_default_creation(self):
         """Test creating a default report."""
         report = IntegrityReport()
-        
+
         assert report.started_at is not None
         assert report.completed_at is None
         assert report.checks_run == []
@@ -165,7 +166,7 @@ class TestIntegrityReport:
     def test_is_healthy_with_no_issues(self):
         """Test is_healthy returns True with no issues."""
         report = IntegrityReport()
-        
+
         assert report.is_healthy is True
 
     def test_is_healthy_with_info_warning(self):
@@ -182,7 +183,7 @@ class TestIntegrityReport:
                 ),
             ]
         )
-        
+
         assert report.is_healthy is True
 
     def test_is_healthy_with_error(self):
@@ -195,7 +196,7 @@ class TestIntegrityReport:
                 ),
             ]
         )
-        
+
         assert report.is_healthy is False
 
     def test_is_healthy_with_critical(self):
@@ -208,15 +209,15 @@ class TestIntegrityReport:
                 ),
             ]
         )
-        
+
         assert report.is_healthy is False
 
     def test_issue_counts_empty(self):
         """Test issue_counts with no issues."""
         report = IntegrityReport()
-        
+
         counts = report.issue_counts
-        
+
         assert counts["info"] == 0
         assert counts["warning"] == 0
         assert counts["error"] == 0
@@ -244,9 +245,9 @@ class TestIntegrityReport:
                 ),
             ]
         )
-        
+
         counts = report.issue_counts
-        
+
         assert counts["info"] == 2
         assert counts["warning"] == 1
         assert counts["error"] == 1
@@ -261,7 +262,7 @@ class TestIntegrityReport:
                 IntegrityCheckType.CHECKSUM_VALIDATION,
             ]
         )
-        
+
         assert len(report.checks_run) == 3
         assert IntegrityCheckType.ORPHANED_RECORDS in report.checks_run
 
@@ -275,7 +276,7 @@ class TestIntegrityReport:
                 "duration_seconds": 45.3,
             }
         )
-        
+
         assert report.stats["tables_checked"] == 15
         assert report.stats["records_scanned"] == 50000
 
@@ -283,6 +284,7 @@ class TestIntegrityReport:
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestIntegrityEdgeCases:
     """Tests for edge cases in integrity module."""
@@ -294,7 +296,7 @@ class TestIntegrityEdgeCases:
             severity=IntegritySeverity.INFO,
             message="",
         )
-        
+
         assert issue.message == ""
 
     def test_long_message(self):
@@ -305,7 +307,7 @@ class TestIntegrityEdgeCases:
             severity=IntegritySeverity.WARNING,
             message=long_message,
         )
-        
+
         assert len(issue.message) == 10000
 
     def test_complex_details(self):
@@ -324,7 +326,7 @@ class TestIntegrityEdgeCases:
             severity=IntegritySeverity.ERROR,
             details=details,
         )
-        
+
         data = issue.to_dict()
         assert data["details"]["affected_records"] == ["id1", "id2", "id3"]
         assert data["details"]["file_metadata"]["size"] == 1024
@@ -340,7 +342,7 @@ class TestIntegrityEdgeCases:
             for i in range(100)
         ]
         report = IntegrityReport(issues=issues)
-        
+
         assert len(report.issues) == 100
         assert report.issue_counts["warning"] == 100
         assert report.is_healthy is True  # Warnings don't make unhealthy
@@ -367,7 +369,7 @@ class TestIntegrityEdgeCases:
                 ),
             ]
         )
-        
+
         counts = report.issue_counts
         assert counts["info"] == 1
         assert counts["warning"] == 1

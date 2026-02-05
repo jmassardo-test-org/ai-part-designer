@@ -1,8 +1,9 @@
 """Tests for CAD v2 API endpoints."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.main import create_app
 
@@ -95,7 +96,9 @@ class TestComponentsEndpoints:
 
     def test_enclosure_suggestion(self, client: TestClient) -> None:
         """Should get enclosure suggestion for component."""
-        response = client.get("/api/v2/components/raspberry-pi-5/enclosure-suggestion", follow_redirects=True)
+        response = client.get(
+            "/api/v2/components/raspberry-pi-5/enclosure-suggestion", follow_redirects=True
+        )
         assert response.status_code == 200
         data = response.json()
         assert "component" in data
@@ -105,7 +108,9 @@ class TestComponentsEndpoints:
 
     def test_enclosure_suggestion_not_found(self, client: TestClient) -> None:
         """Should return 404 for non-existent component."""
-        response = client.get("/api/v2/components/nonexistent/enclosure-suggestion", follow_redirects=True)
+        response = client.get(
+            "/api/v2/components/nonexistent/enclosure-suggestion", follow_redirects=True
+        )
         assert response.status_code == 404
 
 
@@ -216,9 +221,7 @@ class TestGenerateEndpoints:
     def test_preview_schema(self, client: TestClient) -> None:
         """Should preview schema without compiling."""
         # Mock the AI provider to avoid actual API calls
-        with patch(
-            "app.cad_v2.ai.schema_generator.get_ai_provider"
-        ) as mock_provider:
+        with patch("app.cad_v2.ai.schema_generator.get_ai_provider") as mock_provider:
             mock_provider.return_value.complete = AsyncMock(
                 return_value='{"exterior": {"width": {"value": 100}, "depth": {"value": 80}, "height": {"value": 40}}, "walls": {"thickness": {"value": 2.5}}}'
             )
@@ -228,7 +231,7 @@ class TestGenerateEndpoints:
                 "/api/v2/generate/preview",
                 json={"description": "A simple 100x80x40mm box"},
             )
-            
+
             # The response depends on the mock setup
             assert response.status_code == 200
 
@@ -286,7 +289,7 @@ class TestV1ToV2Routing:
                 "/api/v1/generate",
                 json={"description": "A 100x80x40mm enclosure"},
             )
-            
+
             # Check deprecation headers are present
             assert response.headers.get("Deprecation") == "true"
             assert "Sunset" in response.headers
@@ -305,12 +308,14 @@ class TestV1ToV2Routing:
             # Description with "create" keyword and dimensions triggers high-confidence heuristic
             response = client.post(
                 "/api/v1/generate",
-                json={"description": "Create an enclosure 100mm x 80mm x 40mm for a Raspberry Pi 5"},
+                json={
+                    "description": "Create an enclosure 100mm x 80mm x 40mm for a Raspberry Pi 5"
+                },
             )
-            
+
             assert response.status_code == 201
             data = response.json()
-            
+
             # V2 pipeline returns "enclosure" as shape type
             assert data["shape"] == "enclosure"
             # V2 pipeline has high confidence for validated schema
@@ -344,16 +349,16 @@ class TestDownloadsEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        
+
         # Extract job_id from response
         job_id = data["job_id"]
         assert job_id
-        
+
         # Check download URL is correct
         assert "body" in data["downloads"]
         download_url = data["downloads"]["body"]
         assert job_id in download_url
-        
+
         # Now download the file
         download_response = client.get(download_url)
         assert download_response.status_code == 200
@@ -379,7 +384,7 @@ class TestDownloadsEndpoints:
         )
         data = response.json()
         job_id = data["job_id"]
-        
+
         # List files for job
         list_response = client.get(f"/api/v2/downloads/{job_id}")
         assert list_response.status_code == 200

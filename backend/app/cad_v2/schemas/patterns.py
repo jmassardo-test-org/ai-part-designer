@@ -10,7 +10,7 @@ Patterns are used for features like ventilation holes,
 button clusters, and mounting hole arrays.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.cad_v2.schemas.base import Dimension, Point2D
 
 
-class PatternType(str, Enum):
+class PatternType(StrEnum):
     """Types of patterns available."""
 
     LINEAR = "linear"

@@ -15,8 +15,8 @@ from app.websocket.subscriber import (
 
 __all__ = [
     "ConnectionManager",
-    "manager",
     "RedisSubscriber",
+    "manager",
     "redis_subscriber",
     "start_redis_subscriber",
     "stop_redis_subscriber",

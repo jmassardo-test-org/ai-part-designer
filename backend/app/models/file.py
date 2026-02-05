@@ -12,9 +12,9 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     String,
-    Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -26,10 +26,10 @@ if TYPE_CHECKING:
 class File(Base):
     """
     Model for tracking uploaded files.
-    
+
     Stores metadata about files uploaded by users, including
     CAD files (STEP, STL, IGES), images, and other documents.
-    
+
     Files are stored in object storage (S3/MinIO) with references
     stored in this table.
     """
@@ -251,8 +251,8 @@ CAD_EXTENSIONS = {
 
 # File size limits by tier (in bytes)
 FILE_SIZE_LIMITS = {
-    "free": 10 * 1024 * 1024,       # 10 MB
-    "basic": 50 * 1024 * 1024,      # 50 MB
-    "pro": 200 * 1024 * 1024,       # 200 MB
+    "free": 10 * 1024 * 1024,  # 10 MB
+    "basic": 50 * 1024 * 1024,  # 50 MB
+    "pro": 200 * 1024 * 1024,  # 200 MB
     "enterprise": 1024 * 1024 * 1024,  # 1 GB
 }

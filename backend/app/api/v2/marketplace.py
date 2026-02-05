@@ -7,13 +7,11 @@ Allows browsing public designs, featured designs, and categories.
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, case, desc, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, desc, func, or_, select
 
 from app.api.deps import get_current_user_optional
 from app.core.database import get_db
@@ -30,7 +28,9 @@ from app.schemas.marketplace import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ async def browse_designs(
 ) -> PaginatedDesignResponse:
     """
     Browse public marketplace designs.
-    
+
     Supports filtering by category and tags, sorting, and text search.
     """
     # Base query: public and published designs
@@ -113,16 +113,16 @@ async def browse_designs(
         .where(Design.published_at.isnot(None))
         .where(Design.deleted_at.is_(None))
     )
-    
+
     # Apply category filter
     if category:
         query = query.where(Design.category == category)
-    
+
     # Apply tag filter
     if tags:
         for tag in tags:
             query = query.where(Design.tags.contains([tag]))
-    
+
     # Apply search
     if search:
         search_pattern = f"%{search.lower()}%"
@@ -132,12 +132,12 @@ async def browse_designs(
                 func.lower(Design.description).like(search_pattern),
             )
         )
-    
+
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Apply sorting
     if sort == "popular" or sort == "saves":
         query = query.order_by(desc(Design.save_count))
@@ -147,22 +147,25 @@ async def browse_designs(
         # Trending: combination of recency and saves
         # Designs with more saves in less time rank higher
         query = query.order_by(
-            desc(Design.save_count / (func.extract("epoch", func.now() - Design.published_at) / 86400 + 1))
+            desc(
+                Design.save_count
+                / (func.extract("epoch", func.now() - Design.published_at) / 86400 + 1)
+            )
         )
-    
+
     # Apply pagination
     offset = (page - 1) * page_size
     query = query.offset(offset).limit(page_size)
-    
+
     # Execute query
     result = await db.execute(query)
     rows = result.all()
-    
+
     # Convert to response
     items = [_design_to_summary(row.Design, row.author_name) for row in rows]
-    
+
     total_pages = (total + page_size - 1) // page_size if total > 0 else 1
-    
+
     return PaginatedDesignResponse(
         items=items,
         total=total,
@@ -181,7 +184,7 @@ async def get_featured_designs(
 ) -> list[DesignSummaryResponse]:
     """
     Get featured/curated designs for homepage display.
-    
+
     Returns designs that have been marked as featured by admins.
     """
     query = (
@@ -193,10 +196,10 @@ async def get_featured_designs(
         .order_by(desc(Design.featured_at))
         .limit(limit)
     )
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     return [_design_to_summary(row.Design, row.author_name) for row in rows]
 
 
@@ -219,13 +222,13 @@ async def get_categories(
         .group_by(Design.category)
         .order_by(desc("count"))
     )
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     # Include all valid categories, even those with 0 designs
     category_counts = {row.category: row.count for row in rows}
-    
+
     return [
         CategoryResponse(
             name=cat.replace("-", " ").title(),
@@ -244,7 +247,7 @@ async def get_design_detail(
 ) -> MarketplaceDesignResponse:
     """
     Get full design details for marketplace view.
-    
+
     Includes save status for authenticated users.
     """
     query = (
@@ -253,30 +256,30 @@ async def get_design_detail(
         .where(Design.id == design_id)
         .where(Design.deleted_at.is_(None))
     )
-    
+
     result = await db.execute(query)
     row = result.first()
-    
+
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     design = row.Design
     author_name = row.author_name
-    
+
     # Check if design is public or user owns it
     if not design.is_public and (not current_user or design.user_id != current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This design is private",
         )
-    
+
     # Check save status for current user
     is_saved = False
     in_lists: list[UUID] = []
-    
+
     if current_user:
         save_query = select(DesignSave).where(
             and_(
@@ -287,19 +290,19 @@ async def get_design_detail(
         save_result = await db.execute(save_query)
         if save_result.scalar_one_or_none():
             is_saved = True
-        
+
         # Get list IDs
         from app.models.marketplace import DesignListItem
-        list_query = select(DesignListItem.list_id).where(
-            DesignListItem.design_id == design_id
-        ).join(
-            DesignListItem.list
-        ).where(
-            DesignListItem.list.has(user_id=current_user.id)
+
+        list_query = (
+            select(DesignListItem.list_id)
+            .where(DesignListItem.design_id == design_id)
+            .join(DesignListItem.list)
+            .where(DesignListItem.list.has(user_id=current_user.id))
         )
         list_result = await db.execute(list_query)
         in_lists = [row[0] for row in list_result.all()]
-    
+
     # Get remixed from info
     remixed_from_name = None
     if design.remixed_from_id:
@@ -307,7 +310,7 @@ async def get_design_detail(
         parent_result = await db.execute(parent_query)
         parent_name = parent_result.scalar_one_or_none()
         remixed_from_name = parent_name
-    
+
     return MarketplaceDesignResponse(
         id=design.id,
         name=design.name,
@@ -346,7 +349,7 @@ async def publish_design(
 ) -> PublishDesignResponse:
     """
     Publish a design to the marketplace.
-    
+
     Makes the design publicly visible and searchable.
     """
     if not current_user:
@@ -354,7 +357,7 @@ async def publish_design(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
         )
-    
+
     query = select(Design).where(
         and_(
             Design.id == design_id,
@@ -364,40 +367,40 @@ async def publish_design(
     )
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found or not owned by you",
         )
-    
+
     # Validate category
     if request.category and request.category not in VALID_CATEGORIES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid category. Must be one of: {', '.join(VALID_CATEGORIES)}",
         )
-    
+
     # Update design
-    from datetime import datetime, timezone
-    
+    from datetime import datetime
+
     design.is_public = True
-    design.published_at = datetime.now(timezone.utc)
+    design.published_at = datetime.now(UTC)
     design.category = request.category
     if request.tags:
         design.tags = request.tags
-    
+
     # Only admins can set is_starter
     if request.is_starter:
         # Check if user is admin (implement admin check as needed)
         # For now, we'll skip this
         pass
-    
+
     await db.commit()
     await db.refresh(design)
-    
+
     logger.info(f"Design {design_id} published by user {current_user.id}")
-    
+
     return PublishDesignResponse(
         id=design.id,
         published_at=design.published_at,
@@ -414,7 +417,7 @@ async def unpublish_design(
 ) -> dict:
     """
     Unpublish a design from the marketplace.
-    
+
     The design becomes private again.
     """
     if not current_user:
@@ -422,7 +425,7 @@ async def unpublish_design(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
         )
-    
+
     query = select(Design).where(
         and_(
             Design.id == design_id,
@@ -432,18 +435,18 @@ async def unpublish_design(
     )
     result = await db.execute(query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found or not owned by you",
         )
-    
+
     design.is_public = False
     design.published_at = None
-    
+
     await db.commit()
-    
+
     logger.info(f"Design {design_id} unpublished by user {current_user.id}")
-    
+
     return {"message": "Design unpublished successfully"}

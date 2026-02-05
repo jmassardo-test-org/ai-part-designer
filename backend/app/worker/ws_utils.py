@@ -19,6 +19,7 @@ def get_redis_client():
     """Get Redis client for pub/sub."""
     try:
         from app.core.cache import redis_client
+
         return redis_client.client
     except Exception as e:
         logger.warning(f"Failed to get Redis client: {e}")
@@ -128,13 +129,16 @@ def send_job_complete(
         job_id: Job ID
         result: Job result data
     """
-    publish_ws_message(user_id, {
-        "type": "job_complete",
-        "job_id": job_id,
-        "status": "completed",
-        "progress": 100,
-        "result": result,
-    })
+    publish_ws_message(
+        user_id,
+        {
+            "type": "job_complete",
+            "job_id": job_id,
+            "status": "completed",
+            "progress": 100,
+            "result": result,
+        },
+    )
 
 
 def send_job_failed(
@@ -152,13 +156,16 @@ def send_job_failed(
         error: Error message
         error_type: Error type/class name
     """
-    publish_ws_message(user_id, {
-        "type": "job_failed",
-        "job_id": job_id,
-        "status": "failed",
-        "error": error,
-        "error_type": error_type,
-    })
+    publish_ws_message(
+        user_id,
+        {
+            "type": "job_failed",
+            "job_id": job_id,
+            "status": "failed",
+            "error": error,
+            "error_type": error_type,
+        },
+    )
 
 
 def send_job_started(user_id: str, job_id: str, job_type: str) -> None:
@@ -170,13 +177,16 @@ def send_job_started(user_id: str, job_id: str, job_type: str) -> None:
         job_id: Job ID
         job_type: Type of job (e.g., "cad_generation")
     """
-    publish_ws_message(user_id, {
-        "type": "job_started",
-        "job_id": job_id,
-        "job_type": job_type,
-        "status": "running",
-        "progress": 0,
-    })
+    publish_ws_message(
+        user_id,
+        {
+            "type": "job_started",
+            "job_id": job_id,
+            "job_type": job_type,
+            "status": "running",
+            "progress": 0,
+        },
+    )
 
 
 def send_project_update(

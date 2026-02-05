@@ -9,28 +9,22 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
 
-from app.schemas.component_specs import (
-    Dimensions,
-    MountingHole,
-    Connector,
-    ClearanceZone,
-    ThermalProperties,
-    Position3D,
-    Face,
-    ConnectorType,
-)
 from app.enclosure.schemas import (
-    EnclosureStyle,
-    EnclosureStyleType,
     EnclosureOptions,
-    SpatialLayout,
-    ComponentPosition,
+    EnclosureStyle,
     LidClosureType,
+    SpatialLayout,
     VentilationPattern,
 )
-
+from app.schemas.component_specs import (
+    ClearanceZone,
+    Connector,
+    Dimensions,
+    MountingHole,
+    Position3D,
+    ThermalProperties,
+)
 
 # =============================================================================
 # System Prompts
@@ -144,22 +138,22 @@ Add snap-fit clips on lid, 4 rubber feet mounting points"""
 
 ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
     """Generate enclosure base and lid."""
-    
+
     # Parameters
     wall = 2.0
     floor = 2.0
     lid_thick = 2.0
     corner_r = 3.0
-    
+
     # External dimensions
     ext_length = 90 + 2 * wall  # 94mm
     ext_width = 60 + 2 * wall   # 64mm
     ext_height = 25 + floor     # 27mm (base height without lid)
-    
+
     # =========================================================================
     # BASE
     # =========================================================================
-    
+
     # Create outer shell
     base = (
         cq.Workplane("XY")
@@ -167,7 +161,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         .edges("|Z")
         .fillet(corner_r)
     )
-    
+
     # Hollow out interior
     base = (
         base
@@ -176,10 +170,10 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         .rect(ext_length - 2 * wall, ext_width - 2 * wall)
         .cutBlind(-(ext_height - floor))
     )
-    
+
     # Add internal fillets
     base = base.edges("<Z").edges("not(<Z or >Z)").fillet(1.0)
-    
+
     # -------------------------------------------------------------------------
     # Mounting Standoffs
     # -------------------------------------------------------------------------
@@ -190,12 +184,12 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
     standoff_h = 5.0
     standoff_od = 6.0
     standoff_id = 2.5
-    
+
     for sx, sy in standoffs:
         # Convert from internal coords to enclosure coords
         px = sx - 45 + wall  # Center offset
         py = sy - 30 + wall
-        
+
         # Add standoff
         standoff = (
             cq.Workplane("XY")
@@ -212,11 +206,11 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
             .hole(standoff_id)
         )
         base = base.union(standoff)
-    
+
     # -------------------------------------------------------------------------
     # Connector Cutouts
     # -------------------------------------------------------------------------
-    
+
     # USB-C on left face
     base = (
         base
@@ -226,7 +220,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         .rect(9, 3.5)
         .cutThruAll()
     )
-    
+
     # HDMI on left face
     base = (
         base
@@ -236,7 +230,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         .rect(15, 5.5)
         .cutThruAll()
     )
-    
+
     # Ethernet on right face
     base = (
         base
@@ -246,7 +240,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         .rect(16, 13.5)
         .cutThruAll()
     )
-    
+
     # -------------------------------------------------------------------------
     # Lid Snap-Fit Clips (on base)
     # -------------------------------------------------------------------------
@@ -256,7 +250,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         (ext_length/2 - 1, 0),  # Right center
         (-ext_length/2 + 1, 0), # Left center
     ]
-    
+
     for cx, cy in clip_positions:
         # Add clip receiver notch
         base = (
@@ -267,7 +261,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
             .rect(4, 2)
             .cutBlind(-3)
         )
-    
+
     # -------------------------------------------------------------------------
     # Rubber Feet Mounting Points
     # -------------------------------------------------------------------------
@@ -279,7 +273,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         (-ext_length/2 + feet_inset, ext_width/2 - feet_inset),
         (ext_length/2 - feet_inset, ext_width/2 - feet_inset),
     ]
-    
+
     for fx, fy in feet_positions:
         base = (
             base
@@ -288,20 +282,20 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
             .center(fx, fy)
             .hole(feet_diameter, 2)  # Recess for rubber foot
         )
-    
+
     # =========================================================================
     # LID
     # =========================================================================
-    
+
     lid_height = lid_thick + 3  # Extra for overlap
-    
+
     lid = (
         cq.Workplane("XY")
         .box(ext_length, ext_width, lid_height, centered=(True, True, False))
         .edges("|Z")
         .fillet(corner_r)
     )
-    
+
     # Create lip that fits inside base
     lip_clearance = 0.3
     lid = (
@@ -315,18 +309,18 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         .extrude(-3, combine=False)
         .union(lid)
     )
-    
+
     # -------------------------------------------------------------------------
     # Ventilation Slots
     # -------------------------------------------------------------------------
     slot_width = 2.0
     slot_spacing = 3.0
     slot_length = ext_length * 0.6
-    
+
     # Create slot pattern
     num_slots = int((ext_width * 0.6) / (slot_width + slot_spacing))
     start_y = -num_slots * (slot_width + slot_spacing) / 2
-    
+
     for i in range(num_slots):
         slot_y = start_y + i * (slot_width + slot_spacing)
         lid = (
@@ -337,7 +331,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
             .rect(slot_length, slot_width)
             .cutThruAll()
         )
-    
+
     # -------------------------------------------------------------------------
     # Snap-Fit Clips (on lid)
     # -------------------------------------------------------------------------
@@ -352,7 +346,7 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
         # Add angled catch
         clip = clip.faces("<Z").edges(">Y" if cy > 0 else "<Y").chamfer(1)
         lid = lid.union(clip)
-    
+
     return base, lid
 '''
 
@@ -361,10 +355,11 @@ ENCLOSURE_EXAMPLE_OUTPUT = '''def generate_enclosure():
 # Prompt Builder
 # =============================================================================
 
+
 @dataclass
 class ComponentData:
     """Component data for prompt building."""
-    
+
     id: str
     name: str
     dimensions: Dimensions
@@ -378,36 +373,36 @@ class ComponentData:
 @dataclass
 class EnclosurePromptBuilder:
     """Builds prompts for enclosure generation."""
-    
+
     components: list[ComponentData]
     style: EnclosureStyle
     options: EnclosureOptions
     layout: SpatialLayout | None = None
-    
+
     def build_system_prompt(self) -> str:
         """Get the system prompt."""
         return ENCLOSURE_SYSTEM_PROMPT
-    
+
     def build_user_prompt(self) -> str:
         """Build the complete user prompt."""
         # Calculate internal dimensions
         internal_dims = self._calculate_internal_dimensions()
-        
+
         # Build component JSON
         components_json = self._build_components_json()
-        
+
         # Build standoffs JSON
         standoffs_json = self._build_standoffs_json()
-        
+
         # Build cutouts JSON
         cutouts_json = self._build_cutouts_json()
-        
+
         # Build ventilation spec
         ventilation_spec = self._build_ventilation_spec()
-        
+
         # Build additional requirements
         additional = self._build_additional_requirements()
-        
+
         return ENCLOSURE_USER_TEMPLATE.format(
             style_name=self.style.style_type.value,
             wall_thickness=self.style.wall_thickness,
@@ -424,7 +419,7 @@ class EnclosurePromptBuilder:
             ventilation_spec=ventilation_spec,
             additional_requirements=additional,
         )
-    
+
     def build_messages(self) -> list[dict[str, str]]:
         """Build complete message list for API call."""
         return [
@@ -435,55 +430,55 @@ class EnclosurePromptBuilder:
             # Actual request
             {"role": "user", "content": self.build_user_prompt()},
         ]
-    
+
     def _calculate_internal_dimensions(self) -> Dimensions:
         """Calculate required internal dimensions from components."""
         if self.layout and self.layout.internal_dimensions:
             return self.layout.internal_dimensions
-        
+
         # Calculate from component bounding boxes
         max_x = 0.0
         max_y = 0.0
         max_z = 0.0
-        
+
         clearance = self.options.component_clearance
         standoff_height = self.options.pcb_standoff_height
         lid_clearance = self.options.lid_clearance
-        
+
         for comp in self.components:
             dims = comp.dimensions.to_mm()
             pos = comp.position or Position3D(x=0, y=0, z=standoff_height)
-            
+
             # Component extends to
             comp_max_x = pos.x + dims.length + clearance
             comp_max_y = pos.y + dims.width + clearance
             comp_max_z = pos.z + dims.height + lid_clearance
-            
+
             # Check clearance zones
             for zone in comp.clearance_zones:
                 zone_z = zone.bounds.max_z + zone.minimum_clearance
                 comp_max_z = max(comp_max_z, zone_z + lid_clearance)
-            
+
             max_x = max(max_x, comp_max_x)
             max_y = max(max_y, comp_max_y)
             max_z = max(max_z, comp_max_z)
-        
+
         # Add clearance on minimum side too
         max_x += clearance
         max_y += clearance
-        
+
         return Dimensions(
             length=max_x,
             width=max_y,
             height=max_z,
         )
-    
+
     def _build_components_json(self) -> str:
         """Build JSON representation of components."""
         components_data = []
         standoff_height = self.options.pcb_standoff_height
-        
-        for i, comp in enumerate(self.components):
+
+        for _i, comp in enumerate(self.components):
             pos = comp.position
             if not pos and self.layout:
                 # Find in layout
@@ -491,80 +486,86 @@ class EnclosurePromptBuilder:
                     if str(lpos.component_id) == comp.id:
                         pos = lpos.position
                         break
-            
+
             if not pos:
                 pos = Position3D(x=0, y=0, z=standoff_height)
-            
-            components_data.append({
-                "name": comp.name,
-                "dimensions": {
-                    "length": comp.dimensions.length,
-                    "width": comp.dimensions.width,
-                    "height": comp.dimensions.height,
-                },
-                "position": {
-                    "x": pos.x,
-                    "y": pos.y,
-                    "z": pos.z,
-                },
-            })
-        
+
+            components_data.append(
+                {
+                    "name": comp.name,
+                    "dimensions": {
+                        "length": comp.dimensions.length,
+                        "width": comp.dimensions.width,
+                        "height": comp.dimensions.height,
+                    },
+                    "position": {
+                        "x": pos.x,
+                        "y": pos.y,
+                        "z": pos.z,
+                    },
+                }
+            )
+
         return json.dumps(components_data, indent=2)
-    
+
     def _build_standoffs_json(self) -> str:
         """Build JSON for all required standoffs."""
         standoffs = []
         standoff_height = self.options.pcb_standoff_height
-        
+
         for comp in self.components:
             pos = comp.position or Position3D(x=0, y=0, z=standoff_height)
-            
+
             for hole in comp.mounting_holes:
                 # Calculate standoff dimensions based on hole
                 outer_d = max(hole.diameter * 2.5, 5.0)
                 inner_d = hole.diameter if hole.diameter < 3.5 else hole.diameter - 0.5
-                
-                standoffs.append({
-                    "x": pos.x + hole.x,
-                    "y": pos.y + hole.y,
-                    "height": standoff_height,
-                    "outer_diameter": round(outer_d, 1),
-                    "inner_diameter": round(inner_d, 1),
-                    "component": comp.name,
-                    "label": hole.label,
-                })
-        
+
+                standoffs.append(
+                    {
+                        "x": pos.x + hole.x,
+                        "y": pos.y + hole.y,
+                        "height": standoff_height,
+                        "outer_diameter": round(outer_d, 1),
+                        "inner_diameter": round(inner_d, 1),
+                        "component": comp.name,
+                        "label": hole.label,
+                    }
+                )
+
         return json.dumps(standoffs, indent=2)
-    
+
     def _build_cutouts_json(self) -> str:
         """Build JSON for all required cutouts."""
         if not self.options.auto_cutouts:
             return "[]"
-        
+
         cutouts = []
         tolerance = self.options.cutout_tolerance
-        
+
         for comp in self.components:
             pos = comp.position or Position3D(x=0, y=0, z=0)
-            
+
             for conn in comp.connectors:
-                cutouts.append({
-                    "face": conn.face.value,
-                    "center_x": pos.x + conn.position.x,
-                    "center_y": pos.z + conn.position.z,  # Y on face = Z in enclosure
-                    "width": conn.cutout_width + tolerance,
-                    "height": conn.cutout_height + tolerance,
-                    "name": conn.name,
-                    "type": conn.type.value,
-                })
-        
+                cutouts.append(
+                    {
+                        "face": conn.face.value,
+                        "center_x": pos.x + conn.position.x,
+                        "center_y": pos.z + conn.position.z,  # Y on face = Z in enclosure
+                        "width": conn.cutout_width + tolerance,
+                        "height": conn.cutout_height + tolerance,
+                        "name": conn.name,
+                        "type": conn.type.value,
+                    }
+                )
+
         return json.dumps(cutouts, indent=2)
-    
+
     def _build_ventilation_spec(self) -> str:
         """Build ventilation specification string."""
         if not self.options.auto_ventilation:
             return f"Pattern: {self.style.ventilation.value}"
-        
+
         # Check if any component needs ventilation
         needs_vent = False
         for comp in self.components:
@@ -575,30 +576,30 @@ class EnclosurePromptBuilder:
                 if zone.requires_venting:
                     needs_vent = True
                     break
-        
+
         if needs_vent or self.style.ventilation != VentilationPattern.NONE:
             pattern = self.style.ventilation
             if pattern == VentilationPattern.NONE and needs_vent:
                 pattern = VentilationPattern.PARALLEL_SLOTS
-            
+
             return (
                 f"Pattern: {pattern.value} on top, "
                 f"slot_width: {self.style.vent_slot_width}mm, "
                 f"slot_spacing: {self.style.vent_slot_spacing}mm"
             )
-        
+
         return "No ventilation required"
-    
+
     def _build_additional_requirements(self) -> str:
         """Build additional requirements string."""
         requirements = []
-        
+
         # Lid closure
         if self.style.lid_closure == LidClosureType.SNAP_FIT:
             requirements.append("Add snap-fit clips on lid and matching receivers on base")
         elif self.style.lid_closure == LidClosureType.SCREW:
             requirements.append("Add screw bosses in corners (M3)")
-        
+
         # Feet
         if self.style.add_feet:
             requirements.append(
@@ -606,15 +607,15 @@ class EnclosurePromptBuilder:
                 f"(diameter: {self.style.feet_diameter}mm, "
                 f"inset: {self.style.feet_inset}mm)"
             )
-        
+
         # Assembly guides
         if self.options.add_assembly_guides:
             requirements.append("Add alignment pins/slots for lid positioning")
-        
+
         # Separate lid
         if self.options.generate_lid_separately:
             requirements.append("Generate lid as a separate body")
-        
+
         return "\n".join(f"- {req}" for req in requirements) if requirements else "None"
 
 
@@ -626,13 +627,13 @@ def build_enclosure_prompt(
 ) -> list[dict[str, str]]:
     """
     Build a complete prompt for enclosure generation.
-    
+
     Args:
         components: List of components with specifications
         style: Enclosure style parameters
         options: Generation options
         layout: Optional spatial layout
-    
+
     Returns:
         List of message dicts for API call
     """

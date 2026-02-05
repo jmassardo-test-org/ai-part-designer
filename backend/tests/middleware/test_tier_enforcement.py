@@ -9,10 +9,10 @@ import pytest
 from app.middleware.tier_enforcement import TIER_LIMITS
 from app.models.subscription import TierSlug
 
-
 # =============================================================================
 # TIER_LIMITS Configuration Tests
 # =============================================================================
+
 
 class TestTierLimitsConfiguration:
     """Tests for TIER_LIMITS configuration."""
@@ -25,7 +25,7 @@ class TestTierLimitsConfiguration:
     def test_all_tiers_have_limits(self):
         """Test all tier slugs have limits defined."""
         expected_tiers = [TierSlug.FREE, TierSlug.PRO, TierSlug.ENTERPRISE]
-        
+
         for tier in expected_tiers:
             assert tier in TIER_LIMITS, f"Missing limits for tier: {tier}"
 
@@ -33,6 +33,7 @@ class TestTierLimitsConfiguration:
 # =============================================================================
 # Free Tier Tests
 # =============================================================================
+
 
 class TestFreeTierLimits:
     """Tests for free tier limits."""
@@ -80,7 +81,7 @@ class TestFreeTierLimits:
     def test_features_restricted(self, free_limits):
         """Test free tier has restricted features."""
         features = free_limits["features"]
-        
+
         assert features["ai_generation"] is True
         assert features["export_2d"] is False
         assert features["collaboration"] is False
@@ -90,6 +91,7 @@ class TestFreeTierLimits:
 # =============================================================================
 # Pro Tier Tests
 # =============================================================================
+
 
 class TestProTierLimits:
     """Tests for pro tier limits."""
@@ -122,7 +124,7 @@ class TestProTierLimits:
     def test_export_formats_extended(self, pro_limits):
         """Test pro tier has more export formats."""
         formats = pro_limits["export_formats"]
-        
+
         assert "stl" in formats
         assert "step" in formats
         assert "iges" in formats
@@ -131,7 +133,7 @@ class TestProTierLimits:
     def test_features_expanded(self, pro_limits):
         """Test pro tier has expanded features."""
         features = pro_limits["features"]
-        
+
         assert features["ai_generation"] is True
         assert features["export_2d"] is True
         assert features["collaboration"] is True
@@ -142,6 +144,7 @@ class TestProTierLimits:
 # =============================================================================
 # Enterprise Tier Tests
 # =============================================================================
+
 
 class TestEnterpriseTierLimits:
     """Tests for enterprise tier limits."""
@@ -174,13 +177,13 @@ class TestEnterpriseTierLimits:
     def test_all_export_formats(self, enterprise_limits):
         """Test enterprise tier has all export formats."""
         formats = enterprise_limits["export_formats"]
-        
+
         assert "dxf" in formats or "dwg" in formats
 
     def test_all_features_enabled(self, enterprise_limits):
         """Test enterprise tier has all features."""
         features = enterprise_limits["features"]
-        
+
         assert features["ai_generation"] is True
         assert features["api_access"] is True
 
@@ -189,6 +192,7 @@ class TestEnterpriseTierLimits:
 # Tier Comparison Tests
 # =============================================================================
 
+
 class TestTierComparison:
     """Tests comparing tier limits."""
 
@@ -196,7 +200,7 @@ class TestTierComparison:
         """Test pro tier is more generous than free."""
         free = TIER_LIMITS[TierSlug.FREE]
         pro = TIER_LIMITS[TierSlug.PRO]
-        
+
         assert pro["monthly_generations"] > free["monthly_generations"]
         assert pro["max_projects"] > free["max_projects"]
         assert pro["max_storage_gb"] > free["max_storage_gb"]
@@ -206,7 +210,7 @@ class TestTierComparison:
         """Test enterprise tier is most generous."""
         pro = TIER_LIMITS[TierSlug.PRO]
         enterprise = TIER_LIMITS[TierSlug.ENTERPRISE]
-        
+
         assert enterprise["monthly_generations"] > pro["monthly_generations"]
         assert enterprise["max_storage_gb"] > pro["max_storage_gb"]
 
@@ -215,15 +219,15 @@ class TestTierComparison:
         free = TIER_LIMITS[TierSlug.FREE]["features"]
         pro = TIER_LIMITS[TierSlug.PRO]["features"]
         enterprise = TIER_LIMITS[TierSlug.ENTERPRISE]["features"]
-        
+
         # Free has basic features only
         assert free["ai_generation"] is True
         assert free["export_2d"] is False
-        
+
         # Pro adds more
         assert pro["export_2d"] is True
         assert pro["collaboration"] is True
-        
+
         # Enterprise has everything
         assert enterprise["api_access"] is True
 
@@ -232,13 +236,14 @@ class TestTierComparison:
 # Edge Cases
 # =============================================================================
 
+
 class TestTierEnforcementEdgeCases:
     """Tests for edge cases."""
 
     def test_unlimited_indicated_by_negative_one(self):
         """Test unlimited values are indicated by -1."""
         enterprise = TIER_LIMITS[TierSlug.ENTERPRISE]
-        
+
         # -1 means unlimited
         assert enterprise["max_projects"] == -1
         assert enterprise["max_designs_per_project"] == -1
@@ -261,8 +266,14 @@ class TestTierEnforcementEdgeCases:
     def test_all_numeric_limits_are_integers(self):
         """Test numeric limits are integers."""
         for tier, limits in TIER_LIMITS.items():
-            for key in ["monthly_generations", "monthly_refinements", "max_projects", 
-                       "max_designs_per_project", "max_storage_gb", "max_file_size_mb",
-                       "max_concurrent_jobs"]:
+            for key in [
+                "monthly_generations",
+                "monthly_refinements",
+                "max_projects",
+                "max_designs_per_project",
+                "max_storage_gb",
+                "max_file_size_mb",
+                "max_concurrent_jobs",
+            ]:
                 if key in limits:
                     assert isinstance(limits[key], int), f"{tier}.{key} should be int"

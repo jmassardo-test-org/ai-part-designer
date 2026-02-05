@@ -8,13 +8,15 @@ Supports both user-based and IP-based limiting.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable, Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, status
 
 from app.core.cache import redis_client
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class RateLimitExceeded(HTTPException):
     """Rate limit exceeded exception with retry info."""
-    
+
     def __init__(self, retry_after: int):
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -42,12 +44,12 @@ def get_client_ip(request: Request) -> str:
 class RateLimiter:
     """
     FastAPI dependency for rate limiting.
-    
+
     Usage:
         @router.post("/endpoint", dependencies=[Depends(RateLimiter(10, 60))])
         async def endpoint():
             ...
-            
+
     Or with custom key:
         @router.post("/endpoint")
         async def endpoint(
@@ -55,7 +57,7 @@ class RateLimiter:
         ):
             ...
     """
-    
+
     def __init__(
         self,
         max_requests: int,
@@ -66,7 +68,7 @@ class RateLimiter:
     ):
         """
         Initialize rate limiter.
-        
+
         Args:
             max_requests: Maximum requests allowed in window
             window_seconds: Time window in seconds
@@ -79,7 +81,7 @@ class RateLimiter:
         self.key_prefix = key_prefix
         self.key_func = key_func
         self.use_user_id = use_user_id
-    
+
     async def __call__(
         self,
         request: Request,
@@ -87,7 +89,7 @@ class RateLimiter:
         """Check rate limit and raise if exceeded."""
         # Try to get user from request state if available
         user: Any = getattr(request.state, "user", None)
-        
+
         # Build rate limit key
         if self.key_func:
             identifier = self.key_func(request, user)
@@ -95,9 +97,9 @@ class RateLimiter:
             identifier = f"user:{user.id}"
         else:
             identifier = f"ip:{get_client_ip(request)}"
-        
+
         key = f"{self.key_prefix}:{request.url.path}:{identifier}"
-        
+
         # Check rate limit
         try:
             is_allowed, remaining = await redis_client.check_rate_limit(
@@ -109,18 +111,17 @@ class RateLimiter:
             # If Redis is down, log and allow request (fail-open)
             logger.warning(f"Rate limiter error (allowing request): {e}")
             return
-        
+
         if not is_allowed:
             ttl = await redis_client.ttl(key)
             retry_after = max(1, ttl)
-            
+
             logger.warning(
-                f"Rate limit exceeded: {key} "
-                f"(limit: {self.max_requests}/{self.window_seconds}s)"
+                f"Rate limit exceeded: {key} (limit: {self.max_requests}/{self.window_seconds}s)"
             )
-            
+
             raise RateLimitExceeded(retry_after=retry_after)
-        
+
         # Add rate limit headers to response
         request.state.rate_limit_remaining = remaining
         request.state.rate_limit_limit = self.max_requests

@@ -7,21 +7,19 @@ Provides aggregated data for the user dashboard including:
 - Activity summary
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.models.user import User
-from app.models.project import Project
 from app.models.design import Design
 from app.models.job import Job
-
+from app.models.project import Project
+from app.models.user import User
 
 router = APIRouter()
 
@@ -30,8 +28,10 @@ router = APIRouter()
 # Response Schemas
 # =============================================================================
 
+
 class DashboardStats(BaseModel):
     """User dashboard statistics."""
+
     total_projects: int = Field(description="Total number of projects")
     total_designs: int = Field(description="Total number of designs")
     designs_this_month: int = Field(description="Designs created this month")
@@ -41,11 +41,12 @@ class DashboardStats(BaseModel):
 
 class RecentDesign(BaseModel):
     """Brief design info for dashboard."""
+
     id: str
     name: str
     project_id: str
     project_name: str
-    thumbnail_url: Optional[str]
+    thumbnail_url: str | None
     source_type: str
     status: str
     created_at: str
@@ -54,6 +55,7 @@ class RecentDesign(BaseModel):
 
 class RecentActivity(BaseModel):
     """Activity item for dashboard."""
+
     id: str
     type: str  # design_created, design_exported, project_created, etc.
     title: str
@@ -64,6 +66,7 @@ class RecentActivity(BaseModel):
 
 class DashboardResponse(BaseModel):
     """Complete dashboard data response."""
+
     stats: DashboardStats
     recent_designs: list[RecentDesign]
     recent_activity: list[RecentActivity]
@@ -73,6 +76,7 @@ class DashboardResponse(BaseModel):
 # Endpoints
 # =============================================================================
 
+
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard(
     current_user: User = Depends(get_current_user),
@@ -80,12 +84,12 @@ async def get_dashboard(
 ) -> DashboardResponse:
     """
     Get dashboard data for the current user.
-    
+
     Returns aggregated statistics, recent designs, and activity.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
+
     # Get project count
     project_count_query = (
         select(func.count())
@@ -94,7 +98,7 @@ async def get_dashboard(
     )
     project_count_result = await db.execute(project_count_query)
     total_projects = project_count_result.scalar() or 0
-    
+
     # Get design count
     design_count_query = (
         select(func.count())
@@ -105,7 +109,7 @@ async def get_dashboard(
     )
     design_count_result = await db.execute(design_count_query)
     total_designs = design_count_result.scalar() or 0
-    
+
     # Get designs created this month
     designs_month_query = (
         select(func.count())
@@ -117,7 +121,7 @@ async def get_dashboard(
     )
     designs_month_result = await db.execute(designs_month_query)
     designs_this_month = designs_month_result.scalar() or 0
-    
+
     # Get AI generations this month
     generations_query = (
         select(func.count())
@@ -128,7 +132,7 @@ async def get_dashboard(
     )
     generations_result = await db.execute(generations_query)
     generations_this_month = generations_result.scalar() or 0
-    
+
     # Get exports this month
     exports_query = (
         select(func.count())
@@ -139,7 +143,7 @@ async def get_dashboard(
     )
     exports_result = await db.execute(exports_query)
     exports_this_month = exports_result.scalar() or 0
-    
+
     stats = DashboardStats(
         total_projects=total_projects,
         total_designs=total_designs,
@@ -147,7 +151,7 @@ async def get_dashboard(
         generations_this_month=generations_this_month,
         exports_this_month=exports_this_month,
     )
-    
+
     # Get recent designs
     recent_designs_query = (
         select(Design, Project.name.label("project_name"))
@@ -159,7 +163,7 @@ async def get_dashboard(
     )
     recent_designs_result = await db.execute(recent_designs_query)
     recent_designs_rows = recent_designs_result.all()
-    
+
     recent_designs = []
     for row in recent_designs_rows:
         design = row[0]
@@ -167,33 +171,37 @@ async def get_dashboard(
         thumbnail_url = None
         if design.extra_data:
             thumbnail_url = design.extra_data.get("thumbnail_url")
-        
-        recent_designs.append(RecentDesign(
-            id=str(design.id),
-            name=design.name,
-            project_id=str(design.project_id),
-            project_name=project_name,
-            thumbnail_url=thumbnail_url,
-            source_type=design.source_type,
-            status=design.status,
-            created_at=design.created_at.isoformat(),
-            updated_at=design.updated_at.isoformat(),
-        ))
-    
+
+        recent_designs.append(
+            RecentDesign(
+                id=str(design.id),
+                name=design.name,
+                project_id=str(design.project_id),
+                project_name=project_name,
+                thumbnail_url=thumbnail_url,
+                source_type=design.source_type,
+                status=design.status,
+                created_at=design.created_at.isoformat(),
+                updated_at=design.updated_at.isoformat(),
+            )
+        )
+
     # Build recent activity from various sources
     recent_activity = []
-    
+
     # Recent designs as activity
     for design in recent_designs[:3]:
-        recent_activity.append(RecentActivity(
-            id=f"design-{design.id}",
-            type="design_created" if design.source_type == "ai_generated" else "design_updated",
-            title=design.name,
-            description=f"{'Generated' if design.source_type == 'ai_generated' else 'Updated'} in {design.project_name}",
-            timestamp=design.updated_at,
-            metadata={"design_id": design.id, "project_id": design.project_id},
-        ))
-    
+        recent_activity.append(
+            RecentActivity(
+                id=f"design-{design.id}",
+                type="design_created" if design.source_type == "ai_generated" else "design_updated",
+                title=design.name,
+                description=f"{'Generated' if design.source_type == 'ai_generated' else 'Updated'} in {design.project_name}",
+                timestamp=design.updated_at,
+                metadata={"design_id": design.id, "project_id": design.project_id},
+            )
+        )
+
     # Recent completed jobs as activity
     recent_jobs_query = (
         select(Job)
@@ -204,7 +212,7 @@ async def get_dashboard(
     )
     recent_jobs_result = await db.execute(recent_jobs_query)
     recent_jobs = recent_jobs_result.scalars().all()
-    
+
     for job in recent_jobs:
         if job.job_type == "ai_generation":
             activity_type = "generation_completed"
@@ -216,20 +224,24 @@ async def get_dashboard(
             description = f"Exported to {job.input_params.get('format', 'file')}"
         else:
             continue
-        
-        recent_activity.append(RecentActivity(
-            id=f"job-{job.id}",
-            type=activity_type,
-            title=title,
-            description=description,
-            timestamp=job.completed_at.isoformat() if job.completed_at else job.created_at.isoformat(),
-            metadata={"job_id": str(job.id)},
-        ))
-    
+
+        recent_activity.append(
+            RecentActivity(
+                id=f"job-{job.id}",
+                type=activity_type,
+                title=title,
+                description=description,
+                timestamp=job.completed_at.isoformat()
+                if job.completed_at
+                else job.created_at.isoformat(),
+                metadata={"job_id": str(job.id)},
+            )
+        )
+
     # Sort activity by timestamp and limit
     recent_activity.sort(key=lambda a: a.timestamp, reverse=True)
     recent_activity = recent_activity[:10]
-    
+
     return DashboardResponse(
         stats=stats,
         recent_designs=recent_designs,
@@ -244,12 +256,12 @@ async def get_dashboard_stats(
 ) -> DashboardStats:
     """
     Get just the dashboard statistics.
-    
+
     Lighter endpoint for refreshing stats without full dashboard data.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
+
     # Get project count
     project_count_query = (
         select(func.count())
@@ -258,7 +270,7 @@ async def get_dashboard_stats(
     )
     project_count_result = await db.execute(project_count_query)
     total_projects = project_count_result.scalar() or 0
-    
+
     # Get design count
     design_count_query = (
         select(func.count())
@@ -269,7 +281,7 @@ async def get_dashboard_stats(
     )
     design_count_result = await db.execute(design_count_query)
     total_designs = design_count_result.scalar() or 0
-    
+
     # Get designs created this month
     designs_month_query = (
         select(func.count())
@@ -281,7 +293,7 @@ async def get_dashboard_stats(
     )
     designs_month_result = await db.execute(designs_month_query)
     designs_this_month = designs_month_result.scalar() or 0
-    
+
     # Get AI generations this month
     generations_query = (
         select(func.count())
@@ -292,7 +304,7 @@ async def get_dashboard_stats(
     )
     generations_result = await db.execute(generations_query)
     generations_this_month = generations_result.scalar() or 0
-    
+
     # Get exports this month
     exports_query = (
         select(func.count())
@@ -303,7 +315,7 @@ async def get_dashboard_stats(
     )
     exports_result = await db.execute(exports_query)
     exports_this_month = exports_result.scalar() or 0
-    
+
     return DashboardStats(
         total_projects=total_projects,
         total_designs=total_designs,
@@ -332,7 +344,7 @@ async def get_recent_designs(
     )
     result = await db.execute(query)
     rows = result.all()
-    
+
     designs = []
     for row in rows:
         design = row[0]
@@ -340,17 +352,19 @@ async def get_recent_designs(
         thumbnail_url = None
         if design.extra_data:
             thumbnail_url = design.extra_data.get("thumbnail_url")
-        
-        designs.append(RecentDesign(
-            id=str(design.id),
-            name=design.name,
-            project_id=str(design.project_id),
-            project_name=project_name,
-            thumbnail_url=thumbnail_url,
-            source_type=design.source_type,
-            status=design.status,
-            created_at=design.created_at.isoformat(),
-            updated_at=design.updated_at.isoformat(),
-        ))
-    
+
+        designs.append(
+            RecentDesign(
+                id=str(design.id),
+                name=design.name,
+                project_id=str(design.project_id),
+                project_name=project_name,
+                thumbnail_url=thumbnail_url,
+                source_type=design.source_type,
+                status=design.status,
+                created_at=design.created_at.isoformat(),
+                updated_at=design.updated_at.isoformat(),
+            )
+        )
+
     return designs

@@ -14,7 +14,7 @@ Or via Makefile:
 import asyncio
 import logging
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -207,7 +207,7 @@ STARTER_DESIGNS = [
     # Display cases
     {
         "id": UUID("10000000-0000-0000-0000-000000000006"),
-        "name": "3.5\" LCD Display Stand",
+        "name": '3.5" LCD Display Stand',
         "description": (
             "A display stand for 3.5 inch LCD screens with adjustable viewing angle. "
             "Compatible with Raspberry Pi displays and similar."
@@ -295,18 +295,16 @@ STARTER_DESIGNS = [
 
 async def ensure_vendor_user(db: AsyncSession) -> User:
     """Ensure the vendor/system user exists for starter designs.
-    
+
     Args:
         db: Async database session.
-        
+
     Returns:
         The vendor user.
     """
-    existing = await db.execute(
-        select(User).where(User.id == VENDOR_USER_ID)
-    )
+    existing = await db.execute(select(User).where(User.id == VENDOR_USER_ID))
     user = existing.scalar_one_or_none()
-    
+
     if not user:
         user = User(
             id=VENDOR_USER_ID,
@@ -320,25 +318,23 @@ async def ensure_vendor_user(db: AsyncSession) -> User:
         db.add(user)
         await db.flush()
         logger.info("Created vendor user")
-    
+
     return user
 
 
 async def ensure_starters_project(db: AsyncSession, user: User) -> Project:
     """Ensure the starters project exists.
-    
+
     Args:
         db: Async database session.
         user: The vendor user.
-        
+
     Returns:
         The starters project.
     """
-    existing = await db.execute(
-        select(Project).where(Project.id == STARTERS_PROJECT_ID)
-    )
+    existing = await db.execute(select(Project).where(Project.id == STARTERS_PROJECT_ID))
     project = existing.scalar_one_or_none()
-    
+
     if not project:
         project = Project(
             id=STARTERS_PROJECT_ID,
@@ -350,33 +346,31 @@ async def ensure_starters_project(db: AsyncSession, user: User) -> Project:
         db.add(project)
         await db.flush()
         logger.info("Created starters project")
-    
+
     return project
 
 
 async def seed_starters(db: AsyncSession) -> tuple[int, int]:
     """Seed starter designs into the database.
-    
+
     Args:
         db: Async database session.
-        
+
     Returns:
         Tuple of (created_count, updated_count).
     """
     # Ensure vendor user and project exist
     vendor_user = await ensure_vendor_user(db)
     starters_project = await ensure_starters_project(db, vendor_user)
-    
+
     created = 0
     updated = 0
-    
+
     for starter_data in STARTER_DESIGNS:
         # Check if design already exists
-        existing = await db.execute(
-            select(Design).where(Design.id == starter_data["id"])
-        )
+        existing = await db.execute(select(Design).where(Design.id == starter_data["id"]))
         design = existing.scalar_one_or_none()
-        
+
         if design:
             # Update existing design
             design.name = starter_data["name"]
@@ -408,7 +402,7 @@ async def seed_starters(db: AsyncSession) -> tuple[int, int]:
             db.add(design)
             created += 1
             logger.debug(f"Created starter: {starter_data['name']}")
-    
+
     await db.commit()
     return created, updated
 
@@ -417,7 +411,7 @@ async def main() -> None:
     """Run starter seeding."""
     logging.basicConfig(level=logging.INFO)
     logger.info("Seeding starter designs...")
-    
+
     async with async_session_maker() as db:
         created, updated = await seed_starters(db)
         logger.info(f"Starter seeding complete: {created} created, {updated} updated")

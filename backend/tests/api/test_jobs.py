@@ -6,17 +6,19 @@ Tests job listing, status retrieval, cancellation, retry, and statistics.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
 # List Jobs Tests
 # =============================================================================
+
 
 class TestListJobs:
     """Tests for job listing endpoint."""
@@ -33,10 +35,10 @@ class TestListJobs:
             "/api/v1/jobs/",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["jobs"] == []
         assert data["total"] == 0
         assert data["has_more"] is False
@@ -54,15 +56,15 @@ class TestListJobs:
         await job_factory.create(db=db_session, user=test_user)
         await job_factory.create(db=db_session, user=test_user)
         await job_factory.create(db=db_session, user=test_user)
-        
+
         response = await client.get(
             "/api/v1/jobs/",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["jobs"]) == 3
         assert data["total"] == 3
 
@@ -78,17 +80,17 @@ class TestListJobs:
         """Test job listing pagination."""
         for _ in range(5):
             await job_factory.create(db=db_session, user=test_user)
-        
+
         # Get first page
         response = await client.get(
             "/api/v1/jobs/",
             headers=auth_headers,
             params={"skip": 0, "limit": 2},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["jobs"]) == 2
         assert data["total"] == 5
         assert data["has_more"] is True
@@ -106,16 +108,16 @@ class TestListJobs:
         await job_factory.create(db=db_session, user=test_user, status="pending")
         await job_factory.create(db=db_session, user=test_user, status="completed")
         await job_factory.create(db=db_session, user=test_user, status="pending")
-        
+
         response = await client.get(
             "/api/v1/jobs/",
             headers=auth_headers,
             params={"status_filter": "pending"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["jobs"]) == 2
         assert all(j["status"] == "pending" for j in data["jobs"])
 
@@ -132,16 +134,16 @@ class TestListJobs:
         await job_factory.create(db=db_session, user=test_user, job_type="ai_generation")
         await job_factory.create(db=db_session, user=test_user, job_type="export")
         await job_factory.create(db=db_session, user=test_user, job_type="ai_generation")
-        
+
         response = await client.get(
             "/api/v1/jobs/",
             headers=auth_headers,
             params={"job_type": "ai_generation"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["jobs"]) == 2
         assert all(j["job_type"] == "ai_generation" for j in data["jobs"])
 
@@ -157,24 +159,25 @@ class TestListJobs:
     ):
         """Test that users only see their own jobs."""
         other_user = await user_factory.create(db=db_session)
-        
+
         await job_factory.create(db=db_session, user=test_user)
         await job_factory.create(db=db_session, user=other_user)
-        
+
         response = await client.get(
             "/api/v1/jobs/",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["jobs"]) == 1
 
 
 # =============================================================================
 # Get Job Tests
 # =============================================================================
+
 
 class TestGetJob:
     """Tests for getting individual job details."""
@@ -197,15 +200,15 @@ class TestGetJob:
             progress=50,
             progress_message="Processing...",
         )
-        
+
         response = await client.get(
             f"/api/v1/jobs/{job.id}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["id"] == str(job.id)
         assert data["job_type"] == "ai_generation"
         assert data["status"] == "running"
@@ -224,7 +227,7 @@ class TestGetJob:
             f"/api/v1/jobs/{uuid4()}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -240,12 +243,12 @@ class TestGetJob:
         """Test getting another user's job returns 404."""
         other_user = await user_factory.create(db=db_session)
         other_job = await job_factory.create(db=db_session, user=other_user)
-        
+
         response = await client.get(
             f"/api/v1/jobs/{other_job.id}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -266,15 +269,15 @@ class TestGetJob:
                 "thumbnail_url": "https://storage.test/thumb.png",
             },
         )
-        
+
         response = await client.get(
             f"/api/v1/jobs/{job.id}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["status"] == "completed"
         assert data["progress"] == 100
         assert data["result"]["file_url"] == "https://storage.test/output.step"
@@ -294,15 +297,15 @@ class TestGetJob:
             user=test_user,
             error_message="AI generation failed: invalid geometry",
         )
-        
+
         response = await client.get(
             f"/api/v1/jobs/{job.id}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["status"] == "failed"
         assert "invalid geometry" in data["error_message"]
 
@@ -310,6 +313,7 @@ class TestGetJob:
 # =============================================================================
 # Cancel Job Tests
 # =============================================================================
+
 
 class TestCancelJob:
     """Tests for job cancellation endpoint."""
@@ -329,18 +333,18 @@ class TestCancelJob:
             user=test_user,
             status="pending",
         )
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/cancel",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["id"] == str(job.id)
         assert data["status"] == "cancelled"
-        
+
         # Verify job is cancelled in DB
         await db_session.refresh(job)
         assert job.status == "cancelled"
@@ -361,12 +365,12 @@ class TestCancelJob:
             status="running",
             progress=30,
         )
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/cancel",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "cancelled"
@@ -382,12 +386,12 @@ class TestCancelJob:
     ):
         """Test that completed jobs cannot be cancelled."""
         job = await job_factory.create_completed(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/cancel",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 400
         assert "cannot be cancelled" in response.json()["detail"]
 
@@ -402,12 +406,12 @@ class TestCancelJob:
     ):
         """Test that failed jobs cannot be cancelled."""
         job = await job_factory.create_failed(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/cancel",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 400
 
     @pytest.mark.asyncio
@@ -422,7 +426,7 @@ class TestCancelJob:
             f"/api/v1/jobs/{uuid4()}/cancel",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -438,18 +442,19 @@ class TestCancelJob:
         """Test cancelling another user's job returns 404."""
         other_user = await user_factory.create(db=db_session)
         other_job = await job_factory.create(db=db_session, user=other_user)
-        
+
         response = await client.post(
             f"/api/v1/jobs/{other_job.id}/cancel",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
 
 # =============================================================================
 # Retry Job Tests
 # =============================================================================
+
 
 class TestRetryJob:
     """Tests for job retry endpoint."""
@@ -470,18 +475,18 @@ class TestRetryJob:
             retry_count=0,
             max_retries=3,
         )
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/retry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["status"] == "pending"
         assert data["progress"] == 0
-        
+
         # Verify job is reset in DB
         await db_session.refresh(job)
         assert job.status == "pending"
@@ -505,12 +510,12 @@ class TestRetryJob:
             retry_count=3,
             max_retries=3,
         )
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/retry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 400
         assert "exhausted" in response.json()["detail"]
 
@@ -525,12 +530,12 @@ class TestRetryJob:
     ):
         """Test that completed jobs cannot be retried."""
         job = await job_factory.create_completed(db=db_session, user=test_user)
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/retry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 400
         assert "only failed jobs" in response.json()["detail"]
 
@@ -545,12 +550,12 @@ class TestRetryJob:
     ):
         """Test that pending jobs cannot be retried."""
         job = await job_factory.create(db=db_session, user=test_user, status="pending")
-        
+
         response = await client.post(
             f"/api/v1/jobs/{job.id}/retry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 400
 
     @pytest.mark.asyncio
@@ -565,7 +570,7 @@ class TestRetryJob:
             f"/api/v1/jobs/{uuid4()}/retry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -581,18 +586,19 @@ class TestRetryJob:
         """Test retrying another user's job returns 404."""
         other_user = await user_factory.create(db=db_session)
         other_job = await job_factory.create_failed(db=db_session, user=other_user)
-        
+
         response = await client.post(
             f"/api/v1/jobs/{other_job.id}/retry",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 404
 
 
 # =============================================================================
 # Job Stats Tests
 # =============================================================================
+
 
 class TestJobStats:
     """Tests for job statistics endpoint."""
@@ -609,10 +615,10 @@ class TestJobStats:
             "/api/v1/jobs/stats/summary",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["total"] == 0
         assert data["pending"] == 0
         assert data["running"] == 0
@@ -636,15 +642,15 @@ class TestJobStats:
         await job_factory.create_completed(db=db_session, user=test_user)
         await job_factory.create_completed(db=db_session, user=test_user)
         await job_factory.create_failed(db=db_session, user=test_user)
-        
+
         response = await client.get(
             "/api/v1/jobs/stats/summary",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["total"] == 7
         assert data["pending"] == 2
         assert data["running"] == 1
@@ -663,17 +669,17 @@ class TestJobStats:
     ):
         """Test that stats only include user's own jobs."""
         other_user = await user_factory.create(db=db_session)
-        
+
         await job_factory.create(db=db_session, user=test_user)
         await job_factory.create(db=db_session, user=other_user)
         await job_factory.create(db=db_session, user=other_user)
-        
+
         response = await client.get(
             "/api/v1/jobs/stats/summary",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["total"] == 1

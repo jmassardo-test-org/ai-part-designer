@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable
-
 
 # =============================================================================
 # Data Structures
@@ -71,7 +69,6 @@ COMMANDS: dict[str, CommandDefinition] = {
         description="Delete the current design",
         args=0,
     ),
-
     # Export
     "export": CommandDefinition(
         name="export",
@@ -86,7 +83,6 @@ COMMANDS: dict[str, CommandDefinition] = {
         args=1,
         arg_names=["format"],
     ),
-
     # Templates
     "maketemplate": CommandDefinition(
         name="maketemplate",
@@ -94,7 +90,6 @@ COMMANDS: dict[str, CommandDefinition] = {
         args=0,
         aliases=["template"],
     ),
-
     # History
     "undo": CommandDefinition(
         name="undo",
@@ -118,7 +113,6 @@ COMMANDS: dict[str, CommandDefinition] = {
         args=1,
         arg_names=["version"],
     ),
-
     # View
     "view": CommandDefinition(
         name="view",
@@ -137,7 +131,6 @@ COMMANDS: dict[str, CommandDefinition] = {
         description="Enable measurement tool",
         args=0,
     ),
-
     # Help
     "help": CommandDefinition(
         name="help",
@@ -145,7 +138,6 @@ COMMANDS: dict[str, CommandDefinition] = {
         args=0,
         aliases=["?", "commands"],
     ),
-
     # Debug/Dev
     "debug": CommandDefinition(
         name="debug",
@@ -305,16 +297,26 @@ class CommandParser:
                 return f"Unknown command: /{command}"
 
             cmd_def = self.commands[cmd]
-            args_str = " ".join(f"<{arg}>" for arg in cmd_def.arg_names) if cmd_def.arg_names else ""
-            aliases_str = f" (aliases: {', '.join('/' + a for a in cmd_def.aliases)})" if cmd_def.aliases else ""
+            args_str = (
+                " ".join(f"<{arg}>" for arg in cmd_def.arg_names) if cmd_def.arg_names else ""
+            )
+            aliases_str = (
+                f" (aliases: {', '.join('/' + a for a in cmd_def.aliases)})"
+                if cmd_def.aliases
+                else ""
+            )
 
             return f"/{cmd} {args_str}\n{cmd_def.description}{aliases_str}"
 
         # All commands
         lines = ["**Available Commands:**", ""]
         for cmd_name, cmd_def in sorted(self.commands.items()):
-            args_str = " ".join(f"<{arg}>" for arg in cmd_def.arg_names) if cmd_def.arg_names else ""
-            lines.append(f"- `/{cmd_name}{' ' + args_str if args_str else ''}` - {cmd_def.description}")
+            args_str = (
+                " ".join(f"<{arg}>" for arg in cmd_def.arg_names) if cmd_def.arg_names else ""
+            )
+            lines.append(
+                f"- `/{cmd_name}{' ' + args_str if args_str else ''}` - {cmd_def.description}"
+            )
 
         return "\n".join(lines)
 

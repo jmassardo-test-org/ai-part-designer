@@ -4,17 +4,18 @@ Tests for organizations API endpoints.
 Tests organization CRUD, membership, and invite operations.
 """
 
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import uuid4
 
 from app.models.organization import Organization, OrganizationMember, OrganizationRole
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def test_organization(db_session: AsyncSession, test_user):
@@ -32,7 +33,7 @@ async def test_organization(db_session: AsyncSession, test_user):
         },
     )
     db_session.add(org)
-    
+
     # Add owner as member
     member = OrganizationMember(
         id=uuid4(),
@@ -43,9 +44,9 @@ async def test_organization(db_session: AsyncSession, test_user):
     db_session.add(member)
     await db_session.commit()
     await db_session.refresh(org)
-    
+
     yield org
-    
+
     # Cleanup
     try:
         await db_session.delete(member)
@@ -59,6 +60,7 @@ async def test_organization(db_session: AsyncSession, test_user):
 # List Organizations Tests
 # =============================================================================
 
+
 class TestListOrganizations:
     """Tests for GET /api/v1/organizations."""
 
@@ -67,13 +69,13 @@ class TestListOrganizations:
     ):
         """Should return list of user's organizations."""
         response = await client.get("/api/v1/organizations", headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
         # At least our test org
         assert len(data) >= 1
-        
+
         # Find our test org
         org_ids = [o["id"] for o in data]
         assert str(test_organization.id) in org_ids
@@ -87,6 +89,7 @@ class TestListOrganizations:
 # =============================================================================
 # Create Organization Tests
 # =============================================================================
+
 
 class TestCreateOrganization:
     """Tests for POST /api/v1/organizations."""
@@ -102,14 +105,14 @@ class TestCreateOrganization:
             json={
                 "name": "New Organization",
                 "slug": unique_slug,
-            }
+            },
         )
-        
+
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "New Organization"
         assert data["slug"] == unique_slug
-        
+
         # Cleanup - delete the created org
         org_id = data["id"]
         await client.delete(f"/api/v1/organizations/{org_id}", headers=auth_headers)
@@ -124,14 +127,12 @@ class TestCreateOrganization:
             json={
                 "name": "Another Org",
                 "slug": test_organization.slug,  # Same slug
-            }
+            },
         )
-        
+
         assert response.status_code in [400, 409, 422]
 
-    async def test_create_organization_invalid_slug(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_create_organization_invalid_slug(self, client: AsyncClient, auth_headers: dict):
         """Should reject invalid slug format."""
         response = await client.post(
             "/api/v1/organizations",
@@ -139,15 +140,16 @@ class TestCreateOrganization:
             json={
                 "name": "Test Org",
                 "slug": "INVALID SLUG!",  # Invalid characters
-            }
+            },
         )
-        
+
         assert response.status_code == 422
 
 
 # =============================================================================
 # Get Organization Tests
 # =============================================================================
+
 
 class TestGetOrganization:
     """Tests for GET /api/v1/organizations/{org_id}."""
@@ -157,30 +159,27 @@ class TestGetOrganization:
     ):
         """Should return organization details."""
         response = await client.get(
-            f"/api/v1/organizations/{test_organization.id}",
-            headers=auth_headers
+            f"/api/v1/organizations/{test_organization.id}", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == str(test_organization.id)
         assert data["name"] == test_organization.name
 
-    async def test_get_organization_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_get_organization_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent organization."""
         response = await client.get(
-            "/api/v1/organizations/00000000-0000-0000-0000-000000000000",
-            headers=auth_headers
+            "/api/v1/organizations/00000000-0000-0000-0000-000000000000", headers=auth_headers
         )
-        
+
         assert response.status_code == 404
 
 
 # =============================================================================
 # Update Organization Tests
 # =============================================================================
+
 
 class TestUpdateOrganization:
     """Tests for PATCH /api/v1/organizations/{org_id}."""
@@ -192,9 +191,9 @@ class TestUpdateOrganization:
         response = await client.patch(
             f"/api/v1/organizations/{test_organization.id}",
             headers=auth_headers,
-            json={"name": "Updated Org Name"}
+            json={"name": "Updated Org Name"},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Updated Org Name"
@@ -203,6 +202,7 @@ class TestUpdateOrganization:
 # =============================================================================
 # Delete Organization Tests
 # =============================================================================
+
 
 class TestDeleteOrganization:
     """Tests for DELETE /api/v1/organizations/{org_id}."""
@@ -228,29 +228,24 @@ class TestDeleteOrganization:
         )
         db_session.add(member)
         await db_session.commit()
-        
-        response = await client.delete(
-            f"/api/v1/organizations/{org.id}",
-            headers=auth_headers
-        )
-        
+
+        response = await client.delete(f"/api/v1/organizations/{org.id}", headers=auth_headers)
+
         assert response.status_code == 204
 
-    async def test_delete_organization_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_delete_organization_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent organization."""
         response = await client.delete(
-            "/api/v1/organizations/00000000-0000-0000-0000-000000000000",
-            headers=auth_headers
+            "/api/v1/organizations/00000000-0000-0000-0000-000000000000", headers=auth_headers
         )
-        
+
         assert response.status_code == 404
 
 
 # =============================================================================
 # Organization Members Tests
 # =============================================================================
+
 
 class TestOrganizationMembers:
     """Tests for organization member endpoints."""
@@ -260,10 +255,9 @@ class TestOrganizationMembers:
     ):
         """Should return list of organization members."""
         response = await client.get(
-            f"/api/v1/organizations/{test_organization.id}/members",
-            headers=auth_headers
+            f"/api/v1/organizations/{test_organization.id}/members", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)

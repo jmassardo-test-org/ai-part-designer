@@ -31,9 +31,7 @@ class ComponentSummary(BaseModel):
     id: str = Field(description="Unique component ID")
     name: str = Field(description="Display name")
     category: str = Field(description="Component category")
-    dimensions_mm: tuple[float, float, float] = Field(
-        description="Dimensions (W, D, H) in mm"
-    )
+    dimensions_mm: tuple[float, float, float] = Field(description="Dimensions (W, D, H) in mm")
 
 
 class ComponentDetail(BaseModel):
@@ -71,16 +69,13 @@ async def list_components(
     category: str | None = Query(default=None, description="Filter by category"),
 ) -> list[ComponentSummary]:
     """List all available components.
-    
+
     Optionally filter by category (board, display, input, connector).
     """
     registry = get_registry()
-    
-    if category:
-        components = registry.list_category(category)
-    else:
-        components = registry.list_all()
-    
+
+    components = registry.list_category(category) if category else registry.list_all()
+
     return [
         ComponentSummary(
             id=c.id,
@@ -99,14 +94,14 @@ async def list_components(
 async def list_categories() -> dict[str, Any]:
     """List available component categories with their component IDs."""
     registry = get_registry()
-    
+
     categories: dict[str, list[str]] = {}
     for comp in registry.list_all():
         cat_name = comp.category.value  # Get string value from enum
         if cat_name not in categories:
             categories[cat_name] = []
         categories[cat_name].append(comp.id)
-    
+
     return {"categories": categories}
 
 
@@ -120,13 +115,13 @@ async def search_components(
     limit: int = Query(default=10, ge=1, le=50, description="Max results"),
 ) -> SearchResult:
     """Search for components by name or alias.
-    
+
     Uses fuzzy matching to find similar component names.
     """
     registry = get_registry()
-    
+
     matches = registry.search(q, max_results=limit)
-    
+
     return SearchResult(
         results=[
             ComponentSummary(
@@ -149,11 +144,11 @@ async def search_components(
 )
 async def get_component(component_id: str) -> ComponentDetail:
     """Get detailed information about a specific component.
-    
+
     Includes dimensions, mounting holes, ports, and aliases.
     """
     registry = get_registry()
-    
+
     try:
         comp = registry.lookup(component_id)
     except ComponentNotFoundError as e:
@@ -161,7 +156,7 @@ async def get_component(component_id: str) -> ComponentDetail:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
-    
+
     return ComponentDetail(
         id=comp.id,
         name=comp.name,
@@ -169,13 +164,9 @@ async def get_component(component_id: str) -> ComponentDetail:
         dimensions_mm=comp.dimensions.to_tuple_mm(),
         aliases=list(comp.aliases),
         mounting_holes=[
-            {"position": (h.x, h.y), "diameter_mm": h.diameter.mm}
-            for h in comp.mounting_holes
+            {"position": (h.x, h.y), "diameter_mm": h.diameter.mm} for h in comp.mounting_holes
         ],
-        ports=[
-            {"name": p.name, "side": p.side.value}
-            for p in comp.ports
-        ],
+        ports=[{"name": p.name, "side": p.side.value} for p in comp.ports],
         description=comp.notes,
     )
 
@@ -186,12 +177,12 @@ async def get_component(component_id: str) -> ComponentDetail:
 )
 async def suggest_enclosure(component_id: str) -> dict[str, Any]:
     """Get suggested enclosure dimensions for a component.
-    
+
     Returns recommended dimensions with appropriate clearances
     for 3D printing.
     """
     registry = get_registry()
-    
+
     try:
         comp = registry.lookup(component_id)
     except ComponentNotFoundError as e:
@@ -199,9 +190,9 @@ async def suggest_enclosure(component_id: str) -> dict[str, Any]:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
-    
+
     dims = comp.dimensions
-    
+
     # Calculate suggested dimensions with clearances
     suggestion = {
         "component": {
@@ -225,16 +216,13 @@ async def suggest_enclosure(component_id: str) -> dict[str, Any]:
             "2.5mm wall thickness suitable for FDM printing",
         ],
     }
-    
+
     # Add port suggestions if component has ports
     if comp.ports:
-        port_sides = list(set(p.side.value for p in comp.ports if p.side))
+        port_sides = list({p.side.value for p in comp.ports if p.side})
         suggestion["port_cutouts"] = {
             "sides_with_ports": port_sides,
-            "ports": [
-                {"name": p.name, "side": p.side.value}
-                for p in comp.ports
-            ],
+            "ports": [{"name": p.name, "side": p.side.value} for p in comp.ports],
         }
-    
+
     return suggestion

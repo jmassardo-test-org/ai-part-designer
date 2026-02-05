@@ -7,7 +7,6 @@ identifies pages likely containing mechanical drawings.
 
 from __future__ import annotations
 
-import io
 import logging
 from dataclasses import dataclass
 from typing import BinaryIO
@@ -180,15 +179,17 @@ class PDFProcessor:
                 pix = page.get_pixmap(matrix=mat)
                 img_bytes = pix.tobytes("png")
 
-                pages.append(PDFPage(
-                    page_number=page_num,
-                    image_data=img_bytes,
-                    width=pix.width,
-                    height=pix.height,
-                    has_text=len(text.strip()) > 0,
-                    is_drawing=is_drawing,
-                    text_content=text[:1000],  # Limit stored text
-                ))
+                pages.append(
+                    PDFPage(
+                        page_number=page_num,
+                        image_data=img_bytes,
+                        width=pix.width,
+                        height=pix.height,
+                        has_text=len(text.strip()) > 0,
+                        is_drawing=is_drawing,
+                        text_content=text[:1000],  # Limit stored text
+                    )
+                )
 
             # Get metadata
             metadata = doc.metadata
@@ -293,10 +294,7 @@ class PDFProcessor:
         text_lower = text.lower()
 
         # Count keyword matches
-        matches = sum(
-            1 for kw in self.DRAWING_KEYWORDS
-            if kw in text_lower
-        )
+        matches = sum(1 for kw in self.DRAWING_KEYWORDS if kw in text_lower)
 
         # Require at least 2 keyword matches
         return matches >= 2

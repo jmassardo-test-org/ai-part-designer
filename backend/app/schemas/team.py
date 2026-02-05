@@ -4,12 +4,11 @@ Pydantic schemas for Team domain.
 Defines request/response models for team management API endpoints.
 """
 
+import re
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
-import re
 
 
 class TeamBase(BaseModel):
@@ -22,7 +21,7 @@ class TeamBase(BaseModel):
         description="Team name",
         examples=["Engineering", "Design Team"],
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None,
         max_length=500,
         description="Team description",
@@ -33,14 +32,14 @@ class TeamBase(BaseModel):
 class TeamCreate(TeamBase):
     """Schema for creating a new team."""
 
-    slug: Optional[str] = Field(
+    slug: str | None = Field(
         None,
         max_length=100,
         pattern=r"^[a-z0-9-]+$",
         description="URL-friendly team identifier (auto-generated if not provided)",
         examples=["engineering", "design-team"],
     )
-    settings: Optional[dict] = Field(
+    settings: dict | None = Field(
         default_factory=dict,
         description="Team settings (color, icon, etc.)",
         examples=[{"color": "#3B82F6", "icon": "code"}],
@@ -48,7 +47,7 @@ class TeamCreate(TeamBase):
 
     @field_validator("slug", mode="before")
     @classmethod
-    def generate_slug(cls, v: Optional[str], info) -> str:
+    def generate_slug(cls, v: str | None, info) -> str:
         """Generate slug from name if not provided."""
         if v:
             return v.lower().strip()
@@ -57,30 +56,29 @@ class TeamCreate(TeamBase):
         if name:
             # Convert name to slug format
             slug = re.sub(r"[^a-z0-9]+", "-", name.lower())
-            slug = slug.strip("-")
-            return slug
+            return slug.strip("-")
         return ""
 
 
 class TeamUpdate(BaseModel):
     """Schema for updating an existing team."""
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         None,
         min_length=1,
         max_length=100,
         description="Team name",
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None,
         max_length=500,
         description="Team description",
     )
-    settings: Optional[dict] = Field(
+    settings: dict | None = Field(
         None,
         description="Team settings (merged with existing)",
     )
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         None,
         description="Whether the team is active",
     )
@@ -92,7 +90,7 @@ class TeamMemberInfo(BaseModel):
     id: UUID
     user_id: UUID
     email: str
-    full_name: Optional[str]
+    full_name: str | None
     role: str
     joined_at: datetime
 
@@ -108,10 +106,10 @@ class TeamResponse(TeamBase):
     slug: str
     settings: dict
     is_active: bool
-    created_by_id: Optional[UUID]
+    created_by_id: UUID | None
     created_at: datetime
     updated_at: datetime
-    member_count: Optional[int] = None
+    member_count: int | None = None
 
     class Config:
         from_attributes = True
@@ -176,18 +174,18 @@ class TeamMemberBulkAdd(BaseModel):
 class TeamMemberUpdate(BaseModel):
     """Schema for updating a team member."""
 
-    role: Optional[str] = Field(
+    role: str | None = Field(
         None,
         description="New role for the member",
     )
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         None,
         description="Whether the member is active",
     )
 
     @field_validator("role")
     @classmethod
-    def validate_role(cls, v: Optional[str]) -> Optional[str]:
+    def validate_role(cls, v: str | None) -> str | None:
         """Validate role is valid if provided."""
         if v is None:
             return v
@@ -206,13 +204,13 @@ class TeamMemberResponse(BaseModel):
     role: str
     joined_at: datetime
     is_active: bool
-    added_by_id: Optional[UUID]
+    added_by_id: UUID | None
     created_at: datetime
     updated_at: datetime
 
     # User info (populated via join)
-    user_email: Optional[str] = None
-    user_full_name: Optional[str] = None
+    user_email: str | None = None
+    user_full_name: str | None = None
 
     class Config:
         from_attributes = True
@@ -248,9 +246,7 @@ class ProjectTeamAssign(BaseModel):
         """Validate permission level is valid."""
         valid_permissions = {"viewer", "editor", "admin"}
         if v.lower() not in valid_permissions:
-            raise ValueError(
-                f"Permission level must be one of: {', '.join(valid_permissions)}"
-            )
+            raise ValueError(f"Permission level must be one of: {', '.join(valid_permissions)}")
         return v.lower()
 
 
@@ -268,9 +264,7 @@ class ProjectTeamUpdate(BaseModel):
         """Validate permission level is valid."""
         valid_permissions = {"viewer", "editor", "admin"}
         if v.lower() not in valid_permissions:
-            raise ValueError(
-                f"Permission level must be one of: {', '.join(valid_permissions)}"
-            )
+            raise ValueError(f"Permission level must be one of: {', '.join(valid_permissions)}")
         return v.lower()
 
 
@@ -281,14 +275,14 @@ class ProjectTeamResponse(BaseModel):
     project_id: UUID
     team_id: UUID
     permission_level: str
-    assigned_by_id: Optional[UUID]
+    assigned_by_id: UUID | None
     assigned_at: datetime
     created_at: datetime
     updated_at: datetime
 
     # Related info
-    team_name: Optional[str] = None
-    project_name: Optional[str] = None
+    team_name: str | None = None
+    project_name: str | None = None
 
     class Config:
         from_attributes = True

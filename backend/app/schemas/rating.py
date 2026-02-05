@@ -10,7 +10,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # =============================================================================
 # Template Rating Schemas
 # =============================================================================
@@ -18,16 +17,16 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class TemplateRatingCreate(BaseModel):
     """Schema for creating/updating a template rating."""
-    
+
     rating: Annotated[int, Field(ge=1, le=5, description="Rating from 1-5 stars")]
     review: Annotated[str | None, Field(max_length=2000, default=None)]
 
 
 class TemplateRatingResponse(BaseModel):
     """Schema for template rating response."""
-    
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     template_id: UUID
     user_id: UUID
@@ -39,13 +38,13 @@ class TemplateRatingResponse(BaseModel):
 
 class TemplateRatingWithUser(TemplateRatingResponse):
     """Rating with user information."""
-    
+
     user_name: str
 
 
 class TemplateRatingSummary(BaseModel):
     """Aggregate rating summary for a template."""
-    
+
     template_id: UUID
     average_rating: float
     total_ratings: int
@@ -59,15 +58,15 @@ class TemplateRatingSummary(BaseModel):
 
 class TemplateFeedbackCreate(BaseModel):
     """Schema for creating/updating template feedback."""
-    
+
     feedback_type: Annotated[str, Field(pattern="^(thumbs_up|thumbs_down)$")]
 
 
 class TemplateFeedbackResponse(BaseModel):
     """Schema for template feedback response."""
-    
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     template_id: UUID
     user_id: UUID
@@ -77,7 +76,7 @@ class TemplateFeedbackResponse(BaseModel):
 
 class TemplateFeedbackSummary(BaseModel):
     """Aggregate feedback summary for a template."""
-    
+
     template_id: UUID
     thumbs_up: int
     thumbs_down: int
@@ -91,31 +90,31 @@ class TemplateFeedbackSummary(BaseModel):
 
 class CommentCreate(BaseModel):
     """Schema for creating a new comment."""
-    
+
     content: Annotated[str, Field(min_length=1, max_length=5000)]
     parent_id: UUID | None = None
 
 
 class CommentUpdate(BaseModel):
     """Schema for updating a comment."""
-    
+
     content: Annotated[str, Field(min_length=1, max_length=5000)]
 
 
 class CommentUserInfo(BaseModel):
     """Basic user info for comments."""
-    
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     display_name: str
 
 
 class CommentResponse(BaseModel):
     """Schema for comment response."""
-    
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     template_id: UUID
     user_id: UUID
@@ -132,13 +131,13 @@ class CommentResponse(BaseModel):
 
 class CommentThread(CommentResponse):
     """Comment with nested replies."""
-    
+
     replies: list["CommentThread"] = []
 
 
 class CommentModerationAction(BaseModel):
     """Schema for moderating a comment."""
-    
+
     action: Annotated[str, Field(pattern="^(hide|unhide|delete)$")]
     reason: Annotated[str | None, Field(max_length=255, default=None)]
 
@@ -150,25 +149,21 @@ class CommentModerationAction(BaseModel):
 
 class ReportCreate(BaseModel):
     """Schema for creating a content report."""
-    
-    target_type: Annotated[
-        str, Field(pattern="^(template|comment|design|user)$")
-    ]
+
+    target_type: Annotated[str, Field(pattern="^(template|comment|design|user)$")]
     target_id: UUID
     reason: Annotated[
         str,
-        Field(
-            pattern="^(spam|inappropriate|copyright|misleading|offensive|other)$"
-        ),
+        Field(pattern="^(spam|inappropriate|copyright|misleading|offensive|other)$"),
     ]
     description: Annotated[str | None, Field(max_length=1000, default=None)]
 
 
 class ReportResponse(BaseModel):
     """Schema for report response."""
-    
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     reporter_id: UUID
     target_type: str
@@ -181,7 +176,7 @@ class ReportResponse(BaseModel):
 
 class ReportDetailResponse(ReportResponse):
     """Report with resolution details."""
-    
+
     resolved_by_id: UUID | None
     resolved_at: datetime | None
     resolution_notes: str | None
@@ -191,19 +186,17 @@ class ReportDetailResponse(ReportResponse):
 
 class ReportResolve(BaseModel):
     """Schema for resolving a report."""
-    
+
     action: Annotated[
         str,
-        Field(
-            pattern="^(dismiss|warn|hide_content|remove_content|ban_user)$"
-        ),
+        Field(pattern="^(dismiss|warn|hide_content|remove_content|ban_user)$"),
     ]
     resolution_notes: Annotated[str | None, Field(max_length=1000, default=None)]
 
 
 class ReportListResponse(BaseModel):
     """Paginated list of reports."""
-    
+
     items: list[ReportDetailResponse]
     total: int
     page: int
@@ -218,7 +211,7 @@ class ReportListResponse(BaseModel):
 
 class BanCreate(BaseModel):
     """Schema for creating a user ban."""
-    
+
     user_id: UUID
     reason: Annotated[str, Field(min_length=10, max_length=2000)]
     is_permanent: bool = False
@@ -228,9 +221,9 @@ class BanCreate(BaseModel):
 
 class BanResponse(BaseModel):
     """Schema for ban response."""
-    
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     user_id: UUID
     reason: str
@@ -243,7 +236,7 @@ class BanResponse(BaseModel):
 
 class BanDetailResponse(BanResponse):
     """Ban with additional details."""
-    
+
     user_email: str | None = None
     user_name: str | None = None
     banned_by_name: str | None = None
@@ -254,13 +247,13 @@ class BanDetailResponse(BanResponse):
 
 class UnbanRequest(BaseModel):
     """Schema for unbanning a user."""
-    
+
     reason: Annotated[str, Field(min_length=5, max_length=1000)]
 
 
 class BanListResponse(BaseModel):
     """Paginated list of bans."""
-    
+
     items: list[BanDetailResponse]
     total: int
     page: int
@@ -275,7 +268,7 @@ class BanListResponse(BaseModel):
 
 class ModerationStats(BaseModel):
     """Moderation dashboard statistics."""
-    
+
     pending_reports: int
     reports_today: int
     reports_this_week: int
@@ -285,7 +278,7 @@ class ModerationStats(BaseModel):
 
 class ModerationQueueItem(BaseModel):
     """Item in the moderation queue."""
-    
+
     report: ReportDetailResponse
     target_preview: str | None = None  # Preview of reported content
     reporter_history: int = 0  # Number of previous reports by this user
@@ -293,7 +286,7 @@ class ModerationQueueItem(BaseModel):
 
 class ModerationQueue(BaseModel):
     """Moderation queue response."""
-    
+
     items: list[ModerationQueueItem]
     total: int
     page: int

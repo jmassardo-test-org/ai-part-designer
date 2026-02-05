@@ -13,9 +13,9 @@ No templates. No pattern matching. Just AI understanding → code.
 from __future__ import annotations
 
 import logging
-import time
 import re
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass
 from typing import Any
 
 # Import Build123d conditionally
@@ -25,27 +25,27 @@ try:
         Axis,
         Box,
         BuildPart,
-        Cylinder,
-        Sphere,
+        BuildSketch,
+        Circle,
         Cone,
+        CounterBoreHole,
+        CounterSinkHole,
+        Cylinder,
+        Hole,
         Location,
         Locations,
         Mode,
         Part,
         Plane,
+        Rectangle,
+        Sketch,
+        Sphere,
         add,
-        fillet,
         chamfer,
         export_step,
         export_stl,
         extrude,
-        Sketch,
-        BuildSketch,
-        Circle,
-        Rectangle,
-        Hole,
-        CounterBoreHole,
-        CounterSinkHole,
+        fillet,
     )
 
     BUILD123D_AVAILABLE = True
@@ -120,16 +120,16 @@ hole_diameter = 6
 with BuildPart() as bracket:
     # Horizontal leg - centered, bottom at Z=0
     Box(leg_length, width, thickness, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    
+
     # Vertical leg - attached at left side, going up
     with Locations([Location((-(leg_length - thickness) / 2, 0, (leg_length + thickness) / 2))]):
         Box(thickness, width, leg_length)
-    
+
     # Add 2 holes in horizontal leg (drilling from top, through thickness)
     with BuildPart(mode=Mode.SUBTRACT):
         with Locations([Location((-20, 0, thickness)), Location((20, 0, thickness))]):
             Cylinder(hole_diameter / 2, thickness * 2)
-    
+
     # Add 2 holes in vertical leg (drilling from left side)
     left_x = -(leg_length - thickness) / 2 - thickness / 2
     with BuildPart(mode=Mode.SUBTRACT):
@@ -147,7 +147,7 @@ result = box.part
 === CYLINDER WITH HOLE EXAMPLE ===
 with BuildPart() as part:
     Cylinder(25, 50)  # radius=25mm, height=50mm
-    
+
     # Center hole through the cylinder
     with BuildPart(mode=Mode.SUBTRACT):
         Cylinder(10, 50)  # subtract smaller cylinder for hole
@@ -161,7 +161,7 @@ wall_thickness = 3
 with BuildPart() as enclosure:
     # Outer shell
     Box(outer_width, outer_depth, outer_height, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    
+
     # Hollow out (subtract inner box, leaving bottom wall)
     with BuildPart(mode=Mode.SUBTRACT):
         with Locations([Location((0, 0, wall_thickness))]):
@@ -232,17 +232,18 @@ Include the complete code (original + modifications)."""
 # Result Data Class
 # =============================================================================
 
+
 @dataclass
 class DirectGenerationResult:
     """Result of direct AI code generation."""
-    
+
     code: str
     shape: Part | None = None
     execution_time_ms: float = 0.0
     generation_time_ms: float = 0.0
     error: str | None = None
     retry_count: int = 0
-    
+
     @property
     def is_successful(self) -> bool:
         return self.shape is not None and self.error is None
@@ -252,20 +253,21 @@ class DirectGenerationResult:
 # Code Execution
 # =============================================================================
 
+
 def sanitize_code(code: str) -> str:
     """Clean up AI-generated code for safe execution."""
     # Remove markdown code blocks
-    code = re.sub(r'^```python\s*', '', code, flags=re.MULTILINE)
-    code = re.sub(r'^```\s*$', '', code, flags=re.MULTILINE)
+    code = re.sub(r"^```python\s*", "", code, flags=re.MULTILINE)
+    code = re.sub(r"^```\s*$", "", code, flags=re.MULTILINE)
     code = code.strip()
-    
+
     # Remove import statements (we provide all Build123d symbols)
-    code = re.sub(r'^from build123d import.*$', '', code, flags=re.MULTILINE)
-    code = re.sub(r'^import build123d.*$', '', code, flags=re.MULTILINE)
+    code = re.sub(r"^from build123d import.*$", "", code, flags=re.MULTILINE)
+    code = re.sub(r"^import build123d.*$", "", code, flags=re.MULTILINE)
     # Also remove any cadquery imports in case AI still generates them
-    code = re.sub(r'^import cadquery.*$', '', code, flags=re.MULTILINE)
-    code = re.sub(r'^from cadquery import.*$', '', code, flags=re.MULTILINE)
-    
+    code = re.sub(r"^import cadquery.*$", "", code, flags=re.MULTILINE)
+    code = re.sub(r"^from cadquery import.*$", "", code, flags=re.MULTILINE)
+
     return code.strip()
 
 
@@ -273,9 +275,9 @@ def execute_build123d_code(code: str) -> Part:
     """Execute Build123d code and return the result Part."""
     if not BUILD123D_AVAILABLE:
         raise RuntimeError("Build123d is not available")
-    
+
     code = sanitize_code(code)
-    
+
     # Create execution namespace with all Build123d symbols available
     namespace = {
         # Core classes
@@ -310,20 +312,20 @@ def execute_build123d_code(code: str) -> Part:
         "export_step": export_step,
         "export_stl": export_stl,
     }
-    
+
     # Execute the code
     exec(code, namespace)
-    
+
     # Get the result
     if "result" not in namespace:
         raise ValueError("Code did not define 'result' variable")
-    
+
     result = namespace["result"]
-    
+
     # Build123d Part objects
-    if not hasattr(result, 'wrapped'):
+    if not hasattr(result, "wrapped"):
         raise ValueError(f"'result' is not a Build123d Part, got {type(result)}")
-    
+
     return result
 
 
@@ -331,55 +333,56 @@ def execute_build123d_code(code: str) -> Part:
 # Main Generation Function
 # =============================================================================
 
+
 async def generate_directly(
     description: str,
     max_retries: int = 2,
 ) -> DirectGenerationResult:
     """
     Generate Build123d code directly from natural language description.
-    
+
     This bypasses all templates and pattern matching - just AI understanding.
-    
+
     Args:
         description: Natural language description of the part
         max_retries: Number of retry attempts if code execution fails
-        
+
     Returns:
         DirectGenerationResult with generated code and shape
     """
     client = get_ai_client()
-    
+
     logger.info(f"Direct generation for: {description[:100]}...")
-    
+
     prompt = DIRECT_GENERATION_PROMPT.format(
         build123d_reference=BUILD123D_REFERENCE,
         description=description,
     )
-    
+
     messages = [
         {"role": "user", "content": prompt},
     ]
-    
+
     gen_start = time.monotonic()
     retry_count = 0
     last_error = None
-    
+
     for attempt in range(max_retries + 1):
         try:
             # Generate code
             code = await client.complete(messages, temperature=0.1)
             gen_time = (time.monotonic() - gen_start) * 1000
-            
+
             code = sanitize_code(code)
             logger.info(f"Generated code (attempt {attempt + 1}):\n{code}")
-            
+
             # Execute code
             exec_start = time.monotonic()
             shape = execute_build123d_code(code)
             exec_time = (time.monotonic() - exec_start) * 1000
-            
+
             logger.info(f"Code executed successfully in {exec_time:.1f}ms")
-            
+
             return DirectGenerationResult(
                 code=code,
                 shape=shape,
@@ -387,23 +390,25 @@ async def generate_directly(
                 generation_time_ms=gen_time,
                 retry_count=retry_count,
             )
-            
+
         except Exception as e:
             last_error = str(e)
             retry_count += 1
             logger.warning(f"Attempt {attempt + 1} failed: {e}")
-            
+
             if attempt < max_retries:
                 # Ask AI to fix the error
                 messages.append({"role": "assistant", "content": code})
-                messages.append({
-                    "role": "user",
-                    "content": f"That code produced an error: {e}\n\nPlease fix it. Output ONLY the corrected Python code.",
-                })
-    
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"That code produced an error: {e}\n\nPlease fix it. Output ONLY the corrected Python code.",
+                    }
+                )
+
     # All retries exhausted
     return DirectGenerationResult(
-        code=code if 'code' in dir() else "",
+        code=code if "code" in dir() else "",
         error=last_error,
         generation_time_ms=(time.monotonic() - gen_start) * 1000,
         retry_count=retry_count,
@@ -417,51 +422,51 @@ async def modify_directly(
 ) -> DirectGenerationResult:
     """
     Modify existing Build123d code based on user request.
-    
+
     Args:
         original_code: The original Build123d code to modify
         modification_request: What the user wants to change
         max_retries: Number of retry attempts if code execution fails
-        
+
     Returns:
         DirectGenerationResult with modified code and shape
     """
     client = get_ai_client()
-    
+
     logger.info(f"Direct modification: {modification_request}")
     logger.info(f"Original code:\n{original_code}")
-    
+
     prompt = DIRECT_MODIFICATION_PROMPT.format(
         build123d_reference=BUILD123D_REFERENCE,
         original_code=original_code,
         modification_request=modification_request,
     )
-    
+
     messages = [
         {"role": "user", "content": prompt},
     ]
-    
+
     gen_start = time.monotonic()
     retry_count = 0
     last_error = None
     code = ""
-    
+
     for attempt in range(max_retries + 1):
         try:
             # Generate code
             code = await client.complete(messages, temperature=0.1)
             gen_time = (time.monotonic() - gen_start) * 1000
-            
+
             code = sanitize_code(code)
             logger.info(f"Generated modified code (attempt {attempt + 1}):\n{code}")
-            
+
             # Execute code
             exec_start = time.monotonic()
             shape = execute_build123d_code(code)
             exec_time = (time.monotonic() - exec_start) * 1000
-            
+
             logger.info(f"Modified code executed successfully in {exec_time:.1f}ms")
-            
+
             return DirectGenerationResult(
                 code=code,
                 shape=shape,
@@ -469,20 +474,22 @@ async def modify_directly(
                 generation_time_ms=gen_time,
                 retry_count=retry_count,
             )
-            
+
         except Exception as e:
             last_error = str(e)
             retry_count += 1
             logger.warning(f"Modification attempt {attempt + 1} failed: {e}")
-            
+
             if attempt < max_retries:
                 # Ask AI to fix the error
                 messages.append({"role": "assistant", "content": code})
-                messages.append({
-                    "role": "user",
-                    "content": f"That code produced an error: {e}\n\nPlease fix it. Output ONLY the corrected Python code.",
-                })
-    
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"That code produced an error: {e}\n\nPlease fix it. Output ONLY the corrected Python code.",
+                    }
+                )
+
     # All retries exhausted
     return DirectGenerationResult(
         code=code,

@@ -12,14 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.rating import (
-    TemplateRatingCreate,
-    TemplateRatingResponse,
-    TemplateRatingSummary,
     TemplateFeedbackCreate,
     TemplateFeedbackResponse,
     TemplateFeedbackSummary,
+    TemplateRatingCreate,
+    TemplateRatingResponse,
+    TemplateRatingSummary,
 )
-from app.services.rating_service import RatingService, FeedbackService
+from app.services.rating_service import FeedbackService, RatingService
 
 router = APIRouter(prefix="/templates/{template_id}", tags=["ratings"])
 
@@ -41,14 +41,14 @@ async def rate_template(
     current_user: User = Depends(get_current_user),
 ) -> TemplateRatingResponse:
     """Create or update a rating for a template.
-    
+
     Users can rate templates 1-5 stars with an optional review.
     Each user can only have one rating per template.
     """
     service = RatingService(db)
     rating = await service.rate_template(template_id, current_user.id, data)
     await db.commit()
-    
+
     return TemplateRatingResponse.model_validate(rating)
 
 
@@ -65,7 +65,7 @@ async def get_template_ratings(
     """Get ratings for a template with pagination."""
     service = RatingService(db)
     ratings, _ = await service.get_template_ratings(template_id, limit, offset)
-    
+
     return [TemplateRatingResponse.model_validate(r) for r in ratings]
 
 
@@ -78,7 +78,7 @@ async def get_rating_summary(
     db: AsyncSession = Depends(get_db),
 ) -> TemplateRatingSummary:
     """Get rating summary for a template.
-    
+
     Returns average rating, total count, and distribution.
     """
     service = RatingService(db)
@@ -97,10 +97,10 @@ async def get_my_rating(
     """Get current user's rating for a template."""
     service = RatingService(db)
     rating = await service.get_user_rating(template_id, current_user.id)
-    
+
     if not rating:
         return None
-    
+
     return TemplateRatingResponse.model_validate(rating)
 
 
@@ -116,13 +116,13 @@ async def delete_my_rating(
     """Delete current user's rating for a template."""
     service = RatingService(db)
     deleted = await service.delete_rating(template_id, current_user.id)
-    
+
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Rating not found",
         )
-    
+
     await db.commit()
 
 
@@ -143,14 +143,14 @@ async def set_template_feedback(
     current_user: User = Depends(get_current_user),
 ) -> TemplateFeedbackResponse:
     """Set thumbs up/down feedback for a template.
-    
+
     Each user can only have one feedback per template.
     Calling again with different value updates the feedback.
     """
     service = FeedbackService(db)
     feedback = await service.set_feedback(template_id, current_user.id, data)
     await db.commit()
-    
+
     return TemplateFeedbackResponse.model_validate(feedback)
 
 
@@ -164,7 +164,7 @@ async def get_feedback_summary(
     current_user: User | None = Depends(get_current_user),
 ) -> TemplateFeedbackSummary:
     """Get feedback summary for a template.
-    
+
     Includes current user's feedback if authenticated.
     """
     service = FeedbackService(db)
@@ -184,11 +184,11 @@ async def remove_feedback(
     """Remove current user's feedback for a template."""
     service = FeedbackService(db)
     removed = await service.remove_feedback(template_id, current_user.id)
-    
+
     if not removed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Feedback not found",
         )
-    
+
     await db.commit()

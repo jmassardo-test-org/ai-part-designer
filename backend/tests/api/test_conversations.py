@@ -4,17 +4,22 @@ Tests for conversations API endpoints.
 Tests conversation CRUD and message operations.
 """
 
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import uuid4
 
-from app.models.conversation import Conversation, ConversationMessage, ConversationStatus, MessageRole, MessageType
-
+from app.models.conversation import (
+    Conversation,
+    ConversationMessage,
+    ConversationStatus,
+)
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def test_conversation(db_session: AsyncSession, test_user):
@@ -23,14 +28,16 @@ async def test_conversation(db_session: AsyncSession, test_user):
         id=uuid4(),
         user_id=test_user.id,
         title="Test Conversation",
-        status=ConversationStatus.ACTIVE.value if hasattr(ConversationStatus.ACTIVE, 'value') else "active",
+        status=ConversationStatus.ACTIVE.value
+        if hasattr(ConversationStatus.ACTIVE, "value")
+        else "active",
     )
     db_session.add(conv)
     await db_session.commit()
     await db_session.refresh(conv)
-    
+
     yield conv
-    
+
     # Cleanup
     try:
         await db_session.delete(conv)
@@ -50,7 +57,7 @@ async def test_conversation_with_messages(db_session: AsyncSession, test_user):
     )
     db_session.add(conv)
     await db_session.flush()
-    
+
     # Add messages
     messages = [
         ConversationMessage(
@@ -70,12 +77,12 @@ async def test_conversation_with_messages(db_session: AsyncSession, test_user):
     ]
     for msg in messages:
         db_session.add(msg)
-    
+
     await db_session.commit()
     await db_session.refresh(conv)
-    
+
     yield conv
-    
+
     # Cleanup
     try:
         for msg in messages:
@@ -90,6 +97,7 @@ async def test_conversation_with_messages(db_session: AsyncSession, test_user):
 # List Conversations Tests
 # =============================================================================
 
+
 class TestListConversations:
     """Tests for GET /api/v1/conversations/."""
 
@@ -98,7 +106,7 @@ class TestListConversations:
     ):
         """Should return list of user's conversations."""
         response = await client.get("/api/v1/conversations/", headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -113,25 +121,24 @@ class TestListConversations:
 # Create Conversation Tests
 # =============================================================================
 
+
 class TestCreateConversation:
     """Tests for POST /api/v1/conversations/."""
 
-    async def test_create_conversation_success(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_create_conversation_success(self, client: AsyncClient, auth_headers: dict):
         """Should create a new conversation."""
         response = await client.post(
             "/api/v1/conversations/",
             headers=auth_headers,
-            json={}  # Empty body - minimal creation
+            json={},  # Empty body - minimal creation
         )
-        
+
         # Could be 201 or 200
         assert response.status_code in [200, 201]
         data = response.json()
         assert "id" in data
         assert "status" in data
-        
+
         # Cleanup - delete the conversation
         conv_id = data["id"]
         await client.delete(f"/api/v1/conversations/{conv_id}", headers=auth_headers)
@@ -141,6 +148,7 @@ class TestCreateConversation:
 # Get Conversation Tests
 # =============================================================================
 
+
 class TestGetConversation:
     """Tests for GET /api/v1/conversations/{conversation_id}."""
 
@@ -149,23 +157,19 @@ class TestGetConversation:
     ):
         """Should return conversation details."""
         response = await client.get(
-            f"/api/v1/conversations/{test_conversation.id}",
-            headers=auth_headers
+            f"/api/v1/conversations/{test_conversation.id}", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == str(test_conversation.id)
 
-    async def test_get_conversation_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_get_conversation_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent conversation."""
         response = await client.get(
-            "/api/v1/conversations/00000000-0000-0000-0000-000000000000",
-            headers=auth_headers
+            "/api/v1/conversations/00000000-0000-0000-0000-000000000000", headers=auth_headers
         )
-        
+
         assert response.status_code == 404
 
     async def test_get_conversation_with_messages(
@@ -173,10 +177,9 @@ class TestGetConversation:
     ):
         """Should return conversation with its messages."""
         response = await client.get(
-            f"/api/v1/conversations/{test_conversation_with_messages.id}",
-            headers=auth_headers
+            f"/api/v1/conversations/{test_conversation_with_messages.id}", headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "messages" in data
@@ -186,6 +189,7 @@ class TestGetConversation:
 # =============================================================================
 # Delete Conversation Tests
 # =============================================================================
+
 
 class TestDeleteConversation:
     """Tests for DELETE /api/v1/conversations/{conversation_id}."""
@@ -203,23 +207,17 @@ class TestDeleteConversation:
         )
         db_session.add(conv)
         await db_session.commit()
-        
-        response = await client.delete(
-            f"/api/v1/conversations/{conv.id}",
-            headers=auth_headers
-        )
-        
+
+        response = await client.delete(f"/api/v1/conversations/{conv.id}", headers=auth_headers)
+
         assert response.status_code == 204
 
-    async def test_delete_conversation_not_found(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_delete_conversation_not_found(self, client: AsyncClient, auth_headers: dict):
         """Should return 404 for non-existent conversation."""
         response = await client.delete(
-            "/api/v1/conversations/00000000-0000-0000-0000-000000000000",
-            headers=auth_headers
+            "/api/v1/conversations/00000000-0000-0000-0000-000000000000", headers=auth_headers
         )
-        
+
         assert response.status_code == 404
 
 
@@ -227,77 +225,80 @@ class TestDeleteConversation:
 # Modification Detection Helper Tests
 # =============================================================================
 
+
 class TestModificationDetection:
     """Tests for the modification detection helper functions."""
 
     def test_is_modification_request_add(self):
         """Test that 'add a hole' is detected as modification."""
         from app.api.v1.conversations import _is_modification_request
-        
+
         assert _is_modification_request("add a 10mm hole in the center")
         assert _is_modification_request("add holes to the corners")
         assert _is_modification_request("Add a fillet")
-    
+
     def test_is_modification_request_remove(self):
         """Test that 'remove' requests are detected as modifications."""
         from app.api.v1.conversations import _is_modification_request
-        
+
         assert _is_modification_request("remove the hole")
         assert _is_modification_request("delete the fillet")
-    
+
     def test_is_modification_request_resize(self):
         """Test that resize requests are detected as modifications."""
         from app.api.v1.conversations import _is_modification_request
-        
+
         assert _is_modification_request("make it taller")
         assert _is_modification_request("make it wider")
         assert _is_modification_request("increase the height")
         assert _is_modification_request("decrease the width")
-    
+
     def test_is_modification_request_change(self):
         """Test that 'change' and 'modify' are detected as modifications."""
         from app.api.v1.conversations import _is_modification_request
-        
+
         assert _is_modification_request("change the diameter to 20mm")
         assert _is_modification_request("modify the dimensions")
-    
+
     def test_is_modification_request_additional(self):
         """Test that 'additional' and 'another' are detected as modifications."""
         from app.api.v1.conversations import _is_modification_request
-        
+
         assert _is_modification_request("add another cube")
         assert _is_modification_request("add an additional hole")
-    
+
     def test_is_not_modification_request_new_part(self):
         """Test that new part descriptions are NOT detected as modifications."""
         from app.api.v1.conversations import _is_modification_request
-        
+
         assert not _is_modification_request("Create a box 100mm long")
         assert not _is_modification_request("I need a cylinder")
         assert not _is_modification_request("Design a bracket")
-        assert not _is_modification_request("Make a 50mm cube")  # "Make a" is different from "make it"
-    
+        assert not _is_modification_request(
+            "Make a 50mm cube"
+        )  # "Make a" is different from "make it"
+
     def test_get_original_description(self):
         """Test extraction of original description from understanding."""
-        from app.api.v1.conversations import _get_original_description
         from app.ai.iterative_reasoning import PartUnderstanding
-        
+        from app.api.v1.conversations import _get_original_description
+
         understanding = PartUnderstanding()
         understanding.user_messages = [
             "Create a box 100mm long, 50mm wide, 30mm tall",
             "add a 10mm hole",
             "make it taller",
         ]
-        
+
         original = _get_original_description(understanding)
         assert "Create a box" in original
         assert "add a 10mm hole" not in original
-    
+
     def test_get_original_description_empty(self):
         """Test that empty understanding returns empty string."""
-        from app.api.v1.conversations import _get_original_description
         from app.ai.iterative_reasoning import PartUnderstanding
-        
+        from app.api.v1.conversations import _get_original_description
+
         understanding = PartUnderstanding()
         original = _get_original_description(understanding)
         assert original == ""
@@ -305,17 +306,17 @@ class TestModificationDetection:
 
 class TestUnderstandingToIntent:
     """Tests for _understanding_to_intent helper function."""
-    
+
     def test_understanding_to_intent_cylinder(self):
         """Test that cylinder understanding is correctly converted to intent."""
-        from app.api.v1.conversations import _understanding_to_intent
         from app.ai.iterative_reasoning import (
-            PartUnderstanding,
-            PartClassification,
             ExtractedDimension,
             ExtractedFeature,
+            PartClassification,
+            PartUnderstanding,
         )
-        
+        from app.api.v1.conversations import _understanding_to_intent
+
         understanding = PartUnderstanding()
         understanding.classification = PartClassification(
             category="cylinder",
@@ -336,25 +337,25 @@ class TestUnderstandingToIntent:
                 count=1,
             )
         ]
-        
+
         intent = _understanding_to_intent(understanding)
-        
+
         assert intent.part_type == "cylinder"
         assert intent.overall_dimensions["diameter"] == 50.8
         assert intent.overall_dimensions["height"] == 101.6
         assert len(intent.features) == 1
         assert intent.features[0]["type"] == "hole"
         assert intent.confidence == 0.95
-    
+
     def test_understanding_to_intent_bracket(self):
         """Test that bracket understanding is correctly converted to intent."""
-        from app.api.v1.conversations import _understanding_to_intent
         from app.ai.iterative_reasoning import (
-            PartUnderstanding,
-            PartClassification,
             ExtractedDimension,
+            PartClassification,
+            PartUnderstanding,
         )
-        
+        from app.api.v1.conversations import _understanding_to_intent
+
         understanding = PartUnderstanding()
         understanding.classification = PartClassification(
             category="bracket",
@@ -365,40 +366,40 @@ class TestUnderstandingToIntent:
             "flange_length": ExtractedDimension(name="flange_length", value=50, unit="mm"),
             "thickness": ExtractedDimension(name="thickness", value=3, unit="mm"),
         }
-        
+
         intent = _understanding_to_intent(understanding)
-        
+
         assert intent.part_type == "bracket"
         assert intent.primary_function == "L-bracket"
         assert intent.overall_dimensions["flange_length"] == 50
         assert intent.overall_dimensions["thickness"] == 3
         assert intent.material_thickness == 3
-    
+
     def test_understanding_to_intent_with_assumptions(self):
         """Test that assumptions are preserved in intent conversion."""
+        from app.ai.iterative_reasoning import PartClassification, PartUnderstanding
         from app.api.v1.conversations import _understanding_to_intent
-        from app.ai.iterative_reasoning import PartUnderstanding, PartClassification
-        
+
         understanding = PartUnderstanding()
         understanding.classification = PartClassification(category="box", confidence=0.8)
         understanding.assumptions = ["Using default wall thickness of 3mm"]
         understanding.ambiguities = ["Hole diameter not specified"]
-        
+
         intent = _understanding_to_intent(understanding)
-        
+
         assert "Using default wall thickness of 3mm" in intent.assumptions_made
         assert "Hole diameter not specified" in intent.clarifications_needed
-    
+
     def test_understanding_to_intent_no_classification(self):
         """Test handling when classification is missing."""
-        from app.api.v1.conversations import _understanding_to_intent
         from app.ai.iterative_reasoning import PartUnderstanding
-        
+        from app.api.v1.conversations import _understanding_to_intent
+
         understanding = PartUnderstanding()
         understanding.classification = None
-        
+
         intent = _understanding_to_intent(understanding)
-        
+
         assert intent.part_type == "custom"
         assert intent.confidence == 0.5
 
@@ -407,15 +408,17 @@ class TestUnderstandingToIntent:
 # SendMessageResponse Schema Tests
 # =============================================================================
 
+
 class TestSendMessageResponseSchema:
     """Tests for SendMessageResponse schema with additional_messages field."""
 
     def test_send_message_response_includes_additional_messages_field(self):
         """Verify SendMessageResponse has additional_messages field with correct default."""
-        from app.api.v1.conversations import SendMessageResponse, MessageResponse
         from datetime import datetime
         from uuid import uuid4
-        
+
+        from app.api.v1.conversations import MessageResponse, SendMessageResponse
+
         user_msg = MessageResponse(
             id=uuid4(),
             role="user",
@@ -430,22 +433,23 @@ class TestSendMessageResponseSchema:
             content="Part generated",
             created_at=datetime.utcnow(),
         )
-        
+
         # Without additional_messages
         response = SendMessageResponse(
             user_message=user_msg,
             assistant_message=assistant_msg,
             conversation_status="completed",
         )
-        
+
         assert response.additional_messages == []
 
     def test_send_message_response_with_additional_messages(self):
         """Verify additional_messages can be populated correctly."""
-        from app.api.v1.conversations import SendMessageResponse, MessageResponse
         from datetime import datetime
         from uuid import uuid4
-        
+
+        from app.api.v1.conversations import MessageResponse, SendMessageResponse
+
         user_msg = MessageResponse(
             id=uuid4(),
             role="user",
@@ -467,7 +471,7 @@ class TestSendMessageResponseSchema:
             content="Part generated",
             created_at=datetime.utcnow(),
         )
-        
+
         response = SendMessageResponse(
             user_message=user_msg,
             assistant_message=assistant_msg,
@@ -476,7 +480,7 @@ class TestSendMessageResponseSchema:
             ready_to_generate=True,
             result={"status": "completed"},
         )
-        
+
         assert len(response.additional_messages) == 1
         assert response.additional_messages[0].message_type == "confirmation"
         assert "Here's what I understand" in response.additional_messages[0].content

@@ -11,20 +11,22 @@ import io
 import logging
 import secrets
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING
 
 import pyotp
 import qrcode
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
-from app.core.config import get_settings, Settings
+from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password
-from app.models import User
-from app.repositories import UserRepository
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +51,7 @@ class MFAVerifyRequest(BaseModel):
     """MFA verification request."""
 
     code: str = Field(
-        min_length=6,
-        max_length=8,
-        description="6-digit TOTP code or 8-character backup code"
+        min_length=6, max_length=8, description="6-digit TOTP code or 8-character backup code"
     )
 
 
@@ -73,11 +73,7 @@ class MFADisableRequest(BaseModel):
     """Request to disable MFA."""
 
     password: str = Field(description="Current password for confirmation")
-    code: str = Field(
-        min_length=6,
-        max_length=8,
-        description="Current TOTP code or backup code"
-    )
+    code: str = Field(min_length=6, max_length=8, description="Current TOTP code or backup code")
 
 
 class MFAStatusResponse(BaseModel):
@@ -127,13 +123,13 @@ def generate_qr_code_base64(provisioning_uri: str) -> str:
     )
     qr.add_data(provisioning_uri)
     qr.make(fit=True)
-    
+
     img = qr.make_image(fill_color="black", back_color="white")
-    
+
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
-    
+
     return base64.b64encode(buffer.read()).decode("utf-8")
 
 
@@ -169,7 +165,7 @@ def verify_totp_code(secret: str, code: str) -> bool:
 def verify_backup_code(stored_codes: list[dict], provided_code: str) -> tuple[bool, int | None]:
     """
     Verify a backup code and return (is_valid, code_index).
-    
+
     Returns the index of the matched code if valid, so it can be marked as used.
     """
     for i, code_entry in enumerate(stored_codes):
@@ -215,7 +211,7 @@ async def setup_mfa(
 ) -> MFASetupResponse:
     """
     Initialize MFA setup.
-    
+
     Generates a new TOTP secret and QR code. The user must verify with
     a code before MFA is actually enabled.
     """
@@ -224,10 +220,10 @@ async def setup_mfa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is already enabled. Disable it first to set up again.",
         )
-    
+
     # Generate new secret
     secret = generate_totp_secret()
-    
+
     # Generate provisioning URI and QR code
     provisioning_uri = generate_provisioning_uri(
         secret=secret,
@@ -235,18 +231,18 @@ async def setup_mfa(
         issuer=settings.APP_NAME,
     )
     qr_code = generate_qr_code_base64(provisioning_uri)
-    
+
     # Generate backup codes
     backup_codes = generate_backup_codes(10)
     hashed_codes = hash_backup_codes(backup_codes)
-    
+
     # Store secret and backup codes (not enabled yet)
     current_user.mfa_secret = secret
     current_user.mfa_backup_codes = hashed_codes
     await db.commit()
-    
+
     logger.info(f"MFA setup initiated for user {current_user.id}")
-    
+
     return MFASetupResponse(
         secret=secret,
         qr_code=qr_code,
@@ -268,7 +264,7 @@ async def enable_mfa(
 ) -> MessageResponse:
     """
     Enable MFA after setup.
-    
+
     Requires verification with a valid TOTP code to confirm the user
     has successfully configured their authenticator app.
     """
@@ -277,27 +273,27 @@ async def enable_mfa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is already enabled.",
         )
-    
+
     if not current_user.mfa_secret:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA setup not initiated. Call /mfa/setup first.",
         )
-    
+
     # Verify the code
     if not verify_totp_code(current_user.mfa_secret, request.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code. Please try again.",
         )
-    
+
     # Enable MFA
     current_user.mfa_enabled = True
     current_user.mfa_enabled_at = datetime.utcnow()
     await db.commit()
-    
+
     logger.info(f"MFA enabled for user {current_user.id}")
-    
+
     return MessageResponse(message="MFA has been successfully enabled.")
 
 
@@ -314,7 +310,7 @@ async def disable_mfa(
 ) -> MessageResponse:
     """
     Disable MFA.
-    
+
     Requires both password and a valid TOTP code or backup code
     for security verification.
     """
@@ -323,43 +319,40 @@ async def disable_mfa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is not enabled.",
         )
-    
+
     # Verify password
     if not verify_password(request.password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid password.",
         )
-    
+
     # Verify TOTP code or backup code
     code_valid = False
-    
+
     # Try TOTP first
     if len(request.code) == 6 and request.code.isdigit():
         code_valid = verify_totp_code(current_user.mfa_secret, request.code)
-    
+
     # Try backup code
     if not code_valid and current_user.mfa_backup_codes:
-        code_valid, _ = verify_backup_code(
-            current_user.mfa_backup_codes,
-            request.code
-        )
-    
+        code_valid, _ = verify_backup_code(current_user.mfa_backup_codes, request.code)
+
     if not code_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code.",
         )
-    
+
     # Disable MFA
     current_user.mfa_enabled = False
     current_user.mfa_secret = None
     current_user.mfa_backup_codes = None
     current_user.mfa_enabled_at = None
     await db.commit()
-    
+
     logger.info(f"MFA disabled for user {current_user.id}")
-    
+
     return MessageResponse(message="MFA has been successfully disabled.")
 
 
@@ -381,7 +374,7 @@ async def verify_mfa(
 ) -> MFAVerifyResponse:
     """
     Verify an MFA code.
-    
+
     Can be used to verify either a 6-digit TOTP code or an 8-character
     backup code. Backup codes are single-use.
     """
@@ -390,47 +383,41 @@ async def verify_mfa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is not enabled for this account.",
         )
-    
+
     code = request.code.strip()
-    backup_code_used = False
-    
+
     # Try TOTP verification first (6 digits)
-    if len(code) == 6 and code.isdigit():
-        if verify_totp_code(current_user.mfa_secret, code):
-            return MFAVerifyResponse(
-                verified=True,
-                message="Code verified successfully.",
-                backup_code_used=False,
-            )
-    
+    if len(code) == 6 and code.isdigit() and verify_totp_code(current_user.mfa_secret, code):
+        return MFAVerifyResponse(
+            verified=True,
+            message="Code verified successfully.",
+            backup_code_used=False,
+        )
+
     # Try backup code verification
     if current_user.mfa_backup_codes:
-        is_valid, code_index = verify_backup_code(
-            current_user.mfa_backup_codes,
-            code
-        )
-        
+        is_valid, code_index = verify_backup_code(current_user.mfa_backup_codes, code)
+
         if is_valid and code_index is not None:
             # Mark backup code as used
             current_user.mfa_backup_codes[code_index]["used"] = True
             current_user.mfa_backup_codes[code_index]["used_at"] = datetime.utcnow().isoformat()
             await db.commit()
-            
+
             remaining = current_user.mfa_backup_codes_remaining
             logger.info(
-                f"Backup code used for user {current_user.id}. "
-                f"{remaining} codes remaining."
+                f"Backup code used for user {current_user.id}. {remaining} codes remaining."
             )
-            
+
             return MFAVerifyResponse(
                 verified=True,
                 message=f"Backup code verified. {remaining} backup codes remaining.",
                 backup_code_used=True,
             )
-    
+
     # Invalid code
     logger.warning(f"Failed MFA verification attempt for user {current_user.id}")
-    
+
     return MFAVerifyResponse(
         verified=False,
         message="Invalid verification code.",
@@ -456,7 +443,7 @@ async def regenerate_backup_codes(
 ) -> BackupCodesResponse:
     """
     Regenerate backup codes.
-    
+
     Requires verification with a TOTP code. Old backup codes are
     invalidated when new ones are generated.
     """
@@ -465,23 +452,23 @@ async def regenerate_backup_codes(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is not enabled.",
         )
-    
+
     # Verify TOTP code
     if not verify_totp_code(current_user.mfa_secret, request.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code.",
         )
-    
+
     # Generate new backup codes
     backup_codes = generate_backup_codes(10)
     hashed_codes = hash_backup_codes(backup_codes)
-    
+
     current_user.mfa_backup_codes = hashed_codes
     await db.commit()
-    
+
     logger.info(f"Backup codes regenerated for user {current_user.id}")
-    
+
     return BackupCodesResponse(
         backup_codes=backup_codes,
         generated_at=datetime.utcnow(),
@@ -500,10 +487,10 @@ async def get_backup_codes_count(
     """Get count of remaining backup codes."""
     if not current_user.mfa_enabled:
         return {"remaining": 0, "total": 0}
-    
+
     total = len(current_user.mfa_backup_codes) if current_user.mfa_backup_codes else 0
     remaining = current_user.mfa_backup_codes_remaining
-    
+
     return {
         "remaining": remaining,
         "total": total,

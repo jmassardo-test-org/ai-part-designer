@@ -3,10 +3,13 @@
 Compiles EnclosureSpec schemas into Build123d geometry.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app.cad_v2.schemas.base import Dimension
 from app.cad_v2.schemas.enclosure import EnclosureSpec, LidType, VentilationSpec, WallSide
+
+if TYPE_CHECKING:
+    from app.cad_v2.compiler.engine import CompilationResult
+    from app.cad_v2.compiler.mounts import MountCompiler
 
 # Import Build123d conditionally to allow testing without it
 try:
@@ -20,9 +23,9 @@ try:
         Mode,
         Part,
         add,
-        fillet,
         export_step,
         export_stl,
+        fillet,
     )
 
     BUILD123D_AVAILABLE = True
@@ -117,7 +120,7 @@ class EnclosureCompiler:
 
     def _compile_body(self, spec: EnclosureSpec) -> Part:
         """Compile the main enclosure body.
-        
+
         Creates a hollow box with specified wall thickness.
         The body is aligned with bottom at Z=0.
         """
@@ -127,8 +130,8 @@ class EnclosureCompiler:
         with BuildPart() as body:
             # Create outer box aligned to bottom at Z=0
             Box(
-                ext.width.mm, 
-                ext.depth.mm, 
+                ext.width.mm,
+                ext.depth.mm,
                 ext.height.mm,
                 align=(Align.CENTER, Align.CENTER, Align.MIN),
             )
@@ -149,8 +152,8 @@ class EnclosureCompiler:
             with BuildPart(mode=Mode.SUBTRACT):
                 # Inner box sits on top of bottom wall
                 Box(
-                    inner_width, 
-                    inner_depth, 
+                    inner_width,
+                    inner_depth,
                     inner_height,
                     align=(Align.CENTER, Align.CENTER, Align.MIN),
                 )
@@ -159,7 +162,7 @@ class EnclosureCompiler:
 
     def _compile_lid(self, spec: EnclosureSpec) -> Part:
         """Compile the enclosure lid.
-        
+
         Creates a flat lid plate, optionally with snap-fit lip.
         """
         ext = spec.exterior
@@ -172,8 +175,8 @@ class EnclosureCompiler:
         with BuildPart() as lid:
             # Basic lid is just a flat plate
             Box(
-                ext.width.mm, 
-                ext.depth.mm, 
+                ext.width.mm,
+                ext.depth.mm,
                 wall,
                 align=(Align.CENTER, Align.CENTER, Align.MIN),
             )
@@ -356,7 +359,6 @@ class EnclosureCompiler:
         spacing = vent.slot_spacing.mm
 
         width_mm = ext.width.mm
-        depth_mm = ext.depth.mm
         height_mm = ext.height.mm
 
         # Calculate slot positions based on wall
@@ -454,5 +456,3 @@ class _PlaceholderPart:
 
 
 # Import at end to avoid circular import
-from app.cad_v2.compiler.engine import CompilationResult  # noqa: E402, F811
-from app.cad_v2.compiler.mounts import MountCompiler  # noqa: E402, F811

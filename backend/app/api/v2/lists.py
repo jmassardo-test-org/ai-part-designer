@@ -7,12 +7,11 @@ Allows users to create and manage lists for organizing saved designs.
 from __future__ import annotations
 
 import logging
-from uuid import UUID
+from datetime import UTC
+from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
@@ -21,6 +20,7 @@ from app.models.marketplace import DesignList, DesignListItem
 from app.models.user import User
 from app.schemas.marketplace import (
     AddToListRequest,
+    DesignSummaryResponse,
     ListCreate,
     ListItemResponse,
     ListItemWithDesign,
@@ -29,8 +29,12 @@ from app.schemas.marketplace import (
     ListWithItems,
     ReorderRequest,
     UpdateListItemRequest,
-    DesignSummaryResponse,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +61,13 @@ async def get_user_list(
     )
     result = await db.execute(query)
     list_obj = result.scalar_one_or_none()
-    
+
     if not list_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="List not found",
         )
-    
+
     return list_obj
 
 
@@ -95,7 +99,7 @@ async def get_my_lists(
 ) -> list[ListResponse]:
     """
     Get all lists for the current user.
-    
+
     Returns lists sorted by position.
     """
     query = (
@@ -109,10 +113,10 @@ async def get_my_lists(
         .group_by(DesignList.id)
         .order_by(DesignList.position)
     )
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     return [_list_to_response(row.DesignList, row.item_count) for row in rows]
 
 
@@ -134,7 +138,7 @@ async def create_list(
     )
     result = await db.execute(max_pos_query)
     max_pos = result.scalar() or 0
-    
+
     list_obj = DesignList(
         user_id=current_user.id,
         name=request.name,
@@ -144,13 +148,13 @@ async def create_list(
         is_public=request.is_public,
         position=max_pos + 1,
     )
-    
+
     db.add(list_obj)
     await db.commit()
     await db.refresh(list_obj)
-    
+
     logger.info(f"Created list '{request.name}' for user {current_user.id}")
-    
+
     return _list_to_response(list_obj, 0)
 
 
@@ -164,7 +168,7 @@ async def get_list(
     Get a list with all its items.
     """
     list_obj = await get_user_list(list_id, current_user.id, db)
-    
+
     # Get items with design info
     items_query = (
         select(DesignListItem, Design.name, Design.thumbnail_url)
@@ -172,10 +176,10 @@ async def get_list(
         .where(DesignListItem.list_id == list_id)
         .order_by(DesignListItem.position)
     )
-    
+
     result = await db.execute(items_query)
     rows = result.all()
-    
+
     items = [
         ListItemResponse(
             id=row.DesignListItem.id,
@@ -189,7 +193,7 @@ async def get_list(
         )
         for row in rows
     ]
-    
+
     return ListWithItems(
         id=list_obj.id,
         name=list_obj.name,
@@ -216,7 +220,7 @@ async def update_list(
     Update a list's name, description, color, etc.
     """
     list_obj = await get_user_list(list_id, current_user.id, db)
-    
+
     # Update fields if provided
     if request.name is not None:
         list_obj.name = request.name
@@ -230,19 +234,17 @@ async def update_list(
         list_obj.is_public = request.is_public
     if request.position is not None:
         list_obj.position = request.position
-    
+
     await db.commit()
     await db.refresh(list_obj)
-    
+
     # Get item count
-    count_query = select(func.count(DesignListItem.id)).where(
-        DesignListItem.list_id == list_id
-    )
+    count_query = select(func.count(DesignListItem.id)).where(DesignListItem.list_id == list_id)
     result = await db.execute(count_query)
     item_count = result.scalar() or 0
-    
+
     logger.info(f"Updated list {list_id} for user {current_user.id}")
-    
+
     return _list_to_response(list_obj, item_count)
 
 
@@ -254,22 +256,21 @@ async def delete_list(
 ) -> None:
     """
     Delete a list.
-    
+
     The designs themselves are not deleted, only removed from the list.
     """
     list_obj = await get_user_list(list_id, current_user.id, db)
-    
+
     # Soft delete the list
-    from datetime import datetime, timezone
-    list_obj.deleted_at = datetime.now(timezone.utc)
-    
+    from datetime import datetime
+
+    list_obj.deleted_at = datetime.now(UTC)
+
     # Also delete all items (they'll cascade but let's be explicit)
-    await db.execute(
-        delete(DesignListItem).where(DesignListItem.list_id == list_id)
-    )
-    
+    await db.execute(delete(DesignListItem).where(DesignListItem.list_id == list_id))
+
     await db.commit()
-    
+
     logger.info(f"Deleted list {list_id} for user {current_user.id}")
 
 
@@ -289,7 +290,7 @@ async def get_list_items(
     """
     # Verify ownership
     await get_user_list(list_id, current_user.id, db)
-    
+
     query = (
         select(DesignListItem, Design, User.display_name.label("author_name"))
         .join(Design, DesignListItem.design_id == Design.id)
@@ -297,10 +298,10 @@ async def get_list_items(
         .where(DesignListItem.list_id == list_id)
         .order_by(DesignListItem.position)
     )
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     return [
         ListItemWithDesign(
             id=row.DesignListItem.id,
@@ -331,7 +332,9 @@ async def get_list_items(
     ]
 
 
-@router.post("/{list_id}/items", response_model=ListItemResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{list_id}/items", response_model=ListItemResponse, status_code=status.HTTP_201_CREATED
+)
 async def add_to_list(
     list_id: UUID,
     request: AddToListRequest,
@@ -343,7 +346,7 @@ async def add_to_list(
     """
     # Verify list ownership
     await get_user_list(list_id, current_user.id, db)
-    
+
     # Verify design exists and is accessible
     design_query = select(Design).where(
         and_(
@@ -353,20 +356,20 @@ async def add_to_list(
     )
     result = await db.execute(design_query)
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     # Check if design is public or owned by user
     if not design.is_public and design.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot add private design to list",
         )
-    
+
     # Check for duplicate
     existing_query = select(DesignListItem).where(
         and_(
@@ -380,14 +383,14 @@ async def add_to_list(
             status_code=status.HTTP_409_CONFLICT,
             detail="Design is already in this list",
         )
-    
+
     # Get max position
     max_pos_query = select(func.max(DesignListItem.position)).where(
         DesignListItem.list_id == list_id
     )
     result = await db.execute(max_pos_query)
     max_pos = result.scalar() or 0
-    
+
     # Create item
     item = DesignListItem(
         list_id=list_id,
@@ -395,13 +398,13 @@ async def add_to_list(
         note=request.note,
         position=max_pos + 1,
     )
-    
+
     db.add(item)
     await db.commit()
     await db.refresh(item)
-    
+
     logger.info(f"Added design {request.design_id} to list {list_id}")
-    
+
     return ListItemResponse(
         id=item.id,
         list_id=item.list_id,
@@ -427,7 +430,7 @@ async def update_list_item(
     """
     # Verify list ownership
     await get_user_list(list_id, current_user.id, db)
-    
+
     # Get item
     query = (
         select(DesignListItem, Design.name, Design.thumbnail_url)
@@ -441,22 +444,22 @@ async def update_list_item(
     )
     result = await db.execute(query)
     row = result.first()
-    
+
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found in list",
         )
-    
+
     item = row.DesignListItem
-    
+
     # Update note
     if request.note is not None:
         item.note = request.note
-    
+
     await db.commit()
     await db.refresh(item)
-    
+
     return ListItemResponse(
         id=item.id,
         list_id=item.list_id,
@@ -481,7 +484,7 @@ async def remove_from_list(
     """
     # Verify list ownership
     await get_user_list(list_id, current_user.id, db)
-    
+
     # Delete the item
     result = await db.execute(
         delete(DesignListItem).where(
@@ -491,15 +494,15 @@ async def remove_from_list(
             )
         )
     )
-    
+
     if result.rowcount == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found in list",
         )
-    
+
     await db.commit()
-    
+
     logger.info(f"Removed design {design_id} from list {list_id}")
 
 
@@ -512,12 +515,12 @@ async def reorder_list_items(
 ) -> None:
     """
     Reorder items in a list.
-    
+
     Provide the item IDs in the desired order.
     """
     # Verify list ownership
     await get_user_list(list_id, current_user.id, db)
-    
+
     # Update positions
     for position, item_id in enumerate(request.item_ids):
         await db.execute(
@@ -530,7 +533,7 @@ async def reorder_list_items(
             )
             .values(position=position)
         )
-    
+
     await db.commit()
-    
+
     logger.info(f"Reordered items in list {list_id}")

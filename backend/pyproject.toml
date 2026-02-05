@@ -108,7 +108,7 @@ filterwarnings = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 src = ["app", "tests"]
 
@@ -141,17 +141,50 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # function call in argument defaults (FastAPI Depends)
     "B904",   # raise without from inside except
+    # Temporarily ignored until codebase migrated to timezone-aware datetimes
+    "DTZ003", # datetime.utcnow() - to be replaced with datetime.now(tz=UTC)
+    "DTZ001", # datetime() without tzinfo
+    "DTZ004", # utcfromtimestamp
+    "DTZ005", # datetime.now() without tzinfo
+    "DTZ006", # fromtimestamp without tz
+    "DTZ901", # datetime.min/max without tz
+    # Temporarily ignored - requires substantial refactoring
+    "ARG001", # unused function argument
+    "ARG002", # unused method argument
+    "ERA001", # commented-out code
+    "SIM117", # multiple with statements - sometimes more readable separate
+    "E402",   # imports not at top - sometimes needed for path manipulation
+    "RUF012", # mutable class defaults - need ClassVar annotation
+    # Pathlib migration - to be done incrementally
+    "PTH103", # os.makedirs -> Path.mkdir
+    "PTH108", # os.unlink -> Path.unlink
+    "PTH118", # os.path.join -> Path /
+    "PTH123", # open() -> Path.open()
+    # Style preferences - will address incrementally
+    "SIM102", # collapsible if - sometimes clearer as nested
+    "SIM105", # contextlib.suppress - try/except is more explicit
+    "SIM401", # dict.get vs if/else - sometimes if/else is clearer
+    "UP007",  # Union vs | - keep for compatibility with older typing
+    "UP046",  # Generic class syntax - PEP 695 is new
+    "RUF001", # ambiguous unicode - intentional multiplication sign ×
+    "N802",   # uppercase function name - used for settings properties
+    "N806",   # uppercase variable - used for constants in functions
+    "N811",   # constant imported as non-constant - intentional aliasing
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ARG001", "S101"]
+"tests/*" = ["ARG001", "ARG002", "S101", "PT011", "PT017", "B017", "DTZ003"]
 "alembic/*" = ["ERA001"]
+# Files that check library availability via try/import/except pattern
+"app/api/v1/extraction.py" = ["F401"]
+"app/cad_v2/compiler/*.py" = ["F401"]
+"app/services/cad_extractor.py" = ["F401"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_ignores = true
 disallow_untyped_defs = true

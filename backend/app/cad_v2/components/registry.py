@@ -6,20 +6,11 @@ exact match, alias match, or fuzzy matching.
 """
 
 from difflib import SequenceMatcher
-from typing import TYPE_CHECKING
 
-from app.cad_v2.schemas.base import BoundingBox, Dimension, Point3D
 from app.cad_v2.schemas.components import (
     ComponentCategory,
     ComponentDefinition,
-    KeepoutZone,
-    MountingHole,
-    PortDefinition,
 )
-from app.cad_v2.schemas.enclosure import WallSide
-
-if TYPE_CHECKING:
-    pass
 
 
 class ComponentMatch:
@@ -43,7 +34,9 @@ class ComponentMatch:
         self.match_type = match_type
 
     def __repr__(self) -> str:
-        return f"ComponentMatch({self.component.id}, score={self.score:.2f}, type={self.match_type})"
+        return (
+            f"ComponentMatch({self.component.id}, score={self.score:.2f}, type={self.match_type})"
+        )
 
 
 class AmbiguousMatchError(Exception):
@@ -54,8 +47,7 @@ class AmbiguousMatchError(Exception):
         self.matches = matches
         match_ids = [m.component.id for m in matches]
         super().__init__(
-            f"Ambiguous query '{query}' matches: {match_ids}. "
-            "Please be more specific."
+            f"Ambiguous query '{query}' matches: {match_ids}. Please be more specific."
         )
 
 
@@ -277,9 +269,9 @@ def _populate_registry(registry: ComponentRegistry) -> None:
     """Populate the registry with known components."""
     # Import component definitions
     from app.cad_v2.components.boards import get_board_components
+    from app.cad_v2.components.connectors import get_connector_components
     from app.cad_v2.components.displays import get_display_components
     from app.cad_v2.components.inputs import get_input_components
-    from app.cad_v2.components.connectors import get_connector_components
 
     for component in get_board_components():
         registry.register(component)

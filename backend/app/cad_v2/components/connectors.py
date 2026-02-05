@@ -7,7 +7,6 @@ from app.cad_v2.schemas.base import BoundingBox, Dimension, Point3D
 from app.cad_v2.schemas.components import (
     ComponentCategory,
     ComponentDefinition,
-    MountingHole,
     PortDefinition,
 )
 from app.cad_v2.schemas.enclosure import WallSide

@@ -8,30 +8,32 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings, Settings
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.core.security import (
-    hash_password,
-    verify_password,
+    TokenType,
     check_password_strength,
     create_access_token,
     create_refresh_token,
     create_verification_token,
+    hash_password,
+    verify_password,
     verify_token,
-    TokenType,
 )
-from app.core.auth import get_current_user, blacklist_token
 from app.models import User
 from app.repositories import UserRepository
 from app.services.security_audit import SecurityAuditService, SecurityEventType
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +46,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 # Request/Response Models
 # =============================================================================
 
+
 class RegisterRequest(BaseModel):
     """User registration request."""
-    
+
     email: EmailStr = Field(description="User's email address")
     password: str = Field(
         min_length=8,
@@ -62,7 +65,7 @@ class RegisterRequest(BaseModel):
         default=True,
         description="User accepted terms of service",
     )
-    
+
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
@@ -71,7 +74,7 @@ class RegisterRequest(BaseModel):
         if not result["is_valid"]:
             raise ValueError("; ".join(result["issues"]))
         return v
-    
+
     @field_validator("accepted_terms")
     @classmethod
     def must_accept_terms(cls, v: bool) -> bool:
@@ -83,7 +86,7 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     """User login request."""
-    
+
     email: EmailStr
     password: str
     remember_me: bool = False
@@ -91,7 +94,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     """Token response for login/refresh."""
-    
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -102,7 +105,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """Public user data response."""
-    
+
     id: str
     email: str
     display_name: str
@@ -110,42 +113,42 @@ class UserResponse(BaseModel):
     status: str
     created_at: datetime
     email_verified_at: datetime | None = None
-    
+
     class Config:
         from_attributes = True
 
 
 class MessageResponse(BaseModel):
     """Simple message response."""
-    
+
     message: str
     detail: str | None = None
 
 
 class RefreshRequest(BaseModel):
     """Token refresh request."""
-    
+
     refresh_token: str
 
 
 class VerifyEmailRequest(BaseModel):
     """Email verification request."""
-    
+
     token: str
 
 
 class PasswordResetRequest(BaseModel):
     """Password reset request."""
-    
+
     email: EmailStr
 
 
 class PasswordResetConfirm(BaseModel):
     """Password reset confirmation."""
-    
+
     token: str
     new_password: str = Field(min_length=8, max_length=128)
-    
+
     @field_validator("new_password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
@@ -158,6 +161,7 @@ class PasswordResetConfirm(BaseModel):
 # =============================================================================
 # Registration
 # =============================================================================
+
 
 @router.post(
     "/register",
@@ -174,14 +178,14 @@ async def register(
 ) -> UserResponse:
     """
     Register a new user account.
-    
+
     - Validates email uniqueness
     - Hashes password securely
     - Creates user with pending_verification status
     - Sends verification email (async)
     """
     user_repo = UserRepository(db)
-    
+
     # Check if email already exists
     existing = await user_repo.get_by_email(request.email)
     if existing:
@@ -189,7 +193,7 @@ async def register(
             status_code=status.HTTP_409_CONFLICT,
             detail="An account with this email already exists",
         )
-    
+
     # Create user
     user = User(
         email=request.email.lower(),
@@ -198,13 +202,13 @@ async def register(
         role="user",
         status="pending_verification",
     )
-    
+
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
+
     logger.info(f"New user registered: {user.email}")
-    
+
     # Queue verification email
     if settings.REQUIRE_EMAIL_VERIFICATION:
         background_tasks.add_task(
@@ -218,7 +222,7 @@ async def register(
         user.status = "active"
         user.email_verified_at = datetime.utcnow()
         await db.commit()
-    
+
     return UserResponse(
         id=str(user.id),
         email=user.email,
@@ -234,11 +238,11 @@ async def _send_verification_email(user_id: str, email: str, display_name: str):
     """Send verification email (background task)."""
     try:
         from app.services.email import get_email_service
-        
+
         token = create_verification_token(UUID(user_id))
         settings = get_settings()
         verification_url = f"{settings.CORS_ORIGINS[0]}/verify-email?token={token}"
-        
+
         email_service = get_email_service()
         await email_service.send_verification_email(
             email=email,
@@ -246,7 +250,7 @@ async def _send_verification_email(user_id: str, email: str, display_name: str):
             verification_url=verification_url,
         )
         logger.info(f"Verification email sent to {email}")
-        
+
     except Exception as e:
         logger.error(f"Failed to send verification email to {email}: {e}")
 
@@ -254,6 +258,7 @@ async def _send_verification_email(user_id: str, email: str, display_name: str):
 # =============================================================================
 # Login / Logout
 # =============================================================================
+
 
 @router.post(
     "/login",
@@ -269,17 +274,17 @@ async def login(
 ) -> TokenResponse:
     """
     Authenticate user and return JWT tokens.
-    
+
     - Validates credentials
     - Checks account status
     - Returns access and refresh tokens
     - Logs authentication attempt
     """
     user_repo = UserRepository(db)
-    
+
     # Find user
     user = await user_repo.get_by_email(credentials.email.lower())
-    
+
     if not user or not verify_password(credentials.password, user.password_hash):
         logger.warning(f"Failed login attempt for: {credentials.email}")
         raise HTTPException(
@@ -287,26 +292,26 @@ async def login(
             detail="Invalid email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Check account status
     if user.status == "pending_verification":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Please verify your email before logging in",
         )
-    
+
     if user.status == "suspended":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account has been suspended",
         )
-    
+
     if user.status != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is not active",
         )
-    
+
     # Check if MFA is enabled
     if user.mfa_enabled and user.mfa_secret:
         # Generate a temporary MFA token instead of full access
@@ -317,9 +322,9 @@ async def login(
             tier=getattr(user, "tier", "free"),
             additional_claims={"mfa_pending": True},
         )
-        
+
         logger.info(f"MFA required for user: {user.email}")
-        
+
         return TokenResponse(
             access_token="",  # No access token until MFA verified
             refresh_token="",
@@ -328,7 +333,7 @@ async def login(
             mfa_required=True,
             mfa_token=mfa_token,
         )
-    
+
     # Generate tokens (no MFA)
     access_token = create_access_token(
         user_id=user.id,
@@ -336,15 +341,15 @@ async def login(
         role=user.role,
         tier=getattr(user, "tier", "free"),
     )
-    
+
     refresh_token, _ = create_refresh_token(user.id)
-    
+
     # Update last login
     user.last_login_at = datetime.utcnow()
     await db.commit()
-    
+
     logger.info(f"User logged in: {user.email}")
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -356,7 +361,7 @@ async def login(
 
 class MFALoginRequest(BaseModel):
     """MFA verification for login."""
-    
+
     mfa_token: str = Field(description="Temporary MFA token from login")
     code: str = Field(min_length=6, max_length=8, description="TOTP code or backup code")
 
@@ -374,12 +379,12 @@ async def login_mfa(
 ) -> TokenResponse:
     """
     Complete login with MFA verification.
-    
+
     After initial login returns mfa_required=True, use this endpoint
     with the mfa_token and a valid TOTP code to complete authentication.
     """
     import pyotp
-    
+
     # Decode the MFA token
     try:
         payload = verify_token(request.mfa_token, TokenType.ACCESS)
@@ -394,26 +399,26 @@ async def login_mfa(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired MFA token",
         )
-    
+
     # Get user
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(user_id)
-    
+
     if not user or not user.mfa_enabled or not user.mfa_secret:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is not enabled for this account",
         )
-    
+
     code = request.code.strip()
     code_valid = False
     backup_code_used = False
-    
+
     # Try TOTP verification (6 digits)
     if len(code) == 6 and code.isdigit():
         totp = pyotp.TOTP(user.mfa_secret)
         code_valid = totp.verify(code, valid_window=1)
-    
+
     # Try backup code (8 characters)
     if not code_valid and user.mfa_backup_codes:
         for i, code_entry in enumerate(user.mfa_backup_codes):
@@ -426,14 +431,14 @@ async def login_mfa(
                 user.mfa_backup_codes[i]["used"] = True
                 user.mfa_backup_codes[i]["used_at"] = datetime.utcnow().isoformat()
                 break
-    
+
     if not code_valid:
         logger.warning(f"Failed MFA verification for user: {user.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid verification code",
         )
-    
+
     # Generate full access tokens
     access_token = create_access_token(
         user_id=user.id,
@@ -441,19 +446,19 @@ async def login_mfa(
         role=user.role,
         tier=getattr(user, "tier", "free"),
     )
-    
+
     refresh_token, _ = create_refresh_token(user.id)
-    
+
     # Update last login
     user.last_login_at = datetime.utcnow()
     await db.commit()
-    
+
     if backup_code_used:
         remaining = sum(1 for c in user.mfa_backup_codes if not c.get("used", False))
         logger.info(f"User {user.email} used backup code. {remaining} remaining.")
-    
+
     logger.info(f"User logged in with MFA: {user.email}")
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -480,9 +485,10 @@ async def login_form(
         email=form_data.username,
         password=form_data.password,
     )
-    
+
     # Reuse login logic
     from fastapi import Request
+
     return await login(
         credentials=credentials,
         request=Request(scope={"type": "http"}),
@@ -505,9 +511,9 @@ async def logout(
     """
     # Token blacklisting is handled by the auth dependency
     # The actual blacklist happens when the token is validated
-    
+
     logger.info(f"User logged out: {current_user.email}")
-    
+
     return MessageResponse(
         message="Successfully logged out",
     )
@@ -516,6 +522,7 @@ async def logout(
 # =============================================================================
 # Token Refresh
 # =============================================================================
+
 
 @router.post(
     "/refresh",
@@ -538,17 +545,17 @@ async def refresh_token(
             detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user_id = UUID(payload["sub"])
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(user_id)
-    
+
     if not user or user.status != "active":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
         )
-    
+
     # Generate new tokens
     access_token = create_access_token(
         user_id=user.id,
@@ -556,9 +563,9 @@ async def refresh_token(
         role=user.role,
         tier=getattr(user, "tier", "free"),
     )
-    
+
     new_refresh_token, _ = create_refresh_token(user.id)
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=new_refresh_token,
@@ -570,6 +577,7 @@ async def refresh_token(
 # =============================================================================
 # Email Verification
 # =============================================================================
+
 
 @router.post(
     "/verify-email",
@@ -590,29 +598,29 @@ async def verify_email(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired verification token",
         )
-    
+
     user_id = UUID(payload["sub"])
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(user_id)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     if user.email_verified_at:
         return MessageResponse(
             message="Email already verified",
         )
-    
+
     # Verify user
     user.email_verified_at = datetime.utcnow()
     user.status = "active"
     await db.commit()
-    
+
     logger.info(f"Email verified for: {user.email}")
-    
+
     return MessageResponse(
         message="Email successfully verified",
         detail="You can now log in to your account",
@@ -632,12 +640,12 @@ async def resend_verification(
 ) -> MessageResponse:
     """
     Resend verification email.
-    
+
     Rate limited to 1 per 60 seconds (handled by rate limiter middleware).
     """
     user_repo = UserRepository(db)
     user = await user_repo.get_by_email(email.lower())
-    
+
     # Don't reveal if user exists
     if user and not user.email_verified_at:
         background_tasks.add_task(
@@ -646,7 +654,7 @@ async def resend_verification(
             email=user.email,
             display_name=user.display_name,
         )
-    
+
     return MessageResponse(
         message="If an unverified account exists, a verification email has been sent",
     )
@@ -655,6 +663,7 @@ async def resend_verification(
 # =============================================================================
 # Password Reset
 # =============================================================================
+
 
 @router.post(
     "/forgot-password",
@@ -669,12 +678,12 @@ async def forgot_password(
 ) -> MessageResponse:
     """
     Request password reset email.
-    
+
     Always returns success to prevent email enumeration.
     """
     user_repo = UserRepository(db)
     user = await user_repo.get_by_email(request.email.lower())
-    
+
     if user and user.status == "active":
         background_tasks.add_task(
             _send_password_reset_email,
@@ -682,7 +691,7 @@ async def forgot_password(
             email=user.email,
             display_name=user.display_name,
         )
-    
+
     return MessageResponse(
         message="If an account exists, a password reset email has been sent",
     )
@@ -693,12 +702,12 @@ async def _send_password_reset_email(user_id: str, email: str, display_name: str
     try:
         from app.core.security import create_verification_token
         from app.services.email import get_email_service
-        
+
         # Use verification token with password_reset type
         token = create_verification_token(UUID(user_id), token_type=TokenType.PASSWORD_RESET)
         settings = get_settings()
         reset_url = f"{settings.CORS_ORIGINS[0]}/reset-password?token={token}"
-        
+
         email_service = get_email_service()
         await email_service.send_password_reset_email(
             email=email,
@@ -706,7 +715,7 @@ async def _send_password_reset_email(user_id: str, email: str, display_name: str
             reset_url=reset_url,
         )
         logger.info(f"Password reset email sent to {email}")
-        
+
     except Exception as e:
         logger.error(f"Failed to send password reset email to {email}: {e}")
 
@@ -730,21 +739,21 @@ async def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token",
         )
-    
+
     user_id = UUID(payload["sub"])
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(user_id)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     # Update password
     user.password_hash = hash_password(request.new_password)
     await db.commit()
-    
+
     # Log password reset completion to audit log
     security_audit = SecurityAuditService(db)
     await security_audit.log_event(
@@ -758,12 +767,12 @@ async def reset_password(
         },
     )
     await db.commit()
-    
+
     # Blacklist all existing tokens for this user
     await blacklist_all_user_tokens(user.id)
-    
+
     logger.info(f"Password reset for: {user.email}")
-    
+
     return MessageResponse(
         message="Password successfully reset",
         detail="Please log in with your new password",
@@ -774,12 +783,13 @@ async def blacklist_all_user_tokens(user_id: UUID):
     """Invalidate all tokens for a user (security measure after password reset)."""
     try:
         from app.core.cache import get_redis
+
         redis = await get_redis()
-        
+
         # Store a "tokens invalidated at" timestamp
         key = f"user:{user_id}:tokens_invalidated_at"
         await redis.set(key, datetime.utcnow().isoformat(), ex=86400 * 30)  # 30 days
-        
+
     except Exception as e:
         logger.warning(f"Failed to blacklist tokens for user {user_id}: {e}")
 
@@ -787,6 +797,7 @@ async def blacklist_all_user_tokens(user_id: UUID):
 # =============================================================================
 # Current User
 # =============================================================================
+
 
 @router.get(
     "/me",
@@ -815,8 +826,10 @@ async def get_me(
 # Development Endpoints (Non-Production Only)
 # =============================================================================
 
+
 class DevVerifyRequest(BaseModel):
     """Request to force-verify a user in development."""
+
     email: EmailStr
 
 
@@ -841,20 +854,20 @@ async def dev_verify_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not found",
         )
-    
+
     user_repo = UserRepository(db)
     user = await user_repo.get_by_email(request.email)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
+
     user.status = "active"
     user.email_verified_at = datetime.utcnow()
     await db.commit()
-    
+
     logger.info(f"[DEV] User force-verified: {user.email}")
-    
+
     return {"message": f"User {user.email} verified successfully"}

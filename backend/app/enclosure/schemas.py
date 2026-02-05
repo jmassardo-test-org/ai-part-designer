@@ -5,28 +5,27 @@ Pydantic models for enclosure generation configuration,
 style options, and results.
 """
 
-from enum import Enum
-from typing import Optional, Any
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from app.schemas.component_specs import (
-    Face,
-    ThreadSize,
     ConnectorType,
     Dimensions,
+    Face,
     Position3D,
-    LengthUnit,
+    ThreadSize,
 )
-
 
 # =============================================================================
 # Enums
 # =============================================================================
 
-class EnclosureStyleType(str, Enum):
+
+class EnclosureStyleType(StrEnum):
     """Pre-defined enclosure style types."""
+
     MINIMAL = "minimal"
     RUGGED = "rugged"
     VENTED = "vented"
@@ -35,8 +34,9 @@ class EnclosureStyleType(str, Enum):
     CUSTOM = "custom"
 
 
-class LidClosureType(str, Enum):
+class LidClosureType(StrEnum):
     """How the lid attaches to the enclosure."""
+
     SNAP_FIT = "snap_fit"
     SCREW = "screw"
     SLIDE = "slide"
@@ -45,8 +45,9 @@ class LidClosureType(str, Enum):
     MAGNETIC = "magnetic"
 
 
-class VentilationPattern(str, Enum):
+class VentilationPattern(StrEnum):
     """Ventilation slot patterns."""
+
     NONE = "none"
     PARALLEL_SLOTS = "parallel_slots"
     GRID = "grid"
@@ -55,8 +56,9 @@ class VentilationPattern(str, Enum):
     LOUVERS = "louvers"
 
 
-class StandoffType(str, Enum):
+class StandoffType(StrEnum):
     """Standoff mounting types."""
+
     SOLID = "solid"
     HOLLOW = "hollow"
     HEAT_SET_INSERT = "heat_set_insert"
@@ -64,8 +66,9 @@ class StandoffType(str, Enum):
     SNAP_FIT = "snap_fit"
 
 
-class BossStyle(str, Enum):
+class BossStyle(StrEnum):
     """Boss/pillar style around standoffs."""
+
     CYLINDRICAL = "cylindrical"
     SQUARE = "square"
     RIBBED = "ribbed"
@@ -76,9 +79,10 @@ class BossStyle(str, Enum):
 # Standoff Schemas
 # =============================================================================
 
+
 class StandoffOptions(BaseModel):
     """Options for standoff generation."""
-    
+
     type: StandoffType = Field(
         default=StandoffType.HOLLOW,
         description="Type of standoff",
@@ -87,15 +91,15 @@ class StandoffOptions(BaseModel):
         default=BossStyle.CYLINDRICAL,
         description="Style of boss around standoff",
     )
-    outer_diameter: Optional[float] = Field(
+    outer_diameter: float | None = Field(
         default=None,
         description="Outer diameter (auto-calculated if None)",
     )
-    inner_diameter: Optional[float] = Field(
+    inner_diameter: float | None = Field(
         default=None,
         description="Inner hole diameter (for hollow/threaded)",
     )
-    thread_size: Optional[ThreadSize] = Field(
+    thread_size: ThreadSize | None = Field(
         default=None,
         description="Thread size for threaded standoffs",
     )
@@ -108,27 +112,27 @@ class StandoffOptions(BaseModel):
 
 class Standoff(BaseModel):
     """A single standoff in the enclosure."""
-    
+
     # Position
     x: float = Field(..., description="X position in enclosure")
     y: float = Field(..., description="Y position in enclosure")
     height: float = Field(..., gt=0, description="Standoff height")
-    
+
     # Dimensions
     outer_diameter: float = Field(..., gt=0)
     inner_diameter: float = Field(default=0, ge=0, description="0 for solid")
-    
+
     # Options
     type: StandoffType = Field(default=StandoffType.HOLLOW)
-    thread_size: Optional[ThreadSize] = Field(default=None)
+    thread_size: ThreadSize | None = Field(default=None)
     boss_style: BossStyle = Field(default=BossStyle.CYLINDRICAL)
-    
+
     # Reference
-    component_id: Optional[UUID] = Field(
+    component_id: UUID | None = Field(
         default=None,
         description="Component this standoff is for",
     )
-    hole_label: Optional[str] = Field(
+    hole_label: str | None = Field(
         default=None,
         description="Label of the mounting hole",
     )
@@ -138,18 +142,19 @@ class Standoff(BaseModel):
 # Cutout Schemas
 # =============================================================================
 
+
 class CutoutProfile(BaseModel):
     """Standard cutout profile for a connector type."""
-    
+
     connector_type: ConnectorType
     width: float = Field(..., gt=0)
     height: float = Field(..., gt=0)
     corner_radius: float = Field(default=0.5, ge=0)
-    
+
     # Additional features
     has_flange: bool = Field(default=False)
     flange_width: float = Field(default=1.0)
-    
+
     # Tolerance
     tolerance: float = Field(
         default=0.3,
@@ -160,36 +165,37 @@ class CutoutProfile(BaseModel):
 
 class Cutout(BaseModel):
     """A cutout in the enclosure wall."""
-    
+
     # Position on wall
     face: Face = Field(..., description="Which face the cutout is on")
     center_x: float = Field(..., description="X position on face")
     center_y: float = Field(..., description="Y position on face")
-    
+
     # Dimensions
     width: float = Field(..., gt=0)
     height: float = Field(..., gt=0)
     depth: float = Field(..., gt=0, description="Wall thickness to cut through")
     corner_radius: float = Field(default=0.5, ge=0)
-    
+
     # Reference
-    connector_type: Optional[ConnectorType] = Field(default=None)
-    connector_name: Optional[str] = Field(default=None)
-    component_id: Optional[UUID] = Field(default=None)
+    connector_type: ConnectorType | None = Field(default=None)
+    connector_name: str | None = Field(default=None)
+    component_id: UUID | None = Field(default=None)
 
 
 # =============================================================================
 # Style Schemas
 # =============================================================================
 
+
 class EnclosureStyle(BaseModel):
     """Enclosure style parameters."""
-    
+
     style_type: EnclosureStyleType = Field(
         default=EnclosureStyleType.MINIMAL,
         description="Style template to use",
     )
-    
+
     # Wall parameters
     wall_thickness: float = Field(
         default=2.0,
@@ -209,7 +215,7 @@ class EnclosureStyle(BaseModel):
         le=10,
         description="Lid thickness in mm",
     )
-    
+
     # Corner styling
     corner_radius: float = Field(
         default=3.0,
@@ -222,7 +228,7 @@ class EnclosureStyle(BaseModel):
         ge=0,
         description="Internal corner radius (fillet)",
     )
-    
+
     # Lid closure
     lid_closure: LidClosureType = Field(
         default=LidClosureType.SNAP_FIT,
@@ -233,7 +239,7 @@ class EnclosureStyle(BaseModel):
         ge=0,
         description="How much lid overlaps base (for snap/friction)",
     )
-    
+
     # Ventilation
     ventilation: VentilationPattern = Field(
         default=VentilationPattern.NONE,
@@ -249,7 +255,7 @@ class EnclosureStyle(BaseModel):
         gt=0,
         description="Spacing between vent slots",
     )
-    
+
     # Feet/mounting
     add_feet: bool = Field(
         default=False,
@@ -261,7 +267,7 @@ class EnclosureStyle(BaseModel):
 
 class EnclosureOptions(BaseModel):
     """Options for enclosure generation."""
-    
+
     # Clearances
     component_clearance: float = Field(
         default=2.0,
@@ -278,7 +284,7 @@ class EnclosureOptions(BaseModel):
         ge=0,
         description="Clearance above tallest component to lid",
     )
-    
+
     # Cutouts
     auto_cutouts: bool = Field(
         default=True,
@@ -289,13 +295,13 @@ class EnclosureOptions(BaseModel):
         ge=0,
         description="Additional tolerance on cutouts",
     )
-    
+
     # Ventilation
     auto_ventilation: bool = Field(
         default=True,
         description="Auto-add ventilation based on thermal properties",
     )
-    
+
     # Output options
     generate_lid_separately: bool = Field(
         default=True,
@@ -311,9 +317,10 @@ class EnclosureOptions(BaseModel):
 # Component Position Schema
 # =============================================================================
 
+
 class ComponentPosition(BaseModel):
     """Position of a component in the enclosure."""
-    
+
     component_id: UUID
     position: Position3D = Field(
         ...,
@@ -329,9 +336,9 @@ class ComponentPosition(BaseModel):
 
 class SpatialLayout(BaseModel):
     """Spatial layout of all components in enclosure."""
-    
+
     components: list[ComponentPosition]
-    internal_dimensions: Optional[Dimensions] = Field(
+    internal_dimensions: Dimensions | None = Field(
         default=None,
         description="Override internal dimensions",
     )
@@ -345,27 +352,28 @@ class SpatialLayout(BaseModel):
 # Request/Response Schemas
 # =============================================================================
 
+
 class EnclosureRequest(BaseModel):
     """Request to generate an enclosure."""
-    
+
     project_id: UUID
     style: EnclosureStyle = Field(default_factory=EnclosureStyle)
     options: EnclosureOptions = Field(default_factory=EnclosureOptions)
-    layout: Optional[SpatialLayout] = Field(
+    layout: SpatialLayout | None = Field(
         default=None,
         description="Component layout (auto-calculated if None)",
     )
-    
+
     # Optional overrides
-    component_ids: Optional[list[UUID]] = Field(
+    component_ids: list[UUID] | None = Field(
         default=None,
         description="Specific components to include (all if None)",
     )
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         description="Name for the generated enclosure",
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Description for the generated enclosure",
     )
@@ -373,36 +381,36 @@ class EnclosureRequest(BaseModel):
 
 class EnclosureResult(BaseModel):
     """Result of enclosure generation."""
-    
+
     # Identifiers
     job_id: UUID
-    enclosure_id: Optional[UUID] = None
-    
+    enclosure_id: UUID | None = None
+
     # Generated geometry info
     external_dimensions: Dimensions
     internal_dimensions: Dimensions
-    
+
     # Generated features
     standoffs: list[Standoff]
     cutouts: list[Cutout]
-    
+
     # Component positions
     component_positions: list[ComponentPosition]
-    
+
     # Files
-    step_file_url: Optional[str] = None
-    stl_file_url: Optional[str] = None
-    lid_step_file_url: Optional[str] = None
-    lid_stl_file_url: Optional[str] = None
-    
+    step_file_url: str | None = None
+    stl_file_url: str | None = None
+    lid_step_file_url: str | None = None
+    lid_stl_file_url: str | None = None
+
     # Generation info
-    cadquery_code: Optional[str] = None
+    cadquery_code: str | None = None
     generation_time_ms: float = 0
-    ai_model: Optional[str] = None
-    
+    ai_model: str | None = None
+
     # Warnings
     warnings: list[str] = Field(default_factory=list)
-    
+
     class Config:
         from_attributes = True
 

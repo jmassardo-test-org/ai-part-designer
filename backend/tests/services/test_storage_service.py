@@ -6,17 +6,16 @@ Tests S3/MinIO storage operations: copy, delete, list, and presigned URLs.
 
 from __future__ import annotations
 
+from unittest.mock import ANY, MagicMock, patch
+
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, ANY
-from uuid import uuid4
 
 from app.services.storage_service import StorageService
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_s3_client():
@@ -43,6 +42,7 @@ def storage_service(mock_s3_client):
 # =============================================================================
 # Copy File Tests
 # =============================================================================
+
 
 class TestCopyFile:
     """Tests for the copy_file method."""
@@ -93,6 +93,7 @@ class TestCopyFile:
 # Delete File Tests
 # =============================================================================
 
+
 class TestDeleteFile:
     """Tests for the delete_file method."""
 
@@ -115,6 +116,7 @@ class TestDeleteFile:
 # =============================================================================
 # List Files Tests
 # =============================================================================
+
 
 class TestListFiles:
     """Tests for the list_files method."""
@@ -147,12 +149,11 @@ class TestListFiles:
 # Presigned URL Tests
 # =============================================================================
 
+
 class TestPresignedUrl:
     """Tests for the generate_presigned_url method."""
 
-    def test_generate_presigned_url_default_expiry(
-        self, storage_service, mock_s3_client
-    ):
+    def test_generate_presigned_url_default_expiry(self, storage_service, mock_s3_client):
         """Test generating presigned URL with default expiry."""
         mock_s3_client.generate_presigned_url.return_value = (
             "https://bucket.s3.amazonaws.com/key?signature=abc"
@@ -167,9 +168,7 @@ class TestPresignedUrl:
             ExpiresIn=3600,  # Default 1 hour
         )
 
-    def test_generate_presigned_url_custom_expiry(
-        self, storage_service, mock_s3_client
-    ):
+    def test_generate_presigned_url_custom_expiry(self, storage_service, mock_s3_client):
         """Test generating presigned URL with custom expiry."""
         storage_service.generate_presigned_url(
             "path/to/file.stl",
@@ -183,6 +182,7 @@ class TestPresignedUrl:
 # =============================================================================
 # Batch Operations Tests
 # =============================================================================
+
 
 class TestBatchOperations:
     """Tests for batch file operations."""
@@ -215,6 +215,7 @@ class TestBatchOperations:
 # Configuration Tests
 # =============================================================================
 
+
 class TestConfiguration:
     """Tests for service configuration."""
 
@@ -242,6 +243,7 @@ class TestConfiguration:
 # Error Handling Tests
 # =============================================================================
 
+
 class TestErrorHandling:
     """Tests for error handling in storage operations."""
 
@@ -249,12 +251,8 @@ class TestErrorHandling:
         """Test copying from nonexistent source."""
         from botocore.exceptions import ClientError
 
-        error_response = {
-            "Error": {"Code": "404", "Message": "Not Found"}
-        }
-        mock_s3_client.copy_object.side_effect = ClientError(
-            error_response, "CopyObject"
-        )
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_s3_client.copy_object.side_effect = ClientError(error_response, "CopyObject")
 
         with pytest.raises(ClientError) as exc_info:
             storage_service.copy_file("nonexistent/key", "dest/key")
@@ -265,12 +263,8 @@ class TestErrorHandling:
         """Test handling access denied errors."""
         from botocore.exceptions import ClientError
 
-        error_response = {
-            "Error": {"Code": "AccessDenied", "Message": "Access Denied"}
-        }
-        mock_s3_client.delete_object.side_effect = ClientError(
-            error_response, "DeleteObject"
-        )
+        error_response = {"Error": {"Code": "AccessDenied", "Message": "Access Denied"}}
+        mock_s3_client.delete_object.side_effect = ClientError(error_response, "DeleteObject")
 
         with pytest.raises(ClientError) as exc_info:
             storage_service.delete_file("restricted/file.stl")

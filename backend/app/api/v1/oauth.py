@@ -9,22 +9,23 @@ from __future__ import annotations
 import logging
 import secrets
 from datetime import datetime, timedelta
-from typing import Literal
-from uuid import uuid4
+from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings, Settings
-from app.core.database import get_db
-from app.core.oauth import oauth, fetch_google_user_info, fetch_github_user_info
-from app.core.security import create_access_token, create_refresh_token, hash_password
 from app.core.auth import get_current_user
-from app.models import User, OAuthConnection
+from app.core.config import Settings, get_settings
+from app.core.database import get_db
+from app.core.oauth import fetch_github_user_info, fetch_google_user_info, oauth
+from app.core.security import create_access_token, create_refresh_token, hash_password
+from app.models import OAuthConnection, User
 from app.repositories import UserRepository
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class OAuthTokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     is_new_user: bool = False
-    user: "OAuthUserResponse"
+    user: OAuthUserResponse
 
 
 class OAuthUserResponse(BaseModel):
@@ -102,9 +103,7 @@ class MessageResponse(BaseModel):
 async def oauth_login(
     request: Request,
     provider: Literal["google", "github"],
-    redirect_uri: str | None = Query(
-        None, description="Custom redirect URI after callback"
-    ),
+    redirect_uri: str | None = Query(None, description="Custom redirect URI after callback"),
     settings: Settings = Depends(get_settings),
 ) -> OAuthLoginResponse:
     """
@@ -163,9 +162,7 @@ async def oauth_login(
 async def oauth_authorize(
     request: Request,
     provider: Literal["google", "github"],
-    redirect_uri: str | None = Query(
-        None, description="Custom redirect URI after callback"
-    ),
+    redirect_uri: str | None = Query(None, description="Custom redirect URI after callback"),
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     """
@@ -261,7 +258,6 @@ async def oauth_callback(
             )
 
         # Build callback URL for token exchange
-        callback_url = f"{settings.OAUTH_REDIRECT_BASE}/api/v1/auth/oauth/{provider}/callback"
 
         # Exchange code for tokens
         token = await client.authorize_access_token(request)
@@ -381,7 +377,7 @@ async def oauth_callback(
             )
         )
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"OAuth callback error for {provider}")
         redirect_url = request.session.pop("oauth_redirect", settings.FRONTEND_URL)
         return RedirectResponse(
@@ -500,9 +496,7 @@ async def link_oauth_callback(
     # Get user ID from session
     user_id = request.session.pop("oauth_link_user_id", None)
     if not user_id:
-        return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/settings?error=session_expired"
-        )
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/settings?error=session_expired")
 
     # Handle OAuth errors
     if error:
@@ -514,9 +508,7 @@ async def link_oauth_callback(
     # Validate state
     stored_state = request.session.pop("oauth_state", None)
     if stored_state and state != stored_state:
-        return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/settings?error=invalid_state"
-        )
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/settings?error=invalid_state")
 
     try:
         # Get the OAuth client
@@ -532,9 +524,7 @@ async def link_oauth_callback(
             user_info = await fetch_github_user_info(token)
 
         if not user_info:
-            return RedirectResponse(
-                url=f"{settings.FRONTEND_URL}/settings?error=no_user_info"
-            )
+            return RedirectResponse(url=f"{settings.FRONTEND_URL}/settings?error=no_user_info")
 
         provider_user_id = str(user_info["id"])
 
@@ -555,9 +545,7 @@ async def link_oauth_callback(
         if existing_conn:
             # Already linked to this user - update tokens
             existing_conn.access_token = token.get("access_token")
-            existing_conn.refresh_token = token.get(
-                "refresh_token", existing_conn.refresh_token
-            )
+            existing_conn.refresh_token = token.get("refresh_token", existing_conn.refresh_token)
             existing_conn.last_used_at = datetime.utcnow()
         else:
             # Create new connection
@@ -581,15 +569,11 @@ async def link_oauth_callback(
 
         await db.commit()
 
-        return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/settings?oauth_linked={provider}"
-        )
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/settings?oauth_linked={provider}")
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"OAuth link callback error for {provider}")
-        return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/settings?error=link_failed"
-        )
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/settings?error=link_failed")
 
 
 @router.delete(

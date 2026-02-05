@@ -5,19 +5,18 @@ Tests subscription management, checkout sessions, billing portal,
 and payment processing functionality.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
-from app.services.payment import PaymentService, PaymentError
 from app.models.subscription import SubscriptionTier, TierSlug
-from app.models.user import User, Subscription
-
+from app.models.user import Subscription
+from app.services.payment import PaymentError, PaymentService
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_stripe():
@@ -37,6 +36,7 @@ def payment_service(db_session):
 # =============================================================================
 # Customer Management Tests
 # =============================================================================
+
 
 class TestCustomerManagement:
     """Tests for Stripe customer management."""
@@ -122,6 +122,7 @@ class TestCustomerManagement:
 # Subscription Plans Tests
 # =============================================================================
 
+
 class TestSubscriptionPlans:
     """Tests for subscription plan retrieval."""
 
@@ -160,7 +161,7 @@ class TestSubscriptionPlans:
             price_monthly_cents=0,
             price_yearly_cents=0,
         )
-        
+
         db_session.add_all([free_plan, pro_plan, inactive_plan])
         await db_session.commit()
 
@@ -233,6 +234,7 @@ class TestSubscriptionPlans:
 # =============================================================================
 # Checkout Tests
 # =============================================================================
+
 
 class TestCheckout:
     """Tests for checkout session creation."""
@@ -322,7 +324,7 @@ class TestCheckout:
             url="https://checkout.stripe.com/yearly",
         )
 
-        result = await payment_service.create_checkout_session(
+        await payment_service.create_checkout_session(
             user=test_user,
             plan_slug=TierSlug.PRO,
             billing_interval="yearly",
@@ -378,6 +380,7 @@ class TestCheckout:
 # =============================================================================
 # Billing Portal Tests
 # =============================================================================
+
 
 class TestBillingPortal:
     """Tests for billing portal access."""

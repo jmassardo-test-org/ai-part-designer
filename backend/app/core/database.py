@@ -37,7 +37,7 @@ async_session_maker = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency for getting async database sessions.
-    
+
     Usage in FastAPI:
         @app.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db)):
@@ -53,11 +53,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """
     Initialize database connection.
-    
+
     Call this on application startup to verify database connectivity.
     """
     from sqlalchemy import text
-    
+
     async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
 
@@ -65,7 +65,7 @@ async def init_db() -> None:
 async def close_db() -> None:
     """
     Close database connections.
-    
+
     Call this on application shutdown.
     """
     await engine.dispose()

@@ -1,14 +1,12 @@
 """Tests for CAD v2 compilation engine."""
 
 import tempfile
-from pathlib import Path
 
 import pytest
 from build123d import Box, Part
 
 from app.cad_v2.compiler.engine import (
     CompilationEngine,
-    CompilationError,
     CompilationResult,
     ExportFormat,
 )
@@ -26,10 +24,10 @@ from app.cad_v2.schemas.enclosure import (
 
 def create_test_part(name: str = "test") -> Part:
     """Create a simple Build123d Part for testing exports.
-    
+
     Args:
         name: Part identifier (unused, for debugging).
-        
+
     Returns:
         A simple Box Part that can be exported.
     """
@@ -288,9 +286,7 @@ class TestSpecValidation:
         issues = engine.validate_spec(thick_walls)
         assert any("Wall thickness" in issue for issue in issues)
 
-    def test_validate_catches_large_corner_radius(
-        self, engine: CompilationEngine
-    ) -> None:
+    def test_validate_catches_large_corner_radius(self, engine: CompilationEngine) -> None:
         """Should warn about corner radius exceeding limits."""
         large_radius = EnclosureSpec(
             exterior=BoundingBox(

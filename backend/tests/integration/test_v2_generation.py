@@ -6,26 +6,29 @@ Tests end-to-end v2 generation from schema compilation to file export.
 
 from __future__ import annotations
 
-import pytest
-from uuid import uuid4
-from pathlib import Path
+from typing import TYPE_CHECKING
 
+import pytest
+
+from app.cad_v2.compiler.engine import CompilationEngine
+from app.cad_v2.compiler.export import ExportFormat
 from app.cad_v2.schemas.enclosure import (
-    EnclosureSpec,
     BoundingBox,
     Dimension,
-    WallSpec,
+    EnclosureSpec,
     LidSpec,
     LidType,
     VentilationSpec,
+    WallSpec,
 )
-from app.cad_v2.compiler.engine import CompilationEngine
-from app.cad_v2.compiler.export import ExportFormat
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # =============================================================================
 # CAD v2 Compilation Integration Tests
 # =============================================================================
+
 
 class TestCADV2CompilationIntegration:
     """Integration tests for v2 enclosure compilation."""
@@ -183,6 +186,7 @@ class TestCADV2CompilationIntegration:
 # CAD v2 Error Handling Integration Tests
 # =============================================================================
 
+
 class TestCADV2ErrorHandling:
     """Integration tests for v2 error handling."""
 
@@ -216,6 +220,7 @@ class TestCADV2ErrorHandling:
 # CAD v2 Metadata Tests
 # =============================================================================
 
+
 class TestCADV2Metadata:
     """Integration tests for v2 result metadata."""
 
@@ -234,7 +239,11 @@ class TestCADV2Metadata:
         result = engine.compile_enclosure(spec)
 
         assert result.success
-        
+
         # Should have metadata about dimensions
         assert result.metadata is not None
-        assert "exterior" in result.metadata or "dimensions" in result.metadata or len(result.metadata) > 0
+        assert (
+            "exterior" in result.metadata
+            or "dimensions" in result.metadata
+            or len(result.metadata) > 0
+        )

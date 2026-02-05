@@ -2,9 +2,8 @@
 Analytics and event processing tasks.
 """
 
-import json
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
 from celery import shared_task
 
@@ -17,37 +16,38 @@ logger = logging.getLogger(__name__)
 def process_pending_events() -> dict:
     """
     Process pending analytics events from Redis queue.
-    
+
     This task runs periodically to batch-process events
     for downstream analytics pipelines.
     """
-    from app.core.events import event_tracker
     import asyncio
-    
+
+    from app.core.events import event_tracker
+
     async def run():
         events = await event_tracker.consume_batch(batch_size=500)
-        
+
         if not events:
             return {"processed": 0}
-        
+
         # Process events - in production, this would:
         # 1. Transform events for the data warehouse
         # 2. Send to analytics service (Segment, Amplitude, etc.)
         # 3. Store in data lake for batch analysis
-        
+
         # Group by event type for logging
         event_counts = {}
         for event in events:
             event_name = event.get("event_name", "unknown")
             event_counts[event_name] = event_counts.get(event_name, 0) + 1
-        
+
         logger.info(f"Processed {len(events)} analytics events: {event_counts}")
-        
+
         return {
             "processed": len(events),
             "event_counts": event_counts,
         }
-    
+
     return asyncio.run(run())
 
 
@@ -57,36 +57,36 @@ def process_pending_events() -> dict:
 def generate_daily_report(date: str | None = None) -> dict:
     """
     Generate daily analytics report.
-    
+
     Aggregates key metrics for the specified date (or yesterday).
     """
-    from app.core.database import async_session_maker
-    from sqlalchemy import select, func
-    from app.models import User, Design, Job
     import asyncio
-    
+
+    from sqlalchemy import func, select
+
+    from app.core.database import async_session_maker
+    from app.models import Design, Job, User
+
     if date:
         report_date = datetime.fromisoformat(date).date()
     else:
         report_date = (datetime.utcnow() - timedelta(days=1)).date()
-    
+
     start = datetime.combine(report_date, datetime.min.time())
     end = datetime.combine(report_date, datetime.max.time())
-    
+
     async def run():
         async with async_session_maker() as session:
             # New users
             new_users = await session.execute(
-                select(func.count(User.id))
-                .where(User.created_at.between(start, end))
+                select(func.count(User.id)).where(User.created_at.between(start, end))
             )
-            
+
             # New designs
             new_designs = await session.execute(
-                select(func.count(Design.id))
-                .where(Design.created_at.between(start, end))
+                select(func.count(Design.id)).where(Design.created_at.between(start, end))
             )
-            
+
             # Job stats
             job_stats = await session.execute(
                 select(
@@ -97,12 +97,12 @@ def generate_daily_report(date: str | None = None) -> dict:
                 .where(Job.created_at.between(start, end))
                 .group_by(Job.status)
             )
-            
+
             jobs_by_status = {
                 row[0]: {"count": row[1], "avg_time_ms": float(row[2]) if row[2] else None}
                 for row in job_stats.all()
             }
-            
+
             report = {
                 "date": report_date.isoformat(),
                 "metrics": {
@@ -113,10 +113,10 @@ def generate_daily_report(date: str | None = None) -> dict:
                 },
                 "generated_at": datetime.utcnow().isoformat(),
             }
-            
+
             logger.info(f"Generated daily report for {report_date}")
             return report
-    
+
     return asyncio.run(run())
 
 
@@ -126,34 +126,33 @@ def generate_daily_report(date: str | None = None) -> dict:
 def calculate_user_metrics(user_id: str) -> dict:
     """
     Calculate metrics for a specific user.
-    
+
     Used for user dashboards and engagement tracking.
     """
+    import asyncio
+    from uuid import UUID
+
     from app.core.database import async_session_maker
     from app.repositories import (
-        ProjectRepository,
         DesignRepository,
         JobRepository,
+        ProjectRepository,
     )
-    from uuid import UUID
-    import asyncio
-    
+
     async def run():
         user_uuid = UUID(user_id)
-        
+
         async with async_session_maker() as session:
             project_repo = ProjectRepository(session)
-            design_repo = DesignRepository(session)
+            DesignRepository(session)
             job_repo = JobRepository(session)
-            
+
             # Count projects
             project_count = await project_repo.count(filters={"user_id": user_uuid})
-            
+
             # Get recent jobs
-            job_stats = await job_repo.get_job_stats(
-                since=datetime.utcnow() - timedelta(days=30)
-            )
-            
+            job_stats = await job_repo.get_job_stats(since=datetime.utcnow() - timedelta(days=30))
+
             return {
                 "user_id": user_id,
                 "total_projects": project_count,
@@ -162,7 +161,7 @@ def calculate_user_metrics(user_id: str) -> dict:
                 },
                 "calculated_at": datetime.utcnow().isoformat(),
             }
-    
+
     return asyncio.run(run())
 
 
@@ -176,25 +175,26 @@ def export_to_warehouse(
 ) -> dict:
     """
     Export data to data warehouse for analytics.
-    
+
     Extracts, transforms, and loads data to analytics platform.
     """
-    from app.core.backup import data_exporter
     import asyncio
-    
+
+    from app.core.backup import data_exporter
+
     async def run():
         start = datetime.fromisoformat(start_date)
         end = datetime.fromisoformat(end_date)
-        
+
         export_path = await data_exporter.export_analytics_snapshot(start, end)
-        
+
         # TODO: Upload to data warehouse (BigQuery, Redshift, Snowflake, etc.)
-        
+
         return {
             "table": table,
             "period": {"start": start_date, "end": end_date},
             "export_path": str(export_path),
             "status": "completed",
         }
-    
+
     return asyncio.run(run())

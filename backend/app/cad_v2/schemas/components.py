@@ -10,7 +10,7 @@ Components are referenced by ID from the component library,
 which provides exact dimensions and mounting patterns.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,7 +19,7 @@ from app.cad_v2.schemas.base import Dimension, Point3D, Rotation
 from app.cad_v2.schemas.enclosure import WallSide
 
 
-class MountingType(str, Enum):
+class MountingType(StrEnum):
     """How a component is mounted."""
 
     STANDOFF = "standoff"  # Raised on standoffs with screws
@@ -29,7 +29,7 @@ class MountingType(str, Enum):
     BRACKET = "bracket"  # L-bracket or similar
 
 
-class StandoffType(str, Enum):
+class StandoffType(StrEnum):
     """Standoff designs."""
 
     CYLINDRICAL = "cylindrical"  # Round standoffs
@@ -175,7 +175,7 @@ class ComponentMount(BaseModel):
     )
 
 
-class ComponentCategory(str, Enum):
+class ComponentCategory(StrEnum):
     """Categories of components in the library."""
 
     BOARD = "board"  # PCBs, microcontrollers
@@ -275,7 +275,7 @@ class ComponentDefinition(BaseModel):
 
 
 # Avoid circular import - import at end
-from app.cad_v2.schemas.base import BoundingBox  # noqa: E402
+from app.cad_v2.schemas.base import BoundingBox
 
 # Update forward reference
 ComponentDefinition.model_rebuild()

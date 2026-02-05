@@ -6,11 +6,12 @@ and feature access throughout the application.
 """
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.subscription import TierSlug
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # Type variable for decorator
-F = TypeVar('F', bound=Callable)
+F = TypeVar("F", bound=Callable)
 
 
 # =============================
@@ -105,10 +106,11 @@ def get_user_tier(user: User) -> str:
 # Tier Requirement Decorator
 # =============================
 
+
 class TierRequired:
     """
     Dependency class to require a minimum subscription tier.
-    
+
     Usage:
         @router.post("/premium-feature")
         async def premium_feature(
@@ -117,28 +119,28 @@ class TierRequired:
         ):
             ...
     """
-    
+
     TIER_ORDER = {
         TierSlug.FREE.value: 0,
         TierSlug.PRO.value: 1,
         TierSlug.ENTERPRISE.value: 2,
     }
-    
+
     def __init__(self, minimum_tier: str):
         """
         Initialize tier requirement.
-        
+
         Args:
             minimum_tier: Minimum tier required (free, pro, enterprise)
         """
         self.minimum_tier = minimum_tier
-    
+
     async def __call__(self, user: User) -> None:
         """Check if user meets tier requirement."""
         user_tier = get_user_tier(user)
         user_level = self.TIER_ORDER.get(user_tier, 0)
         required_level = self.TIER_ORDER.get(self.minimum_tier, 0)
-        
+
         if user_level < required_level:
             logger.warning(
                 f"User {user.id} with tier {user_tier} "
@@ -158,32 +160,34 @@ class TierRequired:
 def require_tier(minimum_tier: str):
     """
     Decorator to require a minimum subscription tier.
-    
+
     Usage:
         @require_tier("pro")
         async def premium_endpoint(user: User):
             ...
     """
+
     def decorator(func: F) -> F:
         @wraps(func)
         async def wrapper(*args, user: User | None = None, **kwargs):
             if user is None:
                 # Try to get user from kwargs
-                user = kwargs.get('current_user')
-            
+                user = kwargs.get("current_user")
+
             if user is None:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication required",
                 )
-            
+
             # Check tier
             tier_check = TierRequired(minimum_tier)
             await tier_check(user)
-            
+
             return await func(*args, user=user, **kwargs)
-        
+
         return wrapper  # type: ignore
+
     return decorator
 
 
@@ -191,14 +195,15 @@ def require_tier(minimum_tier: str):
 # Feature Check
 # =============================
 
+
 def has_feature(user: User, feature_name: str) -> bool:
     """
     Check if user's tier includes a feature.
-    
+
     Args:
         user: The user to check
         feature_name: Name of the feature to check
-        
+
     Returns:
         True if feature is available, False otherwise
     """
@@ -211,7 +216,7 @@ def has_feature(user: User, feature_name: str) -> bool:
 class FeatureRequired:
     """
     Dependency class to require a specific feature.
-    
+
     Usage:
         @router.post("/2d-export")
         async def export_2d(
@@ -220,10 +225,10 @@ class FeatureRequired:
         ):
             ...
     """
-    
+
     def __init__(self, feature_name: str):
         self.feature_name = feature_name
-    
+
     async def __call__(self, user: User) -> None:
         if not has_feature(user, self.feature_name):
             tier = get_user_tier(user)
@@ -242,38 +247,39 @@ class FeatureRequired:
 # Quota Checks
 # =============================
 
+
 async def check_generation_quota(
     user: User,
     db: AsyncSession,
 ) -> dict:
     """
     Check if user has remaining generation quota.
-    
+
     Args:
         user: The user to check
         db: Database session
-        
+
     Returns:
         Dict with 'allowed', 'used', 'limit', and 'remaining'
-        
+
     Raises:
         HTTPException if quota exceeded
     """
     tier = get_user_tier(user)
     limits = get_tier_limits(tier)
     monthly_limit = limits.get("monthly_generations", 10)
-    
+
     # Get current period usage
     usage = user.usage_quota
     period_generations = usage.period_generations if usage else 0
-    
+
     result = {
         "allowed": period_generations < monthly_limit or monthly_limit == -1,
         "used": period_generations,
         "limit": monthly_limit,
         "remaining": max(0, monthly_limit - period_generations) if monthly_limit != -1 else -1,
     }
-    
+
     if not result["allowed"]:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -286,7 +292,7 @@ async def check_generation_quota(
                 "reset_at": None,  # TODO: Add next_refill_at to UsageQuota model
             },
         )
-    
+
     return result
 
 
@@ -297,15 +303,15 @@ async def check_storage_quota(
 ) -> dict:
     """
     Check if user has storage space for additional data.
-    
+
     Args:
         user: The user to check
         additional_bytes: Size of new data to store
         db: Database session
-        
+
     Returns:
         Dict with 'allowed', 'used_gb', 'limit_gb', and 'remaining_gb'
-        
+
     Raises:
         HTTPException if storage quota exceeded
     """
@@ -313,19 +319,19 @@ async def check_storage_quota(
     limits = get_tier_limits(tier)
     max_storage_gb = limits.get("max_storage_gb", 1)
     max_storage_bytes = max_storage_gb * 1024 * 1024 * 1024
-    
+
     # Get current usage
     usage = user.usage_quota
     current_bytes = usage.storage_used_bytes if usage else 0
     new_total = current_bytes + additional_bytes
-    
+
     result = {
         "allowed": new_total <= max_storage_bytes,
         "used_gb": round(current_bytes / (1024 * 1024 * 1024), 2),
         "limit_gb": max_storage_gb,
         "remaining_gb": round((max_storage_bytes - current_bytes) / (1024 * 1024 * 1024), 2),
     }
-    
+
     if not result["allowed"]:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -337,7 +343,7 @@ async def check_storage_quota(
                 "limit_gb": max_storage_gb,
             },
         )
-    
+
     return result
 
 
@@ -347,23 +353,23 @@ async def check_project_limit(
 ) -> dict:
     """
     Check if user can create another project.
-    
+
     Args:
         user: The user to check
         db: Database session
-        
+
     Returns:
         Dict with 'allowed', 'count', and 'limit'
-        
+
     Raises:
         HTTPException if project limit reached
     """
     from app.models.project import Project
-    
+
     tier = get_user_tier(user)
     limits = get_tier_limits(tier)
     max_projects = limits.get("max_projects", 5)
-    
+
     # Count user's projects
     result = await db.execute(
         select(func.count(Project.id))
@@ -371,15 +377,15 @@ async def check_project_limit(
         .where(Project.deleted_at.is_(None))
     )
     project_count = result.scalar() or 0
-    
+
     allowed = max_projects == -1 or project_count < max_projects
-    
+
     check_result = {
         "allowed": allowed,
         "count": project_count,
         "limit": max_projects,
     }
-    
+
     if not allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -391,7 +397,7 @@ async def check_project_limit(
                 "limit": max_projects,
             },
         )
-    
+
     return check_result
 
 
@@ -401,27 +407,27 @@ async def check_file_size_limit(
 ) -> dict:
     """
     Check if file size is within tier limits.
-    
+
     Args:
         user: The user to check
         file_size_mb: Size of file in megabytes
-        
+
     Returns:
         Dict with 'allowed' and 'limit_mb'
-        
+
     Raises:
         HTTPException if file too large
     """
     tier = get_user_tier(user)
     limits = get_tier_limits(tier)
     max_file_size_mb = limits.get("max_file_size_mb", 25)
-    
+
     result = {
         "allowed": file_size_mb <= max_file_size_mb,
         "file_size_mb": file_size_mb,
         "limit_mb": max_file_size_mb,
     }
-    
+
     if not result["allowed"]:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -433,18 +439,18 @@ async def check_file_size_limit(
                 "limit_mb": max_file_size_mb,
             },
         )
-    
+
     return result
 
 
 def can_use_export_format(user: User, format: str) -> bool:
     """
     Check if user's tier allows a specific export format.
-    
+
     Args:
         user: The user to check
         format: Export format (e.g., "step", "stl")
-        
+
     Returns:
         True if format is allowed, False otherwise
     """
@@ -457,6 +463,7 @@ def can_use_export_format(user: User, format: str) -> bool:
 # =============================
 # Usage Tracking
 # =============================
+
 
 async def increment_generation_count(
     user: User,
@@ -485,7 +492,7 @@ async def update_storage_usage(
 ) -> None:
     """
     Update user's storage usage.
-    
+
     Args:
         user: The user
         delta_bytes: Bytes added (positive) or removed (negative)
@@ -493,7 +500,6 @@ async def update_storage_usage(
     """
     if user.usage_quota:
         user.usage_quota.storage_used_bytes = max(
-            0,
-            user.usage_quota.storage_used_bytes + delta_bytes
+            0, user.usage_quota.storage_used_bytes + delta_bytes
         )
         await db.commit()

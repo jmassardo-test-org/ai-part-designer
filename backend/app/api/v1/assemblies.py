@@ -4,9 +4,8 @@ Assembly API endpoints.
 CRUD operations for assemblies, components, and relationships.
 """
 
+from datetime import UTC
 from uuid import UUID
-from typing import Optional
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -16,17 +15,14 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.models.user import User
-from app.models.project import Project
-from app.models.design import Design
 from app.models.assembly import (
     Assembly,
     AssemblyComponent,
     ComponentRelationship,
-    BOMItem,
-    Vendor,
 )
-
+from app.models.design import Design
+from app.models.project import Project
+from app.models.user import User
 
 router = APIRouter()
 
@@ -35,8 +31,10 @@ router = APIRouter()
 # Schemas
 # ============================================================================
 
+
 class Position(BaseModel):
     """3D position."""
+
     x: float = 0
     y: float = 0
     z: float = 0
@@ -44,6 +42,7 @@ class Position(BaseModel):
 
 class Rotation(BaseModel):
     """3D rotation (Euler angles in degrees)."""
+
     rx: float = 0
     ry: float = 0
     rz: float = 0
@@ -51,6 +50,7 @@ class Rotation(BaseModel):
 
 class Scale(BaseModel):
     """3D scale."""
+
     sx: float = 1
     sy: float = 1
     sz: float = 1
@@ -58,67 +58,73 @@ class Scale(BaseModel):
 
 class AssemblyCreate(BaseModel):
     """Request to create an assembly."""
+
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
+    description: str | None = Field(None, max_length=2000)
     project_id: UUID
-    root_design_id: Optional[UUID] = None
+    root_design_id: UUID | None = None
 
 
 class AssemblyUpdate(BaseModel):
     """Request to update an assembly."""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
-    status: Optional[str] = None
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=2000)
+    status: str | None = None
 
 
 class ComponentCreate(BaseModel):
     """Request to add a component."""
+
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    design_id: Optional[UUID] = None
+    description: str | None = None
+    design_id: UUID | None = None
     quantity: int = Field(1, ge=1)
     position: Position = Field(default_factory=Position)
     rotation: Rotation = Field(default_factory=Rotation)
     is_cots: bool = False
-    part_number: Optional[str] = None
-    color: Optional[str] = None
+    part_number: str | None = None
+    color: str | None = None
 
 
 class ComponentUpdate(BaseModel):
     """Request to update a component."""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    quantity: Optional[int] = Field(None, ge=1)
-    position: Optional[Position] = None
-    rotation: Optional[Rotation] = None
-    scale: Optional[Scale] = None
-    color: Optional[str] = None
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    quantity: int | None = Field(None, ge=1)
+    position: Position | None = None
+    rotation: Rotation | None = None
+    scale: Scale | None = None
+    color: str | None = None
 
 
 class RelationshipCreate(BaseModel):
     """Request to create a relationship."""
+
     parent_component_id: UUID
     child_component_id: UUID
     relationship_type: str = Field(..., min_length=1, max_length=50)
-    name: Optional[str] = None
+    name: str | None = None
     constraint_data: dict = Field(default_factory=dict)
-    assembly_order: Optional[int] = None
+    assembly_order: int | None = None
 
 
 class ComponentResponse(BaseModel):
     """Response for a component."""
+
     id: UUID
     name: str
-    description: Optional[str]
-    design_id: Optional[UUID]
-    design_name: Optional[str]
+    description: str | None
+    design_id: UUID | None
+    design_name: str | None
     quantity: int
     position: dict
     rotation: dict
     scale: dict
     is_cots: bool
-    part_number: Optional[str]
-    color: Optional[str]
+    part_number: str | None
+    color: str | None
     created_at: str
     updated_at: str
 
@@ -128,13 +134,14 @@ class ComponentResponse(BaseModel):
 
 class RelationshipResponse(BaseModel):
     """Response for a relationship."""
+
     id: UUID
     parent_component_id: UUID
     child_component_id: UUID
     relationship_type: str
-    name: Optional[str]
+    name: str | None
     constraint_data: dict
-    assembly_order: Optional[int]
+    assembly_order: int | None
 
     class Config:
         from_attributes = True
@@ -142,14 +149,15 @@ class RelationshipResponse(BaseModel):
 
 class AssemblyResponse(BaseModel):
     """Response for an assembly."""
+
     id: UUID
     name: str
-    description: Optional[str]
+    description: str | None
     project_id: UUID
     project_name: str
-    root_design_id: Optional[UUID]
+    root_design_id: UUID | None
     status: str
-    thumbnail_url: Optional[str]
+    thumbnail_url: str | None
     component_count: int
     total_quantity: int
     version: int
@@ -162,12 +170,14 @@ class AssemblyResponse(BaseModel):
 
 class AssemblyDetailResponse(AssemblyResponse):
     """Response for assembly with components and relationships."""
+
     components: list[ComponentResponse]
     relationships: list[RelationshipResponse]
 
 
 class AssemblyListResponse(BaseModel):
     """Response for listing assemblies."""
+
     assemblies: list[AssemblyResponse]
     total: int
     page: int
@@ -177,6 +187,7 @@ class AssemblyListResponse(BaseModel):
 # ============================================================================
 # Assembly CRUD Endpoints
 # ============================================================================
+
 
 @router.post("/assemblies", response_model=AssemblyResponse, status_code=status.HTTP_201_CREATED)
 async def create_assembly(
@@ -193,13 +204,13 @@ async def create_assembly(
     )
     project_result = await db.execute(project_query)
     project = project_result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
+
     # Verify root design if provided
     if request.root_design_id:
         design_query = select(Design).where(
@@ -213,7 +224,7 @@ async def create_assembly(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Root design not found",
             )
-    
+
     assembly = Assembly(
         user_id=current_user.id,
         project_id=request.project_id,
@@ -221,11 +232,11 @@ async def create_assembly(
         name=request.name,
         description=request.description,
     )
-    
+
     db.add(assembly)
     await db.commit()
     await db.refresh(assembly)
-    
+
     return AssemblyResponse(
         id=assembly.id,
         name=assembly.name,
@@ -245,7 +256,7 @@ async def create_assembly(
 
 @router.get("/assemblies", response_model=AssemblyListResponse)
 async def list_assemblies(
-    project_id: Optional[UUID] = Query(None),
+    project_id: UUID | None = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -258,54 +269,54 @@ async def list_assemblies(
         .where(Assembly.user_id == current_user.id)
         .where(Assembly.deleted_at.is_(None))
     )
-    
+
     if project_id:
         query = query.where(Assembly.project_id == project_id)
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     count_result = await db.execute(count_query)
     total = count_result.scalar() or 0
-    
+
     # Get page
     offset = (page - 1) * per_page
     query = query.order_by(Assembly.updated_at.desc()).offset(offset).limit(per_page)
-    
+
     result = await db.execute(query)
     assemblies = result.scalars().all()
-    
+
     assembly_responses = []
     for assembly in assemblies:
         # Get component count
-        comp_count_query = select(func.count()).where(
-            AssemblyComponent.assembly_id == assembly.id
-        )
+        comp_count_query = select(func.count()).where(AssemblyComponent.assembly_id == assembly.id)
         comp_count_result = await db.execute(comp_count_query)
         component_count = comp_count_result.scalar() or 0
-        
+
         # Get total quantity
         qty_query = select(func.coalesce(func.sum(AssemblyComponent.quantity), 0)).where(
             AssemblyComponent.assembly_id == assembly.id
         )
         qty_result = await db.execute(qty_query)
         total_quantity = qty_result.scalar() or 0
-        
-        assembly_responses.append(AssemblyResponse(
-            id=assembly.id,
-            name=assembly.name,
-            description=assembly.description,
-            project_id=assembly.project_id,
-            project_name=assembly.project.name,
-            root_design_id=assembly.root_design_id,
-            status=assembly.status,
-            thumbnail_url=assembly.thumbnail_url,
-            component_count=component_count,
-            total_quantity=total_quantity,
-            version=assembly.version,
-            created_at=assembly.created_at.isoformat(),
-            updated_at=assembly.updated_at.isoformat(),
-        ))
-    
+
+        assembly_responses.append(
+            AssemblyResponse(
+                id=assembly.id,
+                name=assembly.name,
+                description=assembly.description,
+                project_id=assembly.project_id,
+                project_name=assembly.project.name,
+                root_design_id=assembly.root_design_id,
+                status=assembly.status,
+                thumbnail_url=assembly.thumbnail_url,
+                component_count=component_count,
+                total_quantity=total_quantity,
+                version=assembly.version,
+                created_at=assembly.created_at.isoformat(),
+                updated_at=assembly.updated_at.isoformat(),
+            )
+        )
+
     return AssemblyListResponse(
         assemblies=assembly_responses,
         total=total,
@@ -332,19 +343,19 @@ async def get_assembly(
     )
     result = await db.execute(query)
     assembly = result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     if assembly.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     components = [
         ComponentResponse(
             id=c.id,
@@ -364,7 +375,7 @@ async def get_assembly(
         )
         for c in assembly.components
     ]
-    
+
     relationships = [
         RelationshipResponse(
             id=r.id,
@@ -377,7 +388,7 @@ async def get_assembly(
         )
         for r in assembly.component_relationships
     ]
-    
+
     return AssemblyDetailResponse(
         id=assembly.id,
         name=assembly.name,
@@ -411,44 +422,42 @@ async def update_assembly(
     )
     result = await db.execute(query)
     assembly = result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     if assembly.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     if request.name is not None:
         assembly.name = request.name
     if request.description is not None:
         assembly.description = request.description
     if request.status is not None:
         assembly.status = request.status
-    
+
     assembly.version += 1
-    
+
     await db.commit()
     await db.refresh(assembly)
-    
+
     # Get counts
-    comp_count_query = select(func.count()).where(
-        AssemblyComponent.assembly_id == assembly.id
-    )
+    comp_count_query = select(func.count()).where(AssemblyComponent.assembly_id == assembly.id)
     comp_count_result = await db.execute(comp_count_query)
     component_count = comp_count_result.scalar() or 0
-    
+
     qty_query = select(func.coalesce(func.sum(AssemblyComponent.quantity), 0)).where(
         AssemblyComponent.assembly_id == assembly.id
     )
     qty_result = await db.execute(qty_query)
     total_quantity = qty_result.scalar() or 0
-    
+
     return AssemblyResponse(
         id=assembly.id,
         name=assembly.name,
@@ -479,22 +488,23 @@ async def delete_assembly(
     )
     result = await db.execute(query)
     assembly = result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     if assembly.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
-    from datetime import datetime, timezone
-    assembly.deleted_at = datetime.now(timezone.utc)
-    
+
+    from datetime import datetime
+
+    assembly.deleted_at = datetime.now(UTC)
+
     await db.commit()
 
 
@@ -502,7 +512,12 @@ async def delete_assembly(
 # Component CRUD Endpoints
 # ============================================================================
 
-@router.post("/assemblies/{assembly_id}/components", response_model=ComponentResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/assemblies/{assembly_id}/components",
+    response_model=ComponentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def add_component(
     assembly_id: UUID,
     request: ComponentCreate,
@@ -518,13 +533,13 @@ async def add_component(
     )
     assembly_result = await db.execute(assembly_query)
     assembly = assembly_result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     # Verify design if provided
     design = None
     if request.design_id:
@@ -539,7 +554,7 @@ async def add_component(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Design not found",
             )
-    
+
     component = AssemblyComponent(
         assembly_id=assembly_id,
         design_id=request.design_id,
@@ -552,13 +567,13 @@ async def add_component(
         part_number=request.part_number,
         color=request.color,
     )
-    
+
     db.add(component)
     assembly.version += 1
-    
+
     await db.commit()
     await db.refresh(component)
-    
+
     return ComponentResponse(
         id=component.id,
         name=component.name,
@@ -594,13 +609,13 @@ async def update_component(
     )
     assembly_result = await db.execute(assembly_query)
     assembly = assembly_result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     # Get component
     component_query = (
         select(AssemblyComponent)
@@ -612,13 +627,13 @@ async def update_component(
     )
     component_result = await db.execute(component_query)
     component = component_result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Component not found",
         )
-    
+
     # Update fields
     if request.name is not None:
         component.name = request.name
@@ -634,12 +649,12 @@ async def update_component(
         component.scale = request.scale.model_dump()
     if request.color is not None:
         component.color = request.color
-    
+
     assembly.version += 1
-    
+
     await db.commit()
     await db.refresh(component)
-    
+
     return ComponentResponse(
         id=component.id,
         name=component.name,
@@ -658,7 +673,9 @@ async def update_component(
     )
 
 
-@router.delete("/assemblies/{assembly_id}/components/{component_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/assemblies/{assembly_id}/components/{component_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def remove_component(
     assembly_id: UUID,
     component_id: UUID,
@@ -674,13 +691,13 @@ async def remove_component(
     )
     assembly_result = await db.execute(assembly_query)
     assembly = assembly_result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     # Get component
     component_query = select(AssemblyComponent).where(
         AssemblyComponent.id == component_id,
@@ -688,16 +705,16 @@ async def remove_component(
     )
     component_result = await db.execute(component_query)
     component = component_result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Component not found",
         )
-    
+
     await db.delete(component)
     assembly.version += 1
-    
+
     await db.commit()
 
 
@@ -705,7 +722,12 @@ async def remove_component(
 # Relationship CRUD Endpoints
 # ============================================================================
 
-@router.post("/assemblies/{assembly_id}/relationships", response_model=RelationshipResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/assemblies/{assembly_id}/relationships",
+    response_model=RelationshipResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_relationship(
     assembly_id: UUID,
     request: RelationshipCreate,
@@ -721,13 +743,13 @@ async def create_relationship(
     )
     assembly_result = await db.execute(assembly_query)
     assembly = assembly_result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     # Verify both components exist in assembly
     for comp_id in [request.parent_component_id, request.child_component_id]:
         comp_query = select(AssemblyComponent).where(
@@ -740,7 +762,7 @@ async def create_relationship(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Component {comp_id} not found in assembly",
             )
-    
+
     relationship = ComponentRelationship(
         assembly_id=assembly_id,
         parent_component_id=request.parent_component_id,
@@ -750,13 +772,13 @@ async def create_relationship(
         constraint_data=request.constraint_data,
         assembly_order=request.assembly_order,
     )
-    
+
     db.add(relationship)
     assembly.version += 1
-    
+
     await db.commit()
     await db.refresh(relationship)
-    
+
     return RelationshipResponse(
         id=relationship.id,
         parent_component_id=relationship.parent_component_id,
@@ -768,7 +790,10 @@ async def create_relationship(
     )
 
 
-@router.delete("/assemblies/{assembly_id}/relationships/{relationship_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/assemblies/{assembly_id}/relationships/{relationship_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 async def delete_relationship(
     assembly_id: UUID,
     relationship_id: UUID,
@@ -784,13 +809,13 @@ async def delete_relationship(
     )
     assembly_result = await db.execute(assembly_query)
     assembly = assembly_result.scalar_one_or_none()
-    
+
     if not assembly:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assembly not found",
         )
-    
+
     # Get relationship
     rel_query = select(ComponentRelationship).where(
         ComponentRelationship.id == relationship_id,
@@ -798,14 +823,14 @@ async def delete_relationship(
     )
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
-    
+
     if not relationship:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Relationship not found",
         )
-    
+
     await db.delete(relationship)
     assembly.version += 1
-    
+
     await db.commit()

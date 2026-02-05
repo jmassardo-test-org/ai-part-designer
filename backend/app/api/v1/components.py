@@ -8,10 +8,9 @@ import hashlib
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +18,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.core.config import get_settings
-from app.core.storage import storage_client, StorageBucket
+from app.core.storage import StorageBucket, storage_client
 from app.models.reference_component import (
     ComponentExtractionJob,
     ComponentLibrary,
@@ -37,6 +36,7 @@ router = APIRouter(prefix="/components", tags=["components"])
 # Request/Response Schemas
 # =============================================================================
 
+
 class DimensionsSchema(BaseModel):
     length: float
     width: float
@@ -48,9 +48,9 @@ class MountingHoleSchema(BaseModel):
     x: float
     y: float
     diameter: float
-    thread_size: Optional[str] = None
-    depth: Optional[float] = None
-    label: Optional[str] = None
+    thread_size: str | None = None
+    depth: float | None = None
+    label: str | None = None
 
 
 class ConnectorSchema(BaseModel):
@@ -73,58 +73,58 @@ class ClearanceZoneSchema(BaseModel):
 
 
 class ThermalPropertiesSchema(BaseModel):
-    max_operating_temp: Optional[float] = None
-    heat_dissipation: Optional[float] = None
+    max_operating_temp: float | None = None
+    heat_dissipation: float | None = None
     requires_heatsink: bool = False
     requires_venting: bool = False
 
 
 class ComponentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     category: str = Field(..., min_length=1, max_length=100)
-    subcategory: Optional[str] = None
-    manufacturer: Optional[str] = None
-    model_number: Optional[str] = None
+    subcategory: str | None = None
+    manufacturer: str | None = None
+    model_number: str | None = None
     tags: list[str] = []
 
 
 class ComponentUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    category: Optional[str] = None
-    subcategory: Optional[str] = None
-    manufacturer: Optional[str] = None
-    model_number: Optional[str] = None
-    tags: Optional[list[str]] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    category: str | None = None
+    subcategory: str | None = None
+    manufacturer: str | None = None
+    model_number: str | None = None
+    tags: list[str] | None = None
 
 
 class SpecificationsUpdate(BaseModel):
-    dimensions: Optional[DimensionsSchema] = None
-    mounting_holes: Optional[list[MountingHoleSchema]] = None
-    connectors: Optional[list[ConnectorSchema]] = None
-    clearance_zones: Optional[list[ClearanceZoneSchema]] = None
-    thermal_properties: Optional[ThermalPropertiesSchema] = None
+    dimensions: DimensionsSchema | None = None
+    mounting_holes: list[MountingHoleSchema] | None = None
+    connectors: list[ConnectorSchema] | None = None
+    clearance_zones: list[ClearanceZoneSchema] | None = None
+    thermal_properties: ThermalPropertiesSchema | None = None
 
 
 class ComponentResponse(BaseModel):
     id: UUID
-    user_id: Optional[UUID]
+    user_id: UUID | None
     name: str
-    description: Optional[str]
+    description: str | None
     category: str
-    subcategory: Optional[str]
-    manufacturer: Optional[str]
-    model_number: Optional[str]
+    subcategory: str | None
+    manufacturer: str | None
+    model_number: str | None
     source_type: str
-    thumbnail_url: Optional[str]
-    dimensions: Optional[dict]
-    mounting_holes: Optional[list]
-    connectors: Optional[list]
-    clearance_zones: Optional[list]
-    thermal_properties: Optional[dict]
+    thumbnail_url: str | None
+    dimensions: dict | None
+    mounting_holes: list | None
+    connectors: list | None
+    clearance_zones: list | None
+    thermal_properties: dict | None
     extraction_status: str
-    confidence_score: Optional[float]
+    confidence_score: float | None
     is_verified: bool
     tags: list
     created_at: datetime
@@ -145,13 +145,13 @@ class LibraryComponentResponse(BaseModel):
     id: UUID
     component_id: UUID
     name: str
-    description: Optional[str]
+    description: str | None
     category: str
-    subcategory: Optional[str]
-    manufacturer: Optional[str]
-    model_number: Optional[str]
-    thumbnail_url: Optional[str]
-    dimensions: Optional[dict]
+    subcategory: str | None
+    manufacturer: str | None
+    model_number: str | None
+    thumbnail_url: str | None
+    dimensions: dict | None
     popularity_score: int
     usage_count: int
     is_featured: bool
@@ -167,11 +167,11 @@ class ExtractionJobResponse(BaseModel):
     job_type: str
     status: str
     progress: int
-    current_step: Optional[str]
-    confidence_score: Optional[float]
-    error_message: Optional[str]
+    current_step: str | None
+    confidence_score: float | None
+    error_message: str | None
     created_at: datetime
-    completed_at: Optional[datetime]
+    completed_at: datetime | None
 
     class Config:
         from_attributes = True
@@ -180,6 +180,7 @@ class ExtractionJobResponse(BaseModel):
 # =============================================================================
 # Component CRUD Endpoints
 # =============================================================================
+
 
 @router.post("", response_model=ComponentResponse, status_code=201)
 async def create_component(
@@ -201,16 +202,17 @@ async def create_component(
         tags=data.tags,
         extraction_status="pending",
     )
-    
+
     db.add(component)
     await db.commit()
     await db.refresh(component)
-    
+
     return component
 
 
 class ComponentUploadResponse(BaseModel):
     """Response from component file upload."""
+
     id: UUID
     name: str | None
     manufacturer: str | None
@@ -233,19 +235,19 @@ async def upload_component(
 ):
     """
     Upload a component file for extraction.
-    
+
     Accepts CAD files (STEP, STL, etc.), datasheets (PDF), or images.
     Automatically triggers specification extraction.
     """
     settings = get_settings()
-    
+
     # Determine file type
     filename = file.filename or "unknown"
     ext = Path(filename).suffix.lower()
-    
+
     cad_extensions = {".step", ".stp", ".stl", ".iges", ".igs", ".obj", ".3mf"}
     image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
-    
+
     if ext in cad_extensions:
         file_type = "cad"
     elif ext == ".pdf":
@@ -255,23 +257,20 @@ async def upload_component(
     else:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {ext}. Supported: CAD files, PDFs, images"
+            detail=f"Unsupported file type: {ext}. Supported: CAD files, PDFs, images",
         )
-    
+
     # Read file content
     content = await file.read()
     file_size = len(content)
-    
+
     # Check file size (50MB limit)
     max_size = 50 * 1024 * 1024
     if file_size > max_size:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large. Maximum size is 50MB"
-        )
-    
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 50MB")
+
     checksum = hashlib.sha256(content).hexdigest()
-    
+
     # Create component record
     component_id = uuid4()
     component = ReferenceComponent(
@@ -283,15 +282,15 @@ async def upload_component(
         extraction_status="pending",
         tags=[],
     )
-    
+
     db.add(component)
     await db.flush()
-    
+
     # Upload file
     storage_prefix = f"components/{component_id}"
     storage_key = f"{storage_prefix}/{filename}"
     local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / filename
-    
+
     try:
         await storage_client.upload_file(
             bucket=StorageBucket.UPLOADS,
@@ -304,7 +303,7 @@ async def upload_component(
         local_path.parent.mkdir(parents=True, exist_ok=True)
         with open(local_path, "wb") as f:
             f.write(content)
-    
+
     # Store file metadata
     component.files_metadata = {
         f"{file_type}_file": {
@@ -316,7 +315,7 @@ async def upload_component(
             "uploaded_at": datetime.utcnow().isoformat(),
         }
     }
-    
+
     # Create extraction job
     extraction_job = ComponentExtractionJob(
         id=uuid4(),
@@ -326,17 +325,18 @@ async def upload_component(
         progress=0,
     )
     db.add(extraction_job)
-    
+
     await db.commit()
     await db.refresh(component)
-    
+
     # Queue extraction task (async)
     try:
         from app.worker.tasks import extract_component_task
+
         extract_component_task.delay(str(extraction_job.id))
     except Exception as e:
         logger.warning(f"Failed to queue extraction task: {e}")
-    
+
     return ComponentUploadResponse(
         id=component.id,
         name=component.name,
@@ -352,8 +352,8 @@ async def upload_component(
 
 @router.get("", response_model=ComponentListResponse)
 async def list_components(
-    category: Optional[str] = None,
-    search: Optional[str] = None,
+    category: str | None = None,
+    search: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -366,11 +366,11 @@ async def list_components(
             ReferenceComponent.deleted_at.is_(None),
         )
     )
-    
+
     # Filters
     if category:
         query = query.where(ReferenceComponent.category == category)
-    
+
     if search:
         search_filter = or_(
             ReferenceComponent.name.ilike(f"%{search}%"),
@@ -378,18 +378,18 @@ async def list_components(
             ReferenceComponent.model_number.ilike(f"%{search}%"),
         )
         query = query.where(search_filter)
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
-    
+
     # Paginate
     query = query.offset((page - 1) * page_size).limit(page_size)
     query = query.order_by(ReferenceComponent.created_at.desc())
-    
+
     result = await db.execute(query)
     components = result.scalars().all()
-    
+
     return ComponentListResponse(
         items=components,
         total=total or 0,
@@ -415,13 +415,13 @@ async def get_component(
             ),
         )
     )
-    
+
     result = await db.execute(query)
     component = result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     return component
 
 
@@ -440,23 +440,23 @@ async def update_component(
             ReferenceComponent.deleted_at.is_(None),
         )
     )
-    
+
     result = await db.execute(query)
     component = result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     # Update fields
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(component, field, value)
-    
+
     component.updated_at = datetime.utcnow()
-    
+
     await db.commit()
     await db.refresh(component)
-    
+
     return component
 
 
@@ -475,13 +475,13 @@ async def update_specifications(
             ReferenceComponent.deleted_at.is_(None),
         )
     )
-    
+
     result = await db.execute(query)
     component = result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     # Update specifications
     if data.dimensions:
         component.dimensions = data.dimensions.model_dump()
@@ -493,44 +493,45 @@ async def update_specifications(
         component.clearance_zones = [z.model_dump() for z in data.clearance_zones]
     if data.thermal_properties:
         component.thermal_properties = data.thermal_properties.model_dump()
-    
+
     # Mark as manually edited
     component.extraction_status = "manual"
     component.updated_at = datetime.utcnow()
-    
+
     await db.commit()
     await db.refresh(component)
-    
+
     return component
 
 
 class FileUpdateResponse(BaseModel):
     """Response after updating component files."""
+
     component_id: UUID
     message: str
     files_updated: int
     extraction_triggered: bool
-    extraction_job_id: Optional[UUID] = None
+    extraction_job_id: UUID | None = None
 
 
 @router.put("/{component_id}/files", response_model=FileUpdateResponse)
 async def update_component_files(
     component_id: UUID,
-    cad_file: Optional[UploadFile] = File(None, description="New CAD file (STEP, STL, IGES)"),
-    datasheet: Optional[UploadFile] = File(None, description="New datasheet PDF"),
-    thumbnail: Optional[UploadFile] = File(None, description="New thumbnail image"),
+    cad_file: UploadFile | None = File(None, description="New CAD file (STEP, STL, IGES)"),
+    datasheet: UploadFile | None = File(None, description="New datasheet PDF"),
+    thumbnail: UploadFile | None = File(None, description="New thumbnail image"),
     trigger_extraction: bool = Query(True, description="Re-trigger AI extraction after upload"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Update CAD files for an existing component.
-    
+
     Replaces existing files and optionally re-triggers AI extraction
     to update dimensions, mounting holes, and other specifications.
     """
     settings = get_settings()
-    
+
     # Verify component exists and user owns it
     query = select(ReferenceComponent).where(
         and_(
@@ -539,23 +540,23 @@ async def update_component_files(
             ReferenceComponent.deleted_at.is_(None),
         )
     )
-    
+
     result = await db.execute(query)
     component = result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     if not cad_file and not datasheet and not thumbnail:
         raise HTTPException(status_code=400, detail="At least one file must be provided")
-    
+
     files_updated = 0
     storage_prefix = f"components/{component_id}"
-    
+
     # Allowed extensions
     cad_extensions = {".step", ".stp", ".stl", ".iges", ".igs", ".obj", ".3mf"}
     image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
-    
+
     # Helper function to upload to storage with fallback
     async def upload_to_storage(
         key: str, content: bytes, content_type: str, local_path: Path
@@ -576,26 +577,26 @@ async def update_component_files(
             with open(local_path, "wb") as f:
                 f.write(content)
             return str(local_path)
-    
+
     # Process CAD file
     if cad_file:
         ext = Path(cad_file.filename or "").suffix.lower()
         if ext not in cad_extensions:
             raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid CAD file type. Supported: {', '.join(cad_extensions)}"
+                status_code=400,
+                detail=f"Invalid CAD file type. Supported: {', '.join(cad_extensions)}",
             )
-        
+
         content = await cad_file.read()
         checksum = hashlib.sha256(content).hexdigest()
-        
+
         # Upload to storage
         storage_key = f"{storage_prefix}/model{ext}"
         local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / f"model{ext}"
         stored_path = await upload_to_storage(
             storage_key, content, cad_file.content_type or "application/octet-stream", local_path
         )
-        
+
         # Update component metadata
         if not component.files_metadata:
             component.files_metadata = {}
@@ -609,23 +610,21 @@ async def update_component_files(
             "updated_at": datetime.utcnow().isoformat(),
         }
         files_updated += 1
-    
+
     # Process datasheet
     if datasheet:
         ext = Path(datasheet.filename or "").suffix.lower()
         if ext != ".pdf":
             raise HTTPException(status_code=400, detail="Datasheet must be a PDF file")
-        
+
         content = await datasheet.read()
         checksum = hashlib.sha256(content).hexdigest()
-        
+
         # Upload to storage
         storage_key = f"{storage_prefix}/datasheet.pdf"
         local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / "datasheet.pdf"
-        stored_path = await upload_to_storage(
-            storage_key, content, "application/pdf", local_path
-        )
-        
+        stored_path = await upload_to_storage(storage_key, content, "application/pdf", local_path)
+
         if not component.files_metadata:
             component.files_metadata = {}
         component.files_metadata["datasheet"] = {
@@ -637,24 +636,26 @@ async def update_component_files(
             "updated_at": datetime.utcnow().isoformat(),
         }
         files_updated += 1
-    
+
     # Process thumbnail
     if thumbnail:
         ext = Path(thumbnail.filename or "").suffix.lower()
         if ext not in image_extensions:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid image type. Supported: {', '.join(image_extensions)}"
+                detail=f"Invalid image type. Supported: {', '.join(image_extensions)}",
             )
-        
+
         content = await thumbnail.read()
         content_type = thumbnail.content_type or f"image/{ext.lstrip('.')}"
-        
+
         # Upload to storage
         storage_key = f"{storage_prefix}/thumbnail{ext}"
-        local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / f"thumbnail{ext}"
+        local_path = (
+            Path(settings.UPLOAD_DIR) / "components" / str(component_id) / f"thumbnail{ext}"
+        )
         await upload_to_storage(storage_key, content, content_type, local_path)
-        
+
         # Update thumbnail URL - use presigned URL or local path
         try:
             thumbnail_url = await storage_client.generate_presigned_download_url(
@@ -666,9 +667,9 @@ async def update_component_files(
         except Exception:
             component.thumbnail_url = f"/uploads/components/{component_id}/thumbnail{ext}"
         files_updated += 1
-    
+
     component.updated_at = datetime.utcnow()
-    
+
     # Trigger extraction if requested and CAD file or datasheet was updated
     extraction_job_id = None
     if trigger_extraction and (cad_file or datasheet):
@@ -683,13 +684,14 @@ async def update_component_files(
         db.add(extraction_job)
         component.extraction_status = "pending"
         extraction_job_id = extraction_job.id
-        
+
         # Queue Celery task for extraction
         from app.worker.tasks import extract_component_task
+
         extract_component_task.delay(str(extraction_job.id))
-    
+
     await db.commit()
-    
+
     return FileUpdateResponse(
         component_id=component_id,
         message=f"Successfully updated {files_updated} file(s)",
@@ -713,13 +715,13 @@ async def delete_component(
             ReferenceComponent.deleted_at.is_(None),
         )
     )
-    
+
     result = await db.execute(query)
     component = result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     component.deleted_at = datetime.utcnow()
     await db.commit()
 
@@ -727,6 +729,7 @@ async def delete_component(
 # =============================================================================
 # Extraction Endpoints
 # =============================================================================
+
 
 @router.post("/{component_id}/extract", response_model=ExtractionJobResponse)
 async def trigger_extraction(
@@ -744,13 +747,13 @@ async def trigger_extraction(
             ReferenceComponent.deleted_at.is_(None),
         )
     )
-    
+
     result = await db.execute(query)
     component = result.scalar_one_or_none()
-    
+
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     # Check for existing pending job
     existing_query = select(ComponentExtractionJob).where(
         and_(
@@ -764,7 +767,7 @@ async def trigger_extraction(
             status_code=400,
             detail="Extraction already in progress",
         )
-    
+
     # Create extraction job
     job = ComponentExtractionJob(
         id=uuid4(),
@@ -773,19 +776,20 @@ async def trigger_extraction(
         status="pending",
         progress=0,
     )
-    
+
     db.add(job)
-    
+
     # Update component status
     component.extraction_status = "processing"
-    
+
     await db.commit()
     await db.refresh(job)
-    
+
     # Queue background task for extraction
     from app.worker.tasks import extract_component_task
+
     extract_component_task.delay(str(job.id))
-    
+
     return job
 
 
@@ -802,13 +806,13 @@ async def get_extraction_status(
         .order_by(ComponentExtractionJob.created_at.desc())
         .limit(1)
     )
-    
+
     result = await db.execute(query)
     job = result.scalar_one_or_none()
-    
+
     if not job:
         raise HTTPException(status_code=404, detail="No extraction job found")
-    
+
     return job
 
 
@@ -821,6 +825,7 @@ library_router = APIRouter(prefix="/library", tags=["component-library"])
 
 class LibrarySearchResponse(BaseModel):
     """Response with pagination metadata."""
+
     items: list[LibraryComponentResponse]
     total: int
     page: int
@@ -830,11 +835,11 @@ class LibrarySearchResponse(BaseModel):
 
 @library_router.get("", response_model=LibrarySearchResponse)
 async def browse_library(
-    category: Optional[str] = None,
-    subcategory: Optional[str] = None,
-    manufacturer: Optional[str] = None,
-    search: Optional[str] = None,
-    featured: Optional[bool] = None,
+    category: str | None = None,
+    subcategory: str | None = None,
+    manufacturer: str | None = None,
+    search: str | None = None,
+    featured: bool | None = None,
     sort_by: str = Query("popularity", regex="^(popularity|name|newest)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -848,7 +853,7 @@ async def browse_library(
         .join(ReferenceComponent)
         .where(ReferenceComponent.deleted_at.is_(None))
     )
-    
+
     # Filters
     if category:
         query = query.where(ComponentLibrary.category == category)
@@ -858,7 +863,7 @@ async def browse_library(
         query = query.where(ComponentLibrary.manufacturer.ilike(f"%{manufacturer}%"))
     if featured is not None:
         query = query.where(ComponentLibrary.is_featured == featured)
-    
+
     if search:
         search_filter = or_(
             ReferenceComponent.name.ilike(f"%{search}%"),
@@ -867,12 +872,12 @@ async def browse_library(
             ComponentLibrary.tags.contains([search]),
         )
         query = query.where(search_filter)
-    
+
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Sorting
     if sort_by == "popularity":
         query = query.order_by(
@@ -883,14 +888,14 @@ async def browse_library(
         query = query.order_by(ReferenceComponent.name.asc())
     elif sort_by == "newest":
         query = query.order_by(ReferenceComponent.created_at.desc())
-    
+
     # Paginate
     query = query.offset((page - 1) * page_size).limit(page_size)
     query = query.options(selectinload(ComponentLibrary.component))
-    
+
     result = await db.execute(query)
     entries = result.scalars().all()
-    
+
     # Build response with component data
     items = []
     for entry in entries:
@@ -913,9 +918,9 @@ async def browse_library(
                 tags=entry.tags or [],
             )
         )
-    
+
     total_pages = (total + page_size - 1) // page_size if total > 0 else 1
-    
+
     return LibrarySearchResponse(
         items=items,
         total=total,
@@ -940,24 +945,24 @@ async def list_categories(
         .group_by(ComponentLibrary.category, ComponentLibrary.subcategory)
         .order_by(ComponentLibrary.category, ComponentLibrary.subcategory)
     )
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     # Group by category
     categories = {}
     for row in rows:
         cat = row.category
         subcat = row.subcategory
         count = row.count
-        
+
         if cat not in categories:
             categories[cat] = {"name": cat, "subcategories": [], "total": 0}
-        
+
         if subcat:
             categories[cat]["subcategories"].append({"name": subcat, "count": count})
         categories[cat]["total"] += count
-    
+
     return list(categories.values())
 
 
@@ -973,20 +978,20 @@ async def get_library_component(
         .where(ComponentLibrary.id == library_id)
         .options(selectinload(ComponentLibrary.component))
     )
-    
+
     result = await db.execute(query)
     entry = result.scalar_one_or_none()
-    
+
     if not entry:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     return entry.component
 
 
 @library_router.post("/{library_id}/add")
 async def add_library_component_to_project(
     library_id: UUID,
-    project_id: Optional[UUID] = None,
+    project_id: UUID | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -997,13 +1002,13 @@ async def add_library_component_to_project(
         .where(ComponentLibrary.id == library_id)
         .options(selectinload(ComponentLibrary.component))
     )
-    
+
     result = await db.execute(query)
     entry = result.scalar_one_or_none()
-    
+
     if not entry:
         raise HTTPException(status_code=404, detail="Component not found")
-    
+
     # Create user component
     user_component = UserComponent(
         id=uuid4(),
@@ -1011,15 +1016,15 @@ async def add_library_component_to_project(
         source_component_id=entry.component_id,
         project_id=project_id,
     )
-    
+
     db.add(user_component)
-    
+
     # Increment usage count
     entry.usage_count += 1
-    
+
     await db.commit()
     await db.refresh(user_component)
-    
+
     return {
         "id": user_component.id,
         "component_id": entry.component_id,
@@ -1036,12 +1041,13 @@ async def seed_library(
     """Seed the component library with popular components. Admin only."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    from app.db.seeds.component_library import COMPONENT_LIBRARY, CATEGORIES
+
     from uuid import uuid4
-    
+
+    from app.db.seeds.component_library import CATEGORIES, COMPONENT_LIBRARY
+
     count = 0
-    
+
     for component_data in COMPONENT_LIBRARY:
         # Check if component already exists
         result = await db.execute(
@@ -1050,10 +1056,10 @@ async def seed_library(
             )
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             continue
-        
+
         # Create the base reference component
         ref_component = ReferenceComponent(
             id=uuid4(),
@@ -1073,7 +1079,7 @@ async def seed_library(
             is_verified=True,
         )
         db.add(ref_component)
-        
+
         # Create library entry
         library_entry = ComponentLibrary(
             id=uuid4(),
@@ -1088,9 +1094,9 @@ async def seed_library(
         )
         db.add(library_entry)
         count += 1
-    
+
     await db.commit()
-    
+
     return {
         "message": f"Seeded {count} components to library",
         "total_available": len(COMPONENT_LIBRARY),
@@ -1112,8 +1118,8 @@ async def list_manufacturers(
         .group_by(ComponentLibrary.manufacturer)
         .order_by(func.count(ComponentLibrary.id).desc())
     )
-    
+
     result = await db.execute(query)
     rows = result.all()
-    
+
     return [{"name": row.manufacturer, "count": row.count} for row in rows]

@@ -4,8 +4,7 @@ API Dependencies
 Re-exports common dependencies from core modules for API routes.
 """
 
-from typing import Callable
-from uuid import UUID
+from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
@@ -18,19 +17,16 @@ from app.core.auth import (
     require_role,
 )
 from app.core.database import get_db
-from app.models.user import User
 from app.models.subscription import (
     SubscriptionTier,
-    TransactionType,
     TierSlug,
+    TransactionType,
 )
+from app.models.user import User
 from app.services.credits import (
     CreditService,
     QuotaService,
-    InsufficientCreditsError,
-    QuotaExceededError,
 )
-
 
 # Re-export admin dependency (call the factory to get the actual dependency)
 get_current_admin_user = require_admin()
@@ -56,32 +52,30 @@ async def get_user_tier(
 ) -> SubscriptionTier:
     """Get the current user's subscription tier."""
     tier_slug = current_user.tier
-    
-    result = await db.execute(
-        select(SubscriptionTier).where(SubscriptionTier.slug == tier_slug)
-    )
+
+    result = await db.execute(select(SubscriptionTier).where(SubscriptionTier.slug == tier_slug))
     tier = result.scalar_one_or_none()
-    
+
     if not tier:
         # Fall back to free tier
         result = await db.execute(
             select(SubscriptionTier).where(SubscriptionTier.slug == TierSlug.FREE.value)
         )
         tier = result.scalar_one_or_none()
-    
+
     if not tier:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="No subscription tiers configured",
         )
-    
+
     return tier
 
 
 def require_credits(operation: TransactionType) -> Callable:
     """
     Dependency factory to require credits for an operation.
-    
+
     Usage:
         @router.post("/generate")
         async def generate(
@@ -90,16 +84,15 @@ def require_credits(operation: TransactionType) -> Callable:
         ):
             ...
     """
+
     async def dependency(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ) -> None:
         credit_service = CreditService(db)
-        
-        can_afford, cost, balance = await credit_service.can_afford(
-            current_user.id, operation
-        )
-        
+
+        can_afford, cost, balance = await credit_service.can_afford(current_user.id, operation)
+
         if not can_afford:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -110,27 +103,26 @@ def require_credits(operation: TransactionType) -> Callable:
                     "available": balance,
                 },
             )
-    
+
     return dependency
 
 
 def require_job_slot() -> Callable:
     """
     Dependency to require an available job slot.
-    
+
     Checks that user hasn't exceeded concurrent job limit.
     """
+
     async def dependency(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user),
         tier: SubscriptionTier = Depends(get_user_tier),
     ) -> None:
         quota_service = QuotaService(db)
-        
-        can_start, current, limit = await quota_service.check_job_limit(
-            current_user.id, tier
-        )
-        
+
+        can_start, current, limit = await quota_service.check_job_limit(current_user.id, tier)
+
         if not can_start:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -141,28 +133,29 @@ def require_job_slot() -> Callable:
                     "limit": limit,
                 },
             )
-    
+
     return dependency
 
 
 def require_storage(bytes_needed: int = 0) -> Callable:
     """
     Dependency to require available storage.
-    
+
     Args:
         bytes_needed: Estimated bytes for the operation
     """
+
     async def dependency(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user),
         tier: SubscriptionTier = Depends(get_user_tier),
     ) -> None:
         quota_service = QuotaService(db)
-        
+
         has_space, current, limit = await quota_service.check_storage_limit(
             current_user.id, tier, bytes_needed
         )
-        
+
         if not has_space:
             raise HTTPException(
                 status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
@@ -173,17 +166,18 @@ def require_storage(bytes_needed: int = 0) -> Callable:
                     "limit_bytes": limit,
                 },
             )
-    
+
     return dependency
 
 
 def require_feature(feature_name: str) -> Callable:
     """
     Dependency to require a specific feature.
-    
+
     Args:
         feature_name: Name of the feature to require
     """
+
     async def dependency(
         tier: SubscriptionTier = Depends(get_user_tier),
     ) -> None:
@@ -196,7 +190,7 @@ def require_feature(feature_name: str) -> Callable:
                     "required_tier": "Pro or Enterprise",
                 },
             )
-    
+
     return dependency
 
 
@@ -205,19 +199,19 @@ get_optional_user = get_current_user_optional
 
 
 __all__ = [
-    "get_current_user",
-    "get_current_user_optional",
-    "get_optional_user",
-    "get_current_admin_user",
-    "require_admin",
-    "require_role",
-    "get_db",
     # Credits & Quotas
     "get_credit_service",
+    "get_current_admin_user",
+    "get_current_user",
+    "get_current_user_optional",
+    "get_db",
+    "get_optional_user",
     "get_quota_service",
     "get_user_tier",
+    "require_admin",
     "require_credits",
-    "require_job_slot",
-    "require_storage",
     "require_feature",
+    "require_job_slot",
+    "require_role",
+    "require_storage",
 ]

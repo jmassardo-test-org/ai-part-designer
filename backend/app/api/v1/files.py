@@ -8,29 +8,34 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
-from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_, desc, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, desc, func, select
 
+from app.api.deps import get_current_user
+from app.core.config import Settings, get_settings
 from app.core.database import get_db
-from app.core.config import get_settings, Settings
-from app.core.storage import storage_client, StorageBucket
+from app.core.storage import StorageBucket, storage_client
 from app.models.file import (
-    File as FileModel,
     CAD_EXTENSIONS,
     CAD_MIME_TYPES,
     FILE_SIZE_LIMITS,
 )
-from app.models.user import User
-from app.api.deps import get_current_user
+from app.models.file import (
+    File as FileModel,
+)
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +46,10 @@ router = APIRouter()
 # Request/Response Models
 # =============================================================================
 
+
 class FileResponse(BaseModel):
     """File metadata response."""
-    
+
     id: str = Field(description="File UUID")
     filename: str = Field(description="Stored filename")
     original_filename: str = Field(description="Original upload filename")
@@ -56,14 +62,14 @@ class FileResponse(BaseModel):
     download_url: str = Field(description="Download URL")
     geometry_info: dict | None = Field(description="CAD geometry info")
     created_at: datetime = Field(description="Upload timestamp")
-    
+
     class Config:
         from_attributes = True
 
 
 class FileListResponse(BaseModel):
     """Paginated list of files."""
-    
+
     files: list[FileResponse]
     total: int
     skip: int
@@ -74,7 +80,7 @@ class FileListResponse(BaseModel):
 
 class StorageQuotaResponse(BaseModel):
     """Storage quota information."""
-    
+
     used_bytes: int
     limit_bytes: int
     file_count: int
@@ -84,7 +90,7 @@ class StorageQuotaResponse(BaseModel):
 
 class DeleteFileResponse(BaseModel):
     """Response after deleting a file."""
-    
+
     id: str
     status: str
     message: str
@@ -94,22 +100,23 @@ class DeleteFileResponse(BaseModel):
 # Helper Functions
 # =============================================================================
 
+
 def get_file_type(mime_type: str, filename: str) -> tuple[str, str | None]:
     """
     Determine file type and CAD format from MIME type and filename.
-    
+
     Returns:
         Tuple of (file_type, cad_format)
     """
     # Check CAD MIME types
     if mime_type in CAD_MIME_TYPES:
         return "cad", CAD_MIME_TYPES[mime_type]
-    
+
     # Check extension
     ext = Path(filename).suffix.lower()
     if ext in CAD_EXTENSIONS:
         return "cad", CAD_EXTENSIONS[ext]
-    
+
     # Check other types
     if mime_type.startswith("image/"):
         return "image", None
@@ -117,48 +124,49 @@ def get_file_type(mime_type: str, filename: str) -> tuple[str, str | None]:
         return "video", None
     if mime_type in ("application/pdf", "application/msword"):
         return "document", None
-    
+
     return "other", None
 
 
 def sanitize_filename(filename: str) -> str:
     """
     Sanitize filename for storage.
-    
+
     Removes special characters and limits length.
     """
     # Get base name and extension
     path = Path(filename)
     name = path.stem
     ext = path.suffix
-    
+
     # Remove special characters
     name = "".join(c for c in name if c.isalnum() or c in "._-")
     name = name[:100]  # Limit length
-    
+
     if not name:
         name = "file"
-    
+
     return f"{name}{ext}"
 
 
 async def calculate_checksum(file: UploadFile) -> str:
     """Calculate SHA-256 checksum of file."""
     sha256 = hashlib.sha256()
-    
+
     # Read in chunks
     while chunk := await file.read(8192):
         sha256.update(chunk)
-    
+
     # Reset file position
     await file.seek(0)
-    
+
     return sha256.hexdigest()
 
 
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.post(
     "/upload",
@@ -180,26 +188,26 @@ async def upload_file(
 ) -> FileResponse:
     """
     Upload a file.
-    
+
     Supports CAD files (STEP, STL, IGES) and other document types.
     File size limits apply based on subscription tier.
     """
     # Get user tier and size limit
     tier = current_user.tier or "free"
     size_limit = FILE_SIZE_LIMITS.get(tier, FILE_SIZE_LIMITS["free"])
-    
+
     # Check file size
     # Note: In production, use request.stream for large files
     file_content = await file.read()
     file_size = len(file_content)
     await file.seek(0)
-    
+
     if file_size > size_limit:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File size ({file_size} bytes) exceeds limit ({size_limit} bytes) for {tier} tier",
         )
-    
+
     # Check storage quota
     quota = await get_storage_quota(current_user, db, settings)
     if quota.remaining_bytes < file_size:
@@ -207,30 +215,30 @@ async def upload_file(
             status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
             detail=f"Storage quota exceeded. {quota.remaining_bytes} bytes remaining",
         )
-    
+
     # Determine file type
     file_type, cad_format = get_file_type(
         file.content_type or "application/octet-stream",
         file.filename or "file",
     )
-    
+
     # Validate CAD files
-    allowed_extensions = list(CAD_EXTENSIONS.keys()) + [".pdf", ".png", ".jpg", ".jpeg"]
+    allowed_extensions = [*list(CAD_EXTENSIONS.keys()), ".pdf", ".png", ".jpg", ".jpeg"]
     ext = Path(file.filename or "").suffix.lower()
     if ext and ext not in allowed_extensions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File type not allowed. Supported: {', '.join(allowed_extensions)}",
         )
-    
+
     # Calculate checksum
     checksum = await calculate_checksum(file)
-    
+
     # Generate storage path
     file_id = uuid4()
     safe_filename = sanitize_filename(file.filename or "file")
     storage_path = f"users/{current_user.id}/{file_id}/{safe_filename}"
-    
+
     # Create file record
     file_record = FileModel(
         id=file_id,
@@ -246,10 +254,10 @@ async def upload_file(
         status="uploading",
         checksum_sha256=checksum,
     )
-    
+
     db.add(file_record)
     await db.flush()
-    
+
     # Upload to object storage (S3/MinIO)
     try:
         await storage_client.upload_file(
@@ -271,15 +279,15 @@ async def upload_file(
         upload_dir.mkdir(parents=True, exist_ok=True)
         with open(upload_dir / safe_filename, "wb") as f:
             f.write(file_content)
-    
+
     # Mark as ready (skip processing for now)
     file_record.mark_ready()
-    
+
     await db.commit()
     await db.refresh(file_record)
-    
+
     logger.info(f"File uploaded: {file_record.id} by user {current_user.id}")
-    
+
     return FileResponse(
         id=str(file_record.id),
         filename=file_record.filename,
@@ -316,22 +324,22 @@ async def list_files(
     # Build query
     conditions = [
         FileModel.user_id == current_user.id,
-        FileModel.is_deleted == False,
+        not FileModel.is_deleted,
     ]
-    
+
     if file_type:
         conditions.append(FileModel.file_type == file_type)
     if cad_format:
         conditions.append(FileModel.cad_format == cad_format)
-    
+
     # Count total
     count_query = select(func.count(FileModel.id)).where(and_(*conditions))
     total = await db.scalar(count_query) or 0
-    
+
     # Get total size
     size_query = select(func.sum(FileModel.size_bytes)).where(and_(*conditions))
     total_size = await db.scalar(size_query) or 0
-    
+
     # Get page
     query = (
         select(FileModel)
@@ -342,7 +350,7 @@ async def list_files(
     )
     result = await db.execute(query)
     files = result.scalars().all()
-    
+
     return FileListResponse(
         files=[
             FileResponse(
@@ -399,28 +407,28 @@ async def get_storage_quota(
     ).where(
         and_(
             FileModel.user_id == user.id,
-            FileModel.is_deleted == False,
+            not FileModel.is_deleted,
         )
     )
     result = await db.execute(query)
     row = result.one()
     file_count = row[0] or 0
     used_bytes = row[1] or 0
-    
+
     # Get limit based on tier
     tier = user.tier or "free"
     # Storage limits (example values)
     storage_limits = {
-        "free": 100 * 1024 * 1024,       # 100 MB
-        "basic": 1024 * 1024 * 1024,     # 1 GB
+        "free": 100 * 1024 * 1024,  # 100 MB
+        "basic": 1024 * 1024 * 1024,  # 1 GB
         "pro": 10 * 1024 * 1024 * 1024,  # 10 GB
         "enterprise": 100 * 1024 * 1024 * 1024,  # 100 GB
     }
     limit_bytes = storage_limits.get(tier, storage_limits["free"])
-    
+
     remaining = max(0, limit_bytes - used_bytes)
     usage_percent = (used_bytes / limit_bytes * 100) if limit_bytes > 0 else 0
-    
+
     return StorageQuotaResponse(
         used_bytes=used_bytes,
         limit_bytes=limit_bytes,
@@ -451,18 +459,18 @@ async def get_file(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            FileModel.is_deleted == False,
+            not FileModel.is_deleted,
         )
     )
     result = await db.execute(query)
     file_record = result.scalar_one_or_none()
-    
+
     if not file_record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     return FileResponse(
         id=str(file_record.id),
         filename=file_record.filename,
@@ -500,18 +508,18 @@ async def download_file(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            FileModel.is_deleted == False,
+            not FileModel.is_deleted,
         )
     )
     result = await db.execute(query)
     file_record = result.scalar_one_or_none()
-    
+
     if not file_record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     # Try to download from object storage (S3/MinIO)
     try:
         file_content = await storage_client.download_file(
@@ -519,10 +527,10 @@ async def download_file(
             key=file_record.storage_path,
         )
         logger.debug(f"Downloaded {file_record.storage_path} from MinIO")
-        
+
         async def iter_bytes():
             yield file_content
-        
+
         return StreamingResponse(
             iter_bytes(),
             media_type=file_record.mime_type,
@@ -535,17 +543,17 @@ async def download_file(
         logger.warning(f"MinIO download failed, trying local filesystem: {e}")
         # Fallback to local filesystem for development
         file_path = Path(settings.UPLOAD_DIR) / file_record.storage_path
-        
+
         if not file_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="File content not found",
             )
-        
+
         def iterfile():
             with open(file_path, "rb") as f:
                 yield from f
-        
+
         return StreamingResponse(
             iterfile(),
             media_type=file_record.mime_type,
@@ -572,30 +580,30 @@ async def delete_file(
 ) -> DeleteFileResponse:
     """
     Delete a file (soft delete).
-    
+
     File is moved to trash and can be restored within retention period.
     """
     query = select(FileModel).where(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            FileModel.is_deleted == False,
+            not FileModel.is_deleted,
         )
     )
     result = await db.execute(query)
     file_record = result.scalar_one_or_none()
-    
+
     if not file_record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     file_record.soft_delete()
     await db.commit()
-    
+
     logger.info(f"File deleted: {file_id} by user {current_user.id}")
-    
+
     return DeleteFileResponse(
         id=str(file_record.id),
         status="deleted",
@@ -607,8 +615,10 @@ async def delete_file(
 # Presigned URL Endpoints
 # =============================================================================
 
+
 class PresignedUploadResponse(BaseModel):
     """Response containing presigned upload URL."""
+
     url: str = Field(description="Presigned upload URL")
     fields: dict = Field(description="Form fields to include in upload")
     key: str = Field(description="Object key to upload to")
@@ -617,6 +627,7 @@ class PresignedUploadResponse(BaseModel):
 
 class PresignedDownloadResponse(BaseModel):
     """Response containing presigned download URL."""
+
     url: str = Field(description="Presigned download URL")
     expires_in: int = Field(description="URL expiration in seconds")
 
@@ -634,14 +645,14 @@ async def get_presigned_upload_url(
 ) -> PresignedUploadResponse:
     """
     Get a presigned URL for direct file upload to storage.
-    
+
     Allows clients to upload directly to S3/MinIO without going through the API.
     """
     file_id = uuid4()
     safe_filename = sanitize_filename(filename)
     key = f"users/{current_user.id}/{file_id}/{safe_filename}"
     expires_in = 3600  # 1 hour
-    
+
     try:
         presigned = await storage_client.generate_presigned_upload_url(
             bucket=StorageBucket.UPLOADS,
@@ -679,27 +690,27 @@ async def get_presigned_download_url(
 ) -> PresignedDownloadResponse:
     """
     Get a presigned URL for direct file download from storage.
-    
+
     Allows clients to download directly from S3/MinIO without going through the API.
     """
     query = select(FileModel).where(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            FileModel.is_deleted == False,
+            not FileModel.is_deleted,
         )
     )
     result = await db.execute(query)
     file_record = result.scalar_one_or_none()
-    
+
     if not file_record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     expires_in = 3600  # 1 hour
-    
+
     try:
         url = await storage_client.generate_presigned_download_url(
             bucket=StorageBucket.UPLOADS,
@@ -717,4 +728,3 @@ async def get_presigned_download_url(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate download URL",
         )
-

@@ -4,32 +4,32 @@ Design Annotations API endpoints.
 Provides CRUD operations for 3D annotations on designs.
 """
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.models import (
+    AnnotationStatus,
+    AnnotationType,
     Design,
     DesignAnnotation,
-    AnnotationType,
-    AnnotationStatus,
     User,
 )
-
 
 router = APIRouter(prefix="/designs/{design_id}/annotations", tags=["annotations"])
 
 
 # --- Schemas ---
 
+
 class Position3D(BaseModel):
     """3D position schema."""
+
     x: float
     y: float
     z: float
@@ -37,54 +37,58 @@ class Position3D(BaseModel):
 
 class AnnotationCreate(BaseModel):
     """Schema for creating an annotation."""
+
     position: Position3D
-    normal: Optional[Position3D] = None
-    camera_position: Optional[Position3D] = None
-    camera_target: Optional[Position3D] = None
+    normal: Position3D | None = None
+    camera_position: Position3D | None = None
+    camera_target: Position3D | None = None
     content: str = Field(..., min_length=1, max_length=10000)
     annotation_type: AnnotationType = AnnotationType.NOTE
-    parent_id: Optional[UUID] = None
+    parent_id: UUID | None = None
     priority: int = Field(default=0, ge=0, le=3)
-    tags: Optional[list[str]] = None
+    tags: list[str] | None = None
 
 
 class AnnotationUpdate(BaseModel):
     """Schema for updating an annotation."""
-    content: Optional[str] = Field(None, min_length=1, max_length=10000)
-    annotation_type: Optional[AnnotationType] = None
-    priority: Optional[int] = Field(None, ge=0, le=3)
-    tags: Optional[list[str]] = None
+
+    content: str | None = Field(None, min_length=1, max_length=10000)
+    annotation_type: AnnotationType | None = None
+    priority: int | None = Field(None, ge=0, le=3)
+    tags: list[str] | None = None
 
 
 class AnnotationResolve(BaseModel):
     """Schema for resolving an annotation."""
+
     status: AnnotationStatus = AnnotationStatus.RESOLVED
-    resolution_note: Optional[str] = Field(None, max_length=2000)
+    resolution_note: str | None = Field(None, max_length=2000)
 
 
 class AnnotationResponse(BaseModel):
     """Schema for annotation response."""
+
     id: UUID
     design_id: UUID
     user_id: UUID
-    parent_id: Optional[UUID]
+    parent_id: UUID | None
     position: dict
-    normal: Optional[dict]
-    camera_position: Optional[dict]
-    camera_target: Optional[dict]
+    normal: dict | None
+    camera_position: dict | None
+    camera_target: dict | None
     content: str
     annotation_type: str
     status: str
     priority: int
     tags: list[str]
-    resolved_by_id: Optional[UUID]
-    resolved_at: Optional[str]
-    resolution_note: Optional[str]
+    resolved_by_id: UUID | None
+    resolved_at: str | None
+    resolution_note: str | None
     created_at: str
     updated_at: str
     reply_count: int
     is_resolved: bool
-    user_name: Optional[str] = None
+    user_name: str | None = None
 
     class Config:
         from_attributes = True
@@ -92,6 +96,7 @@ class AnnotationResponse(BaseModel):
 
 class AnnotationListResponse(BaseModel):
     """Schema for annotation list response."""
+
     items: list[AnnotationResponse]
     total: int
     page: int
@@ -101,6 +106,7 @@ class AnnotationListResponse(BaseModel):
 
 # --- Helper Functions ---
 
+
 async def get_design_or_404(
     design_id: UUID,
     db: AsyncSession,
@@ -108,25 +114,23 @@ async def get_design_or_404(
 ) -> Design:
     """Get design or raise 404, checking access permissions."""
     result = await db.execute(
-        select(Design)
-        .where(Design.id == design_id)
-        .options(selectinload(Design.project))
+        select(Design).where(Design.id == design_id).options(selectinload(Design.project))
     )
     design = result.scalar_one_or_none()
-    
+
     if not design:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found",
         )
-    
+
     # Check access (owner or public or shared)
     if design.project.user_id != user.id and not design.is_public:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this design",
         )
-    
+
     return design
 
 
@@ -141,13 +145,13 @@ async def get_annotation_or_404(
         .options(selectinload(DesignAnnotation.user))
     )
     annotation = result.scalar_one_or_none()
-    
+
     if not annotation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Annotation not found",
         )
-    
+
     return annotation
 
 
@@ -180,6 +184,7 @@ def annotation_to_response(annotation: DesignAnnotation) -> AnnotationResponse:
 
 # --- Endpoints ---
 
+
 @router.post("", response_model=AnnotationResponse, status_code=status.HTTP_201_CREATED)
 async def create_annotation(
     design_id: UUID,
@@ -188,8 +193,8 @@ async def create_annotation(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new annotation on a design."""
-    design = await get_design_or_404(design_id, db, current_user)
-    
+    await get_design_or_404(design_id, db, current_user)
+
     # If this is a reply, verify parent exists and belongs to same design
     if data.parent_id:
         parent = await get_annotation_or_404(data.parent_id, db)
@@ -198,7 +203,7 @@ async def create_annotation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Parent annotation belongs to a different design",
             )
-    
+
     annotation = DesignAnnotation(
         design_id=design_id,
         user_id=current_user.id,
@@ -212,11 +217,11 @@ async def create_annotation(
         priority=data.priority,
         tags=data.tags,
     )
-    
+
     db.add(annotation)
     await db.commit()
     await db.refresh(annotation)
-    
+
     # Load user relationship
     result = await db.execute(
         select(DesignAnnotation)
@@ -224,7 +229,7 @@ async def create_annotation(
         .options(selectinload(DesignAnnotation.user))
     )
     annotation = result.scalar_one()
-    
+
     return annotation_to_response(annotation)
 
 
@@ -233,33 +238,31 @@ async def list_annotations(
     design_id: UUID,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    annotation_type: Optional[AnnotationType] = None,
-    status_filter: Optional[AnnotationStatus] = Query(None, alias="status"),
+    annotation_type: AnnotationType | None = None,
+    status_filter: AnnotationStatus | None = Query(None, alias="status"),
     include_replies: bool = True,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List annotations for a design."""
     await get_design_or_404(design_id, db, current_user)
-    
+
     # Build query
     conditions = [DesignAnnotation.design_id == design_id]
-    
+
     if not include_replies:
         conditions.append(DesignAnnotation.parent_id.is_(None))
-    
+
     if annotation_type:
         conditions.append(DesignAnnotation.annotation_type == annotation_type)
-    
+
     if status_filter:
         conditions.append(DesignAnnotation.status == status_filter)
-    
+
     # Count total
-    count_result = await db.execute(
-        select(DesignAnnotation.id).where(and_(*conditions))
-    )
+    count_result = await db.execute(select(DesignAnnotation.id).where(and_(*conditions)))
     total = len(count_result.all())
-    
+
     # Get page
     offset = (page - 1) * page_size
     result = await db.execute(
@@ -274,7 +277,7 @@ async def list_annotations(
         .limit(page_size)
     )
     annotations = result.scalars().all()
-    
+
     return AnnotationListResponse(
         items=[annotation_to_response(a) for a in annotations],
         total=total,
@@ -294,13 +297,13 @@ async def get_annotation(
     """Get a specific annotation."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
-    
+
     if annotation.design_id != design_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Annotation not found in this design",
         )
-    
+
     return annotation_to_response(annotation)
 
 
@@ -315,20 +318,20 @@ async def update_annotation(
     """Update an annotation. Only the author can update."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
-    
+
     if annotation.design_id != design_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Annotation not found in this design",
         )
-    
+
     # Only author can edit
     if annotation.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the author can edit this annotation",
         )
-    
+
     # Update fields
     if data.content is not None:
         annotation.content = data.content
@@ -338,10 +341,10 @@ async def update_annotation(
         annotation.priority = data.priority
     if data.tags is not None:
         annotation.tags = data.tags
-    
+
     await db.commit()
     await db.refresh(annotation)
-    
+
     return annotation_to_response(annotation)
 
 
@@ -355,20 +358,20 @@ async def delete_annotation(
     """Delete an annotation. Only the author can delete."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
-    
+
     if annotation.design_id != design_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Annotation not found in this design",
         )
-    
+
     # Only author can delete
     if annotation.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the author can delete this annotation",
         )
-    
+
     await db.delete(annotation)
     await db.commit()
 
@@ -382,25 +385,25 @@ async def resolve_annotation(
     current_user: User = Depends(get_current_user),
 ):
     """Resolve an annotation."""
-    design = await get_design_or_404(design_id, db, current_user)
+    await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
-    
+
     if annotation.design_id != design_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Annotation not found in this design",
         )
-    
+
     # Anyone with access can resolve (author or design owner)
     annotation.resolve(
         user_id=current_user.id,
         note=data.resolution_note,
         status=data.status,
     )
-    
+
     await db.commit()
     await db.refresh(annotation)
-    
+
     return annotation_to_response(annotation)
 
 
@@ -414,24 +417,24 @@ async def reopen_annotation(
     """Reopen a resolved annotation."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
-    
+
     if annotation.design_id != design_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Annotation not found in this design",
         )
-    
+
     if not annotation.is_resolved:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Annotation is not resolved",
         )
-    
+
     annotation.reopen()
-    
+
     await db.commit()
     await db.refresh(annotation)
-    
+
     return annotation_to_response(annotation)
 
 
@@ -445,13 +448,13 @@ async def get_annotation_replies(
     """Get replies to an annotation."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
-    
+
     if annotation.design_id != design_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Annotation not found in this design",
         )
-    
+
     # Get replies
     result = await db.execute(
         select(DesignAnnotation)
@@ -460,5 +463,5 @@ async def get_annotation_replies(
         .order_by(DesignAnnotation.created_at.asc())
     )
     replies = result.scalars().all()
-    
+
     return [annotation_to_response(r) for r in replies]

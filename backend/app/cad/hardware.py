@@ -8,13 +8,13 @@ threaded inserts, and other hardware.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class HardwareType(str, Enum):
+class HardwareType(StrEnum):
     """Types of hardware components."""
-    
+
     SCREW = "screw"
     NUT = "nut"
     WASHER = "washer"
@@ -23,9 +23,9 @@ class HardwareType(str, Enum):
     GASKET = "gasket"
 
 
-class ScrewHead(str, Enum):
+class ScrewHead(StrEnum):
     """Screw head styles."""
-    
+
     SOCKET_HEAD = "socket_head"
     BUTTON_HEAD = "button_head"
     FLAT_HEAD = "flat_head"
@@ -33,9 +33,9 @@ class ScrewHead(str, Enum):
     HEX_HEAD = "hex_head"
 
 
-class ScrewDrive(str, Enum):
+class ScrewDrive(StrEnum):
     """Screw drive types."""
-    
+
     HEX = "hex"
     PHILLIPS = "phillips"
     TORX = "torx"
@@ -46,28 +46,28 @@ class ScrewDrive(str, Enum):
 class HardwareSpec:
     """
     Specification for a hardware component.
-    
+
     Includes dimensions for CAD modeling and supplier references.
     """
-    
+
     type: HardwareType
     name: str
     description: str
-    
+
     # Key dimensions in mm
     dimensions: dict[str, float] = field(default_factory=dict)
-    
+
     # Supplier information
     mcmaster_pn: str | None = None
     supplier_url: str | None = None
-    
+
     # Material
     material: str = "Steel"
     finish: str = "Black Oxide"
-    
+
     # Additional properties
     properties: dict[str, Any] = field(default_factory=dict)
-    
+
     def get_dimension(self, name: str, default: float = 0.0) -> float:
         """Get a dimension value."""
         return self.dimensions.get(name, default)
@@ -151,6 +151,7 @@ TAP_DRILL_SIZES = {
 # Hardware Catalog Functions
 # =============================================================================
 
+
 def get_screw_spec(
     size: str,
     length: float,
@@ -159,25 +160,25 @@ def get_screw_spec(
 ) -> HardwareSpec:
     """
     Get specification for a metric screw.
-    
+
     Args:
         size: Metric size (e.g., "M3", "M4")
         length: Screw length in mm
         head: Head style
         material: Material type
-    
+
     Returns:
         HardwareSpec for the screw
     """
     if size not in METRIC_SOCKET_HEAD_SCREWS:
         raise ValueError(f"Unknown screw size: {size}")
-    
+
     thread_dia, head_dia, head_height, hex_size = METRIC_SOCKET_HEAD_SCREWS[size]
-    
+
     # McMaster part number pattern for socket head cap screws
     # This is simplified - real lookup would need a database
     mcmaster_pn = f"91290A{size[1:]}"  # Approximate pattern
-    
+
     return HardwareSpec(
         type=HardwareType.SCREW,
         name=f"{size} x {length}mm Socket Head Cap Screw",
@@ -203,19 +204,19 @@ def get_screw_spec(
 def get_threaded_insert_spec(size: str) -> HardwareSpec:
     """
     Get specification for a heat-set threaded insert.
-    
+
     Args:
         size: Metric thread size (e.g., "M3", "M4")
-    
+
     Returns:
         HardwareSpec for the insert
     """
     if size not in THREADED_INSERTS:
         raise ValueError(f"Unknown insert size: {size}")
-    
+
     outer_dia, length, hole_dia = THREADED_INSERTS[size]
     mcmaster_pn = MCMASTER_THREADED_INSERTS.get(size)
-    
+
     return HardwareSpec(
         type=HardwareType.THREADED_INSERT,
         name=f"{size} Heat-Set Threaded Insert",
@@ -254,31 +255,31 @@ def recommend_screw_length(
 ) -> float:
     """
     Recommend screw length for going through material into insert.
-    
+
     Args:
         material_thickness: Thickness of top material (lid)
         insert_length: Length of threaded insert
         head_clearance: Extra clearance for head seating
-    
+
     Returns:
         Recommended screw length (rounded to standard size)
     """
     ideal = material_thickness + insert_length * 0.8 + head_clearance
-    
+
     # Round to nearest standard length
     for length in COMMON_SCREW_LENGTHS:
         if length >= ideal:
             return float(length)
-    
+
     return float(COMMON_SCREW_LENGTHS[-1])
 
 
 @dataclass
 class BillOfMaterials:
     """Bill of materials for an assembly."""
-    
+
     items: list[tuple[HardwareSpec, int]] = field(default_factory=list)
-    
+
     def add(self, spec: HardwareSpec, quantity: int = 1) -> None:
         """Add hardware to the BOM."""
         # Check if already exists
@@ -287,7 +288,7 @@ class BillOfMaterials:
                 self.items[i] = (existing, qty + quantity)
                 return
         self.items.append((spec, quantity))
-    
+
     def to_dict(self) -> list[dict]:
         """Convert to dict format."""
         return [

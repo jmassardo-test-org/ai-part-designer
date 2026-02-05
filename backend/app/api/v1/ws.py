@@ -9,12 +9,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from app.core.database import get_db
 from app.core.security import decode_token
-from app.websocket.manager import manager, Connection
+from app.websocket.manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +69,13 @@ async def websocket_endpoint(
     )
 
     # Send welcome message
-    await connection.send({
-        "type": "connected",
-        "user_id": user_id,
-        "timestamp": datetime.utcnow().isoformat(),
-    })
+    await connection.send(
+        {
+            "type": "connected",
+            "user_id": user_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    )
 
     try:
         while True:
@@ -92,20 +92,24 @@ async def websocket_endpoint(
                 room = data.get("room")
                 if room:
                     manager.subscribe(connection, room)
-                    await connection.send({
-                        "type": "subscribed",
-                        "room": room,
-                    })
+                    await connection.send(
+                        {
+                            "type": "subscribed",
+                            "room": room,
+                        }
+                    )
 
             elif message_type == "unsubscribe":
                 # Unsubscribe from a room
                 room = data.get("room")
                 if room:
                     manager.unsubscribe(connection, room)
-                    await connection.send({
-                        "type": "unsubscribed",
-                        "room": room,
-                    })
+                    await connection.send(
+                        {
+                            "type": "unsubscribed",
+                            "room": room,
+                        }
+                    )
 
             elif message_type == "subscribe_job":
                 # Subscribe to a specific job's updates
@@ -113,30 +117,36 @@ async def websocket_endpoint(
                 if job_id:
                     room = f"job:{job_id}"
                     manager.subscribe(connection, room)
-                    await connection.send({
-                        "type": "subscribed",
-                        "room": room,
-                        "job_id": job_id,
-                    })
+                    await connection.send(
+                        {
+                            "type": "subscribed",
+                            "room": room,
+                            "job_id": job_id,
+                        }
+                    )
 
             elif message_type == "get_stats":
                 # Get connection stats (for debugging)
                 stats = manager.get_stats()
-                await connection.send({
-                    "type": "stats",
-                    "data": stats,
-                })
+                await connection.send(
+                    {
+                        "type": "stats",
+                        "data": stats,
+                    }
+                )
 
             else:
                 # Unknown message type
-                await connection.send({
-                    "type": "error",
-                    "message": f"Unknown message type: {message_type}",
-                })
+                await connection.send(
+                    {
+                        "type": "error",
+                        "message": f"Unknown message type: {message_type}",
+                    }
+                )
 
     except WebSocketDisconnect:
         manager.disconnect(connection)
-    except Exception as e:
+    except Exception:
         logger.exception(f"WebSocket error for user {user_id}")
         manager.disconnect(connection)
 

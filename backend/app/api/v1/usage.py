@@ -7,33 +7,34 @@ subscription tiers, and managing subscriptions.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from datetime import datetime
-from decimal import Decimal
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
+from sqlalchemy import select
 
-from app.core.database import get_db
-from app.models.user import User
-from app.models.subscription import (
-    SubscriptionTier,
-    CreditBalance,
-    CreditTransaction,
-    UsageQuota,
-    TransactionType,
-)
 from app.api.deps import (
-    get_current_user,
     get_credit_service,
+    get_current_user,
     get_quota_service,
     get_user_tier,
 )
-from app.services.credits import CreditService, QuotaService
+from app.core.database import get_db
+from app.models.subscription import (
+    SubscriptionTier,
+    TransactionType,
+)
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
+    from app.services.credits import CreditService, QuotaService
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,10 @@ router = APIRouter()
 # Response Models
 # =============================================================================
 
+
 class TierFeatures(BaseModel):
     """Features available on a tier."""
-    
+
     ai_generation: bool = True
     export_2d: bool = False
     hardware_library: bool = True
@@ -58,7 +60,7 @@ class TierFeatures(BaseModel):
 
 class SubscriptionTierResponse(BaseModel):
     """Subscription tier details."""
-    
+
     id: UUID
     name: str
     slug: str
@@ -76,7 +78,7 @@ class SubscriptionTierResponse(BaseModel):
 
 class CreditBalanceResponse(BaseModel):
     """Credit balance information."""
-    
+
     balance: int
     lifetime_earned: int
     lifetime_spent: int
@@ -86,7 +88,7 @@ class CreditBalanceResponse(BaseModel):
 
 class TransactionResponse(BaseModel):
     """Credit transaction details."""
-    
+
     id: UUID
     amount: int
     transaction_type: str
@@ -98,7 +100,7 @@ class TransactionResponse(BaseModel):
 
 class UsageByTypeResponse(BaseModel):
     """Usage breakdown by type."""
-    
+
     transaction_type: str
     credits_spent: int
     operation_count: int
@@ -106,7 +108,7 @@ class UsageByTypeResponse(BaseModel):
 
 class UsageSummaryResponse(BaseModel):
     """Usage summary for a period."""
-    
+
     current_balance: int
     lifetime_earned: int
     lifetime_spent: int
@@ -117,7 +119,7 @@ class UsageSummaryResponse(BaseModel):
 
 class QuotaUsageResponse(BaseModel):
     """Current quota usage."""
-    
+
     storage_used_bytes: int
     storage_limit_bytes: int
     storage_used_percent: float
@@ -131,7 +133,7 @@ class QuotaUsageResponse(BaseModel):
 
 class DashboardResponse(BaseModel):
     """Complete usage dashboard."""
-    
+
     credits: CreditBalanceResponse
     quota: QuotaUsageResponse
     current_tier: SubscriptionTierResponse
@@ -142,6 +144,7 @@ class DashboardResponse(BaseModel):
 # Tier Endpoints
 # =============================================================================
 
+
 @router.get("/tiers", response_model=list[SubscriptionTierResponse])
 async def list_tiers(
     db: AsyncSession = Depends(get_db),
@@ -149,18 +152,18 @@ async def list_tiers(
 ) -> list[SubscriptionTierResponse]:
     """
     List all available subscription tiers.
-    
+
     Returns tiers sorted by display order, with current tier marked.
     """
     result = await db.execute(
         select(SubscriptionTier)
-        .where(SubscriptionTier.is_active == True)
+        .where(SubscriptionTier.is_active)
         .order_by(SubscriptionTier.display_order)
     )
     tiers = result.scalars().all()
-    
+
     current_tier_slug = current_user.tier
-    
+
     return [
         SubscriptionTierResponse(
             id=tier.id,
@@ -190,17 +193,15 @@ async def get_tier(
     """
     Get details for a specific tier.
     """
-    result = await db.execute(
-        select(SubscriptionTier).where(SubscriptionTier.slug == tier_slug)
-    )
+    result = await db.execute(select(SubscriptionTier).where(SubscriptionTier.slug == tier_slug))
     tier = result.scalar_one_or_none()
-    
+
     if not tier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tier '{tier_slug}' not found",
         )
-    
+
     return SubscriptionTierResponse(
         id=tier.id,
         name=tier.name,
@@ -222,6 +223,7 @@ async def get_tier(
 # Credits Endpoints
 # =============================================================================
 
+
 @router.get("/credits/balance", response_model=CreditBalanceResponse)
 async def get_credit_balance(
     db: AsyncSession = Depends(get_db),
@@ -233,7 +235,7 @@ async def get_credit_balance(
     Get current credit balance.
     """
     balance = await credit_service.get_balance(current_user.id)
-    
+
     return CreditBalanceResponse(
         balance=balance.balance,
         lifetime_earned=balance.lifetime_earned,
@@ -257,18 +259,16 @@ async def get_transactions(
     """
     type_filter = None
     if transaction_type:
-        try:
+        with contextlib.suppress(ValueError):
             type_filter = TransactionType(transaction_type)
-        except ValueError:
-            pass
-    
+
     transactions = await credit_service.get_transactions(
         current_user.id,
         limit=limit,
         offset=offset,
         transaction_type=type_filter,
     )
-    
+
     return [
         TransactionResponse(
             id=t.id,
@@ -294,7 +294,7 @@ async def get_usage_summary(
     Get usage summary for a period.
     """
     summary = await credit_service.get_usage_summary(current_user.id, days=days)
-    
+
     usage_list = [
         UsageByTypeResponse(
             transaction_type=t_type,
@@ -303,20 +303,23 @@ async def get_usage_summary(
         )
         for t_type, data in summary["usage_by_type"].items()
     ]
-    
+
     return UsageSummaryResponse(
         current_balance=summary["current_balance"],
         lifetime_earned=summary["lifetime_earned"],
         lifetime_spent=summary["lifetime_spent"],
         period_days=summary["period_days"],
         usage_by_type=usage_list,
-        next_refill_at=datetime.fromisoformat(summary["next_refill_at"]) if summary["next_refill_at"] else None,
+        next_refill_at=datetime.fromisoformat(summary["next_refill_at"])
+        if summary["next_refill_at"]
+        else None,
     )
 
 
 # =============================================================================
 # Quota Endpoints
 # =============================================================================
+
 
 @router.get("/quota", response_model=QuotaUsageResponse)
 async def get_quota_usage(
@@ -329,10 +332,10 @@ async def get_quota_usage(
     Get current quota usage.
     """
     quota = await quota_service.get_quota(current_user.id)
-    
+
     storage_limit = tier.max_storage_gb * 1024 * 1024 * 1024
     storage_percent = (quota.storage_used_bytes / storage_limit * 100) if storage_limit > 0 else 0
-    
+
     return QuotaUsageResponse(
         storage_used_bytes=quota.storage_used_bytes,
         storage_limit_bytes=storage_limit,
@@ -350,6 +353,7 @@ async def get_quota_usage(
 # Dashboard Endpoint
 # =============================================================================
 
+
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_usage_dashboard(
     db: AsyncSession = Depends(get_db),
@@ -360,24 +364,24 @@ async def get_usage_dashboard(
 ) -> DashboardResponse:
     """
     Get complete usage dashboard.
-    
+
     Combines credits, quota, tier info, and recent transactions.
     """
     # Get balance
     balance = await credit_service.get_balance(current_user.id)
-    
+
     # Get quota
     quota = await quota_service.get_quota(current_user.id)
-    
+
     # Get recent transactions
     transactions = await credit_service.get_transactions(
         current_user.id,
         limit=10,
     )
-    
+
     storage_limit = tier.max_storage_gb * 1024 * 1024 * 1024
     storage_percent = (quota.storage_used_bytes / storage_limit * 100) if storage_limit > 0 else 0
-    
+
     return DashboardResponse(
         credits=CreditBalanceResponse(
             balance=balance.balance,

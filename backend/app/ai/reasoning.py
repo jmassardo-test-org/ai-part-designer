@@ -44,37 +44,34 @@ UNIT_TO_MM = {
 def _normalize_dimensions_to_mm(raw_dims: dict) -> dict:
     """
     Convert all dimension values to millimeters.
-    
+
     If a "unit" key is present and it's not "mm", convert all numeric values.
     Remove the "unit" key from the output since all values will be in mm.
     """
     if not raw_dims:
         return {}
-    
+
     # Check if there's a unit specification
     unit = raw_dims.get("unit", "mm")
-    if isinstance(unit, str):
-        unit = unit.lower().strip()
-    else:
-        unit = "mm"
-    
+    unit = unit.lower().strip() if isinstance(unit, str) else "mm"
+
     conversion_factor = UNIT_TO_MM.get(unit, 1.0)
-    
+
     normalized = {}
     for key, value in raw_dims.items():
         if key == "unit":
             continue  # Skip the unit key
-        
+
         if isinstance(value, (int, float)):
             # Apply conversion
             normalized[key] = round(value * conversion_factor, 2)
         else:
             # Keep non-numeric values as-is
             normalized[key] = value
-    
+
     if conversion_factor != 1.0:
         logger.info(f"Converted dimensions from {unit} to mm (factor: {conversion_factor})")
-    
+
     return normalized
 
 
@@ -82,38 +79,39 @@ def _normalize_dimensions_to_mm(raw_dims: dict) -> dict:
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class PartIntent:
     """Structured representation of what the user wants to build."""
-    
+
     # Core understanding
     part_type: str  # e.g., "bracket", "enclosure", "adapter", "custom"
     primary_function: str  # What is this part for?
-    
+
     # Geometric properties
     overall_dimensions: dict[str, float] = field(default_factory=dict)  # L, W, H or D, H
     material_thickness: float | None = None
-    
+
     # Features
     features: list[dict[str, Any]] = field(default_factory=list)  # holes, fillets, etc.
-    
+
     # Constraints
     constraints: list[str] = field(default_factory=list)  # "must fit M5 bolt", etc.
-    
+
     # References
     referenced_hardware: list[dict[str, Any]] = field(default_factory=list)
     referenced_files: list[str] = field(default_factory=list)
-    
+
     # Confidence and clarifications needed
     confidence: float = 0.0
     clarifications_needed: list[str] = field(default_factory=list)
     assumptions_made: list[str] = field(default_factory=list)
 
 
-@dataclass 
+@dataclass
 class BuildStep:
     """A single step in the build plan."""
-    
+
     step_number: int
     description: str
     operation: str  # "create_base", "add_feature", "boolean", "modify"
@@ -125,7 +123,7 @@ class BuildStep:
 @dataclass
 class BuildPlan:
     """Complete plan for building the part."""
-    
+
     intent: PartIntent
     steps: list[BuildStep] = field(default_factory=list)
     estimated_complexity: str = "simple"  # simple, moderate, complex
@@ -136,7 +134,7 @@ class BuildPlan:
 # Reasoning Prompts
 # =============================================================================
 
-UNDERSTAND_INTENT_PROMPT = """You are an expert mechanical engineer and CAD designer. 
+UNDERSTAND_INTENT_PROMPT = """You are an expert mechanical engineer and CAD designer.
 Your task is to deeply understand what the user wants to build.
 
 Analyze the user's request and extract:
@@ -184,7 +182,7 @@ For different part types, use these dimension names:
 
 L-BRACKET/ANGLE BRACKET:
 - flange_length: Length of each flange (both flanges if equal)
-- flange_width: Width of the flanges (depth in Z direction)  
+- flange_width: Width of the flanges (depth in Z direction)
 - thickness: Material thickness (how thick the metal/material is)
 - horizontal_flange_length: If horizontal flange differs
 - vertical_flange_length: If vertical flange differs
@@ -201,7 +199,7 @@ CYLINDER:
 - inner_diameter: For hollow cylinders
 
 PLATE/SHEET:
-- length: X dimension  
+- length: X dimension
 - width: Y dimension
 - thickness: Z dimension (the thin direction)
 
@@ -341,7 +339,7 @@ Generate Python code for this build step:
 
 Current state:
 - Available variables: {available_vars}
-- Previous code: 
+- Previous code:
 {previous_code}
 
 RULES:
@@ -402,49 +400,50 @@ Respond with JSON:
 # Reasoning Functions
 # =============================================================================
 
+
 async def understand_intent(description: str) -> PartIntent:
     """
     Deep understanding of what the user wants to build.
-    
-    This is the most important step - better understanding leads to 
+
+    This is the most important step - better understanding leads to
     better generation.
     """
     client = get_ai_client()
-    
+
     logger.info(f"Understanding intent for: {description[:100]}...")
-    
+
     messages = [
         {"role": "system", "content": UNDERSTAND_INTENT_PROMPT},
-        {"role": "user", "content": description}
+        {"role": "user", "content": description},
     ]
-    
+
     content = await client.complete(messages, temperature=0.3)
     content = content.strip()
-    
+
     # Parse JSON response
     try:
         # Clean up potential markdown
         if content.startswith("```"):
-            content = re.sub(r'^```(?:json)?\n?', '', content)
-            content = re.sub(r'\n?```$', '', content)
-        
+            content = re.sub(r"^```(?:json)?\n?", "", content)
+            content = re.sub(r"\n?```$", "", content)
+
         # Try to find JSON object in the response
         # Sometimes models add explanation text before/after the JSON
-        json_match = re.search(r'\{[\s\S]*\}', content)
+        json_match = re.search(r"\{[\s\S]*\}", content)
         if json_match:
             content = json_match.group(0)
-        
+
         data = json.loads(content)
-        
+
         # Extract and normalize dimensions - ensure all values are in mm
         raw_dims = data.get("overall_dimensions", {})
         normalized_dims = _normalize_dimensions_to_mm(raw_dims)
-        
+
         # Also normalize material thickness if present
         material_thickness = data.get("material_thickness")
         if material_thickness and raw_dims.get("unit") in ("in", "inches", "inch"):
             material_thickness = material_thickness * 25.4
-        
+
         # Build PartIntent from response
         intent = PartIntent(
             part_type=data.get("part_type", "custom"),
@@ -458,15 +457,17 @@ async def understand_intent(description: str) -> PartIntent:
             clarifications_needed=data.get("clarifications_needed", []),
             confidence=data.get("confidence", 0.5),
         )
-        
-        logger.info(f"Understood intent: {intent.part_type} for {intent.primary_function} (confidence: {intent.confidence})")
-        
+
+        logger.info(
+            f"Understood intent: {intent.part_type} for {intent.primary_function} (confidence: {intent.confidence})"
+        )
+
         return intent
-        
+
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse intent response: {e}")
         logger.debug(f"Raw response: {content[:500]}")
-        
+
         # Return a basic intent
         return PartIntent(
             part_type="custom",
@@ -479,68 +480,75 @@ async def understand_intent(description: str) -> PartIntent:
 async def create_build_plan(intent: PartIntent) -> BuildPlan:
     """
     Create a step-by-step plan for building the part.
-    
+
     The plan breaks down the build into atomic, verifiable steps.
     """
     client = get_ai_client()
-    
-    intent_json = json.dumps({
-        "part_type": intent.part_type,
-        "primary_function": intent.primary_function,
-        "overall_dimensions": intent.overall_dimensions,
-        "material_thickness": intent.material_thickness,
-        "features": intent.features,
-        "constraints": intent.constraints,
-        "assumptions_made": intent.assumptions_made,
-    }, indent=2)
-    
+
+    intent_json = json.dumps(
+        {
+            "part_type": intent.part_type,
+            "primary_function": intent.primary_function,
+            "overall_dimensions": intent.overall_dimensions,
+            "material_thickness": intent.material_thickness,
+            "features": intent.features,
+            "constraints": intent.constraints,
+            "assumptions_made": intent.assumptions_made,
+        },
+        indent=2,
+    )
+
     prompt = CREATE_BUILD_PLAN_PROMPT.format(intent_json=intent_json)
-    
+
     logger.info(f"Creating build plan for {intent.part_type}...")
-    
+
     messages = [{"role": "system", "content": prompt}]
     content = await client.complete(messages, temperature=0.3)
     content = content.strip()
-    
+
     try:
         # Clean up potential markdown
         if content.startswith("```"):
-            content = re.sub(r'^```(?:json)?\n?', '', content)
-            content = re.sub(r'\n?```$', '', content)
-        
+            content = re.sub(r"^```(?:json)?\n?", "", content)
+            content = re.sub(r"\n?```$", "", content)
+
         # Try to find JSON object in the response
-        json_match = re.search(r'\{[\s\S]*\}', content)
+        json_match = re.search(r"\{[\s\S]*\}", content)
         if json_match:
             content = json_match.group(0)
-        
+
         data = json.loads(content)
-        
+
         steps = []
         for step_data in data.get("steps", []):
-            steps.append(BuildStep(
-                step_number=step_data.get("step_number", len(steps) + 1),
-                description=step_data.get("description", ""),
-                operation=step_data.get("operation", "unknown"),
-                parameters=step_data.get("parameters", {}),
-                depends_on=step_data.get("depends_on", []),
-                validation=step_data.get("validation"),
-            ))
-        
+            steps.append(
+                BuildStep(
+                    step_number=step_data.get("step_number", len(steps) + 1),
+                    description=step_data.get("description", ""),
+                    operation=step_data.get("operation", "unknown"),
+                    parameters=step_data.get("parameters", {}),
+                    depends_on=step_data.get("depends_on", []),
+                    validation=step_data.get("validation"),
+                )
+            )
+
         plan = BuildPlan(
             intent=intent,
             steps=steps,
             estimated_complexity=data.get("estimated_complexity", "moderate"),
             warnings=data.get("warnings", []),
         )
-        
-        logger.info(f"Created build plan with {len(steps)} steps (complexity: {plan.estimated_complexity})")
-        
+
+        logger.info(
+            f"Created build plan with {len(steps)} steps (complexity: {plan.estimated_complexity})"
+        )
+
         return plan
-        
+
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse build plan: {e}")
         logger.debug(f"Raw response: {content[:500]}")
-        
+
         # Return a minimal plan
         return BuildPlan(
             intent=intent,
@@ -559,31 +567,34 @@ async def generate_step_code(
     Generate Build123d code for a single build step.
     """
     client = get_ai_client()
-    
-    step_json = json.dumps({
-        "step_number": step.step_number,
-        "description": step.description,
-        "operation": step.operation,
-        "parameters": step.parameters,
-        "validation": step.validation,
-    }, indent=2)
-    
+
+    step_json = json.dumps(
+        {
+            "step_number": step.step_number,
+            "description": step.description,
+            "operation": step.operation,
+            "parameters": step.parameters,
+            "validation": step.validation,
+        },
+        indent=2,
+    )
+
     prompt = GENERATE_STEP_CODE_PROMPT.format(
         step_json=step_json,
         available_vars=", ".join(available_vars) if available_vars else "None",
         previous_code=previous_code if previous_code else "# Starting fresh",
         result_var=result_var,
     )
-    
+
     messages = [{"role": "system", "content": prompt}]
     code = await client.complete(messages, temperature=0.2)
     code = code.strip()
-    
+
     # Clean up markdown if present
     if code.startswith("```"):
-        code = re.sub(r'^```(?:python)?\n?', '', code)
-        code = re.sub(r'\n?```$', '', code)
-    
+        code = re.sub(r"^```(?:python)?\n?", "", code)
+        code = re.sub(r"\n?```$", "", code)
+
     return code
 
 
@@ -595,27 +606,26 @@ async def validate_result(
     """
     Validate that the generated result matches the intent.
     """
-    from build123d import Part
-    
+
     # Extract geometry properties
     try:
         bb = shape.bounding_box()
         volume = shape.volume
-        
+
         faces = shape.faces()
         edges = shape.edges()
-        
+
         # Detect features (simplified for Build123d)
         detected_features = []
         # Feature detection is more complex in Build123d
         # Would need to analyze face/edge geometry types
-        
+
         bbox = {
             "x": round(bb.max.X - bb.min.X, 2),
             "y": round(bb.max.Y - bb.min.Y, 2),
             "z": round(bb.max.Z - bb.min.Z, 2),
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to analyze shape: {e}")
         return {
@@ -623,37 +633,37 @@ async def validate_result(
             "issues": [f"Could not analyze shape: {e}"],
             "confidence": 0.0,
         }
-    
+
     # For now, do basic validation without AI call
     # (AI validation can be added for complex cases)
-    
+
     issues = []
-    
+
     # Check dimensions if specified
     dims = intent.overall_dimensions
     if dims:
         expected_length = dims.get("length")
         expected_width = dims.get("width")
         expected_height = dims.get("height")
-        
+
         tolerance = 0.05  # 5% tolerance
-        
+
         if expected_length and abs(bbox["x"] - expected_length) / expected_length > tolerance:
             issues.append(f"Length mismatch: expected {expected_length}mm, got {bbox['x']}mm")
-        
+
         if expected_width and abs(bbox["y"] - expected_width) / expected_width > tolerance:
             issues.append(f"Width mismatch: expected {expected_width}mm, got {bbox['y']}mm")
-        
+
         if expected_height and abs(bbox["z"] - expected_height) / expected_height > tolerance:
             issues.append(f"Height mismatch: expected {expected_height}mm, got {bbox['z']}mm")
-    
+
     # Check for expected features
     expected_holes = sum(1 for f in intent.features if f.get("type") == "hole")
     detected_holes = detected_features.count("hole") // 2  # Each hole has 2 circular edges
-    
+
     if expected_holes > 0 and detected_holes < expected_holes:
         issues.append(f"Missing holes: expected {expected_holes}, found {detected_holes}")
-    
+
     return {
         "is_valid": len(issues) == 0,
         "bbox": bbox,
@@ -670,16 +680,17 @@ async def validate_result(
 # Main Reasoning Pipeline
 # =============================================================================
 
+
 async def reason_and_plan(description: str) -> tuple[PartIntent, BuildPlan]:
     """
     Full reasoning pipeline: understand intent and create build plan.
-    
+
     Returns:
         Tuple of (intent, plan) for use by the generator.
     """
     # Step 1: Deep understanding (most important)
     intent = await understand_intent(description)
-    
+
     # Step 2: Create build plan (optional - may fail with simpler AI models)
     try:
         plan = await create_build_plan(intent)
@@ -690,5 +701,5 @@ async def reason_and_plan(description: str) -> tuple[PartIntent, BuildPlan]:
             estimated_complexity="moderate",
             warnings=[],
         )
-    
+
     return intent, plan

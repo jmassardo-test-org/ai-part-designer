@@ -9,16 +9,16 @@ This module defines schemas for positioning and alignment:
 These schemas enable intuitive placement without explicit coordinates.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.cad_v2.schemas.base import Dimension, Point3D
 from app.cad_v2.schemas.enclosure import WallSide
 
 
-class HorizontalAlignment(str, Enum):
+class HorizontalAlignment(StrEnum):
     """Horizontal alignment options."""
 
     LEFT = "left"
@@ -26,7 +26,7 @@ class HorizontalAlignment(str, Enum):
     RIGHT = "right"
 
 
-class VerticalAlignment(str, Enum):
+class VerticalAlignment(StrEnum):
     """Vertical alignment options."""
 
     TOP = "top"
@@ -34,7 +34,7 @@ class VerticalAlignment(str, Enum):
     BOTTOM = "bottom"
 
 
-class DepthAlignment(str, Enum):
+class DepthAlignment(StrEnum):
     """Depth (Z-axis) alignment options."""
 
     FRONT = "front"

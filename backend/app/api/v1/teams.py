@@ -13,35 +13,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.models.user import User
 from app.models.team import TeamRole
+from app.models.user import User
 from app.schemas.team import (
+    ProjectTeamAssign,
+    ProjectTeamResponse,
+    ProjectTeamUpdate,
     TeamCreate,
-    TeamUpdate,
-    TeamResponse,
-    TeamListResponse,
     TeamDetailResponse,
+    TeamListResponse,
     TeamMemberAdd,
     TeamMemberBulkAdd,
-    TeamMemberUpdate,
-    TeamMemberResponse,
-    TeamMemberListResponse,
     TeamMemberInfo,
-    ProjectTeamAssign,
-    ProjectTeamUpdate,
-    ProjectTeamResponse,
-    UserTeamResponse,
+    TeamMemberListResponse,
+    TeamMemberResponse,
+    TeamMemberUpdate,
+    TeamResponse,
+    TeamUpdate,
     UserTeamListResponse,
+    UserTeamResponse,
 )
 from app.services.team_service import (
-    TeamService,
-    TeamNotFoundError,
-    TeamMemberNotFoundError,
-    TeamPermissionError,
     TeamDuplicateError,
     TeamMemberExistsError,
+    TeamMemberNotFoundError,
+    TeamNotFoundError,
+    TeamService,
 )
-
 
 router = APIRouter(tags=["teams"])
 
@@ -55,6 +53,7 @@ async def get_team_service(
 
 
 # Team CRUD endpoints
+
 
 @router.post(
     "/organizations/{organization_id}/teams",
@@ -70,30 +69,28 @@ async def create_team(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> TeamResponse:
     """Create a new team in an organization.
-    
+
     Args:
         organization_id: Organization UUID.
         data: Team creation data.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         Created team.
-        
+
     Raises:
         HTTPException 403: If user lacks permission.
         HTTPException 409: If team slug already exists.
     """
     # Check permission
-    has_permission = await service.check_org_team_permission(
-        organization_id, current_user
-    )
+    has_permission = await service.check_org_team_permission(organization_id, current_user)
     if not has_permission:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to create teams in this organization",
         )
-    
+
     try:
         team = await service.create_team(organization_id, data, current_user)
         return TeamResponse.model_validate(team)
@@ -119,7 +116,7 @@ async def list_teams(
     include_inactive: bool = Query(False, description="Include inactive teams"),
 ) -> TeamListResponse:
     """List teams in an organization.
-    
+
     Args:
         organization_id: Organization UUID.
         current_user: Authenticated user.
@@ -127,7 +124,7 @@ async def list_teams(
         page: Page number.
         page_size: Items per page.
         include_inactive: Include inactive teams.
-        
+
     Returns:
         Paginated team list.
     """
@@ -137,7 +134,7 @@ async def list_teams(
         page_size=page_size,
         include_inactive=include_inactive,
     )
-    
+
     return TeamListResponse(
         items=[TeamResponse.model_validate(t) for t in teams],
         total=total,
@@ -160,16 +157,16 @@ async def get_team(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> TeamDetailResponse:
     """Get team details with members.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         Team details with member list.
-        
+
     Raises:
         HTTPException 404: If team not found.
     """
@@ -179,7 +176,7 @@ async def get_team(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found",
         )
-    
+
     # Get active members
     members, _ = await service.list_team_members(team_id, page_size=100)
     member_infos = [
@@ -193,12 +190,12 @@ async def get_team(
         )
         for m in members
     ]
-    
+
     response_data = {
         **team.__dict__,
         "members": member_infos,
     }
-    
+
     return TeamDetailResponse.model_validate(response_data)
 
 
@@ -216,35 +213,31 @@ async def update_team(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> TeamResponse:
     """Update a team.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
         data: Update data.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         Updated team.
-        
+
     Raises:
         HTTPException 403: If user lacks permission.
         HTTPException 404: If team not found.
     """
     # Check permission (team admin or org admin)
-    has_team_perm = await service.check_team_permission(
-        team_id, current_user, TeamRole.ADMIN
-    )
-    has_org_perm = await service.check_org_team_permission(
-        organization_id, current_user
-    )
-    
+    has_team_perm = await service.check_team_permission(team_id, current_user, TeamRole.ADMIN)
+    has_org_perm = await service.check_org_team_permission(organization_id, current_user)
+
     if not has_team_perm and not has_org_perm:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to update this team",
         )
-    
+
     try:
         team = await service.update_team(team_id, data)
         return TeamResponse.model_validate(team)
@@ -268,27 +261,25 @@ async def delete_team(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> None:
     """Delete a team.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Raises:
         HTTPException 403: If user lacks permission.
         HTTPException 404: If team not found.
     """
     # Check org admin permission
-    has_permission = await service.check_org_team_permission(
-        organization_id, current_user
-    )
+    has_permission = await service.check_org_team_permission(organization_id, current_user)
     if not has_permission:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to delete teams in this organization",
         )
-    
+
     try:
         await service.delete_team(team_id)
     except TeamNotFoundError:
@@ -299,6 +290,7 @@ async def delete_team(
 
 
 # Team Member endpoints
+
 
 @router.get(
     "/organizations/{organization_id}/teams/{team_id}/members",
@@ -316,7 +308,7 @@ async def list_team_members(
     include_inactive: bool = Query(False, description="Include inactive members"),
 ) -> TeamMemberListResponse:
     """List team members.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
@@ -325,7 +317,7 @@ async def list_team_members(
         page: Page number.
         page_size: Items per page.
         include_inactive: Include inactive members.
-        
+
     Returns:
         Paginated member list.
     """
@@ -335,7 +327,7 @@ async def list_team_members(
         page_size=page_size,
         include_inactive=include_inactive,
     )
-    
+
     items = []
     for m in members:
         item = TeamMemberResponse(
@@ -352,7 +344,7 @@ async def list_team_members(
             user_full_name=m.user.full_name if m.user else None,
         )
         items.append(item)
-    
+
     return TeamMemberListResponse(
         items=items,
         total=total,
@@ -377,36 +369,32 @@ async def add_team_member(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> TeamMemberResponse:
     """Add a member to a team.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
         data: Member add data.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         Created team member.
-        
+
     Raises:
         HTTPException 403: If user lacks permission.
         HTTPException 404: If team not found.
         HTTPException 409: If user already a member.
     """
     # Check permission (team lead/admin or org admin)
-    has_team_perm = await service.check_team_permission(
-        team_id, current_user, TeamRole.LEAD
-    )
-    has_org_perm = await service.check_org_team_permission(
-        organization_id, current_user
-    )
-    
+    has_team_perm = await service.check_team_permission(team_id, current_user, TeamRole.LEAD)
+    has_org_perm = await service.check_org_team_permission(organization_id, current_user)
+
     if not has_team_perm and not has_org_perm:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to add members to this team",
         )
-    
+
     try:
         member = await service.add_team_member(team_id, data, current_user)
         return TeamMemberResponse(
@@ -447,52 +435,48 @@ async def bulk_add_team_members(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> list[TeamMemberResponse]:
     """Bulk add members to a team.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
         data: Bulk add data with member list.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         List of created team members.
     """
     # Check permission
-    has_team_perm = await service.check_team_permission(
-        team_id, current_user, TeamRole.LEAD
-    )
-    has_org_perm = await service.check_org_team_permission(
-        organization_id, current_user
-    )
-    
+    has_team_perm = await service.check_team_permission(team_id, current_user, TeamRole.LEAD)
+    has_org_perm = await service.check_org_team_permission(organization_id, current_user)
+
     if not has_team_perm and not has_org_perm:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to add members to this team",
         )
-    
+
     results = []
     for member_data in data.members:
         try:
-            member = await service.add_team_member(
-                team_id, member_data, current_user
+            member = await service.add_team_member(team_id, member_data, current_user)
+            results.append(
+                TeamMemberResponse(
+                    id=member.id,
+                    team_id=member.team_id,
+                    user_id=member.user_id,
+                    role=member.role,
+                    joined_at=member.joined_at,
+                    is_active=member.is_active,
+                    added_by_id=member.added_by_id,
+                    created_at=member.created_at,
+                    updated_at=member.updated_at,
+                )
             )
-            results.append(TeamMemberResponse(
-                id=member.id,
-                team_id=member.team_id,
-                user_id=member.user_id,
-                role=member.role,
-                joined_at=member.joined_at,
-                is_active=member.is_active,
-                added_by_id=member.added_by_id,
-                created_at=member.created_at,
-                updated_at=member.updated_at,
-            ))
         except (TeamMemberExistsError, TeamNotFoundError):
             # Skip already existing members
             continue
-    
+
     return results
 
 
@@ -511,7 +495,7 @@ async def update_team_member(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> TeamMemberResponse:
     """Update a team member.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
@@ -519,28 +503,24 @@ async def update_team_member(
         data: Update data.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         Updated team member.
-        
+
     Raises:
         HTTPException 403: If user lacks permission.
         HTTPException 404: If member not found.
     """
     # Check permission (team admin or org admin)
-    has_team_perm = await service.check_team_permission(
-        team_id, current_user, TeamRole.ADMIN
-    )
-    has_org_perm = await service.check_org_team_permission(
-        organization_id, current_user
-    )
-    
+    has_team_perm = await service.check_team_permission(team_id, current_user, TeamRole.ADMIN)
+    has_org_perm = await service.check_org_team_permission(organization_id, current_user)
+
     if not has_team_perm and not has_org_perm:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to update team members",
         )
-    
+
     try:
         member = await service.update_team_member(team_id, user_id, data)
         return TeamMemberResponse(
@@ -575,33 +555,29 @@ async def remove_team_member(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> None:
     """Remove a member from a team.
-    
+
     Args:
         organization_id: Organization UUID.
         team_id: Team UUID.
         user_id: User UUID to remove.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Raises:
         HTTPException 403: If user lacks permission.
         HTTPException 404: If member not found.
     """
     # Check permission (team lead/admin or org admin) - or self-removal
     is_self = user_id == current_user.id
-    has_team_perm = await service.check_team_permission(
-        team_id, current_user, TeamRole.LEAD
-    )
-    has_org_perm = await service.check_org_team_permission(
-        organization_id, current_user
-    )
-    
+    has_team_perm = await service.check_team_permission(team_id, current_user, TeamRole.LEAD)
+    has_org_perm = await service.check_org_team_permission(organization_id, current_user)
+
     if not is_self and not has_team_perm and not has_org_perm:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to remove members from this team",
         )
-    
+
     try:
         await service.remove_team_member(team_id, user_id)
     except TeamMemberNotFoundError:
@@ -612,6 +588,7 @@ async def remove_team_member(
 
 
 # User's teams endpoints
+
 
 @router.get(
     "/users/me/teams",
@@ -624,16 +601,16 @@ async def get_my_teams(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> UserTeamListResponse:
     """Get current user's teams.
-    
+
     Args:
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         List of user's team memberships.
     """
     teams = await service.get_user_teams(current_user.id)
-    
+
     return UserTeamListResponse(
         items=[UserTeamResponse.model_validate(t) for t in teams],
         total=len(teams),
@@ -652,12 +629,12 @@ async def leave_team(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> None:
     """Leave a team.
-    
+
     Args:
         team_id: Team UUID.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Raises:
         HTTPException 404: If not a member.
     """
@@ -672,6 +649,7 @@ async def leave_team(
 
 # Project-Team assignment endpoints
 
+
 @router.get(
     "/projects/{project_id}/teams",
     response_model=list[ProjectTeamResponse],
@@ -684,17 +662,17 @@ async def list_project_teams(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> list[ProjectTeamResponse]:
     """List teams assigned to a project.
-    
+
     Args:
         project_id: Project UUID.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         List of project-team assignments.
     """
     assignments = await service.list_project_teams(project_id)
-    
+
     return [
         ProjectTeamResponse(
             id=a.id,
@@ -725,21 +703,19 @@ async def assign_team_to_project(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> ProjectTeamResponse:
     """Assign a team to a project.
-    
+
     Args:
         project_id: Project UUID.
         data: Assignment data.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         Created assignment.
     """
     # TODO: Add project permission check
-    assignment = await service.assign_team_to_project(
-        data, project_id, current_user
-    )
-    
+    assignment = await service.assign_team_to_project(data, project_id, current_user)
+
     return ProjectTeamResponse(
         id=assignment.id,
         project_id=assignment.project_id,
@@ -766,17 +742,17 @@ async def update_project_team(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> ProjectTeamResponse:
     """Update a project-team assignment.
-    
+
     Args:
         project_id: Project UUID.
         team_id: Team UUID.
         data: Update data.
         current_user: Authenticated user.
         service: Team service.
-        
+
     Returns:
         Updated assignment.
-        
+
     Raises:
         HTTPException 404: If assignment not found.
     """
@@ -812,7 +788,7 @@ async def remove_team_from_project(
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> None:
     """Remove a team from a project.
-    
+
     Args:
         project_id: Project UUID.
         team_id: Team UUID.

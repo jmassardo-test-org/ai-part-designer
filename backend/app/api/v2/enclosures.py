@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.cad_v2.compiler import CompilationEngine
 from app.cad_v2.schemas.base import BoundingBox, Dimension
 from app.cad_v2.schemas.enclosure import (
     EnclosureSpec,
@@ -22,7 +22,6 @@ from app.cad_v2.schemas.enclosure import (
     WallSide,
     WallSpec,
 )
-from app.cad_v2.compiler import CompilationEngine
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +41,10 @@ class EnclosureCreateRequest(BaseModel):
     height_mm: float = Field(..., gt=0, description="Height in mm")
     wall_thickness_mm: float = Field(default=2.5, gt=0, description="Wall thickness in mm")
     corner_radius_mm: float | None = Field(default=None, ge=0, description="Corner radius in mm")
-    
+
     # Lid options
     lid_type: str = Field(default="snap_fit", description="Lid type: snap_fit, screw_on, none")
-    
+
     # Ventilation
     ventilation_enabled: bool = Field(default=False, description="Enable ventilation")
     ventilation_sides: list[str] = Field(
@@ -90,7 +89,7 @@ class ValidateSchemaResponse(BaseModel):
 )
 async def create_enclosure(request: EnclosureCreateRequest) -> EnclosureResponse:
     """Create an enclosure specification from explicit dimensions.
-    
+
     This bypasses AI and creates a schema directly from parameters.
     """
     # Map lid type
@@ -101,7 +100,7 @@ async def create_enclosure(request: EnclosureCreateRequest) -> EnclosureResponse
         "none": LidType.NONE,
     }
     lid_type = lid_type_map.get(request.lid_type, LidType.SNAP_FIT)
-    
+
     # Map ventilation sides
     side_map = {
         "front": WallSide.FRONT,
@@ -111,11 +110,8 @@ async def create_enclosure(request: EnclosureCreateRequest) -> EnclosureResponse
         "top": WallSide.TOP,
         "bottom": WallSide.BOTTOM,
     }
-    vent_sides = [
-        side_map[s] for s in request.ventilation_sides
-        if s in side_map
-    ]
-    
+    vent_sides = [side_map[s] for s in request.ventilation_sides if s in side_map]
+
     # Build spec
     try:
         spec = EnclosureSpec(
@@ -125,27 +121,32 @@ async def create_enclosure(request: EnclosureCreateRequest) -> EnclosureResponse
                 height=Dimension(value=request.height_mm),
             ),
             walls=WallSpec(thickness=Dimension(value=request.wall_thickness_mm)),
-            corner_radius=Dimension(value=request.corner_radius_mm) if request.corner_radius_mm else None,
+            corner_radius=Dimension(value=request.corner_radius_mm)
+            if request.corner_radius_mm
+            else None,
             lid=LidSpec(type=lid_type) if lid_type != LidType.NONE else None,
             ventilation=VentilationSpec(
                 enabled=request.ventilation_enabled,
                 sides=vent_sides,
-            ) if request.ventilation_enabled else VentilationSpec(),
+            )
+            if request.ventilation_enabled
+            else VentilationSpec(),
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid specification: {str(e)}",
+            detail=f"Invalid specification: {e!s}",
         )
-    
+
     # Validate with engine
     engine = CompilationEngine()
     issues = engine.validate_spec(spec)
-    
+
     # Generate ID (in real system, would save to database)
     from uuid import uuid4
+
     enclosure_id = str(uuid4())
-    
+
     return EnclosureResponse(
         id=enclosure_id,
         enclosure_schema=spec.model_dump(mode="json"),
@@ -162,25 +163,25 @@ async def create_enclosure(request: EnclosureCreateRequest) -> EnclosureResponse
 )
 async def validate_enclosure(request: ValidateSchemaRequest) -> ValidateSchemaResponse:
     """Validate an enclosure schema without creating it.
-    
+
     Checks:
     - Schema structure (Pydantic validation)
     - Physical constraints (wall thickness, dimensions)
     - Manufacturability warnings
     """
     from pydantic import ValidationError
-    
+
     # First, validate against Pydantic model
     try:
         spec = EnclosureSpec.model_validate(request.enclosure_schema)
     except ValidationError as e:
         errors = [f"{err['loc']}: {err['msg']}" for err in e.errors()]
         return ValidateSchemaResponse(valid=False, issues=errors)
-    
+
     # Then check physical constraints
     engine = CompilationEngine()
     issues = engine.validate_spec(spec)
-    
+
     # Issues are warnings, not errors
     return ValidateSchemaResponse(
         valid=True,
@@ -195,15 +196,15 @@ async def validate_enclosure(request: ValidateSchemaRequest) -> ValidateSchemaRe
 )
 async def get_presets() -> dict[str, Any]:
     """Get preset enclosure configurations for common boards.
-    
+
     Returns pre-configured enclosure specs optimized for
     common development boards.
     """
     from app.cad_v2.components import get_registry
-    
+
     registry = get_registry()
     presets = {}
-    
+
     # Generate presets for boards
     for comp in registry.list_category("board"):
         dims = comp.dimensions
@@ -220,5 +221,5 @@ async def get_presets() -> dict[str, Any]:
             "corner_radius_mm": 3,
         }
         presets[comp.id] = preset
-    
+
     return {"presets": presets}

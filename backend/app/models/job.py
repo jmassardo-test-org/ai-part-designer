@@ -10,12 +10,13 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
-    Index,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -28,13 +29,13 @@ if TYPE_CHECKING:
 class Job(Base):
     """
     Async job tracking for CAD operations.
-    
+
     Tracks status, progress, and results of long-running operations like:
     - AI generation
     - CAD model processing
     - Format conversion/export
     - Batch operations
-    
+
     Result schema example:
     {
         "fileUrl": "s3://bucket/path/to/file.step",
@@ -42,7 +43,7 @@ class Job(Base):
         "formats": ["step", "stl", "3mf"],
         "geometryInfo": {...}
     }
-    
+
     Error schema example:
     {
         "code": "GENERATION_FAILED",
@@ -80,7 +81,7 @@ class Job(Base):
         nullable=False,
         index=True,
     )
-    # Types: ai_generation, cad_modification, format_conversion, 
+    # Types: ai_generation, cad_modification, format_conversion,
     #        export, batch_export, validation, repair
 
     # Status
@@ -172,7 +173,7 @@ class Job(Base):
         Integer,
         nullable=True,
     )
-    
+
     # Resource usage tracking
     cpu_time_seconds: Mapped[float | None] = mapped_column(
         Float,

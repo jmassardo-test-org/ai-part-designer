@@ -11,7 +11,6 @@ from app.enclosure.schemas import (
     VentilationPattern,
 )
 
-
 # =============================================================================
 # Style Templates
 # =============================================================================
@@ -167,25 +166,22 @@ def get_style_template(
 ) -> EnclosureStyle:
     """
     Get a pre-defined style template.
-    
+
     Args:
         style_type: Type of style to retrieve
-    
+
     Returns:
         EnclosureStyle with pre-defined parameters
-    
+
     Raises:
         ValueError: If style_type is CUSTOM or unknown
     """
     if style_type == EnclosureStyleType.CUSTOM:
-        raise ValueError(
-            "CUSTOM style requires explicit parameters, "
-            "use EnclosureStyle() directly"
-        )
-    
+        raise ValueError("CUSTOM style requires explicit parameters, use EnclosureStyle() directly")
+
     if style_type not in ENCLOSURE_STYLE_TEMPLATES:
         raise ValueError(f"Unknown style type: {style_type}")
-    
+
     # Return a copy to prevent modification
     template = ENCLOSURE_STYLE_TEMPLATES[style_type]
     return template.model_copy()
@@ -216,9 +212,7 @@ def get_style_description(
             "Premium feel with smooth corners and grid ventilation. "
             "Best for consumer devices and home automation."
         ),
-        EnclosureStyleType.CUSTOM: (
-            "Fully customizable parameters."
-        ),
+        EnclosureStyleType.CUSTOM: ("Fully customizable parameters."),
     }
     return descriptions.get(style_type, "Unknown style")
 
@@ -226,7 +220,7 @@ def get_style_description(
 def list_available_styles() -> list[dict]:
     """
     List all available style templates with descriptions.
-    
+
     Returns:
         List of dicts with style info
     """
