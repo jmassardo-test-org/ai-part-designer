@@ -83,7 +83,7 @@ class EventTracker:
     BATCH_SIZE = 100
     MAX_QUEUE_SIZE = 10000
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._buffer: list[AnalyticsEvent] = []
 
     async def track(
@@ -153,7 +153,7 @@ class EventTracker:
         """Get count of pending events in queue."""
         return await redis_client.llen(self.EVENTS_KEY)
 
-    async def consume_batch(self, batch_size: int = 100) -> list[dict]:
+    async def consume_batch(self, batch_size: int = 100) -> list[dict[str, Any]]:
         """
         Consume a batch of events from the queue.
 
@@ -183,7 +183,7 @@ class EventTracker:
         *,
         signup_method: str = "email",
         referral_source: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track user signup event."""
         await self.track(
@@ -202,7 +202,7 @@ class EventTracker:
         user_id: UUID,
         *,
         login_method: str = "email",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track user login event."""
         await self.track(
@@ -220,7 +220,7 @@ class EventTracker:
         *,
         source_type: str,
         template_id: UUID | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track design creation event."""
         await self.track(
@@ -241,7 +241,7 @@ class EventTracker:
         design_id: UUID,
         *,
         export_format: str,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track design export event."""
         await self.track(
@@ -261,7 +261,7 @@ class EventTracker:
         template_id: UUID,
         *,
         template_slug: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track template usage event."""
         await self.track(
@@ -283,7 +283,7 @@ class EventTracker:
         job_type: str,
         duration_ms: int,
         success: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track job completion event."""
         await self.track(
@@ -306,7 +306,7 @@ class EventTracker:
         from_tier: str | None,
         to_tier: str,
         change_type: str,  # upgrade, downgrade, new, cancel
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track subscription change event."""
         await self.track(
