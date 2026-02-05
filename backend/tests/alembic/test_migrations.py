@@ -4,10 +4,10 @@ These tests ensure migrations are properly structured and idempotent
 where needed to prevent deployment failures.
 """
 
-from typing import ClassVar
 import ast
 import re
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 

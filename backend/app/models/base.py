@@ -3,7 +3,7 @@ Base model classes and mixins for SQLAlchemy ORM.
 """
 
 from datetime import UTC, datetime
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 from sqlalchemy import DateTime, func

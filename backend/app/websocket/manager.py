@@ -330,7 +330,7 @@ def send_ws_message_sync(user_id: str, message: dict) -> None:
     try:
         # Publish to Redis channel for WebSocket server to pick up
         channel = f"ws:user:{user_id}"
-        redis_client.client.publish(channel, json.dumps(message))
+        await redis_client.client.publish(channel, json.dumps(message))
     except Exception as e:
         logger.warning(f"Failed to publish WS message: {e}")
 

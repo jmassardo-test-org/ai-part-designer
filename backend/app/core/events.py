@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime
 from enum import StrEnum
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field

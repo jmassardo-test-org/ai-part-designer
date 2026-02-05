@@ -17,7 +17,7 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 

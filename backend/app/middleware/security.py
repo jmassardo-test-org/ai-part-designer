@@ -9,10 +9,10 @@ Provides:
 - CORS hardening
 """
 
-from typing import ClassVar
 import secrets
 import time
 from collections.abc import Callable
+from typing import ClassVar
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
