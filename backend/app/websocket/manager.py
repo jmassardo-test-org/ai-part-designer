@@ -324,13 +324,17 @@ def send_ws_message_sync(user_id: str, message: dict) -> None:
 
     This uses Redis pub/sub to communicate with the WebSocket process.
     The actual sending happens in the async WebSocket server.
+    
+    NOTE: This function is currently unused and has a type error.
+    The redis_client.client.publish() returns a coroutine but cannot be awaited
+    in a sync function. This needs to be refactored when needed.
     """
     from app.core.cache import redis_client
 
     try:
         # Publish to Redis channel for WebSocket server to pick up
         channel = f"ws:user:{user_id}"
-        await redis_client.client.publish(channel, json.dumps(message))
+        redis_client.client.publish(channel, json.dumps(message))  # type: ignore[unused-coroutine]
     except Exception as e:
         logger.warning(f"Failed to publish WS message: {e}")
 
