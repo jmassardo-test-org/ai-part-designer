@@ -324,7 +324,7 @@ def send_ws_message_sync(user_id: str, message: dict) -> None:
 
     This uses Redis pub/sub to communicate with the WebSocket process.
     The actual sending happens in the async WebSocket server.
-    
+
     NOTE: This function is currently unused and has a type error.
     The redis_client.client.publish() returns a coroutine but cannot be awaited
     in a sync function. This needs to be refactored when needed.
