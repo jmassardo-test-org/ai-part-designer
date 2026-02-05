@@ -48,7 +48,7 @@ class PromptTemplate:
     examples: list[dict[str, str]] | None = None
     temperature: float = 0.2  # Low temp for more deterministic output
 
-    def format_messages(self, **kwargs) -> list[dict[str, str]]:
+    def format_messages(self, **kwargs: Any) -> list[dict[str, str]]:
         """
         Format prompt into message list for API call.
 

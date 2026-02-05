@@ -225,7 +225,7 @@ async def log_org_action(
     action: str,
     resource_type: str | None = None,
     resource_id: UUID | None = None,
-    details: dict | None = None,
+    details: dict[str, Any] | None = None,
 ) -> None:
     """Log an organization action for audit."""
     log = OrganizationAuditLog(

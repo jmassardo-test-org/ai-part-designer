@@ -20,7 +20,7 @@ Provides endpoints for:
 
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -62,7 +62,7 @@ class ModerationItemResponse(BaseModel):
     decision: str
     reason: str | None = None
     confidence_score: float | None = None
-    details: dict = Field(default_factory=dict)
+    details: dict[str, Any] = Field(default_factory=dict[str, Any])
     is_appealed: bool = False
     created_at: datetime
 
@@ -831,7 +831,7 @@ class StorageAnalyticsResponse(BaseModel):
     total_storage_bytes: int
     used_storage_bytes: int
     storage_by_type: dict[str, int]
-    largest_users: list[dict]
+    largest_users: list[dict[str, Any]]
 
 
 # =============================================================================
@@ -1002,8 +1002,8 @@ class AdminTemplateCreateRequest(BaseModel):
     description: str | None = None
     category: str = Field(..., max_length=50)
     subcategory: str | None = None
-    parameters: dict
-    default_values: dict
+    parameters: dict[str, Any]
+    default_values: dict[str, Any]
     cadquery_script: str
     min_tier: str = "free"
     is_active: bool = True
@@ -1016,8 +1016,8 @@ class AdminTemplateUpdateRequest(BaseModel):
     description: str | None = None
     category: str | None = None
     subcategory: str | None = None
-    parameters: dict | None = None
-    default_values: dict | None = None
+    parameters: dict[str, Any] | None = None
+    default_values: dict[str, Any] | None = None
     cadquery_script: str | None = None
     min_tier: str | None = None
     is_active: bool | None = None
@@ -3513,7 +3513,7 @@ async def change_subscription_tier(
 async def cancel_subscription_admin(
     subscription_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Cancel subscription."""
     query = select(Subscription).where(Subscription.id == subscription_id)
     result = await db.execute(query)
@@ -3595,7 +3595,7 @@ async def extend_subscription(
 async def get_user_credits(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Get user credit balance."""
     query = select(CreditBalance).where(CreditBalance.user_id == user_id)
     result = await db.execute(query)
@@ -3623,7 +3623,7 @@ async def add_user_credits(
     amount: Annotated[int, Query(ge=1, le=10000)],
     reason: Annotated[str | None, Query(max_length=500)] = None,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Add credits to user."""
     query = select(CreditBalance).where(CreditBalance.user_id == user_id)
     result = await db.execute(query)
@@ -3871,7 +3871,7 @@ async def get_organization_members(
 async def delete_organization(
     org_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Delete organization."""
     query = select(Organization).where(
         and_(Organization.id == org_id, Organization.deleted_at.is_(None))
@@ -4014,7 +4014,7 @@ async def list_components(
 async def verify_component(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Verify a component."""
     query = select(ReferenceComponent).where(ReferenceComponent.id == component_id)
     result = await db.execute(query)
@@ -4042,7 +4042,7 @@ async def verify_component(
 async def feature_component(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Feature a component."""
     query = select(ReferenceComponent).where(ReferenceComponent.id == component_id)
     result = await db.execute(query)
@@ -4070,7 +4070,7 @@ async def feature_component(
 async def delete_component(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Delete a component."""
     query = select(ReferenceComponent).where(ReferenceComponent.id == component_id)
     result = await db.execute(query)
@@ -4211,7 +4211,7 @@ async def list_notifications_admin(
 async def create_announcement(
     request: CreateAnnouncementRequest,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Create a system announcement with various targeting options.
 
     Supports:
@@ -4305,7 +4305,7 @@ async def send_user_notification(
     title: str = Query(..., max_length=200),
     message: str = Query(..., max_length=2000),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Send notification to a specific user."""
     # Verify user exists
     user_query = select(User).where(User.id == user_id)
@@ -4364,7 +4364,7 @@ async def delete_notification_admin(
 )
 async def get_notification_stats(
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Get notification statistics."""
     now = datetime.now(tz=datetime.UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -4459,7 +4459,7 @@ class StorageStatsResponse(BaseModel):
     total_size_bytes: int
     total_size_gb: float
     files_by_type: dict[str, int]
-    top_users: list[dict]
+    top_users: list[dict[str, Any]]
 
 
 # =============================================================================
@@ -4596,7 +4596,7 @@ async def list_files_admin(
 async def delete_file_admin(
     file_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Delete a file."""
     query = select(FileModel).where(FileModel.id == file_id)
     result = await db.execute(query)
@@ -4809,7 +4809,7 @@ async def list_api_keys(
 async def revoke_api_key(
     key_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Revoke an API key."""
     query = select(APIKey).where(APIKey.id == key_id)
     result = await db.execute(query)
@@ -5074,7 +5074,7 @@ async def get_system_health(
     description="Get system version info (admin only).",
     dependencies=[Depends(require_admin())],
 )
-async def get_system_version() -> dict:
+async def get_system_version() -> dict[str, Any]:
     """Get system version."""
     return {
         "version": "1.0.0",
@@ -5159,7 +5159,7 @@ class AdminMarketplaceStatsResponse(BaseModel):
     total_public_designs: int
     total_remixes_today: int
     total_remixes_week: int
-    most_remixed: list[dict]
+    most_remixed: list[dict[str, Any]]
     starters_by_category: dict[str, int]
 
 
@@ -5270,7 +5270,7 @@ async def list_cad_v2_components(
 async def get_cad_v2_component(
     component_id: str,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Get detailed CAD v2 component info."""
     from app.cad_v2.components import get_registry
 
@@ -5363,7 +5363,7 @@ async def sync_cad_v2_registry(
 async def verify_cad_v2_component(
     component_id: str,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Mark a CAD v2 component as verified."""
     result = await db.execute(
         select(ReferenceComponent).where(ReferenceComponent.slug == component_id)
@@ -5392,7 +5392,7 @@ async def verify_cad_v2_component(
 async def feature_cad_v2_component(
     component_id: str,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Mark a CAD v2 component as featured."""
     result = await db.execute(
         select(ReferenceComponent).where(ReferenceComponent.slug == component_id)
@@ -5618,7 +5618,7 @@ async def update_starter(
 async def feature_starter(
     starter_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Feature a starter design."""
     from app.models.design import Design
 
@@ -5651,7 +5651,7 @@ async def feature_starter(
 async def unfeature_starter(
     starter_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Remove featured status from a starter design."""
     from app.models.design import Design
 
@@ -5716,7 +5716,7 @@ async def delete_starter(
 )
 async def reseed_starters(
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Re-run starter seeding."""
     from app.seeds.starters import seed_starters
 
@@ -5809,7 +5809,7 @@ async def get_marketplace_stats(
     starters_by_category = {row[0]: row[1] for row in cat_result.all()}
 
     # Most remixed (would need remix tracking, simplified here)
-    most_remixed: list[dict] = []
+    most_remixed: list[dict[str, Any]] = []
 
     return AdminMarketplaceStatsResponse(
         total_starters=total_starters,
@@ -5829,7 +5829,7 @@ async def get_marketplace_stats(
 )
 async def get_featured_items(
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Get featured marketplace items."""
     from app.models.design import Design
 
@@ -5868,7 +5868,7 @@ async def get_featured_items(
 async def reorder_featured(
     item_ids: list[UUID],
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Reorder featured marketplace items.
 
     Args:

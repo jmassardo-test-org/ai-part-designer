@@ -7,7 +7,7 @@ Allows browsing vendor-published starter designs and remixing them.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import desc, func, or_, select
@@ -62,7 +62,7 @@ def _design_to_starter(design: Design) -> StarterDesignResponse:
     """Convert a Design model to a starter response."""
     # Extract features from enclosure_spec if available
     features: list[str] = []
-    exterior_dims: dict | None = None
+    exterior_dims: dict[str, Any] | None = None
 
     if design.enclosure_spec:
         spec = design.enclosure_spec
@@ -179,7 +179,7 @@ async def list_starter_designs(
 @router.get("/categories")
 async def get_starter_categories(
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Get available starter categories with counts.
     """
@@ -243,7 +243,7 @@ async def get_starter_detail(
 
     # Extract features and dimensions
     features: list[str] = []
-    exterior_dims: dict | None = None
+    exterior_dims: dict[str, Any] | None = None
 
     if design.enclosure_spec:
         spec = design.enclosure_spec

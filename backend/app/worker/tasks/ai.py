@@ -19,19 +19,19 @@ from app.worker.ws_utils import (
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     bind=True,
     name="app.worker.tasks.ai.generate_from_prompt",
     max_retries=2,
     default_retry_delay=30,
 )
 def generate_from_prompt(
-    self,
+    self: Any,
     job_id: str,
     prompt: str,
     context: dict[str, Any] | None = None,
     user_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Generate CAD model from natural language prompt.
 
@@ -56,7 +56,7 @@ def generate_from_prompt(
     if user_id:
         send_job_started(user_id, job_id, "ai_generation")
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             job_repo = JobRepository(session)
 
@@ -296,13 +296,13 @@ async def _check_content_moderation(content: str) -> dict[str, Any]:
     }
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.ai.suggest_modifications",
 )
 def suggest_modifications(
     design_id: str,
     user_request: str,
-) -> dict:
+) -> dict[str, Any]:
     """
     Suggest modifications to a design based on user request.
 
@@ -322,7 +322,7 @@ def suggest_modifications(
 
     logger.info(f"Suggesting modifications for design {design_id}")
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             design_repo = DesignRepository(session)
             design = await design_repo.get_by_id(UUID(design_id))
@@ -374,7 +374,8 @@ Only output the JSON. No markdown."""
                 # Extract JSON from response
                 json_match = re.search(r"\{[\s\S]*\}", response)
                 if json_match:
-                    return json.loads(json_match.group())
+                    result: dict[str, Any] = json.loads(json_match.group())
+                    return result
                 logger.warning("Failed to parse AI response, returning default")
 
             except Exception as e:
@@ -389,13 +390,13 @@ Only output the JSON. No markdown."""
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.ai.moderate_content",
 )
 def moderate_content(
     content: str,
     content_type: str = "prompt",
-) -> dict:
+) -> dict[str, Any]:
     """
     Check content against moderation policies.
 

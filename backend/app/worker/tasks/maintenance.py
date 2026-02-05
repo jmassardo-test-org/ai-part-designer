@@ -11,7 +11,8 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.purge_expired_trash",
 )
 def purge_expired_trash() -> dict[str, Any]:
@@ -34,7 +35,7 @@ def purge_expired_trash() -> dict[str, Any]:
     from app.core.storage import StorageBucket, storage_client
     from app.models import Design, File, Project
 
-    async def run():
+    async def run() -> dict[str, Any]:
         deleted_summary = {
             "designs": 0,
             "projects": 0,
@@ -149,7 +150,8 @@ def purge_expired_trash() -> dict[str, Any]:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.send_trash_deletion_warnings",
 )
 def send_trash_deletion_warnings() -> dict[str, Any]:
@@ -176,7 +178,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
     # Warning thresholds in days
     WARNING_DAYS = [7, 3, 1]
 
-    async def run():
+    async def run() -> dict[str, Any]:
         notification_summary = {
             "users_notified": 0,
             "emails_sent": 0,
@@ -335,10 +337,11 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.cleanup_old_jobs",
 )
-def cleanup_old_jobs(days: int = 30) -> dict:
+def cleanup_old_jobs(days: int = 30) -> dict[str, Any]:
     """
     Clean up old completed/failed jobs.
 
@@ -354,7 +357,7 @@ def cleanup_old_jobs(days: int = 30) -> dict:
 
     cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=days)
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             result = await session.execute(
                 delete(Job)
@@ -371,10 +374,11 @@ def cleanup_old_jobs(days: int = 30) -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.check_stale_jobs",
 )
-def check_stale_jobs(stale_after_minutes: int = 30) -> dict:
+def check_stale_jobs(stale_after_minutes: int = 30) -> dict[str, Any]:
     """
     Check for stale running jobs and mark them as failed.
 
@@ -386,7 +390,7 @@ def check_stale_jobs(stale_after_minutes: int = 30) -> dict:
     from app.core.database import async_session_maker
     from app.repositories import JobRepository
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             job_repo = JobRepository(session)
             stale_jobs = await job_repo.get_stale_jobs(stale_after_minutes)
@@ -413,10 +417,11 @@ def check_stale_jobs(stale_after_minutes: int = 30) -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.cleanup_temp_files",
 )
-def cleanup_temp_files(max_age_hours: int = 24) -> dict:
+def cleanup_temp_files(max_age_hours: int = 24) -> dict[str, Any]:
     """
     Clean up temporary files in storage.
 
@@ -428,7 +433,7 @@ def cleanup_temp_files(max_age_hours: int = 24) -> dict:
 
     cutoff = datetime.now(tz=datetime.UTC) - timedelta(hours=max_age_hours)
 
-    async def run():
+    async def run() -> dict[str, Any]:
         # List temp files
         temp_files = await storage_client.list_files(
             StorageBucket.TEMP,
@@ -451,10 +456,11 @@ def cleanup_temp_files(max_age_hours: int = 24) -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.backup_database",
 )
-def backup_database(backup_type: str = "full") -> dict:
+def backup_database(backup_type: str = "full") -> dict[str, Any]:
     """
     Create database backup and upload to storage.
 
@@ -464,7 +470,7 @@ def backup_database(backup_type: str = "full") -> dict:
 
     from app.core.backup import db_backup
 
-    async def run():
+    async def run() -> dict[str, Any]:
         backup_info = await db_backup.create_backup(
             backup_type=backup_type,
             compress=True,
@@ -482,10 +488,11 @@ def backup_database(backup_type: str = "full") -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.vacuum_database",
 )
-def vacuum_database() -> dict:
+def vacuum_database() -> dict[str, Any]:
     """
     Run PostgreSQL VACUUM ANALYZE to reclaim space and update statistics.
 
@@ -497,7 +504,7 @@ def vacuum_database() -> dict:
 
     from app.core.database import async_session_maker
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             # Run VACUUM ANALYZE (note: can't run in transaction)
             await session.execute(text("ANALYZE"))
@@ -509,10 +516,11 @@ def vacuum_database() -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.update_search_vectors",
 )
-def update_search_vectors() -> dict:
+def update_search_vectors() -> dict[str, Any]:
     """
     Update full-text search vectors for designs.
 
@@ -524,7 +532,7 @@ def update_search_vectors() -> dict:
 
     from app.core.database import async_session_maker
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             # Update search vectors for designs without them
             result = await session.execute(
@@ -547,10 +555,11 @@ def update_search_vectors() -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.generate_missing_thumbnails",
 )
-def generate_missing_thumbnails() -> dict:
+def generate_missing_thumbnails() -> dict[str, Any]:
     """
     Generate thumbnails for designs that are missing them.
     """
@@ -562,7 +571,7 @@ def generate_missing_thumbnails() -> dict:
     from app.models import DesignVersion
     from app.worker.tasks.cad import generate_thumbnail
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             # Find versions without thumbnails
             result = await session.execute(
@@ -583,10 +592,11 @@ def generate_missing_thumbnails() -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.check_storage_health",
 )
-def check_storage_health() -> dict:
+def check_storage_health() -> dict[str, Any]:
     """
     Check storage bucket health and report issues.
     """
@@ -594,7 +604,7 @@ def check_storage_health() -> dict:
 
     from app.core.storage import StorageBucket, storage_client
 
-    async def run():
+    async def run() -> dict[str, Any]:
         results = {}
 
         for bucket in StorageBucket:
@@ -623,7 +633,8 @@ def check_storage_health() -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.check_data_integrity",
 )
 def check_data_integrity() -> dict[str, Any]:
@@ -643,7 +654,7 @@ def check_data_integrity() -> dict[str, Any]:
     from app.core.database import async_session_maker
     from app.services.integrity import DataIntegrityService
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             service = DataIntegrityService(session)
             report = await service.run_full_check()
@@ -669,7 +680,8 @@ def check_data_integrity() -> dict[str, Any]:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
+    
     name="app.worker.tasks.maintenance.verify_backups",
 )
 def verify_backups() -> dict[str, Any]:
@@ -688,7 +700,7 @@ def verify_backups() -> dict[str, Any]:
 
     from app.services.backup import BackupService, BackupStatus
 
-    async def run():
+    async def run() -> dict[str, Any]:
         verification_summary = {
             "backups_checked": 0,
             "backups_valid": 0,

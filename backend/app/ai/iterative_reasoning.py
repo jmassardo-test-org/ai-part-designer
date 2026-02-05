@@ -502,7 +502,7 @@ def _extract_json(content: str) -> dict[str, Any]:
         content = json_match.group(0)
 
     try:
-        return json.loads(content)
+        return json.loads(content)  # type: ignore[no-any-return]
     except json.JSONDecodeError as e:
         logger.error(f"JSON parse error: {e}")
         logger.error(f"Content was: {content[:500]}")
@@ -512,7 +512,7 @@ def _extract_json(content: str) -> dict[str, Any]:
         repaired = re.sub(r",\s*([}\]])", r"\1", content)
         # Try again
         try:
-            return json.loads(repaired)
+            return json.loads(repaired)  # type: ignore[no-any-return]
         except json.JSONDecodeError:
             pass
 
@@ -559,7 +559,7 @@ async def extract_dimensions(
     user_input: str,
     part_type: str,
     previous_context: str = "",
-) -> tuple[dict[str, ExtractedDimension], list[ExtractedFeature], list[dict], list[str]]:
+) -> tuple[dict[str, ExtractedDimension], list[ExtractedFeature], list[dict[str, Any]], list[str]]:
     """
     Pass 2: Extract dimensions and features from user input.
     """

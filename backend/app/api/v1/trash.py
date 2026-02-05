@@ -9,7 +9,7 @@ Provides endpoints for:
 """
 
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -107,8 +107,9 @@ DEFAULT_RETENTION_DAYS = 30
 
 def get_retention_days(user: User) -> int:
     """Get retention days for user (from settings or default)."""
-    user_settings = user.extra_data.get("trash_settings", {})
-    return user_settings.get("retention_days", DEFAULT_RETENTION_DAYS)
+    user_settings: dict[str, Any] = user.extra_data.get("trash_settings", {})
+    retention: int = user_settings.get("retention_days", DEFAULT_RETENTION_DAYS)
+    return retention
 
 
 def calculate_expiry(deleted_at: datetime, retention_days: int) -> datetime:

@@ -19,20 +19,20 @@ from app.worker.ws_utils import (
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     bind=True,
     name="app.worker.tasks.cad.generate_from_template",
     max_retries=3,
     default_retry_delay=60,
 )
 def generate_from_template(
-    self,
+    self: Any,
     job_id: str,
     template_id: str,
     parameters: dict[str, Any],
     output_formats: list[str] | None = None,
     user_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Generate CAD model from template with parameters.
 
@@ -57,7 +57,7 @@ def generate_from_template(
     if user_id:
         send_job_started(user_id, job_id, "cad_generation")
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             # Get template
             template_repo = TemplateRepository(session)
@@ -222,7 +222,7 @@ def generate_from_template(
         error_msg = str(e)
         error_type = type(e).__name__
 
-        async def mark_failed():
+        async def mark_failed() -> None:
             async with async_session_maker() as session:
                 job_repo = JobRepository(session)
                 await job_repo.update(
@@ -242,17 +242,17 @@ def generate_from_template(
         raise
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     bind=True,
     name="app.worker.tasks.cad.modify_design",
     max_retries=3,
 )
 def modify_design(
-    self,
+    self: Any,
     job_id: str,
     design_id: str,
     modifications: dict[str, Any],
-) -> dict:
+) -> dict[str, Any]:
     """
     Apply modifications to an existing design.
 
@@ -267,10 +267,10 @@ def modify_design(
     }
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.cad.validate_geometry",
 )
-def validate_geometry(file_url: str) -> dict:
+def validate_geometry(file_url: str) -> dict[str, Any]:
     """
     Validate CAD geometry for printability.
 
@@ -290,7 +290,7 @@ def validate_geometry(file_url: str) -> dict:
     }
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.cad.generate_thumbnail",
 )
 def generate_thumbnail(
@@ -309,7 +309,7 @@ def generate_thumbnail(
     return f"s3://thumbnails/{hash(file_url)}/thumb.png"
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     bind=True,
     name="app.worker.tasks.cad.generate_from_description",
     max_retries=2,
@@ -318,14 +318,14 @@ def generate_thumbnail(
     soft_time_limit=240,  # 4 minute soft limit
 )
 def generate_from_description_task(
-    self,
+    self: Any,
     job_id: str,
     description: str,
     export_step: bool = True,
     export_stl: bool = True,
     stl_quality: str = "standard",
     user_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Generate CAD model from natural language description.
 
@@ -356,7 +356,7 @@ def generate_from_description_task(
     from app.core.database import async_session_maker
     from app.repositories import JobRepository
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             job_repo = JobRepository(session)
 

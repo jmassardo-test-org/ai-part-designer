@@ -540,7 +540,7 @@ async def export_bom_csv(
     assembly_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> StreamingResponse:
     """Export BOM as CSV file."""
     # Verify assembly ownership
     assembly_query = select(Assembly).where(

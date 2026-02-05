@@ -51,7 +51,7 @@ try:
     BUILD123D_AVAILABLE = True
 except ImportError:
     BUILD123D_AVAILABLE = False
-    Part = Any  # type: ignore
+    Part = Any
 
 from app.ai.client import get_ai_client
 

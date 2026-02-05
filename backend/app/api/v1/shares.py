@@ -147,7 +147,7 @@ async def share_design(
     request: ShareRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> ShareResponse:
     """
     Share a design with another user by email.
 
@@ -259,7 +259,7 @@ async def list_design_shares(
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> PaginatedSharesResponse:
     """List all shares for a design."""
     # Get design and verify ownership via project
     result = await db.execute(select(Design).where(Design.id == design_id))
@@ -331,7 +331,7 @@ async def get_shared_with_me(
     permission: str | None = Query(None, pattern="^(view|comment|edit)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> PaginatedSharedWithMeResponse:
     """Get designs shared with the current user."""
     offset = (page - 1) * page_size
 
@@ -419,7 +419,7 @@ async def update_share(
     request: UpdateShareRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> ShareResponse:
     """Update a share's permission level."""
     # Get share with design info
     result = await db.execute(
@@ -472,7 +472,7 @@ async def revoke_share(
     share_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Revoke a share (remove access)."""
     # Get share with design info
     result = await db.execute(
@@ -515,7 +515,7 @@ async def create_share_link(
     request: ShareLinkRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> ShareLinkResponse:
     """
     Create a shareable link for a design.
 
@@ -590,7 +590,7 @@ async def revoke_share_link(
     design_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Revoke all share links for a design."""
     # Get design and verify ownership
     result = await db.execute(select(Design).where(Design.id == design_id))

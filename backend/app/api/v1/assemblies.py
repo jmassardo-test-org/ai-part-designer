@@ -4,6 +4,8 @@ Assembly API endpoints.
 CRUD operations for assemblies, components, and relationships.
 """
 
+from typing import Any
+
 from datetime import UTC
 from uuid import UUID
 
@@ -106,7 +108,7 @@ class RelationshipCreate(BaseModel):
     child_component_id: UUID
     relationship_type: str = Field(..., min_length=1, max_length=50)
     name: str | None = None
-    constraint_data: dict = Field(default_factory=dict)
+    constraint_data: dict[str, Any] = Field(default_factory=dict[str, Any])
     assembly_order: int | None = None
 
 
@@ -119,9 +121,9 @@ class ComponentResponse(BaseModel):
     design_id: UUID | None
     design_name: str | None
     quantity: int
-    position: dict
-    rotation: dict
-    scale: dict
+    position: dict[str, Any]
+    rotation: dict[str, Any]
+    scale: dict[str, Any]
     is_cots: bool
     part_number: str | None
     color: str | None
@@ -140,7 +142,7 @@ class RelationshipResponse(BaseModel):
     child_component_id: UUID
     relationship_type: str
     name: str | None
-    constraint_data: dict
+    constraint_data: dict[str, Any]
     assembly_order: int | None
 
     class Config:

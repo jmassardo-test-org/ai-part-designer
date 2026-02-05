@@ -12,7 +12,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from app.core.config import settings
 
@@ -107,7 +107,7 @@ If a field cannot be determined, set it to null.
 If dimensions are ambiguous, note this and provide best estimate with lower confidence.
 Positions should be relative to bottom-left corner unless otherwise specified."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         if settings.ANTHROPIC_API_KEY:
             from anthropic import AsyncAnthropic
 
@@ -145,7 +145,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
             base64_image = base64.b64encode(image_data).decode("utf-8")
 
             # Build the user message
-            user_content = []
+            user_content: list[dict[str, Any]] = []
             if context:
                 user_content.append(
                     {
@@ -177,7 +177,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
                 max_tokens=2000,
                 system=self.SYSTEM_PROMPT,
                 messages=[
-                    {"role": "user", "content": user_content},
+                    {"role": "user", "content": cast(Any, user_content)},
                 ],
                 temperature=0.1,  # Low temperature for more consistent extraction
             )

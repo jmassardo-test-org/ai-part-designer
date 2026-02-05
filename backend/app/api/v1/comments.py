@@ -4,6 +4,8 @@ Comments API endpoints.
 Handles design comments with threading and mentions.
 """
 
+from typing import Any
+
 from datetime import datetime
 from uuid import UUID
 
@@ -30,8 +32,8 @@ class CommentCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=5000)
     parent_id: UUID | None = None  # For replies
     # 3D annotation data (optional)
-    position: dict | None = None  # {"x": 0, "y": 0, "z": 0}
-    camera: dict | None = None  # Camera position for this annotation
+    position: dict[str, Any] | None = None  # {"x": 0, "y": 0, "z": 0}
+    camera: dict[str, Any] | None = None  # Camera position for this annotation
 
 
 class CommentUpdate(BaseModel):
@@ -57,8 +59,8 @@ class CommentResponse(BaseModel):
     author: CommentAuthor
     content: str
     parent_id: UUID | None
-    position: dict | None
-    camera: dict | None
+    position: dict[str, Any] | None
+    camera: dict[str, Any] | None
     reply_count: int
     is_edited: bool
     created_at: datetime
@@ -83,7 +85,7 @@ class PaginatedCommentsResponse(BaseModel):
 # =============================================================================
 
 # Temporary storage until Comment model is added
-_comments: dict[str, dict] = {}
+_comments: dict[str, dict[str, Any]] = {}
 
 
 # =============================================================================
@@ -167,7 +169,7 @@ async def create_comment(
     request: CommentCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> CommentResponse:
     """
     Add a comment to a design.
 
@@ -251,7 +253,7 @@ async def list_comments(
     parent_id: UUID | None = None,  # Filter to get replies
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> PaginatedCommentsResponse:
     """
     List comments for a design.
 
@@ -318,7 +320,7 @@ async def get_comment(
     comment_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> CommentResponse:
     """Get a specific comment."""
     comment_key = str(comment_id)
 
@@ -362,7 +364,7 @@ async def update_comment(
     request: CommentUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> CommentResponse:
     """Update a comment. Only the author can update their own comments."""
     comment_key = str(comment_id)
 
@@ -414,7 +416,7 @@ async def delete_comment(
     comment_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """
     Delete a comment.
 
@@ -465,7 +467,7 @@ async def list_annotations(
     design_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[CommentResponse]:
     """
     List only 3D annotation comments for a design.
 

@@ -39,8 +39,8 @@ class AIConnectionError(AIError):
         message: str = "Failed to connect to AI provider",
         *,
         provider: str = "anthropic",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.provider = provider
         self.details["provider"] = provider
@@ -54,8 +54,8 @@ class AIRateLimitError(AIError):
         message: str = "AI rate limit exceeded",
         *,
         retry_after: float | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.retry_after = retry_after
         if retry_after:
@@ -70,8 +70,8 @@ class AIParseError(AIError):
         message: str = "Failed to parse AI response",
         *,
         raw_response: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.raw_response = raw_response
         if raw_response:
@@ -88,8 +88,8 @@ class AITimeoutError(AIError):
         *,
         timeout_seconds: float | None = None,
         provider: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.timeout_seconds = timeout_seconds
         self.provider = provider
@@ -107,8 +107,8 @@ class AIValidationError(AIError):
         message: str = "AI response validation failed",
         *,
         validation_errors: list[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.validation_errors = validation_errors or []
         if self.validation_errors:
@@ -123,8 +123,8 @@ class AIGenerationError(AIError):
         message: str = "AI code generation failed",
         *,
         prompt: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.prompt = prompt
         if prompt:

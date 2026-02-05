@@ -8,7 +8,7 @@ using GPT-4 Vision.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -34,11 +34,11 @@ router = APIRouter(tags=["extraction"])
 class DimensionResponse(BaseModel):
     """Extracted dimension response."""
 
-    overall_dimensions: dict | None = None
-    mounting_holes: list[dict] | None = None
-    cutouts: list[dict] | None = None
-    connectors: list[dict] | None = None
-    tolerances: dict | None = None
+    overall_dimensions: dict[str, Any] | None = None
+    mounting_holes: list[dict[str, Any]] | None = None
+    cutouts: list[dict[str, Any]] | None = None
+    connectors: list[dict[str, Any]] | None = None
+    tolerances: dict[str, Any] | None = None
     notes: list[str] | None = None
     confidence: float = 0.0
     pages_analyzed: int = 1

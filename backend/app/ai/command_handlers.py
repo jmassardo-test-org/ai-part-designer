@@ -50,7 +50,7 @@ class CommandHandler:
     handle_{command_name}
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.parser = command_parser
 
     async def handle(
@@ -88,7 +88,7 @@ class CommandHandler:
             )
 
         try:
-            return await handler(command, user, db, conversation, design)
+            return await handler(command, user, db, conversation, design)  # type: ignore[no-any-return]
         except Exception as e:
             logger.exception(f"Error executing command /{command.command}")
             return CommandResult(

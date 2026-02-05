@@ -4,6 +4,8 @@ Notifications API endpoints.
 Handles notification listing, status updates, and preferences.
 """
 
+from typing import Any
+
 from datetime import datetime
 from uuid import UUID
 
@@ -41,7 +43,7 @@ class NotificationResponse(BaseModel):
     type: str
     title: str
     message: str
-    data: dict | None
+    data: dict[str, Any] | None
     is_read: bool
     read_at: datetime | None
     created_at: datetime
@@ -128,7 +130,7 @@ async def list_notifications(
     unread_only: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> NotificationListResponse:
     """Get paginated notifications for the current user."""
     service = NotificationService(db)
 
@@ -155,7 +157,7 @@ async def list_notifications(
 async def get_unread_count(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> UnreadCountResponse:
     """Get count of unread notifications."""
     service = NotificationService(db)
     count = await service.get_unread_count(current_user.id)
@@ -167,7 +169,7 @@ async def get_notification(
     notification_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> NotificationResponse:
     """Get a specific notification."""
     result = await db.execute(
         select(Notification).where(
@@ -193,7 +195,7 @@ async def mark_notifications_read(
     request: MarkReadRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> dict[str, Any]:
     """Mark notifications as read."""
     service = NotificationService(db)
 
@@ -214,7 +216,7 @@ async def mark_notification_read(
     notification_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> dict[str, Any]:
     """Mark a single notification as read."""
     service = NotificationService(db)
 
@@ -232,7 +234,7 @@ async def dismiss_notification(
     notification_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> None:
     """Dismiss a notification."""
     service = NotificationService(db)
 
@@ -250,7 +252,7 @@ async def dismiss_notification(
 async def get_notification_preferences(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> NotificationPreferencesResponse:
     """Get all notification preferences for current user."""
     service = NotificationService(db)
     prefs = await service.get_preferences(current_user.id)
@@ -293,7 +295,7 @@ async def update_notification_preference(
     request: UpdatePreferenceRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> NotificationPreferenceResponse:
     """Update notification preference for a specific type."""
     # Validate notification type
     try:

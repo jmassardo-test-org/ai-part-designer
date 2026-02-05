@@ -7,7 +7,7 @@ API endpoints for generating enclosures around project components.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 from pydantic import BaseModel, Field
@@ -52,7 +52,7 @@ class GenerateEnclosureRequest(BaseModel):
         default=EnclosureStyleType.MINIMAL,
         description="Pre-defined style template",
     )
-    style_overrides: dict | None = Field(
+    style_overrides: dict[str, Any] | None = Field(
         default=None,
         description="Override specific style parameters",
     )
@@ -153,7 +153,7 @@ async def list_style_templates(
 async def get_style_details(
     style_type: EnclosureStyleType,
     current_user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     """
     Get detailed parameters for a style template.
 

@@ -5,6 +5,7 @@ Handles webhooks from Stripe and other external services.
 """
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 async def stripe_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """
     Handle Stripe webhook events.
 

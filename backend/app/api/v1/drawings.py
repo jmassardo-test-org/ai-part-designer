@@ -4,6 +4,8 @@
 Generate and manage technical 2D drawings from 3D CAD models.
 """
 
+from typing import Any, cast
+
 from pathlib import Path
 from uuid import UUID
 
@@ -110,7 +112,7 @@ class DrawingPreviewResponse(BaseModel):
     width_mm: float
     height_mm: float
     view_count: int
-    views: list[dict]
+    views: list[dict[str, Any]]
     estimated_file_size_kb: int
 
 
@@ -155,14 +157,14 @@ def get_step_file_path(design: Design) -> str | None:
         formats = design.current_version.file_formats or {}
         step_url = formats.get("step") or formats.get("STEP")
         if step_url and Path(step_url).exists():
-            return step_url
+            return cast(str, step_url)
 
     # Check versions for STEP file
     for version in design.versions:
         formats = version.file_formats or {}
         step_url = formats.get("step") or formats.get("STEP")
         if step_url and Path(step_url).exists():
-            return step_url
+            return cast(str, step_url)
 
     # Fall back to file_url if it's a STEP file
     if design.current_version and design.current_version.file_url:
@@ -268,7 +270,7 @@ async def generate_drawing(
     request: DrawingRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> Response:
     """
     Generate a 2D technical drawing from a 3D design.
 
@@ -327,7 +329,7 @@ async def preview_drawing(
     request: DrawingRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> DrawingPreviewResponse:
     """
     Preview drawing configuration without generating the actual file.
 
@@ -374,7 +376,7 @@ async def preview_drawing(
 
 
 @router.get("/formats")
-async def list_formats():
+async def list_formats() -> dict[str, Any]:
     """List available drawing formats."""
     return {
         "formats": [
@@ -407,7 +409,7 @@ async def list_formats():
 
 
 @router.get("/paper-sizes")
-async def list_paper_sizes():
+async def list_paper_sizes() -> dict[str, Any]:
     """List available paper sizes."""
     from app.cad.drawing_generator import PAPER_DIMENSIONS
 
@@ -425,7 +427,7 @@ async def list_paper_sizes():
 
 
 @router.get("/view-types")
-async def list_view_types():
+async def list_view_types() -> dict[str, Any]:
     """List available view types."""
     return {
         "view_types": [

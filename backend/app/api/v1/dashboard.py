@@ -7,6 +7,8 @@ Provides aggregated data for the user dashboard including:
 - Activity summary
 """
 
+from typing import Any
+
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
@@ -61,7 +63,7 @@ class RecentActivity(BaseModel):
     title: str
     description: str
     timestamp: str
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict[str, Any])
 
 
 class DashboardResponse(BaseModel):

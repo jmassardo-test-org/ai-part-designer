@@ -41,7 +41,7 @@ UNIT_TO_MM = {
 }
 
 
-def _normalize_dimensions_to_mm(raw_dims: dict) -> dict:
+def _normalize_dimensions_to_mm(raw_dims: dict[str, Any]) -> dict[str, Any]:
     """
     Convert all dimension values to millimeters.
 
@@ -601,7 +601,7 @@ async def generate_step_code(
 async def validate_result(
     original_request: str,
     intent: PartIntent,
-    shape,  # build123d.Part
+    shape: Any,  # build123d.Part
 ) -> dict[str, Any]:
     """
     Validate that the generated result matches the intent.

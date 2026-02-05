@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -61,7 +61,7 @@ class OnboardingStatusResponse(BaseModel):
 class OnboardingStepRequest(BaseModel):
     """Request to update onboarding step."""
 
-    step_data: dict = Field(
+    step_data: dict[str, Any] = Field(
         default_factory=dict, description="Optional data about the completed step"
     )
 
@@ -232,7 +232,7 @@ async def reset_onboarding(
     summary="List onboarding steps",
     description="Get list of all onboarding steps and their names.",
 )
-async def list_onboarding_steps() -> dict:
+async def list_onboarding_steps() -> dict[str, Any]:
     """Get list of all onboarding steps."""
     return {
         "total_steps": TOTAL_ONBOARDING_STEPS,

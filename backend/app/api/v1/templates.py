@@ -470,7 +470,7 @@ async def preview_template(
     request: PreviewRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
-):
+) -> FileResponse:
     """
     Generate a low-poly STL for preview.
 
