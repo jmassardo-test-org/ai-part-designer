@@ -12,7 +12,7 @@ import base64
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from cryptography.fernet import Fernet
@@ -161,7 +161,7 @@ def create_access_token(
     if expires_delta is None:
         expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     expire = now + expires_delta
 
     payload = {
@@ -198,7 +198,7 @@ def create_refresh_token(
     if expires_delta is None:
         expires_delta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     expire = now + expires_delta
     jti = secrets.token_urlsafe(32)
 
@@ -230,7 +230,7 @@ def create_verification_token(
     Returns:
         Encoded JWT string
     """
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     expire = now + timedelta(hours=expires_hours)
 
     payload = {
@@ -282,7 +282,7 @@ def verify_token(token: str, expected_type: str | None = None) -> dict | None:
 
     # Check expiration
     exp = payload.get("exp")
-    if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
+    if exp and datetime.utcfromtimestamp(exp) < datetime.now(UTC):
         return None
 
     # Check type if specified

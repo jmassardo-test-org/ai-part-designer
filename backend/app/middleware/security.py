@@ -9,6 +9,7 @@ Provides:
 - CORS hardening
 """
 
+from typing import ClassVar
 import secrets
 import time
 from collections.abc import Callable
@@ -33,7 +34,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
 
     # Content Security Policy - strict by default
-    CSP_DIRECTIVES = {
+    CSP_DIRECTIVES: ClassVar[dict[str, str]] = {
         "default-src": "'self'",
         "script-src": "'self' 'unsafe-inline'",  # Adjust for your frontend
         "style-src": "'self' 'unsafe-inline'",
@@ -125,7 +126,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     """
 
     # Paths to exclude from logging (health checks, etc.)
-    EXCLUDED_PATHS = {"/health", "/ready", "/metrics"}
+    EXCLUDED_PATHS: ClassVar[set[str]] = {"/health", "/ready", "/metrics"}
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Skip excluded paths
@@ -184,12 +185,12 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     ) -> None:
         """Log request with security context."""
         import logging
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         logger = logging.getLogger("security")
 
         log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "request_id": request_id,
             "method": request.method,
             "path": request.url.path,
@@ -393,13 +394,13 @@ def register_security_middleware(app: FastAPI) -> None:
 async def block_ip(ip_address: str, duration_seconds: int = 86400, reason: str = "") -> None:
     """Block an IP address."""
     import json
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     await redis_client.set(
         f"security:blocked_ip:{ip_address}",
         json.dumps(
             {
-                "blocked_at": datetime.utcnow().isoformat(),
+                "blocked_at": datetime.now(UTC).isoformat(),
                 "duration": duration_seconds,
                 "reason": reason,
             }

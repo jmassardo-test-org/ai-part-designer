@@ -7,7 +7,7 @@ Provides endpoints for users to:
 - Download completed exports
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -101,7 +101,7 @@ async def process_export(
                 metadata={
                     "user_id": user_id,
                     "export_type": "user_data",
-                    "created_at": datetime.utcnow().isoformat(),
+                    "created_at": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -116,10 +116,10 @@ async def process_export(
             _export_jobs[export_id].update(
                 {
                     "status": "completed",
-                    "completed_at": datetime.utcnow(),
+                    "completed_at": datetime.now(UTC),
                     "download_url": download_url,
                     "file_size_bytes": file_size,
-                    "expires_at": datetime.utcnow() + timedelta(days=7),
+                    "expires_at": datetime.now(UTC) + timedelta(days=7),
                 }
             )
 
@@ -171,7 +171,7 @@ async def request_data_export(
             )
 
     # Rate limit: max 1 export per 24 hours
-    recent_cutoff = datetime.utcnow() - timedelta(hours=24)
+    recent_cutoff = datetime.now(UTC) - timedelta(hours=24)
     for job in _export_jobs.values():
         if (
             job.get("user_id") == user_id_str
@@ -188,7 +188,7 @@ async def request_data_export(
         "export_id": str(export_id),
         "user_id": user_id_str,
         "status": "pending",
-        "requested_at": datetime.utcnow(),
+        "requested_at": datetime.now(UTC),
     }
     _export_jobs[str(export_id)] = export_job
 
@@ -203,7 +203,7 @@ async def request_data_export(
         export_id=export_id,
         status="pending",
         requested_at=export_job["requested_at"],
-        estimated_completion=datetime.utcnow() + timedelta(minutes=5),
+        estimated_completion=datetime.now(UTC) + timedelta(minutes=5),
         message="Your data export has been requested. You will be notified when it's ready.",
     )
 

@@ -10,7 +10,7 @@ import base64
 import io
 import logging
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pyotp
@@ -289,7 +289,7 @@ async def enable_mfa(
 
     # Enable MFA
     current_user.mfa_enabled = True
-    current_user.mfa_enabled_at = datetime.utcnow()
+    current_user.mfa_enabled_at = datetime.now(UTC)
     await db.commit()
 
     logger.info(f"MFA enabled for user {current_user.id}")
@@ -401,7 +401,7 @@ async def verify_mfa(
         if is_valid and code_index is not None:
             # Mark backup code as used
             current_user.mfa_backup_codes[code_index]["used"] = True
-            current_user.mfa_backup_codes[code_index]["used_at"] = datetime.utcnow().isoformat()
+            current_user.mfa_backup_codes[code_index]["used_at"] = datetime.now(UTC).isoformat()
             await db.commit()
 
             remaining = current_user.mfa_backup_codes_remaining
@@ -471,7 +471,7 @@ async def regenerate_backup_codes(
 
     return BackupCodesResponse(
         backup_codes=backup_codes,
-        generated_at=datetime.utcnow(),
+        generated_at=datetime.now(UTC),
     )
 
 

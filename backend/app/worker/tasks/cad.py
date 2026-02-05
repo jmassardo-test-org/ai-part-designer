@@ -3,7 +3,7 @@ CAD generation and processing tasks.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -71,7 +71,7 @@ def generate_from_template(
             await job_repo.update(
                 UUID(job_id),
                 status="running",
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(UTC),
                 progress=10,
                 progress_message="Loading template",
             )
@@ -196,7 +196,7 @@ def generate_from_template(
             await job_repo.update(
                 UUID(job_id),
                 status="completed",
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(UTC),
                 progress=100,
                 result=result,
             )
@@ -228,7 +228,7 @@ def generate_from_template(
                 await job_repo.update(
                     UUID(job_id),
                     status="failed",
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(UTC),
                     error_message=error_msg,
                     error={"message": error_msg, "type": error_type},
                 )
@@ -365,7 +365,7 @@ def generate_from_description_task(
                 await job_repo.update(
                     UUID(job_id),
                     status="running",
-                    started_at=datetime.utcnow(),
+                    started_at=datetime.now(UTC),
                     progress=5,
                     progress_message="Analyzing description...",
                 )
@@ -437,7 +437,7 @@ def generate_from_description_task(
                 await job_repo.update(
                     UUID(job_id),
                     status="completed",
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(UTC),
                     progress=100,
                     progress_message="Complete",
                     result=output,
@@ -455,7 +455,7 @@ def generate_from_description_task(
                 await job_repo.update(
                     UUID(job_id),
                     status="failed",
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(UTC),
                     error_message=str(e),
                     error={"message": str(e), "type": type(e).__name__},
                 )

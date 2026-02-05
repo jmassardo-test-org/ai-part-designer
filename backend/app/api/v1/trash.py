@@ -8,7 +8,7 @@ Provides endpoints for:
 - Configuring retention policy
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -158,7 +158,7 @@ async def list_trash(
     items = []
     for design in designs:
         expires_at = calculate_expiry(design.deleted_at, retention_days)
-        days_left = (expires_at - datetime.utcnow()).days
+        days_left = (expires_at - datetime.now(UTC)).days
 
         items.append(
             TrashedItemResponse(
@@ -213,14 +213,14 @@ async def restore_from_trash(
 
     # Restore by clearing deleted_at
     design.deleted_at = None
-    design.updated_at = datetime.utcnow()
+    design.updated_at = datetime.now(UTC)
 
     await db.commit()
 
     return RestoreResponse(
         id=design.id,
         name=design.name,
-        restored_at=datetime.utcnow(),
+        restored_at=datetime.now(UTC),
         message=f"'{design.name}' has been restored",
     )
 
@@ -299,7 +299,7 @@ async def get_trash_stats(
 ) -> TrashStatsResponse:
     """Get trash statistics."""
     retention_days = get_retention_days(current_user)
-    datetime.utcnow() + timedelta(days=7)
+    datetime.now(UTC) + timedelta(days=7)
 
     # Base filter
     base_filter = and_(
@@ -320,7 +320,7 @@ async def get_trash_stats(
     # Items expiring soon (within 7 days)
     # This requires calculating expiry based on deleted_at + retention
     # Simplified: count items deleted more than (retention - 7) days ago
-    expiring_threshold = datetime.utcnow() - timedelta(days=retention_days - 7)
+    expiring_threshold = datetime.now(UTC) - timedelta(days=retention_days - 7)
     expiring_soon = (
         await db.execute(
             select(func.count()).where(base_filter).where(Design.deleted_at <= expiring_threshold)

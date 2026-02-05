@@ -4,7 +4,7 @@ Tests for rating and community models.
 Tests TemplateRating, TemplateFeedback, TemplateComment, ContentReport, and UserBan.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.models.rating import (
@@ -338,7 +338,7 @@ class TestUserBan:
             user_id=uuid4(),
             reason="Temporary ban",
             is_permanent=False,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
         )
 
         assert ban.is_expired is False
@@ -349,7 +349,7 @@ class TestUserBan:
             user_id=uuid4(),
             reason="Expired ban",
             is_permanent=False,
-            expires_at=datetime.utcnow() - timedelta(days=1),
+            expires_at=datetime.now(UTC) - timedelta(days=1),
         )
 
         assert ban.is_expired is True

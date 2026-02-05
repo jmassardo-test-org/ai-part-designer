@@ -14,7 +14,7 @@ import gzip
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -195,7 +195,7 @@ class BackupService:
                 await self._backup_incremental(record)
 
             record.status = BackupStatus.COMPLETED
-            record.completed_at = datetime.utcnow()
+            record.completed_at = datetime.now(UTC)
 
         except Exception as e:
             record.status = BackupStatus.FAILED
@@ -209,7 +209,7 @@ class BackupService:
 
     async def _backup_database(self, record: BackupRecord) -> None:
         """Create database backup using pg_dump."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_filename = f"db_backup_{timestamp}.sql.gz"
         backup_path = self.backup_dir / backup_filename
 
@@ -265,7 +265,7 @@ class BackupService:
 
     async def _backup_files(self, record: BackupRecord) -> None:
         """Backup file storage."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_filename = f"files_backup_{timestamp}.tar.gz"
         backup_path = self.backup_dir / backup_filename
 
@@ -570,7 +570,7 @@ class BackupService:
         Returns:
             Number of backups deleted
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
         backups = await self.list_backups()
 
         # Sort by date, keep newest

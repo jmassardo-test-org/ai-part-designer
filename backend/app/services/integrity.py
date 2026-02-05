@@ -11,7 +11,7 @@ Provides verification and validation of:
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -144,7 +144,7 @@ class DataIntegrityService:
         await self._check_referential_integrity(report)
         await self._collect_stats(report)
 
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(UTC)
 
         return report
 
@@ -156,7 +156,7 @@ class DataIntegrityService:
         await self._check_orphaned_projects(report)
         await self._check_orphaned_files(report)
 
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(UTC)
         return report
 
     async def check_storage_integrity(self) -> IntegrityReport:
@@ -166,7 +166,7 @@ class DataIntegrityService:
         await self._check_missing_storage_files(report)
         await self._check_file_checksums(report)
 
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(UTC)
         return report
 
     async def _check_orphaned_designs(self, report: IntegrityReport) -> None:

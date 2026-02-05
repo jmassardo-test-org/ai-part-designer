@@ -142,7 +142,7 @@ ignore = [
     "B008",   # function call in argument defaults (FastAPI Depends)
     "B904",   # raise without from inside except
     # Temporarily ignored until codebase migrated to timezone-aware datetimes
-    "DTZ003", # datetime.utcnow() - to be replaced with datetime.now(tz=UTC)
+    # "DTZ003", # ✅ FIXED - datetime.utcnow() replaced with datetime.now(UTC)
     "DTZ001", # datetime() without tzinfo
     "DTZ004", # utcfromtimestamp
     "DTZ005", # datetime.now() without tzinfo
@@ -154,7 +154,7 @@ ignore = [
     "ERA001", # commented-out code
     "SIM117", # multiple with statements - sometimes more readable separate
     "E402",   # imports not at top - sometimes needed for path manipulation
-    "RUF012", # mutable class defaults - need ClassVar annotation
+    # "RUF012", # ✅ FIXED - mutable class defaults now have ClassVar annotations
     # Pathlib migration - to be done incrementally
     "PTH103", # os.makedirs -> Path.mkdir
     "PTH108", # os.unlink -> Path.unlink

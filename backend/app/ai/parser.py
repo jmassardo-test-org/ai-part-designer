@@ -17,7 +17,7 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import ClassVar, Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -255,7 +255,7 @@ class DescriptionParser:
     MIN_CONFIDENCE_THRESHOLD = 0.5
 
     # Dimension name aliases for normalization
-    BOX_DIMENSION_ALIASES = {
+    BOX_DIMENSION_ALIASES: ClassVar[dict[str, str]] = {
         # Height aliases
         "height": "height",
         "tall": "height",

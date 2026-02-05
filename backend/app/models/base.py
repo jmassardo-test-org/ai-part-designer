@@ -2,8 +2,8 @@
 Base model classes and mixins for SQLAlchemy ORM.
 """
 
-from datetime import datetime
-from typing import Any
+from datetime import UTC, datetime
+from typing import ClassVar, Any
 from uuid import UUID
 
 from sqlalchemy import DateTime, func
@@ -15,7 +15,7 @@ class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
 
     # Use UUID as default primary key type
-    type_annotation_map = {
+    type_annotation_map: ClassVar[dict] = {
         UUID: PG_UUID(as_uuid=True),
     }
 
@@ -62,7 +62,7 @@ class SoftDeleteMixin:
 
     def soft_delete(self) -> None:
         """Mark the record as deleted."""
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(UTC)
 
     def restore(self) -> None:
         """Restore a soft-deleted record."""

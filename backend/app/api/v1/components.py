@@ -6,7 +6,7 @@ CRUD operations for reference components and component library.
 
 import hashlib
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -312,7 +312,7 @@ async def upload_component(
             "size": file_size,
             "checksum": checksum,
             "format": ext.lstrip(".").upper(),
-            "uploaded_at": datetime.utcnow().isoformat(),
+            "uploaded_at": datetime.now(UTC).isoformat(),
         }
     }
 
@@ -452,7 +452,7 @@ async def update_component(
     for field, value in update_data.items():
         setattr(component, field, value)
 
-    component.updated_at = datetime.utcnow()
+    component.updated_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(component)
@@ -496,7 +496,7 @@ async def update_specifications(
 
     # Mark as manually edited
     component.extraction_status = "manual"
-    component.updated_at = datetime.utcnow()
+    component.updated_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(component)
@@ -607,7 +607,7 @@ async def update_component_files(
             "size": len(content),
             "checksum": checksum,
             "format": ext.lstrip(".").upper(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
         files_updated += 1
 
@@ -633,7 +633,7 @@ async def update_component_files(
             "path": stored_path,
             "size": len(content),
             "checksum": checksum,
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
         files_updated += 1
 
@@ -668,7 +668,7 @@ async def update_component_files(
             component.thumbnail_url = f"/uploads/components/{component_id}/thumbnail{ext}"
         files_updated += 1
 
-    component.updated_at = datetime.utcnow()
+    component.updated_at = datetime.now(UTC)
 
     # Trigger extraction if requested and CAD file or datasheet was updated
     extraction_job_id = None
@@ -722,7 +722,7 @@ async def delete_component(
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
 
-    component.deleted_at = datetime.utcnow()
+    component.deleted_at = datetime.now(UTC)
     await db.commit()
 
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -317,7 +317,7 @@ async def oauth_callback(
                     display_name=user_info.get("name", email.split("@")[0]),
                     role="user",
                     status="active",  # OAuth users are pre-verified
-                    email_verified_at=datetime.utcnow(),
+                    email_verified_at=datetime.now(UTC),
                 )
                 db.add(user)
                 await db.flush()
@@ -332,12 +332,12 @@ async def oauth_callback(
                 access_token=token.get("access_token"),
                 refresh_token=token.get("refresh_token"),
                 token_expires_at=(
-                    datetime.utcnow() + timedelta(seconds=token["expires_in"])
+                    datetime.now(UTC) + timedelta(seconds=token["expires_in"])
                     if token.get("expires_in")
                     else None
                 ),
                 profile_data=user_info,
-                last_used_at=datetime.utcnow(),
+                last_used_at=datetime.now(UTC),
             )
             db.add(oauth_connection)
         else:
@@ -347,14 +347,14 @@ async def oauth_callback(
                 "refresh_token", existing_connection.refresh_token
             )
             if token.get("expires_in"):
-                existing_connection.token_expires_at = datetime.utcnow() + timedelta(
+                existing_connection.token_expires_at = datetime.now(UTC) + timedelta(
                     seconds=token["expires_in"]
                 )
             existing_connection.profile_data = user_info
-            existing_connection.last_used_at = datetime.utcnow()
+            existing_connection.last_used_at = datetime.now(UTC)
 
         # Update user last login
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now(UTC)
         await db.commit()
 
         # Generate JWT tokens
@@ -546,7 +546,7 @@ async def link_oauth_callback(
             # Already linked to this user - update tokens
             existing_conn.access_token = token.get("access_token")
             existing_conn.refresh_token = token.get("refresh_token", existing_conn.refresh_token)
-            existing_conn.last_used_at = datetime.utcnow()
+            existing_conn.last_used_at = datetime.now(UTC)
         else:
             # Create new connection
             oauth_connection = OAuthConnection(
@@ -558,12 +558,12 @@ async def link_oauth_callback(
                 access_token=token.get("access_token"),
                 refresh_token=token.get("refresh_token"),
                 token_expires_at=(
-                    datetime.utcnow() + timedelta(seconds=token["expires_in"])
+                    datetime.now(UTC) + timedelta(seconds=token["expires_in"])
                     if token.get("expires_in")
                     else None
                 ),
                 profile_data=user_info,
-                last_used_at=datetime.utcnow(),
+                last_used_at=datetime.now(UTC),
             )
             db.add(oauth_connection)
 

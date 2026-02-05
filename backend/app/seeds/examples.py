@@ -13,7 +13,7 @@ Or via Makefile:
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -340,7 +340,7 @@ async def copy_example_project(
             tags=design.tags.copy() if design.tags else [],
             extra_data={
                 "copied_from": str(design.id),
-                "copied_at": datetime.utcnow().isoformat(),
+                "copied_at": datetime.now(UTC).isoformat(),
                 **design.extra_data,
             },
         )

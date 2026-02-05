@@ -3,7 +3,7 @@ AI processing tasks.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -64,7 +64,7 @@ def generate_from_prompt(
             await job_repo.update(
                 UUID(job_id),
                 status="running",
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(UTC),
                 progress=10,
                 progress_message="Analyzing prompt",
             )
@@ -92,7 +92,7 @@ def generate_from_prompt(
                 await job_repo.update(
                     UUID(job_id),
                     status="failed",
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(UTC),
                     error_message=error_msg,
                     error=moderation_result,
                 )
@@ -132,7 +132,7 @@ def generate_from_prompt(
                 await job_repo.update(
                     UUID(job_id),
                     status="failed",
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(UTC),
                     error_message=str(gen_error),
                 )
                 await session.commit()
@@ -222,7 +222,7 @@ def generate_from_prompt(
             await job_repo.update(
                 UUID(job_id),
                 status="completed",
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(UTC),
                 progress=100,
                 result=result,
             )

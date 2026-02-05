@@ -2,7 +2,7 @@
 File model for tracking uploaded files.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -206,7 +206,7 @@ class File(Base):
     def soft_delete(self) -> None:
         """Mark file as deleted."""
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(UTC)
         self.status = "deleted"
 
     def mark_ready(self) -> None:

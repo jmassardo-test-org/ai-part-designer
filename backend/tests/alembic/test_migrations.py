@@ -4,6 +4,7 @@ These tests ensure migrations are properly structured and idempotent
 where needed to prevent deployment failures.
 """
 
+from typing import ClassVar
 import ast
 import re
 from pathlib import Path
@@ -68,7 +69,7 @@ class TestMigrationIdempotency:
     """
 
     # Migrations that MUST be idempotent (add columns to existing tables)
-    IDEMPOTENT_MIGRATIONS = [
+    IDEMPOTENT_MIGRATIONS: ClassVar[list[str]] = [
         "012_onboarding_fields.py",
         "013_add_organization_id_to_projects.py",
         "022_mfa_columns.py",
@@ -177,7 +178,7 @@ class TestMigrationIdempotencyMarkers:
 
     # All migrations that add columns to existing tables MUST be in this list
     # and MUST have idempotency checks
-    MIGRATIONS_ADDING_COLUMNS = [
+    MIGRATIONS_ADDING_COLUMNS: ClassVar[list[str]] = [
         "012_onboarding_fields.py",
         "013_add_organization_id_to_projects.py",
         "022_mfa_columns.py",

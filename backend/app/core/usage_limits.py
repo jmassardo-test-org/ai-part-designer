@@ -8,7 +8,7 @@ Comprehensive usage tracking and enforcement for:
 - API call budgets
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -335,7 +335,7 @@ class UsageLimitService:
 
     def _get_period_start(self, period: str) -> datetime:
         """Get the start of the current period."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         if period == "minute":
             return now.replace(second=0, microsecond=0)
@@ -508,7 +508,7 @@ class UsageLimitService:
             and_(
                 ConcurrentOperation.user_id == user_id,
                 ConcurrentOperation.operation_type == operation_type,
-                ConcurrentOperation.expires_at > datetime.utcnow(),
+                ConcurrentOperation.expires_at > datetime.now(UTC),
             )
         )
 
@@ -529,7 +529,7 @@ class UsageLimitService:
             user_id=user_id,
             operation_type=operation_type,
             job_id=job_id,
-            expires_at=datetime.utcnow() + timedelta(minutes=duration_minutes),
+            expires_at=datetime.now(UTC) + timedelta(minutes=duration_minutes),
         )
 
         self.db.add(operation)
@@ -553,7 +553,7 @@ class UsageLimitService:
         """Remove expired concurrent operation records."""
         from sqlalchemy import delete
 
-        stmt = delete(ConcurrentOperation).where(ConcurrentOperation.expires_at < datetime.utcnow())
+        stmt = delete(ConcurrentOperation).where(ConcurrentOperation.expires_at < datetime.now(UTC))
         result = await self.db.execute(stmt)
         return result.rowcount
 

@@ -16,7 +16,7 @@ These endpoints will be removed in a future version.
 """
 
 import warnings
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -214,7 +214,7 @@ async def share_design(
     if existing_share:
         # Update permission
         existing_share.permission = request.permission
-        existing_share.updated_at = datetime.utcnow()
+        existing_share.updated_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(existing_share)
 
@@ -452,7 +452,7 @@ async def update_share(
 
     # Update permission
     share.permission = request.permission
-    share.updated_at = datetime.utcnow()
+    share.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(share)
 
@@ -522,7 +522,7 @@ async def create_share_link(
     Anyone with the link can access the design with the specified permission.
     """
     import secrets
-    from datetime import timedelta
+    from datetime import UTC, timedelta
 
     # Get design and verify ownership
     result = await db.execute(
@@ -558,7 +558,7 @@ async def create_share_link(
     # Calculate expiration
     expires_at = None
     if request.expires_in_days:
-        expires_at = datetime.utcnow() + timedelta(days=request.expires_in_days)
+        expires_at = datetime.now(UTC) + timedelta(days=request.expires_in_days)
 
     # Create link share record
     link_share = DesignShare(
