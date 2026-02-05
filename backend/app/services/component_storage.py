@@ -10,6 +10,7 @@ Handles storage and retrieval of component source files:
 import hashlib
 import io
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
 import aiofiles
@@ -47,7 +48,7 @@ THUMBNAIL_SIZES = {
 # =============================================================================
 
 
-def ensure_directories():
+def ensure_directories() -> None:
     """Ensure all required directories exist."""
     for directory in [DATASHEET_DIR, CAD_DIR, THUMBNAIL_DIR]:
         directory.mkdir(parents=True, exist_ok=True)
@@ -82,7 +83,7 @@ async def compute_file_hash(file: UploadFile) -> str:
 class ComponentFileStorage:
     """Service for storing component-related files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         ensure_directories()
 
     # =========================================================================
@@ -130,7 +131,7 @@ class ComponentFileStorage:
         self,
         file: UploadFile,
         component_id: UUID,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Store a PDF datasheet.
 
@@ -174,7 +175,7 @@ class ComponentFileStorage:
         self,
         file: UploadFile,
         component_id: UUID,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Store a CAD file (STEP, STL).
 
@@ -232,7 +233,7 @@ class ComponentFileStorage:
         self,
         file: UploadFile,
         component_id: UUID,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Store and process a thumbnail image.
 
@@ -363,4 +364,4 @@ class ComponentFileStorage:
 # Singleton Instance
 # =============================================================================
 
-component_file_storage = ComponentFileStorage()
+component_file_storage: ComponentFileStorage = ComponentFileStorage()

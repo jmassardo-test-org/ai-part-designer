@@ -151,7 +151,7 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.execute(query)
         return result.scalar() or 0
 
-    async def create(self, **kwargs) -> ModelType:
+    async def create(self, **kwargs: Any) -> ModelType:
         """Create a new record."""
         instance = self.model(**kwargs)
         self.session.add(instance)
@@ -162,7 +162,7 @@ class BaseRepository(Generic[ModelType]):
     async def update(
         self,
         id: UUID,
-        **kwargs,
+        **kwargs: Any,
     ) -> ModelType | None:
         """Update an existing record."""
         instance = await self.get_by_id(id)
@@ -219,7 +219,7 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.execute(query)
         return (result.scalar() or 0) > 0
 
-    async def bulk_create(self, items: list[dict]) -> list[ModelType]:
+    async def bulk_create(self, items: list[dict[str, Any]]) -> list[ModelType]:
         """Create multiple records at once."""
         instances = [self.model(**item) for item in items]
         self.session.add_all(instances)

@@ -7,7 +7,7 @@ and payment processing via Stripe.
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -44,7 +44,7 @@ class PaymentService:
         self._stripe = None
 
     @property
-    def stripe(self):
+    def stripe(self) -> Any:
         """Lazy-load Stripe client."""
         if self._stripe is None:
             self._stripe = get_stripe_client()
@@ -85,7 +85,7 @@ class PaymentService:
                 await self.db.commit()
 
             logger.info(f"Created Stripe customer {customer.id} for user {user.id}")
-            return customer.id
+            return cast(str, customer.id)
 
         except StripeError as e:
             logger.error(f"Failed to create Stripe customer: {e}")
@@ -129,7 +129,7 @@ class PaymentService:
         billing_interval: str = "monthly",
         success_url: str | None = None,
         cancel_url: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Create a Stripe Checkout session for subscription.
 
@@ -200,7 +200,7 @@ class PaymentService:
         self,
         user: User,
         return_url: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Create a Stripe Billing Portal session.
 
@@ -241,7 +241,7 @@ class PaymentService:
     # Subscription Management
     # =============================
 
-    async def get_subscription_status(self, user: User) -> dict:
+    async def get_subscription_status(self, user: User) -> dict[str, Any]:
         """
         Get the user's current subscription status.
 
@@ -277,7 +277,7 @@ class PaymentService:
         self,
         user: User,
         immediately: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Cancel user's subscription.
 
@@ -314,7 +314,7 @@ class PaymentService:
             logger.error(f"Failed to cancel subscription: {e}")
             raise PaymentError(f"Failed to cancel subscription: {e}")
 
-    async def resume_subscription(self, user: User) -> dict:
+    async def resume_subscription(self, user: User) -> dict[str, Any]:
         """
         Resume a subscription that was set to cancel at period end.
 

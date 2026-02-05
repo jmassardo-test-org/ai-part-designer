@@ -37,7 +37,7 @@ class NotificationService:
         actor_id: UUID | None = None,
         entity_type: str | None = None,
         entity_id: UUID | None = None,
-        data: dict | None = None,
+        data: dict[str, Any] | None = None,
         priority: NotificationPriority = NotificationPriority.NORMAL,
         expires_in_days: int | None = None,
     ) -> Notification | None:

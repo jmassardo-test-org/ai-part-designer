@@ -341,7 +341,7 @@ class CreditService:
         self,
         user_id: UUID,
         days: int = 30,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Get usage summary for a period.
 

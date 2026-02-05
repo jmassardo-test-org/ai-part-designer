@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
 from app.core.config import settings
@@ -55,10 +56,10 @@ class BackupRecord:
     file_count: int = 0
     location: str = ""  # S3 path or local path
     checksum: str = ""  # SHA-256 hash
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     error_message: str | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "id": str(self.id),
@@ -75,7 +76,7 @@ class BackupRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "BackupRecord":
+    def from_dict(cls, data: dict[str, Any]) -> "BackupRecord":
         """Create from dictionary."""
         return cls(
             id=UUID(data["id"]),

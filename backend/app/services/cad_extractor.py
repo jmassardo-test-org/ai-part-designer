@@ -9,6 +9,7 @@ Migrated from CadQuery to Build123d.
 
 import math
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -41,7 +42,7 @@ CURVATURE_THRESHOLD = 0.1  # threshold for detecting curved regions
 class STEPExtractor:
     """Extract dimensions and features from STEP files using Build123d."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._b3d_available = False
         try:
             import build123d as b3d
@@ -103,7 +104,7 @@ class STEPExtractor:
         except Exception as e:
             return self._create_empty_result(f"STEP extraction error: {e!s}")
 
-    def _detect_holes(self, result) -> list[MountingHole]:
+    def _detect_holes(self, result: Any) -> list[MountingHole]:
         """Detect cylindrical holes that could be mounting holes."""
         if not self._b3d_available:
             return []
@@ -207,7 +208,7 @@ class STEPExtractor:
 class STLExtractor:
     """Extract dimensions from STL mesh files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._stl_available = False
         try:
             from stl import mesh
@@ -271,7 +272,7 @@ class STLExtractor:
         except Exception as e:
             return self._create_empty_result(f"STL extraction error: {e!s}")
 
-    def _check_watertight(self, mesh_data) -> bool:
+    def _check_watertight(self, mesh_data: Any) -> bool:
         """Check if mesh is watertight (simplified check)."""
         try:
             # A watertight mesh should have consistent normals
@@ -285,7 +286,7 @@ class STLExtractor:
         except Exception:
             return False
 
-    def _calculate_volume(self, mesh_data) -> float | None:
+    def _calculate_volume(self, mesh_data: Any) -> float | None:
         """Calculate mesh volume using signed tetrahedron method."""
         try:
             # For each triangle, calculate signed volume of tetrahedron with origin
@@ -301,7 +302,7 @@ class STLExtractor:
         except Exception:
             return None
 
-    def _detect_holes_mesh(self, mesh_data) -> list[MountingHole]:
+    def _detect_holes_mesh(self, mesh_data: Any) -> list[MountingHole]:
         """
         Attempt to detect holes in STL mesh using curvature analysis.
 
@@ -348,9 +349,9 @@ class STLExtractor:
 class CADDimensionExtractor:
     """Unified extractor for STEP and STL files."""
 
-    def __init__(self):
-        self.step_extractor = STEPExtractor()
-        self.stl_extractor = STLExtractor()
+    def __init__(self) -> None:
+        self.step_extractor: STEPExtractor = STEPExtractor()
+        self.stl_extractor: STLExtractor = STLExtractor()
 
     def extract(self, cad_path: Path) -> CADExtraction:
         """
@@ -416,4 +417,4 @@ class CADDimensionExtractor:
 # Singleton Instance
 # =============================================================================
 
-cad_extractor = CADDimensionExtractor()
+cad_extractor: CADDimensionExtractor = CADDimensionExtractor()

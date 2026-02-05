@@ -8,6 +8,7 @@ Cloud-agnostic using boto3/aiobotocore for S3-compatible storage.
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import aioboto3
@@ -76,7 +77,7 @@ class StorageService:
         )
 
     @asynccontextmanager
-    async def _get_client(self) -> AsyncIterator:
+    async def _get_client(self) -> AsyncIterator[Any]:
         """Get an async S3 client."""
         async with self._session.client(
             "s3",
@@ -247,17 +248,18 @@ class StorageService:
         bucket, key = self._parse_url(url)
 
         async with self._get_client() as s3:
-            return await s3.generate_presigned_url(
+            presigned_url = await s3.generate_presigned_url(
                 ClientMethod=method,
                 Params={"Bucket": bucket, "Key": key},
                 ExpiresIn=expires_in,
             )
+            return cast(str, presigned_url)
 
     async def list_files(
         self,
         prefix: str,
         max_keys: int = 1000,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         List files with a given prefix.
 
