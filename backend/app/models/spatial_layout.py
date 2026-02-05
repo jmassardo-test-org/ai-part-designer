@@ -7,7 +7,7 @@ Supports manual positioning and auto-layout.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -162,7 +162,7 @@ class SpatialLayout(Base, TimestampMixin):
         """Number of components in layout."""
         return len(self.placements)
 
-    def get_bounding_box(self) -> dict:
+    def get_bounding_box(self) -> dict[str, float]:
         """
         Calculate bounding box of all placed components.
 
@@ -330,7 +330,7 @@ class ComponentPlacement(Base, TimestampMixin):
         """Get dimensions as (width, depth, height) tuple."""
         return (self.width or 0, self.depth or 0, self.height or 0)
 
-    def get_bounding_box(self) -> dict:
+    def get_bounding_box(self) -> dict[str, float]:
         """
         Get axis-aligned bounding box in enclosure coordinates.
 

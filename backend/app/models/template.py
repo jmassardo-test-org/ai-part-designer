@@ -83,13 +83,13 @@ class Template(Base, TimestampMixin):
     )
 
     # Parameter definitions (JSONB)
-    parameters: Mapped[dict] = mapped_column(
+    parameters: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
     )
 
     # Default values for parameters
-    default_values: Mapped[dict] = mapped_column(
+    default_values: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -194,7 +194,7 @@ class Template(Base, TimestampMixin):
     def __repr__(self) -> str:
         return f"<Template(id={self.id}, slug={self.slug})>"
 
-    def get_parameter_defaults(self) -> dict:
+    def get_parameter_defaults(self) -> dict[str, Any]:
         """Extract default values from parameter definitions."""
         defaults = {}
         for name, definition in self.parameters.items():
@@ -202,7 +202,7 @@ class Template(Base, TimestampMixin):
                 defaults[name] = definition["default"]
         return defaults
 
-    def validate_parameters(self, values: dict) -> list[str]:
+    def validate_parameters(self, values: dict[str, Any]) -> list[str]:
         """
         Validate parameter values against definitions.
 

@@ -3,7 +3,7 @@ File model for tracking uploaded files.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -117,7 +117,7 @@ class File(Base):
     )
 
     # CAD-specific metadata
-    geometry_info: Mapped[dict | None] = mapped_column(
+    geometry_info: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Bounding box, volume, surface area, etc.",
@@ -135,7 +135,7 @@ class File(Base):
         nullable=True,
         comment="pending, clean, infected, error",
     )
-    scan_result: Mapped[dict | None] = mapped_column(
+    scan_result: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
     )

@@ -7,7 +7,7 @@ and relationship information for building complex multi-part structures.
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -92,7 +92,7 @@ class Assembly(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Metadata (JSONB) - stored as 'metadata' in database
-    extra_data: Mapped[dict] = mapped_column(
+    extra_data: Mapped[dict[str, Any]] = mapped_column(
         "metadata",
         JSONB,
         nullable=False,
@@ -213,7 +213,7 @@ class AssemblyComponent(Base, TimestampMixin):
     )
 
     # Position in 3D space (relative to assembly origin)
-    position: Mapped[dict] = mapped_column(
+    position: Mapped[dict[str, float]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {"x": 0, "y": 0, "z": 0},
@@ -221,7 +221,7 @@ class AssemblyComponent(Base, TimestampMixin):
     # Example: {"x": 10.5, "y": 20.0, "z": 0.0}
 
     # Rotation (Euler angles in degrees)
-    rotation: Mapped[dict] = mapped_column(
+    rotation: Mapped[dict[str, float]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {"rx": 0, "ry": 0, "rz": 0},
@@ -229,7 +229,7 @@ class AssemblyComponent(Base, TimestampMixin):
     # Example: {"rx": 0, "ry": 90, "rz": 0}
 
     # Scale (usually 1:1:1)
-    scale: Mapped[dict] = mapped_column(
+    scale: Mapped[dict[str, float]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {"sx": 1, "sy": 1, "sz": 1},
@@ -255,7 +255,7 @@ class AssemblyComponent(Base, TimestampMixin):
     )  # Hex color like "#FF5500"
 
     # Additional component metadata (mapped to 'metadata' column)
-    component_metadata: Mapped[dict] = mapped_column(
+    component_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata",  # Column name in database
         JSONB,
         nullable=False,
@@ -341,7 +341,7 @@ class ComponentRelationship(Base, TimestampMixin):
     )
 
     # Constraint data for future constraint solving
-    constraint_data: Mapped[dict] = mapped_column(
+    constraint_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -431,7 +431,7 @@ class Vendor(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # API credentials (encrypted at rest)
-    api_credentials: Mapped[dict | None] = mapped_column(
+    api_credentials: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
     )

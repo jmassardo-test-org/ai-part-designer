@@ -3,7 +3,7 @@ Content moderation model.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -112,7 +112,7 @@ class ModerationLog(Base):
     )
 
     # Detailed moderation info (JSONB)
-    details: Mapped[dict] = mapped_column(
+    details: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -189,9 +189,10 @@ class ModerationLog(Base):
         return self.decision in ("pending_review", "escalated")
 
     @property
-    def category_scores(self) -> dict:
+    def category_scores(self) -> dict[str, Any]:
         """Get category scores from details."""
-        return self.details.get("categories", {})
+        result: dict[str, Any] = self.details.get("categories", {})
+        return result
 
     def file_appeal(self, reason: str) -> None:
         """File an appeal for this moderation decision."""

@@ -3,7 +3,7 @@ Job model for async task tracking.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -111,20 +111,20 @@ class Job(Base):
     )
 
     # Input parameters (JSONB)
-    input_params: Mapped[dict] = mapped_column(
+    input_params: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
     )
 
     # Result (JSONB) - populated on completion
-    result: Mapped[dict | None] = mapped_column(
+    result: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
     )
 
     # Error info (JSONB) - populated on failure
-    error: Mapped[dict | None] = mapped_column(
+    error: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
     )
@@ -242,7 +242,7 @@ class Job(Base):
         self.started_at = datetime.now(tz=datetime.UTC)
         self.progress = 0
 
-    def complete(self, result: dict) -> None:
+    def complete(self, result: dict[str, Any]) -> None:
         """Mark job as completed with result."""
         self.status = "completed"
         self.completed_at = datetime.now(tz=datetime.UTC)
@@ -253,7 +253,7 @@ class Job(Base):
             delta = self.completed_at - self.started_at
             self.execution_time_ms = int(delta.total_seconds() * 1000)
 
-    def fail(self, error_message: str, error_details: dict | None = None) -> None:
+    def fail(self, error_message: str, error_details: dict[str, Any] | None = None) -> None:
         """Mark job as failed with error info."""
         self.status = "failed"
         self.completed_at = datetime.now(tz=datetime.UTC)

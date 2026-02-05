@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, Text
@@ -104,7 +104,7 @@ class Notification(Base):
     )
 
     # Extra data
-    data: Mapped[dict | None] = mapped_column(
+    data: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Additional notification data",
@@ -183,7 +183,7 @@ class Notification(Base):
         """Dismiss the notification."""
         self.dismissed_at = datetime.now(tz=datetime.UTC)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "id": str(self.id),
@@ -278,7 +278,7 @@ class NotificationPreference(Base):
     def __repr__(self) -> str:
         return f"<NotificationPreference {self.user_id} {self.notification_type.value}>"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "notification_type": self.notification_type.value,
