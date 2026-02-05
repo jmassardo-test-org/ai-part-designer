@@ -225,7 +225,7 @@ class DesignAnnotation(Base):
         """Mark annotation as resolved."""
         self.status = status
         self.resolved_by_id = user_id
-        self.resolved_at = datetime.now()
+        self.resolved_at = datetime.now(tz=datetime.UTC)
         self.resolution_note = note
 
     def reopen(self) -> None:

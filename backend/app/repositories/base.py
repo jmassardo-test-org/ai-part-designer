@@ -197,7 +197,7 @@ class BaseRepository(Generic[ModelType]):
         if soft and hasattr(instance, "deleted_at"):
             from datetime import datetime
 
-            instance.deleted_at = datetime.utcnow()
+            instance.deleted_at = datetime.now(tz=datetime.UTC)
         else:
             await self.session.delete(instance)
 

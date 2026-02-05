@@ -389,7 +389,7 @@ class StorageClient:
         parts = [prefix.strip("/")]
 
         if include_timestamp:
-            parts.append(datetime.utcnow().strftime("%Y/%m/%d"))
+            parts.append(datetime.now(tz=datetime.UTC).strftime("%Y/%m/%d"))
 
         if unique_id:
             parts.append(str(unique_id))

@@ -313,7 +313,7 @@ async def ensure_vendor_user(db: AsyncSession) -> User:
             role="system",
             status="active",
             password_hash="!",  # Cannot login - invalid hash
-            email_verified_at=datetime.utcnow(),
+            email_verified_at=datetime.now(tz=datetime.UTC),
         )
         db.add(user)
         await db.flush()

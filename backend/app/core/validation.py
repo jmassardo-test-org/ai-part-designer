@@ -46,7 +46,7 @@ class ValidationResult:
 
     is_valid: bool
     issues: list[ValidationIssue] = field(default_factory=list)
-    validated_at: datetime = field(default_factory=datetime.utcnow)
+    validated_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
 
     @property
     def errors(self) -> list[ValidationIssue]:

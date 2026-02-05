@@ -120,4 +120,4 @@ class OAuthConnection(Base, TimestampMixin):
             self.refresh_token = refresh_token
         if expires_at:
             self.token_expires_at = expires_at
-        self.last_used_at = datetime.utcnow()
+        self.last_used_at = datetime.now(tz=datetime.UTC)

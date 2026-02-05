@@ -59,7 +59,7 @@ def purge_expired_trash() -> dict[str, Any]:
                 if not auto_empty:
                     continue
 
-                cutoff = datetime.utcnow() - timedelta(days=retention_days)
+                cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=retention_days)
 
                 try:
                     # Find and delete expired designs
@@ -209,7 +209,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
 
                 # Find items expiring at each warning threshold
                 items_to_warn = []
-                now = datetime.utcnow()
+                now = datetime.now(tz=datetime.UTC)
 
                 for warning_day in WARNING_DAYS:
                     # Calculate cutoff: items deleted X days ago where X = retention - warning
@@ -352,7 +352,7 @@ def cleanup_old_jobs(days: int = 30) -> dict:
     from app.core.database import async_session_maker
     from app.models import Job
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=days)
 
     async def run():
         async with async_session_maker() as session:
@@ -394,7 +394,7 @@ def check_stale_jobs(stale_after_minutes: int = 30) -> dict:
             failed_count = 0
             for job in stale_jobs:
                 job.status = "failed"
-                job.completed_at = datetime.utcnow()
+                job.completed_at = datetime.now(tz=datetime.UTC)
                 job.error_message = f"Job timed out after {stale_after_minutes} minutes"
                 job.error = {
                     "type": "timeout",
@@ -426,7 +426,7 @@ def cleanup_temp_files(max_age_hours: int = 24) -> dict:
 
     from app.core.storage import StorageBucket, storage_client
 
-    cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
+    cutoff = datetime.now(tz=datetime.UTC) - timedelta(hours=max_age_hours)
 
     async def run():
         # List temp files
@@ -617,7 +617,7 @@ def check_storage_health() -> dict:
         return {
             "overall_status": "healthy" if all_healthy else "degraded",
             "buckets": results,
-            "checked_at": datetime.utcnow().isoformat(),
+            "checked_at": datetime.now(tz=datetime.UTC).isoformat(),
         }
 
     return asyncio.run(run())
@@ -694,13 +694,13 @@ def verify_backups() -> dict[str, Any]:
             "backups_valid": 0,
             "backups_invalid": 0,
             "issues": [],
-            "verified_at": datetime.utcnow().isoformat(),
+            "verified_at": datetime.now(tz=datetime.UTC).isoformat(),
         }
 
         backup_service = BackupService()
 
         # Get recent backups (last 7 days)
-        cutoff = datetime.utcnow() - timedelta(days=7)
+        cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=7)
         recent_backups = [
             record
             for record in backup_service._backup_index.values()

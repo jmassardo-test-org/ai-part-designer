@@ -172,16 +172,16 @@ class Notification(Base):
         """Check if notification has expired."""
         if not self.expires_at:
             return False
-        return datetime.now() > self.expires_at
+        return datetime.now(tz=datetime.UTC) > self.expires_at
 
     def mark_read(self) -> None:
         """Mark notification as read."""
         self.is_read = True
-        self.read_at = datetime.now()
+        self.read_at = datetime.now(tz=datetime.UTC)
 
     def dismiss(self) -> None:
         """Dismiss the notification."""
-        self.dismissed_at = datetime.now()
+        self.dismissed_at = datetime.now(tz=datetime.UTC)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for API response."""

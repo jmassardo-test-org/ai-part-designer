@@ -135,7 +135,7 @@ class TestTemplateComment:
     def test_comment_with_moderation_fields(self) -> None:
         """Test comment with moderation status."""
         moderator_id = uuid4()
-        hidden_at = datetime.utcnow()
+        hidden_at = datetime.now(tz=datetime.UTC)
 
         comment = TemplateComment(
             template_id=uuid4(),
@@ -153,7 +153,7 @@ class TestTemplateComment:
 
     def test_edited_comment(self) -> None:
         """Test edited comment fields."""
-        edited_at = datetime.utcnow()
+        edited_at = datetime.now(tz=datetime.UTC)
 
         comment = TemplateComment(
             template_id=uuid4(),
@@ -212,7 +212,7 @@ class TestContentReport:
     def test_resolved_report(self) -> None:
         """Test report with resolution details."""
         moderator_id = uuid4()
-        resolved_at = datetime.utcnow()
+        resolved_at = datetime.now(tz=datetime.UTC)
 
         report = ContentReport(
             reporter_id=uuid4(),
@@ -263,7 +263,7 @@ class TestUserBan:
 
     def test_create_temporary_ban(self) -> None:
         """Test creating a temporary ban."""
-        expires_at = datetime.utcnow() + timedelta(days=7)
+        expires_at = datetime.now(tz=datetime.UTC) + timedelta(days=7)
 
         ban = UserBan(
             user_id=uuid4(),
@@ -306,7 +306,7 @@ class TestUserBan:
     def test_unbanned_user(self) -> None:
         """Test unban fields."""
         unbanned_by = uuid4()
-        unbanned_at = datetime.utcnow()
+        unbanned_at = datetime.now(tz=datetime.UTC)
 
         ban = UserBan(
             user_id=uuid4(),
@@ -338,7 +338,7 @@ class TestUserBan:
             user_id=uuid4(),
             reason="Temporary ban",
             is_permanent=False,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=datetime.now(tz=datetime.UTC) + timedelta(days=7),
         )
 
         assert ban.is_expired is False
@@ -349,7 +349,7 @@ class TestUserBan:
             user_id=uuid4(),
             reason="Expired ban",
             is_permanent=False,
-            expires_at=datetime.utcnow() - timedelta(days=1),
+            expires_at=datetime.now(tz=datetime.UTC) - timedelta(days=1),
         )
 
         assert ban.is_expired is True

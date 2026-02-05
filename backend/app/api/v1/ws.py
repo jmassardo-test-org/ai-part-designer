@@ -73,7 +73,7 @@ async def websocket_endpoint(
         {
             "type": "connected",
             "user_id": user_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
         }
     )
 

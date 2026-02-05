@@ -48,7 +48,7 @@ def convert_format(
             await job_repo.update(
                 UUID(job_id),
                 status="running",
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(tz=datetime.UTC),
                 progress=20,
                 progress_message=f"Converting to {target_format.upper()}",
             )
@@ -121,7 +121,7 @@ def convert_format(
             await job_repo.update(
                 UUID(job_id),
                 status="completed",
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(tz=datetime.UTC),
                 progress=100,
                 result=result,
             )

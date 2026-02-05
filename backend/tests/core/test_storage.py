@@ -189,7 +189,7 @@ class TestStorageClient:
         mock_s3_client.head_object.return_value = {
             "ContentLength": 1024,
             "ContentType": "application/pdf",
-            "LastModified": datetime(2024, 1, 15, 12, 0, 0),
+            "LastModified": datetime(2024, 1, 15, 12, 0, 0, tzinfo=datetime.UTC),
             "ETag": '"abc123"',
             "Metadata": {"user_id": "456"},
         }

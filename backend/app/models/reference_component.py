@@ -141,13 +141,13 @@ class ReferenceComponent(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
+        onupdate=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
@@ -227,13 +227,13 @@ class ComponentLibrary(Base):
     # Timestamps
     added_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
+        onupdate=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
 
@@ -308,7 +308,7 @@ class ComponentExtractionJob(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
 
@@ -371,13 +371,13 @@ class UserComponent(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
+        onupdate=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
 

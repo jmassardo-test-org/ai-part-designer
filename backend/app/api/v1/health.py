@@ -53,7 +53,7 @@ async def health_check(
         status="healthy",
         version=settings.APP_VERSION,
         environment=settings.ENVIRONMENT,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(tz=datetime.UTC).isoformat(),
     )
 
 
@@ -122,7 +122,7 @@ async def readiness_check(
     return ReadinessResponse(
         status="ready" if all_critical_ok else "not_ready",
         checks=checks,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(tz=datetime.UTC).isoformat(),
     )
 
 

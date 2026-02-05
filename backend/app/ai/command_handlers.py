@@ -119,7 +119,7 @@ class CommandHandler:
         from app.repositories import DesignRepository
 
         repo = DesignRepository(db)
-        design.updated_at = datetime.utcnow()
+        design.updated_at = datetime.now(tz=datetime.UTC)
         await repo.update(design.id, updated_at=design.updated_at)
         await db.commit()
 

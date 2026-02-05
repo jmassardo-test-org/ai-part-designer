@@ -74,7 +74,7 @@ class ModerationResult:
     """Result of content moderation analysis."""
 
     file_id: UUID
-    analyzed_at: datetime = field(default_factory=datetime.utcnow)
+    analyzed_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
     flags: list[ContentFlag] = field(default_factory=list)
     overall_status: ModerationStatus = ModerationStatus.PENDING
     auto_decision: bool = False

@@ -207,7 +207,7 @@ class TeamMember(Base, TimestampMixin):
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
     )
 
     # Status
@@ -303,7 +303,7 @@ class ProjectTeam(Base, TimestampMixin):
     assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(tz=datetime.UTC),
     )
 
     # Relationships

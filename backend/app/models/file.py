@@ -159,7 +159,7 @@ class File(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default="now()",
-        onupdate=datetime.utcnow,
+        onupdate=lambda: datetime.now(tz=datetime.UTC),
         nullable=False,
     )
 
@@ -206,7 +206,7 @@ class File(Base):
     def soft_delete(self) -> None:
         """Mark file as deleted."""
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(tz=datetime.UTC)
         self.status = "deleted"
 
     def mark_ready(self) -> None:

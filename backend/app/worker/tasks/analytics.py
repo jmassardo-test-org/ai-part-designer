@@ -70,7 +70,7 @@ def generate_daily_report(date: str | None = None) -> dict:
     if date:
         report_date = datetime.fromisoformat(date).date()
     else:
-        report_date = (datetime.utcnow() - timedelta(days=1)).date()
+        report_date = (datetime.now(tz=datetime.UTC) - timedelta(days=1)).date()
 
     start = datetime.combine(report_date, datetime.min.time())
     end = datetime.combine(report_date, datetime.max.time())
@@ -111,7 +111,7 @@ def generate_daily_report(date: str | None = None) -> dict:
                     "jobs": jobs_by_status,
                     "total_jobs": sum(v["count"] for v in jobs_by_status.values()),
                 },
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(tz=datetime.UTC).isoformat(),
             }
 
             logger.info(f"Generated daily report for {report_date}")
@@ -151,7 +151,7 @@ def calculate_user_metrics(user_id: str) -> dict:
             project_count = await project_repo.count(filters={"user_id": user_uuid})
 
             # Get recent jobs
-            job_stats = await job_repo.get_job_stats(since=datetime.utcnow() - timedelta(days=30))
+            job_stats = await job_repo.get_job_stats(since=datetime.now(tz=datetime.UTC) - timedelta(days=30))
 
             return {
                 "user_id": user_id,
@@ -159,7 +159,7 @@ def calculate_user_metrics(user_id: str) -> dict:
                 "last_30_days": {
                     "jobs": job_stats,
                 },
-                "calculated_at": datetime.utcnow().isoformat(),
+                "calculated_at": datetime.now(tz=datetime.UTC).isoformat(),
             }
 
     return asyncio.run(run())

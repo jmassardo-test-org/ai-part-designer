@@ -534,9 +534,9 @@ class DesignShare(Base, TimestampMixin):
         """Check if share has expired."""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(tz=datetime.UTC) > self.expires_at
 
     def record_access(self) -> None:
         """Record an access to this share."""
-        self.accessed_at = datetime.utcnow()
+        self.accessed_at = datetime.now(tz=datetime.UTC)
         self.access_count += 1

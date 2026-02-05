@@ -197,13 +197,13 @@ class ModerationLog(Base):
         """File an appeal for this moderation decision."""
         self.is_appealed = True
         self.appeal_reason = reason
-        self.appealed_at = datetime.utcnow()
+        self.appealed_at = datetime.now(tz=datetime.UTC)
 
     def resolve_appeal(self, decision: str, reviewer_id: UUID) -> None:
         """Resolve the appeal with a decision."""
         self.appeal_decision = decision
         self.reviewer_id = reviewer_id
-        self.reviewed_at = datetime.utcnow()
+        self.reviewed_at = datetime.now(tz=datetime.UTC)
 
         if decision == "overturned":
             self.decision = "approved"

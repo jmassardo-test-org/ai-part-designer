@@ -705,7 +705,7 @@ class TestAdminDesignManagement:
         design = await DesignFactory.create(db_session, project=project)
 
         # Soft delete
-        design.deleted_at = datetime.utcnow()
+        design.deleted_at = datetime.now(tz=datetime.UTC)
         await db_session.commit()
 
         response = await client.post(

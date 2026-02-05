@@ -504,4 +504,4 @@ class UserBan(Base, TimestampMixin):
             return False
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(tz=datetime.UTC) > self.expires_at

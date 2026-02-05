@@ -217,7 +217,7 @@ async def get_token_payload(
 
     # Check expiration
     exp = payload.get("exp")
-    if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
+    if exp and datetime.fromtimestamp(exp, tz=datetime.UTC) < datetime.now(tz=datetime.UTC):
         return None
 
     # Check if token is blacklisted
@@ -496,7 +496,7 @@ async def blacklist_all_user_tokens(user_id: UUID) -> None:
     # Store a timestamp; tokens issued before this are invalid
     await redis_client.set(
         f"user:token_invalidation:{user_id}",
-        str(datetime.utcnow().timestamp()),
+        str(datetime.now(tz=datetime.UTC).timestamp()),
         ttl=86400 * 30,  # 30 days
     )
 

@@ -44,7 +44,7 @@ class AnalyticsEvent(BaseModel):
     event_category: EventCategory
 
     # Timestamp
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=datetime.UTC))
 
     # Context
     user_id: UUID | None = None

@@ -139,7 +139,7 @@ async def complete_onboarding_step(
         # Check if onboarding is complete
         if step >= TOTAL_ONBOARDING_STEPS:
             current_user.onboarding_completed = True
-            current_user.onboarding_completed_at = datetime.utcnow()
+            current_user.onboarding_completed_at = datetime.now(tz=datetime.UTC)
 
         # Store step data if provided
         if request and request.step_data:
@@ -183,7 +183,7 @@ async def skip_onboarding(
         return MessageResponse(message="Onboarding already completed")
 
     current_user.onboarding_completed = True
-    current_user.onboarding_completed_at = datetime.utcnow()
+    current_user.onboarding_completed_at = datetime.now(tz=datetime.UTC)
     current_user.onboarding_step = TOTAL_ONBOARDING_STEPS
 
     # Mark as skipped in extra_data
@@ -192,7 +192,7 @@ async def skip_onboarding(
         "onboarding": {
             **current_user.extra_data.get("onboarding", {}),
             "skipped": True,
-            "skipped_at": datetime.utcnow().isoformat(),
+            "skipped_at": datetime.now(tz=datetime.UTC).isoformat(),
         },
     }
 

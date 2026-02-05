@@ -71,7 +71,7 @@ class DatabaseBackup:
         Returns:
             Backup metadata dict
         """
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=datetime.UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"backup_{backup_type}_{timestamp}.sql"
         filepath = self.backup_dir / filename
 
@@ -232,7 +232,7 @@ class DatabaseBackup:
         Returns:
             Number of backups removed
         """
-        cutoff = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=self.retention_days)
         removed_count = 0
 
         # Clean local backups
@@ -319,7 +319,7 @@ class DataExporter:
         )
 
         user_uuid = UUID(user_id)
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=datetime.UTC).strftime("%Y%m%d_%H%M%S")
         export_subdir = self.export_dir / f"user_export_{user_id}_{timestamp}"
         export_subdir.mkdir(parents=True, exist_ok=True)
 
@@ -448,7 +448,7 @@ class DataExporter:
         from app.core.database import async_session_maker
         from app.models import Design, Job, Template, User
 
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=datetime.UTC).strftime("%Y%m%d_%H%M%S")
         export_path = self.export_dir / f"analytics_snapshot_{timestamp}.json"
 
         async with async_session_maker() as session:
@@ -527,7 +527,7 @@ class DataExporter:
                     }
                     for row in template_usage.all()
                 ],
-                "exported_at": datetime.utcnow().isoformat(),
+                "exported_at": datetime.now(tz=datetime.UTC).isoformat(),
             }
 
             with open(export_path, "w") as f:

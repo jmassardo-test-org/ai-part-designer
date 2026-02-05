@@ -61,7 +61,7 @@ def check_rate_limit(ip_address: str) -> bool:
     Returns:
         True if within limit, False if exceeded.
     """
-    now = datetime.utcnow()
+    now = datetime.now(tz=datetime.UTC)
     cutoff = now.timestamp() - RATE_LIMIT_WINDOW
 
     if ip_address not in _submission_times:

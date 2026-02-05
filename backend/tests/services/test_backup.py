@@ -43,7 +43,7 @@ class BackupRecord:
     id: UUID = field(default_factory=uuid4)
     backup_type: BackupType = BackupType.FULL
     status: BackupStatus = BackupStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
     completed_at: datetime | None = None
     size_bytes: int = 0
     file_count: int = 0
@@ -175,7 +175,7 @@ class TestBackupRecord:
     def test_custom_creation(self):
         """Test creating a backup record with custom values."""
         backup_id = uuid4()
-        now = datetime.utcnow()
+        now = datetime.now(tz=datetime.UTC)
 
         record = BackupRecord(
             id=backup_id,
@@ -216,7 +216,7 @@ class TestBackupRecord:
 
     def test_to_dict_with_completed_at(self):
         """Test to_dict includes completed_at when set."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=datetime.UTC)
         record = BackupRecord(
             completed_at=now,
         )

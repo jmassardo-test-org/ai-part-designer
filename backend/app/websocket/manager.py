@@ -31,7 +31,7 @@ class Connection:
 
     websocket: WebSocket
     user_id: str
-    connected_at: datetime = field(default_factory=datetime.utcnow)
+    connected_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
     subscriptions: set[str] = field(default_factory=set)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -360,7 +360,7 @@ async def send_job_progress(
             "progress": progress,
             "status": status,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
         },
     )
 
@@ -377,7 +377,7 @@ async def send_job_complete(
             "type": "job_complete",
             "job_id": job_id,
             "result": result,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
         },
     )
 
@@ -394,7 +394,7 @@ async def send_job_failed(
             "type": "job_failed",
             "job_id": job_id,
             "error": error,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
         },
     )
 

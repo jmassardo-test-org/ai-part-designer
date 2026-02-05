@@ -206,7 +206,7 @@ class APIKey(Base, TimestampMixin):
         """Check if the API key has expired."""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(tz=datetime.UTC) > self.expires_at
 
     @property
     def is_valid(self) -> bool:
@@ -234,7 +234,7 @@ class APIKey(Base, TimestampMixin):
 
     def record_usage(self, ip_address: str | None = None) -> None:
         """Record API key usage."""
-        self.last_used_at = datetime.utcnow()
+        self.last_used_at = datetime.now(tz=datetime.UTC)
         self.last_used_ip = ip_address
         self.usage_count += 1
 

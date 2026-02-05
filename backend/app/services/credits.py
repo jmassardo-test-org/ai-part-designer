@@ -253,7 +253,7 @@ class CreditService:
         """
         balance = await self.get_balance(user_id)
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=datetime.UTC)
 
         # Check if refill is due
         if balance.next_refill_at and balance.next_refill_at > now:
@@ -354,7 +354,7 @@ class CreditService:
         """
         from sqlalchemy import func
 
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(tz=datetime.UTC) - timedelta(days=days)
 
         # Get total spent by type
         result = await self.db.execute(
@@ -422,7 +422,7 @@ class QuotaService:
                 storage_used_bytes=0,
                 active_jobs_count=0,
                 projects_count=0,
-                period_start=datetime.utcnow(),
+                period_start=datetime.now(tz=datetime.UTC),
             )
             self.db.add(quota)
             await self.db.flush()

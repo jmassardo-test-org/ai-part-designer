@@ -340,7 +340,7 @@ async def copy_example_project(
             tags=design.tags.copy() if design.tags else [],
             extra_data={
                 "copied_from": str(design.id),
-                "copied_at": datetime.utcnow().isoformat(),
+                "copied_at": datetime.now(tz=datetime.UTC).isoformat(),
                 **design.extra_data,
             },
         )
