@@ -40,20 +40,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
 
       - name: Install dependencies
         run: |
           cd backend
-          pip install alembic sqlalchemy psycopg2-binary
+          uv sync
 
       - name: Run migrations (first pass)
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
         run: |
           cd backend
-          alembic upgrade head
+          uv run alembic upgrade head
           echo "✅ First migration pass successful"
 
       - name: Run migrations (idempotency check)
@@ -62,8 +67,8 @@ jobs:
         run: |
           cd backend
           # Downgrade and re-upgrade to verify idempotency
-          alembic downgrade -1
-          alembic upgrade head
+          uv run alembic downgrade -1
+          uv run alembic upgrade head
           echo "✅ Migration idempotency check passed"
 
       - name: Verify migration history
@@ -71,8 +76,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
         run: |
           cd backend
-          alembic current
-          alembic history --verbose | head -20
+          uv run alembic current
+          uv run alembic history --verbose | head -20
 
   build:
     name: Build Docker Images
