@@ -46,7 +46,7 @@ class AIProvider(ABC):
         *,
         temperature: float = 0.3,
         max_tokens: int | None = None,
-        response_format: dict | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> str:
         """Send chat completion request."""
 
@@ -62,7 +62,7 @@ class AnthropicProvider(AIProvider):
     Claude provides excellent reasoning capabilities for CAD generation tasks.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         settings = get_settings()
         self.api_key = settings.ANTHROPIC_API_KEY
         self.model = settings.ANTHROPIC_MODEL
@@ -93,7 +93,7 @@ class AnthropicProvider(AIProvider):
         *,
         temperature: float = 0.3,
         max_tokens: int | None = None,
-        response_format: dict | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> str:
         """
         Send completion request to Claude.

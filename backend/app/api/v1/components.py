@@ -4,6 +4,8 @@ Reference Component API
 CRUD operations for reference components and component library.
 """
 
+from typing import Any, cast
+
 import hashlib
 import logging
 from datetime import datetime
@@ -56,7 +58,7 @@ class MountingHoleSchema(BaseModel):
 class ConnectorSchema(BaseModel):
     name: str
     type: str
-    position: dict
+    position: dict[str, Any]
     face: str
     cutout_width: float
     cutout_height: float
@@ -67,7 +69,7 @@ class ConnectorSchema(BaseModel):
 class ClearanceZoneSchema(BaseModel):
     name: str
     type: str
-    bounds: dict
+    bounds: dict[str, Any]
     minimum_clearance: float = 5.0
     requires_venting: bool = False
 
@@ -118,15 +120,15 @@ class ComponentResponse(BaseModel):
     model_number: str | None
     source_type: str
     thumbnail_url: str | None
-    dimensions: dict | None
-    mounting_holes: list | None
-    connectors: list | None
-    clearance_zones: list | None
-    thermal_properties: dict | None
+    dimensions: dict[str, Any] | None
+    mounting_holes: list[Any] | None
+    connectors: list[Any] | None
+    clearance_zones: list[Any] | None
+    thermal_properties: dict[str, Any] | None
     extraction_status: str
     confidence_score: float | None
     is_verified: bool
-    tags: list
+    tags: list[Any]
     created_at: datetime
     updated_at: datetime
 
@@ -151,11 +153,11 @@ class LibraryComponentResponse(BaseModel):
     manufacturer: str | None
     model_number: str | None
     thumbnail_url: str | None
-    dimensions: dict | None
+    dimensions: dict[str, Any] | None
     popularity_score: int
     usage_count: int
     is_featured: bool
-    tags: list
+    tags: list[Any]
 
     class Config:
         from_attributes = True
@@ -187,7 +189,7 @@ async def create_component(
     data: ComponentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ComponentResponse:
     """Create a new reference component."""
     component = ReferenceComponent(
         id=uuid4(),
@@ -218,7 +220,7 @@ class ComponentUploadResponse(BaseModel):
     manufacturer: str | None
     model_number: str | None
     category: str
-    specifications: dict
+    specifications: dict[str, Any]
     extraction_status: str
     file_type: str
     created_at: datetime
@@ -232,7 +234,7 @@ async def upload_component(
     file: UploadFile = File(..., description="Component file (CAD, datasheet, image)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ComponentUploadResponse:
     """
     Upload a component file for extraction.
 
@@ -358,7 +360,7 @@ async def list_components(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ComponentListResponse:
     """List user's reference components."""
     query = select(ReferenceComponent).where(
         and_(
@@ -403,7 +405,7 @@ async def get_component(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ComponentResponse:
     """Get a reference component by ID."""
     query = select(ReferenceComponent).where(
         and_(
@@ -431,7 +433,7 @@ async def update_component(
     data: ComponentUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ComponentResponse:
     """Update a reference component."""
     query = select(ReferenceComponent).where(
         and_(
@@ -466,7 +468,7 @@ async def update_specifications(
     data: SpecificationsUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ComponentResponse:
     """Update component specifications manually."""
     query = select(ReferenceComponent).where(
         and_(
@@ -523,7 +525,7 @@ async def update_component_files(
     trigger_extraction: bool = Query(True, description="Re-trigger AI extraction after upload"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> FileUpdateResponse:
     """
     Update CAD files for an existing component.
 
@@ -706,7 +708,7 @@ async def delete_component(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> None:
     """Soft delete a reference component."""
     query = select(ReferenceComponent).where(
         and_(
@@ -737,7 +739,7 @@ async def trigger_extraction(
     job_type: str = Query("full", regex="^(datasheet|cad|full)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ExtractionJobResponse:
     """Trigger AI extraction for a component."""
     # Verify component exists and user owns it
     query = select(ReferenceComponent).where(
@@ -798,7 +800,7 @@ async def get_extraction_status(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ExtractionJobResponse | None:
     """Get latest extraction job status."""
     query = (
         select(ComponentExtractionJob)
@@ -845,7 +847,7 @@ async def browse_library(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> LibrarySearchResponse:
     """Browse the component library with search and filters."""
     # Base query
     query = (
@@ -934,7 +936,7 @@ async def browse_library(
 async def list_categories(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> list[dict[str, Any]]:
     """List all component categories."""
     query = (
         select(
@@ -971,7 +973,7 @@ async def get_library_component(
     library_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ComponentResponse:
     """Get full details of a library component."""
     query = (
         select(ComponentLibrary)
@@ -985,7 +987,8 @@ async def get_library_component(
     if not entry:
         raise HTTPException(status_code=404, detail="Component not found")
 
-    return entry.component
+    # Cast to ComponentResponse as it matches the schema via from_attributes
+    return cast(ComponentResponse, entry.component)
 
 
 @library_router.post("/{library_id}/add")
@@ -994,7 +997,7 @@ async def add_library_component_to_project(
     project_id: UUID | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> dict[str, Any]:
     """Add a library component to user's collection or project."""
     # Get library entry
     query = (
@@ -1037,7 +1040,7 @@ async def add_library_component_to_project(
 async def seed_library(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> dict[str, Any]:
     """Seed the component library with popular components. Admin only."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -1107,7 +1110,7 @@ async def seed_library(
 async def list_manufacturers(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> dict[str, Any]:
     """List all manufacturers in the library."""
     query = (
         select(

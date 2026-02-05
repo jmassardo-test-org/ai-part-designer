@@ -32,7 +32,7 @@ try:
 except ImportError:
     BUILD123D_AVAILABLE = False
     # Define placeholder types for type hints
-    Part = Any  # type: ignore
+    Part = Any
 
 
 class EnclosureCompiler:

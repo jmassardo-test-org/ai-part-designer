@@ -23,7 +23,7 @@ from app.worker.ws_utils import (
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     bind=True,
     name="app.worker.tasks.cad_v2.compile_enclosure_v2",
     max_retries=2,
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
     time_limit=360,  # 6 minutes hard limit
 )
 def compile_enclosure_v2(
-    self,
+    self: Any,
     job_id: str,
     enclosure_schema: dict[str, Any],
     export_format: str = "step",
@@ -212,8 +212,8 @@ def compile_enclosure_v2(
 
 
 async def _fail_job(
-    job_repo,
-    session,
+    job_repo: Any,
+    session: Any,
     job_id: str,
     user_id: str | None,
     error_message: str,
@@ -233,7 +233,7 @@ async def _fail_job(
     logger.error(f"CAD v2 job {job_id} failed: {error_message}")
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     bind=True,
     name="app.worker.tasks.cad_v2.generate_from_description_v2",
     max_retries=2,
@@ -242,7 +242,7 @@ async def _fail_job(
     time_limit=720,  # 12 minutes hard limit
 )
 def generate_from_description_v2(
-    self,
+    self: Any,
     job_id: str,
     description: str,
     export_format: str = "step",

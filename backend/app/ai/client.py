@@ -117,7 +117,7 @@ class ClaudeClient:
         model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int | None = None,
-        response_format: dict | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> str:
         """
         Send chat completion request with retry logic.
@@ -280,7 +280,7 @@ class ClaudeClient:
     async def complete_json(
         self,
         messages: list[dict[str, str]],
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """
         Send chat completion request expecting JSON response.
@@ -365,7 +365,7 @@ class ClaudeClient:
         """Calculate retry delay with exponential backoff."""
         # Exponential backoff: 1s, 2s, 4s, 8s, ...
         delay = self.BASE_DELAY * (2**attempt)
-        return min(delay, self.MAX_DELAY)
+        return min(delay, self.MAX_DELAY)  # type: ignore[no-any-return]
 
     async def health_check(self) -> bool:
         """Check if the Claude API is reachable."""

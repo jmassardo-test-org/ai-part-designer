@@ -10,7 +10,7 @@ Provides endpoints for design version management:
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -42,7 +42,7 @@ class VersionSummary(BaseModel):
     change_description: str | None = None
     file_url: str
     thumbnail_url: str | None = None
-    geometry_info: dict = Field(default_factory=dict)
+    geometry_info: dict[str, Any] = Field(default_factory=dict[str, Any])
 
     class Config:
         from_attributes = True
@@ -51,8 +51,8 @@ class VersionSummary(BaseModel):
 class VersionDetail(VersionSummary):
     """Full version details including parameters and formats."""
 
-    parameters: dict = Field(default_factory=dict)
-    file_formats: dict = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict[str, Any])
+    file_formats: dict[str, Any] = Field(default_factory=dict[str, Any])
 
 
 class VersionListResponse(BaseModel):
@@ -88,8 +88,8 @@ class VersionComparisonResponse(BaseModel):
 
     version_a: VersionSummary
     version_b: VersionSummary
-    parameter_diff: dict
-    geometry_diff: dict
+    parameter_diff: dict[str, Any]
+    geometry_diff: dict[str, Any]
 
 
 class VersionDiffItem(BaseModel):
@@ -175,8 +175,8 @@ async def get_version_or_404(
 
 
 def compute_dict_diff(
-    old_dict: dict,
-    new_dict: dict,
+    old_dict: dict[str, Any],
+    new_dict: dict[str, Any],
     prefix: str = "",
 ) -> list[VersionDiffItem]:
     """Compute differences between two dictionaries."""

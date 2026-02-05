@@ -3,7 +3,7 @@ Audit log model for tracking all system actions.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -90,7 +90,7 @@ class AuditLog(Base):
     )
 
     # Detailed context (JSONB)
-    context: Mapped[dict] = mapped_column(
+    context: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -168,7 +168,7 @@ class AuditLog(Base):
         resource_id: UUID | None = None,
         user_id: UUID | None = None,
         actor_type: str = "user",
-        context: dict | None = None,
+        context: dict[str, Any] | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         status: str = "success",
@@ -208,7 +208,7 @@ class AuditLog(Base):
         cls,
         action: str,
         resource_type: str,
-        **kwargs,
+        **kwargs: Any,
     ) -> "AuditLog":
         """Create a successful audit log entry."""
         return cls.log(
@@ -224,7 +224,7 @@ class AuditLog(Base):
         action: str,
         resource_type: str,
         error_message: str,
-        **kwargs,
+        **kwargs: Any,
     ) -> "AuditLog":
         """Create a failed audit log entry."""
         return cls.log(

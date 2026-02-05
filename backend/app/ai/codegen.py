@@ -419,7 +419,7 @@ def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
         except Exception as e:
             raise AIValidationError(f"Result has no valid geometry: {e}")
 
-        return result
+        return result  # type: ignore[no-any-return]
 
     except SyntaxError as e:
         logger.error(f"Syntax error in generated code: {e}")
@@ -568,7 +568,7 @@ def _extract_radius_from_description(description: str) -> float:
 
 
 async def _generate_single_pass(
-    client,
+    client: Any,
     system_prompt: str,
     user_prompt: str,
     base_shape: Part | None = None,
@@ -631,7 +631,7 @@ async def _generate_single_pass(
     return None, last_code, total_gen_time, total_exec_time, last_error
 
 
-async def _detect_intent(client, description: str) -> dict:
+async def _detect_intent(client: Any, description: str) -> dict[Any, Any]:
     """
     Use AI to break down the part description into build steps.
     """
@@ -652,7 +652,7 @@ async def _detect_intent(client, description: str) -> dict:
 
         intent = json.loads(response)
         logger.info(f"Detected intent: {intent}")
-        return intent
+        return intent  # type: ignore[no-any-return]
     except Exception as e:
         logger.warning(f"Intent detection failed: {e}, using fallback")
         return {"base_shape": description, "holes": [], "fillets": [], "other_features": []}
@@ -671,8 +671,8 @@ class BuildStep:
 async def generate_cadquery_code(
     description: str,
     *,
-    intent=None,  # PartIntent from reasoning module
-    build_plan=None,  # BuildPlan from reasoning module
+    intent: Any = None,  # PartIntent from reasoning module
+    build_plan: Any = None,  # BuildPlan from reasoning module
 ) -> CodeGenerationResult:
     """
     Generate CadQuery code from a natural language description.

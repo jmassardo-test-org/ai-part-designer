@@ -386,4 +386,4 @@ def create_l_bracket(
             except Exception:
                 pass  # Skip fillet if it fails
 
-    return part.part
+    return part.part  # type: ignore[no-any-return]

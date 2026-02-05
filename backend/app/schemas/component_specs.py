@@ -6,6 +6,7 @@ datasheets and CAD files.
 """
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -446,7 +447,7 @@ class CADExtraction(BaseModel):
 
     # Detected features
     detected_holes: list[MountingHole] = Field(default_factory=list)
-    detected_openings: list[dict] = Field(
+    detected_openings: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Detected openings/slots",
     )
@@ -478,7 +479,7 @@ class MechanicalDrawing(BaseModel):
 
     page_number: int
     image_data: str | None = Field(default=None, description="Base64 encoded image")
-    dimensions_found: list[dict] = Field(default_factory=list)
+    dimensions_found: list[dict[str, Any]] = Field(default_factory=list)
     scale: str | None = Field(default=None, description="Drawing scale if specified")
     view_type: str = Field(default="unknown", description="top, side, isometric, etc.")
 
@@ -498,7 +499,7 @@ class DatasheetExtraction(BaseModel):
     mechanical_drawings: list[MechanicalDrawing] = Field(default_factory=list)
 
     # Dimension table
-    dimension_table: dict | None = Field(
+    dimension_table: dict[str, Any] | None = Field(
         default=None,
         description="Parsed dimension table if found",
     )

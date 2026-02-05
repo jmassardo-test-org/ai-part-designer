@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc, func, or_, select
@@ -414,7 +414,7 @@ async def unpublish_design(
     design_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_optional),
-) -> dict:
+) -> dict[str, Any]:
     """
     Unpublish a design from the marketplace.
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +283,7 @@ class PDFProcessor:
             img_bytes = pix.tobytes("png")
 
             doc.close()
-            return img_bytes
+            return cast("bytes", img_bytes)
 
         except Exception as e:
             logger.exception(f"Failed to get page image: {e}")

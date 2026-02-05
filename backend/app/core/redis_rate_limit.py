@@ -12,6 +12,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 from app.core.config import settings
 
@@ -103,7 +104,7 @@ class RedisRateLimiter(RateLimiter):
         self._redis = None
         self._connected = False
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         """Get Redis connection, creating if needed."""
         if self._redis is None:
             try:
@@ -208,7 +209,7 @@ class RedisRateLimiter(RateLimiter):
 
         # Remove old entries and count
         await redis.zremrangebyscore(redis_key, 0, window_start)
-        current_count = await redis.zcard(redis_key)
+        current_count: int = await redis.zcard(redis_key)
 
         return max(0, limit - current_count)
 
@@ -222,7 +223,7 @@ class RedisRateLimiter(RateLimiter):
         await redis.delete(redis_key)
         return True
 
-    async def close(self):
+    async def close(self) -> None:
         """Close Redis connection."""
         if self._redis:
             await self._redis.close()
@@ -242,7 +243,7 @@ class InMemoryRateLimiter(RateLimiter):
     Note: Not suitable for production with multiple workers.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._requests: dict[str, list[float]] = {}
         self._lock = asyncio.Lock()
 
@@ -315,7 +316,7 @@ class InMemoryRateLimiter(RateLimiter):
             return True
         return False
 
-    def cleanup(self, max_age_seconds: int = 3600):
+    def cleanup(self, max_age_seconds: int = 3600) -> None:
         """Remove old entries to prevent memory growth."""
         now = time.time()
         cutoff = now - max_age_seconds
@@ -351,7 +352,7 @@ class TokenBucketRateLimiter(RateLimiter):
         self.key_prefix = key_prefix
         self._redis = None
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         """Get Redis connection."""
         if self._redis is None:
             try:

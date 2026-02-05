@@ -6,7 +6,7 @@ Handles subscription plans, checkout, billing portal, and subscription managemen
 
 import logging
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -55,7 +55,7 @@ class PlanResponse(BaseModel):
     max_file_size_mb: int
 
     # Features
-    features: dict
+    features: dict[str, Any]
 
     # Pricing
     price_monthly: float

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Text
@@ -77,22 +77,22 @@ class DesignAnnotation(Base):
     )
 
     # 3D position and orientation
-    position: Mapped[dict] = mapped_column(
+    position: Mapped[dict[str, float]] = mapped_column(
         JSONB,
         nullable=False,
         comment="3D position {x, y, z}",
     )
-    normal: Mapped[dict | None] = mapped_column(
+    normal: Mapped[dict[str, float] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Surface normal for orientation {x, y, z}",
     )
-    camera_position: Mapped[dict | None] = mapped_column(
+    camera_position: Mapped[dict[str, float] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Camera position when annotation was created {x, y, z}",
     )
-    camera_target: Mapped[dict | None] = mapped_column(
+    camera_target: Mapped[dict[str, float] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Camera target when annotation was created {x, y, z}",
@@ -142,7 +142,7 @@ class DesignAnnotation(Base):
     )
 
     # Mentions
-    mentioned_users: Mapped[list | None] = mapped_column(
+    mentioned_users: Mapped[list[str] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="UUIDs of users mentioned in this annotation",
@@ -235,7 +235,7 @@ class DesignAnnotation(Base):
         self.resolved_at = None
         self.resolution_note = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "id": str(self.id),

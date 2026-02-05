@@ -3,7 +3,7 @@ Design domain models: Design, DesignVersion, DesignShare
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -121,7 +121,7 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
     )  # draft, processing, ready, failed, archived
 
     # Flexible extra data (JSONB) - stores parameters, dimensions, etc.
-    extra_data: Mapped[dict] = mapped_column(
+    extra_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -190,7 +190,7 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Enclosure specification (CAD v2)
-    enclosure_spec: Mapped[dict | None] = mapped_column(
+    enclosure_spec: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
     )
@@ -304,14 +304,16 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         return None
 
     @property
-    def parameters(self) -> dict:
+    def parameters(self) -> dict[str, Any]:
         """Get design parameters from extra_data."""
-        return self.extra_data.get("parameters", {})
+        result: dict[str, Any] = self.extra_data.get("parameters", {})
+        return result
 
     @property
-    def dimensions(self) -> dict | None:
+    def dimensions(self) -> dict[str, Any] | None:
         """Get design dimensions from extra_data."""
-        return self.extra_data.get("dimensions")
+        result: dict[str, Any] | None = self.extra_data.get("dimensions")
+        return result
 
 
 class DesignVersion(Base):
@@ -361,7 +363,7 @@ class DesignVersion(Base):
     )
 
     # Available formats (JSONB)
-    file_formats: Mapped[dict] = mapped_column(
+    file_formats: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -369,14 +371,14 @@ class DesignVersion(Base):
     # Example: {"step": "s3://...", "stl": "s3://...", "3mf": "s3://..."}
 
     # Parameters used for this version
-    parameters: Mapped[dict] = mapped_column(
+    parameters: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
     )
 
     # Geometry information
-    geometry_info: Mapped[dict] = mapped_column(
+    geometry_info: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -426,14 +428,16 @@ class DesignVersion(Base):
         return f"<DesignVersion(id={self.id}, v{self.version_number})>"
 
     @property
-    def bounding_box(self) -> dict | None:
+    def bounding_box(self) -> dict[str, Any] | None:
         """Get bounding box from geometry info."""
-        return self.geometry_info.get("boundingBox")
+        result: dict[str, Any] | None = self.geometry_info.get("boundingBox")
+        return result
 
     @property
     def is_manifold(self) -> bool:
         """Check if geometry is manifold (watertight)."""
-        return self.geometry_info.get("isManifold", False)
+        result: bool = self.geometry_info.get("isManifold", False)
+        return result
 
 
 class DesignShare(Base, TimestampMixin):

@@ -3,7 +3,7 @@ User domain models: User, UserSettings, Subscription
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
@@ -122,7 +122,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         String(64),
         nullable=True,
     )  # TOTP secret (encrypted)
-    mfa_backup_codes: Mapped[list | None] = mapped_column(
+    mfa_backup_codes: Mapped[list[str] | None] = mapped_column(
         JSONB,
         nullable=True,
     )  # Hashed backup codes
@@ -132,7 +132,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Extra data for flexible storage (JSONB)
-    extra_data: Mapped[dict] = mapped_column(
+    extra_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -413,7 +413,7 @@ class UserSettings(Base, TimestampMixin):
     )
 
     # Settings as JSONB
-    preferences: Mapped[dict] = mapped_column(
+    preferences: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {
@@ -424,7 +424,7 @@ class UserSettings(Base, TimestampMixin):
         },
     )
 
-    notifications: Mapped[dict] = mapped_column(
+    notifications: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {

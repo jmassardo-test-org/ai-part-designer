@@ -5,7 +5,7 @@ Tracks linked OAuth provider accounts for users.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint
@@ -80,7 +80,7 @@ class OAuthConnection(Base, TimestampMixin):
     )
 
     # Provider profile data
-    profile_data: Mapped[dict] = mapped_column(
+    profile_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,

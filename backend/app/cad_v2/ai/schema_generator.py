@@ -84,7 +84,7 @@ class SchemaGenerator:
         self._registry = get_registry()
 
     @property
-    def provider(self):
+    def provider(self) -> Any:
         """Lazy load AI provider."""
         if self._provider is None:
             self._provider = get_ai_provider()
@@ -214,7 +214,7 @@ class SchemaGenerator:
             response = "\n".join(lines[1:-1])
 
         try:
-            return json.loads(response)
+            return json.loads(response)  # type: ignore[no-any-return]
         except json.JSONDecodeError as e:
             raise SchemaGenerationError(
                 f"Failed to parse AI response as JSON: {e}",

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
@@ -28,7 +29,7 @@ router = APIRouter()
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str = Query(..., description="JWT access token"),
-):
+) -> None:
     """
     WebSocket endpoint for real-time updates.
 
@@ -157,13 +158,13 @@ async def websocket_endpoint(
 
 
 @router.get("/ws/stats")
-async def websocket_stats():
+async def websocket_stats() -> dict[str, Any]:
     """Get WebSocket connection statistics."""
     return manager.get_stats()
 
 
 @router.get("/ws/health")
-async def websocket_health():
+async def websocket_health() -> dict[str, Any]:
     """Health check for WebSocket server."""
     return {
         "status": "healthy",

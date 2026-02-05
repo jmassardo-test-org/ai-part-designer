@@ -13,6 +13,8 @@ Example:
 
 from __future__ import annotations
 
+from typing import Any
+
 from build123d import (
     Axis,
     Location,
@@ -479,7 +481,7 @@ def add_hole(
 # =============================================================================
 
 
-def _select_edges(shape: Part, selector: str):
+def _select_edges(shape: Part, selector: str) -> Any:
     """
     Select edges based on a selector string.
 
@@ -520,7 +522,7 @@ def _select_edges(shape: Part, selector: str):
     return all_edges
 
 
-def _select_faces(shape: Part, selector: str):
+def _select_faces(shape: Part, selector: str) -> Any:
     """
     Select faces based on a selector string.
 

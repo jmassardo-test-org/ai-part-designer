@@ -7,7 +7,7 @@ Handles subscription tiers, credit balances, and usage tracking.
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -111,7 +111,7 @@ class SubscriptionTier(Base, TimestampMixin):
     )
 
     # Feature flags (JSONB for flexibility)
-    features: Mapped[dict] = mapped_column(
+    features: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -167,7 +167,8 @@ class SubscriptionTier(Base, TimestampMixin):
 
     def has_feature(self, feature_name: str) -> bool:
         """Check if tier has a specific feature."""
-        return self.features.get(feature_name, False)
+        result: bool = self.features.get(feature_name, False)
+        return result
 
     @property
     def price_monthly(self) -> Decimal:
@@ -344,7 +345,7 @@ class CreditTransaction(Base, TimestampMixin):
     )
 
     # Extra data (renamed from 'metadata' which is reserved by SQLAlchemy)
-    extra_data: Mapped[dict] = mapped_column(
+    extra_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,

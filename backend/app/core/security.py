@@ -13,6 +13,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from cryptography.fernet import Fernet
@@ -62,7 +63,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def check_password_strength(password: str) -> dict:
+def check_password_strength(password: str) -> dict[str, Any]:
     """
     Check password strength and return validation result.
 
@@ -142,7 +143,7 @@ def create_access_token(
     role: str = "user",
     tier: str = "free",
     expires_delta: timedelta | None = None,
-    additional_claims: dict | None = None,
+    additional_claims: dict[str, Any] | None = None,
 ) -> str:
     """
     Create a short-lived access token.
@@ -178,7 +179,8 @@ def create_access_token(
     if additional_claims:
         payload.update(additional_claims)
 
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_token: str = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_token
 
 
 def create_refresh_token(
@@ -241,10 +243,11 @@ def create_verification_token(
         "jti": secrets.token_urlsafe(16),
     }
 
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_token: str = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_token
 
 
-def decode_token(token: str) -> dict | None:
+def decode_token(token: str) -> dict[str, Any] | None:
     """
     Decode and validate a JWT token.
 
@@ -255,16 +258,17 @@ def decode_token(token: str) -> dict | None:
         Token payload dict or None if invalid
     """
     try:
-        return jwt.decode(
+        payload: dict[str, Any] = jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
         )
+        return payload
     except JWTError:
         return None
 
 
-def verify_token(token: str, expected_type: str | None = None) -> dict | None:
+def verify_token(token: str, expected_type: str | None = None) -> dict[str, Any] | None:
     """
     Verify a token and optionally check its type.
 
@@ -343,17 +347,18 @@ class EncryptionService:
         decrypted = self._fernet.decrypt(encrypted_data.encode())
         return decrypted.decode()
 
-    def encrypt_dict(self, data: dict) -> str:
+    def encrypt_dict(self, data: dict[str, Any]) -> str:
         """Encrypt a dictionary as JSON."""
         import json
 
         return self.encrypt(json.dumps(data))
 
-    def decrypt_dict(self, encrypted_data: str) -> dict:
+    def decrypt_dict(self, encrypted_data: str) -> dict[str, Any]:
         """Decrypt to a dictionary."""
         import json
 
-        return json.loads(self.decrypt(encrypted_data))
+        result: dict[str, Any] = json.loads(self.decrypt(encrypted_data))
+        return result
 
 
 # Global encryption service instance

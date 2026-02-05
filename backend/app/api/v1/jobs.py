@@ -7,7 +7,7 @@ Provides REST API for tracking async job status and results.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -47,8 +47,8 @@ class JobResponse(BaseModel):
     progress: int = Field(description="Progress percentage (0-100)")
     progress_message: str | None = Field(description="Current progress message")
 
-    input_params: dict = Field(description="Input parameters")
-    result: dict | None = Field(description="Result data (when complete)")
+    input_params: dict[str, Any] = Field(description="Input parameters")
+    result: dict[str, Any] | None = Field(description="Result data (when complete)")
     error_message: str | None = Field(description="Error message (when failed)")
 
     created_at: datetime = Field(description="When job was created")
@@ -351,7 +351,7 @@ async def retry_job(
 async def get_job_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """
     Get job statistics for the current user.
     """
@@ -404,7 +404,7 @@ class SavedDesignResponse(BaseModel):
     name: str = Field(description="Design name")
     status: str = Field(description="Design status")
     thumbnail_url: str | None = Field(description="Thumbnail URL if available")
-    file_urls: dict = Field(description="URLs for CAD files by format")
+    file_urls: dict[str, Any] = Field(description="URLs for CAD files by format")
     message: str = Field(description="Success message")
 
 

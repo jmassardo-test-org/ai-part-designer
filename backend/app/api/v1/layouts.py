@@ -7,7 +7,7 @@ API endpoints for managing component spatial arrangements.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -156,7 +156,7 @@ class ValidationResult(BaseModel):
     valid: bool
     errors: list[str] = []
     warnings: list[str] = []
-    collisions: list[dict] = []
+    collisions: list[dict[str, Any]] = []
 
 
 class AutoLayoutRequest(BaseModel):
@@ -171,7 +171,7 @@ class AutoLayoutResponse(BaseModel):
     """Response from auto-layout."""
 
     placements: list[PlacementResponse]
-    suggested_dimensions: dict
+    suggested_dimensions: dict[str, Any]
 
 
 # =============================================================================

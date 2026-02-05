@@ -11,7 +11,7 @@ import mimetypes
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import BinaryIO
+from typing import Any, BinaryIO
 from uuid import UUID
 
 import aioboto3
@@ -40,7 +40,7 @@ class StorageClient:
     across different cloud providers.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._session = aioboto3.Session()
         self._config = {
             "endpoint_url": settings.storage_endpoint,
@@ -54,7 +54,7 @@ class StorageClient:
         """Get full bucket name with environment prefix."""
         return f"{self._bucket_prefix}-{bucket.value}"
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         """Get async S3 client context manager."""
         return self._session.client("s3", **self._config)
 
@@ -69,7 +69,7 @@ class StorageClient:
         file: BinaryIO | bytes,
         *,
         content_type: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Upload a file to storage.
@@ -126,7 +126,8 @@ class StorageClient:
 
         async with self._get_client() as client:
             response = await client.get_object(Bucket=bucket_name, Key=key)
-            return await response["Body"].read()
+            body_bytes: bytes = await response["Body"].read()
+            return body_bytes
 
     async def delete_file(
         self,
@@ -170,20 +171,21 @@ class StorageClient:
         self,
         bucket: StorageBucket,
         key: str,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Get file metadata."""
         bucket_name = self._get_bucket_name(bucket)
 
         try:
             async with self._get_client() as client:
                 response = await client.head_object(Bucket=bucket_name, Key=key)
-            return {
+            result: dict[str, Any] = {
                 "size": response["ContentLength"],
                 "content_type": response.get("ContentType"),
                 "last_modified": response["LastModified"],
                 "etag": response["ETag"],
                 "metadata": response.get("Metadata", {}),
             }
+            return result
         except ClientError:
             return None
 
@@ -198,7 +200,7 @@ class StorageClient:
         *,
         expires_in: int = 3600,
         content_type: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Generate a presigned URL for direct upload.
 
@@ -215,13 +217,14 @@ class StorageClient:
             fields["Content-Type"] = content_type
 
         async with self._get_client() as client:
-            return await client.generate_presigned_post(
+            result: dict[str, Any] = await client.generate_presigned_post(
                 Bucket=bucket_name,
                 Key=key,
                 Fields=fields,
                 Conditions=conditions,
                 ExpiresIn=expires_in,
             )
+            return result
 
     async def generate_presigned_download_url(
         self,
@@ -254,11 +257,12 @@ class StorageClient:
             params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
 
         async with self._get_client() as client:
-            return await client.generate_presigned_url(
+            url: str = await client.generate_presigned_url(
                 "get_object",
                 Params=params,
                 ExpiresIn=expires_in,
             )
+            return url
 
     # =========================================================================
     # Listing and Batch Operations
@@ -270,7 +274,7 @@ class StorageClient:
         prefix: str = "",
         *,
         max_keys: int = 1000,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """List files in a bucket with optional prefix."""
         bucket_name = self._get_bucket_name(bucket)
 

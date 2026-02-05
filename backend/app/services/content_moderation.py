@@ -13,6 +13,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
 from app.core.config import settings
@@ -259,7 +260,7 @@ class ModerationResult:
     id: UUID = field(default_factory=uuid4)
     decision: ModerationDecision = ModerationDecision.ALLOW
     flags: list[ModerationFlag] = field(default_factory=list)
-    ai_analysis: dict | None = None
+    ai_analysis: dict[str, Any] | None = None
     prompt_analyzed: str = ""
     is_allowlisted: bool = False
     allowlist_reason: str = ""
@@ -351,7 +352,7 @@ class ContentModerationService:
     4. Prompt injection attacks
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         if settings.ANTHROPIC_API_KEY:
             from anthropic import AsyncAnthropic
 
@@ -360,7 +361,7 @@ class ContentModerationService:
             self.client = None
         self._compile_patterns()
 
-    def _compile_patterns(self):
+    def _compile_patterns(self) -> None:
         """Pre-compile regex patterns for performance."""
         self.zero_tolerance_regex = [re.compile(p, re.IGNORECASE) for p in ZERO_TOLERANCE_PATTERNS]
         self.high_risk_regex = [re.compile(p, re.IGNORECASE) for p in HIGH_RISK_PATTERNS]
@@ -632,7 +633,7 @@ class ContentModerationService:
 
         return ProhibitedCategory.WEAPON
 
-    async def _ai_analyze(self, prompt: str) -> dict | None:
+    async def _ai_analyze(self, prompt: str) -> dict[str, Any] | None:
         """Use AI to analyze prompt context."""
         if not self.client:
             return None
@@ -659,7 +660,7 @@ class ContentModerationService:
             # Find JSON in response
             json_match = re.search(r"\{.*\}", content, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group())
+                return json.loads(json_match.group())  # type: ignore[no-any-return]
 
         except Exception as e:
             print(f"AI moderation error: {e}")
@@ -779,4 +780,4 @@ class ContentModerationService:
 # Singleton Instance
 # =============================================================================
 
-content_moderation = ContentModerationService()
+content_moderation: ContentModerationService = ContentModerationService()

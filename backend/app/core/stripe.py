@@ -21,7 +21,7 @@ class StripeClient:
     Provides typed methods for common Stripe operations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize Stripe client with configuration."""
         if not stripe.api_key:
             raise ValueError("STRIPE_SECRET_KEY is not configured")
@@ -39,7 +39,7 @@ class StripeClient:
         self,
         email: str,
         name: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> stripe.Customer:
         """
         Create a new Stripe customer.
@@ -67,7 +67,7 @@ class StripeClient:
         customer_id: str,
         email: str | None = None,
         name: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> stripe.Customer:
         """Update a Stripe customer's details."""
         update_data = {}
@@ -167,7 +167,7 @@ class StripeClient:
         cancel_url: str,
         mode: str = "subscription",
         allow_promotion_codes: bool = True,
-        metadata: dict | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> stripe.checkout.Session:
         """
         Create a Stripe Checkout session.
@@ -234,9 +234,9 @@ class StripeClient:
         self,
         product_id: str | None = None,
         active: bool = True,
-    ) -> list:
+    ) -> list[stripe.Price]:
         """List prices, optionally filtered by product."""
-        params: dict = {"active": active}
+        params: dict[str, str | bool] = {"active": active}
         if product_id:
             params["product"] = product_id
 
@@ -255,7 +255,7 @@ class StripeClient:
         payload: bytes,
         signature: str,
         webhook_secret: str | None = None,
-    ) -> stripe.Event:
+    ) -> Any:  # Stripe doesn't have proper type stubs
         """
         Construct and verify a webhook event.
 
@@ -274,7 +274,8 @@ class StripeClient:
         if not secret:
             raise ValueError("STRIPE_WEBHOOK_SECRET is not configured")
 
-        return stripe.Webhook.construct_event(
+        # Type ignore because stripe stubs don't have proper typing for construct_event
+        return stripe.Webhook.construct_event(  # type: ignore[no-untyped-call]
             payload=payload,
             sig_header=signature,
             secret=secret,

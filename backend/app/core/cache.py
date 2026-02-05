@@ -34,7 +34,7 @@ class RedisClient:
 
     def __init__(self, url: str | None = None):
         self.url = url or settings.REDIS_URL
-        self._client: redis.Redis | None = None
+        self._client: Any = None  # Redis client without generic type
 
     async def connect(self) -> None:
         """Initialize Redis connection pool."""
@@ -51,7 +51,7 @@ class RedisClient:
             self._client = None
 
     @property
-    def client(self) -> redis.Redis:
+    def client(self) -> Any:  # Redis client without generic type
         """Get the Redis client, ensuring connection."""
         if not self._client:
             raise RuntimeError("Redis client not connected. Call connect() first.")
@@ -125,7 +125,7 @@ class RedisClient:
         key_prefix: str,
         ttl: int | timedelta = 300,
         key_builder: Callable[..., str] | None = None,
-    ):
+    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
         """
         Decorator for caching function results.
 
@@ -142,7 +142,7 @@ class RedisClient:
 
         def decorator(func: Callable[..., T]) -> Callable[..., T]:
             @wraps(func)
-            async def wrapper(*args, **kwargs) -> T:
+            async def wrapper(*args: Any, **kwargs: Any) -> T:
                 # Build cache key
                 if key_builder:
                     cache_key = f"{key_prefix}:{key_builder(*args, **kwargs)}"
@@ -156,10 +156,11 @@ class RedisClient:
                 # Try cache
                 cached_value = await self.get_json(cache_key)
                 if cached_value is not None:
-                    return cached_value
+                    result_from_cache: T = cached_value
+                    return result_from_cache
 
                 # Execute function
-                result = await func(*args, **kwargs)
+                result: T = await func(*args, **kwargs)
 
                 # Cache result
                 if result is not None:
@@ -219,7 +220,7 @@ class RedisClient:
         self,
         key: str,
         max_requests: int,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Get current rate limit status."""
         current = await self.get(key)
         ttl = await self.ttl(key)
@@ -271,7 +272,7 @@ class RedisClient:
             message = json.dumps(message, default=str)
         return await self.client.publish(channel, message)
 
-    def pubsub(self):
+    def pubsub(self) -> Any:
         """Get a pub/sub client."""
         return self.client.pubsub()
 
@@ -299,7 +300,7 @@ class RedisClient:
         """Set a hash field."""
         return await self.client.hset(name, key, value)
 
-    async def hgetall(self, name: str) -> dict:
+    async def hgetall(self, name: str) -> dict[str, Any]:
         """Get all hash fields."""
         return await self.client.hgetall(name)
 
@@ -317,7 +318,8 @@ class RedisClient:
 
     async def rpop(self, key: str) -> str | None:
         """Pop from the right of a list."""
-        return await self.client.rpop(key)
+        result: str | None = await self.client.rpop(key)
+        return result
 
     async def llen(self, key: str) -> int:
         """Get list length."""

@@ -6,7 +6,7 @@ Tracks all payment transactions for audit and billing purposes.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -176,7 +176,7 @@ class PaymentHistory(Base, TimestampMixin):
     )
 
     # Extra data (renamed from 'metadata' which is reserved by SQLAlchemy)
-    extra_data: Mapped[dict] = mapped_column(
+    extra_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,

@@ -12,17 +12,17 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     bind=True,
     name="app.worker.tasks.export.convert_format",
     max_retries=3,
 )
 def convert_format(
-    self,
+    self: Any,
     job_id: str,
     source_url: str,
     target_format: str,
-) -> dict:
+) -> dict[str, Any]:
     """
     Convert CAD model to different format.
 
@@ -41,7 +41,7 @@ def convert_format(
     from app.core.database import async_session_maker
     from app.repositories import JobRepository
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             job_repo = JobRepository(session)
 
@@ -136,14 +136,14 @@ def convert_format(
         raise self.retry(exc=e)
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.export.batch_export",
 )
 def batch_export(
     design_ids: list[str],
     formats: list[str],
     user_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """
     Export multiple designs in multiple formats.
 
@@ -170,13 +170,13 @@ def batch_export(
     }
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.export.generate_print_file",
 )
 def generate_print_file(
     design_id: str,
     printer_settings: dict[str, Any],
-) -> dict:
+) -> dict[str, Any]:
     """
     Generate printer-ready file with specific settings.
 

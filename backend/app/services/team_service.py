@@ -6,6 +6,7 @@ member management, and project assignments.
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -448,7 +449,7 @@ class TeamService:
     async def get_user_teams(
         self,
         user_id: UUID,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get all teams a user belongs to.
 
         Args:

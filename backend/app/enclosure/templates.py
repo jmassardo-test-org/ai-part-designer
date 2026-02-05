@@ -4,6 +4,8 @@ Enclosure Style Templates
 Pre-defined enclosure style templates for common use cases.
 """
 
+from typing import Any
+
 from app.enclosure.schemas import (
     EnclosureStyle,
     EnclosureStyleType,
@@ -217,7 +219,7 @@ def get_style_description(
     return descriptions.get(style_type, "Unknown style")
 
 
-def list_available_styles() -> list[dict]:
+def list_available_styles() -> list[dict[str, Any]]:
     """
     List all available style templates with descriptions.
 

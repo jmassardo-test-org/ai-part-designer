@@ -65,7 +65,7 @@ class ContentFlag:
     severity: FlagSeverity = FlagSeverity.LOW
     confidence: float = 0.0  # 0.0 to 1.0
     reason: str = ""
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     rule_id: str | None = None
 
 
@@ -309,7 +309,7 @@ class ContentModerator:
 
         return flags
 
-    def check_metadata(self, metadata: dict) -> list[ContentFlag]:
+    def check_metadata(self, metadata: dict[str, Any]) -> list[ContentFlag]:
         """Check file metadata for suspicious content."""
         flags = []
 
@@ -404,7 +404,7 @@ class ContentModerator:
         except Exception:
             return hashlib.sha256(str(uuid4()).encode()).hexdigest()[:16]
 
-    def _extract_geometry_features(self, shape: Part) -> dict:
+    def _extract_geometry_features(self, shape: Part) -> dict[str, Any]:
         """Extract geometry features for signature matching."""
         features = {}
 
@@ -502,7 +502,7 @@ class ContentModerator:
         self._known_bad_hashes.add(geometry_hash)
         # In production, persist to database
 
-    async def get_moderation_stats(self) -> dict:
+    async def get_moderation_stats(self) -> dict[str, Any]:
         """Get moderation statistics."""
         # Would query database for stats
         return {

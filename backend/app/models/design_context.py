@@ -7,7 +7,7 @@ Tracks conversation history and parameters for iterative design refinement.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -48,7 +48,7 @@ class DesignContext(Base):
 
     # Conversation history - list of messages
     # [{"role": "user", "content": "...", "timestamp": "..."}, ...]
-    messages: Mapped[list] = mapped_column(
+    messages: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=False,
         default=list,
@@ -56,7 +56,7 @@ class DesignContext(Base):
 
     # Current parameters - flattened parameter state
     # {"length": 100, "width": 50, "height": 30, ...}
-    parameters: Mapped[dict] = mapped_column(
+    parameters: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -64,7 +64,7 @@ class DesignContext(Base):
 
     # Parameter history - track changes over iterations
     # [{"version": 1, "parameters": {...}, "instruction": "..."}, ...]
-    parameter_history: Mapped[list] = mapped_column(
+    parameter_history: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=False,
         default=list,
@@ -84,7 +84,7 @@ class DesignContext(Base):
     )
 
     # AI model context (for advanced use)
-    ai_context: Mapped[dict | None] = mapped_column(
+    ai_context: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Cached AI embeddings or context for faster inference",
@@ -122,7 +122,7 @@ class DesignContext(Base):
         self.messages = [*self.messages, message]
         self.last_instruction = content
 
-    def add_assistant_message(self, content: str, parameters: dict | None = None) -> None:
+    def add_assistant_message(self, content: str, parameters: dict[str, Any] | None = None) -> None:
         """Add an assistant message to the conversation."""
         message = {
             "role": "assistant",
@@ -142,7 +142,7 @@ class DesignContext(Base):
         }
         self.messages = [*self.messages, message]
 
-    def increment_iteration(self, instruction: str, new_parameters: dict) -> None:
+    def increment_iteration(self, instruction: str, new_parameters: dict[str, Any]) -> None:
         """Record a new iteration with parameter changes."""
         self.iteration_count += 1
 
@@ -159,7 +159,7 @@ class DesignContext(Base):
         self.parameters = new_parameters.copy()
         self.last_instruction = instruction
 
-    def get_conversation_for_ai(self) -> list[dict]:
+    def get_conversation_for_ai(self) -> list[dict[str, Any]]:
         """
         Get conversation formatted for AI API.
 
@@ -206,7 +206,7 @@ When the user asks to modify the design:
 
 Be concise and specific about what changes you'll make."""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "id": str(self.id),
@@ -272,11 +272,11 @@ class DesignRefinementJob(Base):
     )
 
     # Parameter changes
-    old_parameters: Mapped[dict | None] = mapped_column(
+    old_parameters: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
     )
-    new_parameters: Mapped[dict | None] = mapped_column(
+    new_parameters: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
     )
@@ -316,7 +316,7 @@ class DesignRefinementJob(Base):
         self.status = "processing"
         self.started_at = datetime.now(tz=datetime.UTC)
 
-    def complete(self, version_id: UUID, new_params: dict, ai_response: str) -> None:
+    def complete(self, version_id: UUID, new_params: dict[str, Any], ai_response: str) -> None:
         """Mark job as completed."""
         self.status = "completed"
         self.completed_at = datetime.now(tz=datetime.UTC)
@@ -330,7 +330,7 @@ class DesignRefinementJob(Base):
         self.completed_at = datetime.now(tz=datetime.UTC)
         self.error_message = error
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "id": str(self.id),

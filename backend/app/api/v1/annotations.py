@@ -4,6 +4,8 @@ Design Annotations API endpoints.
 Provides CRUD operations for 3D annotations on designs.
 """
 
+from typing import Any
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -72,10 +74,10 @@ class AnnotationResponse(BaseModel):
     design_id: UUID
     user_id: UUID
     parent_id: UUID | None
-    position: dict
-    normal: dict | None
-    camera_position: dict | None
-    camera_target: dict | None
+    position: dict[str, Any]
+    normal: dict[str, Any] | None
+    camera_position: dict[str, Any] | None
+    camera_target: dict[str, Any] | None
     content: str
     annotation_type: str
     status: str
@@ -191,7 +193,7 @@ async def create_annotation(
     data: AnnotationCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> AnnotationResponse:
     """Create a new annotation on a design."""
     await get_design_or_404(design_id, db, current_user)
 
@@ -243,7 +245,7 @@ async def list_annotations(
     include_replies: bool = True,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> AnnotationListResponse:
     """List annotations for a design."""
     await get_design_or_404(design_id, db, current_user)
 
@@ -293,7 +295,7 @@ async def get_annotation(
     annotation_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> AnnotationResponse:
     """Get a specific annotation."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
@@ -314,7 +316,7 @@ async def update_annotation(
     data: AnnotationUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> AnnotationResponse:
     """Update an annotation. Only the author can update."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
@@ -354,7 +356,7 @@ async def delete_annotation(
     annotation_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> None:
     """Delete an annotation. Only the author can delete."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
@@ -383,7 +385,7 @@ async def resolve_annotation(
     data: AnnotationResolve,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> AnnotationResponse:
     """Resolve an annotation."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
@@ -413,7 +415,7 @@ async def reopen_annotation(
     annotation_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> AnnotationResponse:
     """Reopen a resolved annotation."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)
@@ -444,7 +446,7 @@ async def get_annotation_replies(
     annotation_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> list[AnnotationResponse]:
     """Get replies to an annotation."""
     await get_design_or_404(design_id, db, current_user)
     annotation = await get_annotation_or_404(annotation_id, db)

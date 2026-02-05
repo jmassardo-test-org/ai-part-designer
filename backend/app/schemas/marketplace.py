@@ -5,7 +5,7 @@ Includes schemas for design browsing, user lists, and saving/bookmarking designs
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -264,7 +264,7 @@ class StarterDesignResponse(BaseModel):
     tags: list[str]
     remix_count: int
     # For preview
-    exterior_dimensions: dict | None = None
+    exterior_dimensions: dict[str, Any] | None = None
     features: list[str] = []
     created_at: datetime
 
@@ -273,7 +273,7 @@ class StarterDetailResponse(StarterDesignResponse):
     """Detailed starter with full spec for remixing."""
 
     # The EnclosureSpec for editing
-    enclosure_spec: dict | None = None
+    enclosure_spec: dict[str, Any] | None = None
     # Author attribution
     author_id: UUID
     author_name: str
@@ -302,7 +302,7 @@ class RemixResponse(BaseModel):
     name: str
     remixed_from_id: UUID
     remixed_from_name: str
-    enclosure_spec: dict
+    enclosure_spec: dict[str, Any]
     created_at: datetime
 
 

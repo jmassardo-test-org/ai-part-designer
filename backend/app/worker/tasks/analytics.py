@@ -1,19 +1,18 @@
-"""
-Analytics and event processing tasks.
-"""
+from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.analytics.process_pending_events",
 )
-def process_pending_events() -> dict:
+def process_pending_events() -> dict[str, Any]:
     """
     Process pending analytics events from Redis queue.
 
@@ -24,7 +23,7 @@ def process_pending_events() -> dict:
 
     from app.core.events import event_tracker
 
-    async def run():
+    async def run() -> dict[str, Any]:
         events = await event_tracker.consume_batch(batch_size=500)
 
         if not events:
@@ -51,10 +50,10 @@ def process_pending_events() -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.analytics.generate_daily_report",
 )
-def generate_daily_report(date: str | None = None) -> dict:
+def generate_daily_report(date: str | None = None) -> dict[str, Any]:
     """
     Generate daily analytics report.
 
@@ -75,7 +74,7 @@ def generate_daily_report(date: str | None = None) -> dict:
     start = datetime.combine(report_date, datetime.min.time())
     end = datetime.combine(report_date, datetime.max.time())
 
-    async def run():
+    async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
             # New users
             new_users = await session.execute(
@@ -120,10 +119,10 @@ def generate_daily_report(date: str | None = None) -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.analytics.calculate_user_metrics",
 )
-def calculate_user_metrics(user_id: str) -> dict:
+def calculate_user_metrics(user_id: str) -> dict[str, Any]:
     """
     Calculate metrics for a specific user.
 
@@ -139,7 +138,7 @@ def calculate_user_metrics(user_id: str) -> dict:
         ProjectRepository,
     )
 
-    async def run():
+    async def run() -> dict[str, Any]:
         user_uuid = UUID(user_id)
 
         async with async_session_maker() as session:
@@ -165,14 +164,14 @@ def calculate_user_metrics(user_id: str) -> dict:
     return asyncio.run(run())
 
 
-@shared_task(
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.analytics.export_to_warehouse",
 )
 def export_to_warehouse(
     table: str,
     start_date: str,
     end_date: str,
-) -> dict:
+) -> dict[str, Any]:
     """
     Export data to data warehouse for analytics.
 
@@ -182,7 +181,7 @@ def export_to_warehouse(
 
     from app.core.backup import data_exporter
 
-    async def run():
+    async def run() -> dict[str, Any]:
         start = datetime.fromisoformat(start_date)
         end = datetime.fromisoformat(end_date)
 

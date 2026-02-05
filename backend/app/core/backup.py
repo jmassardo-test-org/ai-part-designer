@@ -59,7 +59,7 @@ class DatabaseBackup:
         *,
         compress: bool = True,
         upload_to_storage: bool = True,
-    ) -> dict:
+    ) -> dict[str, str | int | bool | None]:
         """
         Create a database backup.
 
@@ -260,7 +260,7 @@ class DatabaseBackup:
         logger.info(f"Cleaned up {removed_count} old backups")
         return removed_count
 
-    async def list_backups(self) -> list[dict]:
+    async def list_backups(self) -> list[dict[str, str]]:
         """List available backups from storage."""
         backups = await storage_client.list_files(
             StorageBucket.TEMP,

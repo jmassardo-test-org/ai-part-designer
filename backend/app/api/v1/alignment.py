@@ -4,6 +4,7 @@ Alignment API endpoints.
 Provides endpoints for aligning and combining CAD files.
 """
 
+from typing import Any
 from enum import StrEnum
 from uuid import UUID
 
@@ -118,7 +119,7 @@ class AlignmentPreviewResponse(BaseModel):
 # ============================================================================
 
 
-def bbox_to_response(bbox) -> BoundingBoxResponse:
+def bbox_to_response(bbox: Any) -> BoundingBoxResponse:
     """Convert internal BoundingBox to API response."""
     return BoundingBoxResponse(
         x_min=bbox.x_min,
@@ -142,7 +143,7 @@ async def preview_alignment(
     request: AlignmentRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> AlignmentPreviewResponse:
     """
     Preview alignment transformations without saving.
 
@@ -219,7 +220,7 @@ async def align_files(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> AlignmentResponse:
     """
     Align multiple CAD files and generate combined preview.
 
@@ -262,7 +263,7 @@ async def align_files(
 
 
 @router.get("/modes")
-async def get_alignment_modes():
+async def get_alignment_modes() -> dict[str, Any]:
     """
     Get available alignment modes with descriptions.
     """
@@ -315,7 +316,7 @@ async def apply_alignment(
     assembly_description: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """
     Apply alignment and save as a new assembly.
     """

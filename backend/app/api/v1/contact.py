@@ -4,6 +4,8 @@ Contact Form API Endpoints.
 Handles contact form submissions from the public website.
 """
 
+from typing import Any
+
 import logging
 from datetime import datetime
 
@@ -212,7 +214,7 @@ async def submit_contact_form(
     summary="Get contact information",
     description="Get public contact information for the company.",
 )
-async def get_contact_info() -> dict:
+async def get_contact_info() -> dict[str, Any]:
     """
     Get public contact information.
 

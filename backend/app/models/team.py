@@ -7,7 +7,7 @@ organization and access control within an organization.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -86,7 +86,7 @@ class Team(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Team settings (JSONB for flexibility)
-    settings: Mapped[dict] = mapped_column(
+    settings: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
@@ -146,7 +146,8 @@ class Team(Base, TimestampMixin, SoftDeleteMixin):
     @property
     def member_count(self) -> int:
         """Count of active team members."""
-        return self.members.filter(TeamMember.is_active).count()
+        count: int = self.members.filter(TeamMember.is_active).count()
+        return count
 
     @property
     def color(self) -> str | None:

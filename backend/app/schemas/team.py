@@ -6,6 +6,7 @@ Defines request/response models for team management API endpoints.
 
 import re
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -39,7 +40,7 @@ class TeamCreate(TeamBase):
         description="URL-friendly team identifier (auto-generated if not provided)",
         examples=["engineering", "design-team"],
     )
-    settings: dict | None = Field(
+    settings: dict[str, Any] | None = Field(
         default_factory=dict,
         description="Team settings (color, icon, etc.)",
         examples=[{"color": "#3B82F6", "icon": "code"}],
@@ -47,7 +48,7 @@ class TeamCreate(TeamBase):
 
     @field_validator("slug", mode="before")
     @classmethod
-    def generate_slug(cls, v: str | None, info) -> str:
+    def generate_slug(cls, v: str | None, info: Any) -> str:
         """Generate slug from name if not provided."""
         if v:
             return v.lower().strip()
@@ -74,7 +75,7 @@ class TeamUpdate(BaseModel):
         max_length=500,
         description="Team description",
     )
-    settings: dict | None = Field(
+    settings: dict[str, Any] | None = Field(
         None,
         description="Team settings (merged with existing)",
     )
@@ -104,7 +105,7 @@ class TeamResponse(TeamBase):
     id: UUID
     organization_id: UUID
     slug: str
-    settings: dict
+    settings: dict[str, Any]
     is_active: bool
     created_by_id: UUID | None
     created_at: datetime

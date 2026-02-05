@@ -13,6 +13,7 @@ import json
 import logging
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -132,7 +133,7 @@ class SecurityAuditService:
         user_id: UUID | None = None,
         resource_type: str | None = None,
         resource_id: UUID | None = None,
-        details: dict | None = None,
+        details: dict[str, Any] | None = None,
         client_ip: str | None = None,
         user_agent: str | None = None,
         request_id: str | None = None,
@@ -186,7 +187,7 @@ class SecurityAuditService:
         # Trigger threat detection
         await self._analyze_event(event_data)
 
-    async def _store_event(self, event_data: dict) -> None:
+    async def _store_event(self, event_data: dict[str, Any]) -> None:
         """Store event in Redis for real-time analysis."""
         event_key = f"security:events:{datetime.now(tz=datetime.UTC).strftime('%Y%m%d%H')}"
         await redis_client.lpush(event_key, json.dumps(event_data))
@@ -198,7 +199,7 @@ class SecurityAuditService:
             window_seconds=3600,
         )
 
-    async def _persist_event(self, event_data: dict) -> None:
+    async def _persist_event(self, event_data: dict[str, Any]) -> None:
         """Persist event to database audit log."""
         audit_entry = AuditLog(
             action=event_data["event_type"],
@@ -213,7 +214,7 @@ class SecurityAuditService:
         self.db.add(audit_entry)
         await self.db.flush()
 
-    async def _analyze_event(self, event_data: dict) -> None:
+    async def _analyze_event(self, event_data: dict[str, Any]) -> None:
         """Analyze event for threat patterns."""
         event_type = event_data["event_type"]
         client_ip = event_data.get("client_ip")
@@ -384,7 +385,7 @@ class SecurityAuditService:
     async def get_security_metrics(
         self,
         hours: int = 24,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Get security metrics for monitoring.
 
@@ -409,7 +410,7 @@ class SecurityAuditService:
         self,
         user_id: UUID,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get recent security events for a user."""
         if not self.db:
             return []

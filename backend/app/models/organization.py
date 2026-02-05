@@ -8,7 +8,7 @@ roles, and invitations.
 import secrets
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -90,7 +90,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Settings (JSONB for flexibility)
-    settings: Mapped[dict] = mapped_column(
+    settings: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {
@@ -122,17 +122,20 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     @property
     def subscription_tier(self) -> str:
         """Get subscription tier from settings."""
-        return self.settings.get("subscription_tier", "free")
+        result: str = self.settings.get("subscription_tier", "free")
+        return result
 
     @property
     def max_members(self) -> int:
         """Get max members from settings."""
-        return self.settings.get("max_members", 5)
+        result: int = self.settings.get("max_members", 5)
+        return result
 
     @property
     def max_projects(self) -> int:
         """Get max projects from settings."""
-        return self.settings.get("max_projects", 10)
+        result: int = self.settings.get("max_projects", 10)
+        return result
 
     # Stripe customer ID - stored in settings JSONB since column doesn't exist
     @property
@@ -512,7 +515,7 @@ class OrganizationAuditLog(Base, TimestampMixin):
     )
 
     # Details
-    details: Mapped[dict] = mapped_column(
+    details: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,

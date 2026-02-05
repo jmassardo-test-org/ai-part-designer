@@ -252,7 +252,7 @@ def export_to_file(
     path: str | Path,
     *,
     quality: ExportQuality | str = ExportQuality.STANDARD,
-    **kwargs,
+    **kwargs: Any,
 ) -> Path:
     """
     Export shape to file, inferring format from extension.
@@ -303,7 +303,7 @@ def export_to_format(
     format: ExportFormat | str,
     *,
     quality: ExportQuality | str = ExportQuality.STANDARD,
-    **kwargs,
+    **kwargs: Any,
 ) -> bytes:
     """
     Export shape to a specific format.
@@ -333,7 +333,7 @@ def export_to_format(
     )
 
 
-def get_mesh_stats(shape: ShapeType, quality: ExportQuality | str = ExportQuality.STANDARD) -> dict:
+def get_mesh_stats(shape: ShapeType, quality: ExportQuality | str = ExportQuality.STANDARD) -> dict[str, Any]:
     """
     Get tessellation statistics for a shape.
 
@@ -404,7 +404,7 @@ def export_model(
     *,
     format: str | None = None,
     quality: ExportQuality | str = ExportQuality.STANDARD,
-    **kwargs,
+    **kwargs: Any,
 ) -> Path:
     """
     Export CAD model to file with specified format.

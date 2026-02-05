@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import secrets
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
@@ -198,7 +198,7 @@ async def oauth_authorize(
         request.session["oauth_redirect"] = redirect_uri
 
     # Redirect to OAuth provider
-    return await client.authorize_redirect(request, callback_url)
+    return cast(RedirectResponse, await client.authorize_redirect(request, callback_url))
 
 
 # =============================================================================

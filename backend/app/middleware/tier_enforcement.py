@@ -5,23 +5,28 @@ Provides decorators and functions to enforce subscription tier limits
 and feature access throughout the application.
 """
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.subscription import TierSlug
-from app.models.user import User
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
 
 # Type variable for decorator
-F = TypeVar("F", bound=Callable)
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 # =============================
@@ -86,7 +91,7 @@ TIER_LIMITS = {
 }
 
 
-def get_tier_limits(tier: str) -> dict:
+def get_tier_limits(tier: str) -> dict[str, Any]:
     """Get limits for a tier."""
     try:
         tier_enum = TierSlug(tier)
@@ -157,7 +162,7 @@ class TierRequired:
             )
 
 
-def require_tier(minimum_tier: str):
+def require_tier(minimum_tier: str) -> Callable[[F], F]:
     """
     Decorator to require a minimum subscription tier.
 
@@ -169,7 +174,7 @@ def require_tier(minimum_tier: str):
 
     def decorator(func: F) -> F:
         @wraps(func)
-        async def wrapper(*args, user: User | None = None, **kwargs):
+        async def wrapper(*args: Any, user: User | None = None, **kwargs: Any) -> Any:
             if user is None:
                 # Try to get user from kwargs
                 user = kwargs.get("current_user")
@@ -186,7 +191,7 @@ def require_tier(minimum_tier: str):
 
             return await func(*args, user=user, **kwargs)
 
-        return wrapper  # type: ignore
+        return wrapper
 
     return decorator
 
@@ -209,8 +214,8 @@ def has_feature(user: User, feature_name: str) -> bool:
     """
     tier = get_user_tier(user)
     limits = get_tier_limits(tier)
-    features = limits.get("features", {})
-    return features.get(feature_name, False)
+    features: dict[str, Any] = limits.get("features", {})
+    return bool(features.get(feature_name, False))
 
 
 class FeatureRequired:
@@ -251,7 +256,7 @@ class FeatureRequired:
 async def check_generation_quota(
     user: User,
     db: AsyncSession,
-) -> dict:
+) -> dict[str, Any]:
     """
     Check if user has remaining generation quota.
 
@@ -300,7 +305,7 @@ async def check_storage_quota(
     user: User,
     additional_bytes: int,
     db: AsyncSession,
-) -> dict:
+) -> dict[str, Any]:
     """
     Check if user has storage space for additional data.
 
@@ -350,7 +355,7 @@ async def check_storage_quota(
 async def check_project_limit(
     user: User,
     db: AsyncSession,
-) -> dict:
+) -> dict[str, Any]:
     """
     Check if user can create another project.
 
@@ -404,7 +409,7 @@ async def check_project_limit(
 async def check_file_size_limit(
     user: User,
     file_size_mb: float,
-) -> dict:
+) -> dict[str, Any]:
     """
     Check if file size is within tier limits.
 

@@ -165,7 +165,7 @@ def _create_base_profile(width: float, depth: float) -> Part:
     return result
 
 
-@register_template("gridfinity-baseplate")
+@register_template("gridfinity-baseplate")  # type: ignore[untyped-decorator]
 def generate_gridfinity_baseplate(
     grid_x: int = 3,
     grid_y: int = 2,
@@ -260,7 +260,7 @@ def generate_gridfinity_baseplate(
 # =============================================================================
 
 
-@register_template("gridfinity-bin")
+@register_template("gridfinity-bin")  # type: ignore[untyped-decorator]
 def generate_gridfinity_bin(
     grid_x: int = 1,
     grid_y: int = 1,
@@ -434,7 +434,7 @@ def generate_gridfinity_bin(
 # =============================================================================
 
 
-@register_template("gridfinity-divider")
+@register_template("gridfinity-divider")  # type: ignore[untyped-decorator]
 def generate_gridfinity_divider(
     grid_x: int = 1,
     grid_y: int = 1,
@@ -463,7 +463,7 @@ def generate_gridfinity_divider(
         Build123d Part with the divider
     """
     # Start with a base bin that has the appropriate dividers
-    return generate_gridfinity_bin(
+    return generate_gridfinity_bin(  # type: ignore[no-any-return]
         grid_x=grid_x,
         grid_y=grid_y,
         height_units=height_units,

@@ -4,6 +4,8 @@ Design Refinement API endpoints.
 Handles iterative design refinement with AI.
 """
 
+from typing import Any
+
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -40,8 +42,8 @@ class RefinePreviewResponse(BaseModel):
     """Preview of refinement changes."""
 
     ai_response: str
-    suggested_parameters: dict
-    current_parameters: dict
+    suggested_parameters: dict[str, Any]
+    current_parameters: dict[str, Any]
     changes_summary: list[str]
     estimated_time_seconds: int
 
@@ -54,8 +56,8 @@ class RefineResponse(BaseModel):
     message: str
     ai_response: str | None = None
     new_version_id: str | None = None
-    old_parameters: dict | None = None
-    new_parameters: dict | None = None
+    old_parameters: dict[str, Any] | None = None
+    new_parameters: dict[str, Any] | None = None
 
 
 class ConversationMessage(BaseModel):
@@ -64,7 +66,7 @@ class ConversationMessage(BaseModel):
     role: str
     content: str
     timestamp: str
-    parameters: dict | None = None
+    parameters: dict[str, Any] | None = None
 
 
 class DesignContextResponse(BaseModel):
@@ -73,7 +75,7 @@ class DesignContextResponse(BaseModel):
     id: str
     design_id: str
     messages: list[ConversationMessage]
-    parameters: dict
+    parameters: dict[str, Any]
     iteration_count: int
     last_instruction: str | None
     created_at: str
@@ -87,8 +89,8 @@ class RefineJobResponse(BaseModel):
     design_id: str
     instruction: str
     status: str
-    old_parameters: dict | None
-    new_parameters: dict | None
+    old_parameters: dict[str, Any] | None
+    new_parameters: dict[str, Any] | None
     ai_response: str | None
     result_version_id: str | None
     error_message: str | None
@@ -158,7 +160,7 @@ async def get_or_create_context(
 async def refine_design_ai(
     instruction: str,
     context: DesignContext,
-) -> tuple[str, dict]:
+) -> tuple[str, dict[str, Any]]:
     """
     Call AI to interpret instruction and return parameter changes.
 
@@ -210,7 +212,7 @@ async def get_design_context(
     design_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> DesignContextResponse:
     """Get the conversation context for a design."""
     design = await get_design_or_404(design_id, db, current_user)
     context = await get_or_create_context(design, db)
@@ -242,7 +244,7 @@ async def refine_design(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> RefineResponse:
     """
     Refine a design with a natural language instruction.
 
@@ -314,7 +316,7 @@ async def preview_refinement(
     request: RefineRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> RefinePreviewResponse:
     """
     Preview refinement changes without applying them.
     """
@@ -348,7 +350,7 @@ async def reset_context(
     design_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> None:
     """
     Reset the conversation context for a design.
 
@@ -370,7 +372,7 @@ async def list_refinement_jobs(
     design_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> list[RefineJobResponse]:
     """List refinement jobs for a design."""
     await get_design_or_404(design_id, db, current_user)
 
@@ -391,7 +393,7 @@ async def get_refinement_job(
     job_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> RefineJobResponse:
     """Get a specific refinement job."""
     await get_design_or_404(design_id, db, current_user)
 

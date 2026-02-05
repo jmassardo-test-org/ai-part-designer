@@ -9,7 +9,7 @@ import logging
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TypedDict
+from typing import Any, TypedDict
 from uuid import UUID
 
 from app.core.cache import redis_client
@@ -30,7 +30,7 @@ class UndoTokenData(TypedDict):
     operation: str
     created_at: str
     expires_at: str
-    metadata: dict
+    metadata: dict[str, Any]
 
 
 @dataclass
@@ -42,7 +42,7 @@ class UndoToken:
     user_id: UUID
     operation: str
     expires_at: datetime
-    metadata: dict
+    metadata: dict[str, Any]
 
 
 # =============================================================================
@@ -68,7 +68,7 @@ async def store_undo_token(
     user_id: UUID,
     operation: str = "delete",
     ttl_seconds: int = DEFAULT_TTL_SECONDS,
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> UndoToken:
     """
     Store an undo token in Redis with expiration.
@@ -204,7 +204,7 @@ async def store_undo_token_fallback(
     user_id: UUID,
     operation: str = "delete",
     ttl_seconds: int = DEFAULT_TTL_SECONDS,
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> UndoToken:
     """
     Fallback in-memory storage when Redis is unavailable.

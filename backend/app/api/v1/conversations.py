@@ -649,7 +649,7 @@ async def send_message(
 
                     # Build a result similar to generate_from_description
                     class ModificationResult:
-                        def __init__(self):
+                        def __init__(self) -> None:
                             self.job_id = job_id
                             self.step_path = step_path
                             self.stl_path = stl_path
@@ -660,7 +660,7 @@ async def send_message(
                             self.warnings = []
                             self.generated_code = code_result.code  # Store for future mods
 
-                        def get_stats(self):
+                        def get_stats(self) -> dict[str, Any]:
                             return {
                                 "job_id": self.job_id,
                                 "generation_time_ms": code_result.generation_time_ms,
@@ -704,7 +704,7 @@ async def send_message(
 
                     # Create a simple result object
                     class DirectResult:
-                        def __init__(self):
+                        def __init__(self) -> None:
                             self.job_id = job_id
                             self.step_path = step_path
                             self.stl_path = stl_path
@@ -717,7 +717,7 @@ async def send_message(
                             self.warnings = []
                             self.generated_code = direct_result.code
 
-                        def get_stats(self):
+                        def get_stats(self) -> dict[str, Any]:
                             return {
                                 "job_id": self.job_id,
                                 "generation_time_ms": direct_result.generation_time_ms,

@@ -11,6 +11,7 @@ import io
 import json
 import re
 from pathlib import Path
+from typing import Any, cast
 
 from pdf2image import convert_from_path
 from PIL import Image
@@ -136,12 +137,13 @@ Return as JSON:
 
 def pdf_to_images(pdf_path: Path, max_pages: int = MAX_PAGES_TO_ANALYZE) -> list[Image.Image]:
     """Convert PDF pages to images for GPT-4V analysis."""
-    return convert_from_path(
+    images = convert_from_path(
         pdf_path,
         first_page=1,
         last_page=max_pages,
         dpi=150,  # Good balance of quality and size
     )
+    return cast("list[Image.Image]", images)
 
 
 def resize_image(image: Image.Image, target_width: int = TARGET_IMAGE_WIDTH) -> Image.Image:
@@ -262,7 +264,7 @@ def parse_clearance_type(type_str: str) -> ClearanceType:
 class DatasheetParserService:
     """Service to extract mechanical specifications from PDF datasheets."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         if settings.ANTHROPIC_API_KEY:
             from anthropic import AsyncAnthropic
 
@@ -329,7 +331,7 @@ class DatasheetParserService:
             extraction_confidence=overall_confidence,
         )
 
-    async def _identify_component(self, image: Image.Image) -> dict:
+    async def _identify_component(self, image: Image.Image) -> dict[str, Any]:
         """Identify component manufacturer and model from first page."""
         resized = resize_image(image)
         image_b64 = image_to_base64(resized)
@@ -362,14 +364,15 @@ class DatasheetParserService:
             # Parse JSON from response
             json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group())
+                result = json.loads(json_match.group())
+                return cast("dict[str, Any]", result)
 
         except Exception as e:
             print(f"Error identifying component: {e}")
 
         return {}
 
-    async def _analyze_page(self, image: Image.Image, page_num: int) -> dict:
+    async def _analyze_page(self, image: Image.Image, page_num: int) -> dict[str, Any]:
         """Analyze a single page for mechanical specifications."""
         resized = resize_image(image)
         image_b64 = image_to_base64(resized)
@@ -404,14 +407,14 @@ class DatasheetParserService:
             if json_match:
                 result = json.loads(json_match.group())
                 result["page_number"] = page_num
-                return result
+                return cast("dict[str, Any]", result)
 
         except Exception as e:
             print(f"Error analyzing page {page_num}: {e}")
 
         return {"page_has_dimensions": False, "page_number": page_num}
 
-    def _merge_page_results(self, page_results: list[dict]) -> ComponentSpecifications:
+    def _merge_page_results(self, page_results: list[dict[Any, Any]]) -> ComponentSpecifications:
         """Merge extraction results from multiple pages."""
         # Find best dimensions (highest confidence)
         dimensions = None
@@ -545,4 +548,4 @@ class DatasheetParserService:
 # Singleton Instance
 # =============================================================================
 
-datasheet_parser = DatasheetParserService()
+datasheet_parser: DatasheetParserService = DatasheetParserService()

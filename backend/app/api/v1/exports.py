@@ -8,7 +8,7 @@ Provides endpoints for users to:
 """
 
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -62,7 +62,7 @@ class ExportListResponse(BaseModel):
 # =============================================================================
 
 # Simple in-memory store for demo - in production use database table
-_export_jobs: dict[str, dict] = {}
+_export_jobs: dict[str, dict[str, Any]] = {}
 
 
 # =============================================================================
@@ -73,7 +73,7 @@ _export_jobs: dict[str, dict] = {}
 async def process_export(
     export_id: str,
     user_id: str,
-):
+) -> None:
     """
     Background task to process data export.
 
@@ -148,7 +148,7 @@ async def request_data_export(
     background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-):
+) -> ExportRequestResponse:
     """
     Request export of user's personal data.
 
@@ -217,7 +217,7 @@ async def request_data_export(
 async def get_export_status(
     export_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
-):
+) -> ExportStatusResponse:
     """Get the status of a specific export request."""
     export_id_str = str(export_id)
 
@@ -256,7 +256,7 @@ async def get_export_status(
 )
 async def list_exports(
     current_user: Annotated[User, Depends(get_current_user)],
-):
+) -> ExportListResponse:
     """List all export requests for the current user."""
     user_id_str = str(current_user.id)
 
@@ -293,7 +293,7 @@ async def list_exports(
 async def delete_export(
     export_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
-):
+) -> None:
     """Cancel or delete an export request."""
     export_id_str = str(export_id)
 

@@ -10,6 +10,7 @@ Migrated from CadQuery to Build123d.
 from dataclasses import dataclass, field
 from enum import StrEnum
 from io import BytesIO
+from typing import Any
 
 
 class DrawingViewType(StrEnum):
@@ -140,12 +141,12 @@ class DrawingGenerator:
     Uses Build123d/OCP for projection and drawing generation.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._b3d = None
         self._ocp_available = False
         self._load_cad_libraries()
 
-    def _load_cad_libraries(self):
+    def _load_cad_libraries(self) -> None:
         """Load CAD libraries if available."""
         try:
             import build123d as b3d
@@ -197,9 +198,9 @@ class DrawingGenerator:
 
     def _project_view(
         self,
-        shape,
+        shape: Any,
         view: DrawingView,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Project a 3D shape to 2D for a specific view.
 
@@ -259,9 +260,9 @@ class DrawingGenerator:
 
     def _create_drawing(
         self,
-        views_data: list[dict],
+        views_data: list[dict[str, Any]],
         config: DrawingConfig,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create the complete drawing from projected views."""
         # Get paper dimensions
         width, height = PAPER_DIMENSIONS[config.paper_size]
@@ -304,7 +305,7 @@ class DrawingGenerator:
         width: float,
         height: float,
         config: DrawingConfig,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Create title block elements."""
         tb = config.title_block
         margin = config.border_margin
@@ -373,9 +374,9 @@ class DrawingGenerator:
 
     def _create_auto_dimensions(
         self,
-        views_data: list[dict],
+        views_data: list[dict[str, Any]],
         config: DrawingConfig,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Auto-generate dimensions for views."""
         elements = []
 
@@ -401,7 +402,7 @@ class DrawingGenerator:
 
     def _export_drawing(
         self,
-        drawing: dict,
+        drawing: dict[str, Any],
         output_format: DrawingFormat,
     ) -> bytes:
         """Export drawing to requested format."""
@@ -415,7 +416,7 @@ class DrawingGenerator:
             return self._export_to_png(drawing)
         raise ValueError(f"Unsupported format: {output_format}")
 
-    def _export_to_svg(self, drawing: dict) -> bytes:
+    def _export_to_svg(self, drawing: dict[str, Any]) -> bytes:
         """Export drawing to SVG format."""
         width = drawing["width"]
         height = drawing["height"]
@@ -444,7 +445,7 @@ class DrawingGenerator:
 
         return "\n".join(svg_parts).encode("utf-8")
 
-    def _element_to_svg(self, element: dict) -> str:
+    def _element_to_svg(self, element: dict[str, Any]) -> str:
         """Convert an element to SVG markup."""
         el_type = element.get("type")
 
@@ -477,7 +478,7 @@ class DrawingGenerator:
 
         return ""
 
-    def _dimension_to_svg(self, dim: dict) -> str:
+    def _dimension_to_svg(self, dim: dict[str, Any]) -> str:
         """Convert a dimension to SVG markup."""
         x1, y1, x2, y2 = dim["x1"], dim["y1"], dim["x2"], dim["y2"]
         value = dim.get("value", "0.00")
@@ -498,7 +499,7 @@ class DrawingGenerator:
         </g>
         '''
 
-    def _export_to_dxf(self, drawing: dict) -> bytes:
+    def _export_to_dxf(self, drawing: dict[str, Any]) -> bytes:
         """Export drawing to DXF format."""
         try:
             import ezdxf
@@ -517,7 +518,7 @@ class DrawingGenerator:
             # Return placeholder if ezdxf not available
             return b"DXF export requires ezdxf library"
 
-    def _element_to_dxf(self, msp, element: dict):
+    def _element_to_dxf(self, msp: Any, element: dict[str, Any]) -> None:
         """Add element to DXF modelspace."""
         el_type = element.get("type")
 
@@ -538,7 +539,7 @@ class DrawingGenerator:
                 },
             )
 
-    def _export_to_pdf(self, drawing: dict) -> bytes:
+    def _export_to_pdf(self, drawing: dict[str, Any]) -> bytes:
         """Export drawing to PDF format."""
         # First generate SVG, then convert to PDF
         svg_bytes = self._export_to_svg(drawing)
@@ -546,19 +547,19 @@ class DrawingGenerator:
         try:
             import cairosvg
 
-            return cairosvg.svg2pdf(bytestring=svg_bytes)
+            return cairosvg.svg2pdf(bytestring=svg_bytes)  # type: ignore[no-any-return]
         except ImportError:
             # Return SVG if cairosvg not available
             return svg_bytes
 
-    def _export_to_png(self, drawing: dict) -> bytes:
+    def _export_to_png(self, drawing: dict[str, Any]) -> bytes:
         """Export drawing to PNG format."""
         svg_bytes = self._export_to_svg(drawing)
 
         try:
             import cairosvg
 
-            return cairosvg.svg2png(bytestring=svg_bytes, dpi=300)
+            return cairosvg.svg2png(bytestring=svg_bytes, dpi=300)  # type: ignore[no-any-return]
         except ImportError:
             # Return placeholder PNG
             return b"PNG export requires cairosvg library"

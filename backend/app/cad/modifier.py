@@ -191,7 +191,7 @@ class CADModifier:
     Uses Build123d Part objects instead of CadQuery Workplanes.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the modifier."""
         self._operation_handlers = {
             OperationType.TRANSLATE: self._apply_translate,
@@ -362,7 +362,7 @@ class CADModifier:
     # Operation Handlers
     # =========================================================================
 
-    def _apply_translate(self, shape: Part, params: dict) -> Part:
+    def _apply_translate(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply translation."""
         return translate(
             shape,
@@ -371,7 +371,7 @@ class CADModifier:
             z=params.get("z", 0),
         )
 
-    def _apply_rotate(self, shape: Part, params: dict) -> Part:
+    def _apply_rotate(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply rotation."""
         angle = params["angle"]
         axis_name = params.get("axis", "Z").upper()
@@ -391,11 +391,11 @@ class CADModifier:
 
         return rotate(shape, angle, axis=axis, center=center)
 
-    def _apply_scale(self, shape: Part, params: dict) -> Part:
+    def _apply_scale(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply uniform scaling."""
         return scale(shape, params["factor"])
 
-    def _apply_scale_axis(self, shape: Part, params: dict) -> Part:
+    def _apply_scale_axis(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply non-uniform scaling per axis."""
         from OCP.BRepBuilderAPI import BRepBuilderAPI_GTransform
         from OCP.gp import gp_GTrsf, gp_Mat
@@ -420,11 +420,11 @@ class CADModifier:
 
         return Part(Shape(transformer.Shape()).wrapped)
 
-    def _apply_mirror(self, shape: Part, params: dict) -> Part:
+    def _apply_mirror(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply mirror transformation."""
         return mirror(shape, params["plane"])
 
-    def _apply_fillet(self, shape: Part, params: dict) -> Part:
+    def _apply_fillet(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply fillet to edges."""
         return fillet(
             shape,
@@ -432,7 +432,7 @@ class CADModifier:
             edges=params.get("edges", "all"),
         )
 
-    def _apply_chamfer(self, shape: Part, params: dict) -> Part:
+    def _apply_chamfer(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply chamfer to edges."""
         return chamfer(
             shape,
@@ -440,7 +440,7 @@ class CADModifier:
             edges=params.get("edges", "all"),
         )
 
-    def _apply_shell(self, shape: Part, params: dict) -> Part:
+    def _apply_shell(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply shell (hollow out)."""
         return shell(
             shape,
@@ -448,7 +448,7 @@ class CADModifier:
             faces_to_remove=params.get("faces"),
         )
 
-    def _apply_add_hole(self, shape: Part, params: dict) -> Part:
+    def _apply_add_hole(self, shape: Part, params: dict[str, Any]) -> Part:
         """Add a hole to the shape."""
         return add_hole(
             shape,

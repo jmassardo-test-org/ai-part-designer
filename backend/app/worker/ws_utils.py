@@ -15,7 +15,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def get_redis_client():
+def get_redis_client() -> Any:
     """Get Redis client for pub/sub."""
     try:
         from app.core.cache import redis_client
@@ -26,7 +26,7 @@ def get_redis_client():
         return None
 
 
-def publish_ws_message(user_id: str, message: dict) -> bool:
+def publish_ws_message(user_id: str, message: dict[str, Any]) -> bool:
     """
     Publish a WebSocket message via Redis for async delivery.
 
@@ -57,7 +57,7 @@ def publish_ws_message(user_id: str, message: dict) -> bool:
         return False
 
 
-def publish_room_message(room: str, message: dict) -> bool:
+def publish_room_message(room: str, message: dict[str, Any]) -> bool:
     """
     Publish a message to a WebSocket room via Redis.
 
@@ -103,7 +103,7 @@ def send_job_progress(
         message: Human-readable status message
         metadata: Additional metadata
     """
-    payload = {
+    payload: dict[str, Any] = {
         "type": "job_progress",
         "job_id": job_id,
         "progress": progress,
@@ -204,7 +204,7 @@ def send_project_update(
         data: Event data
         exclude_user: User ID to exclude (e.g., the user who made the change)
     """
-    message = {
+    message: dict[str, Any] = {
         "type": "project_update",
         "event": event_type,
         "project_id": project_id,
@@ -233,7 +233,7 @@ def send_notification(
         notification_type: Type (info, success, warning, error)
         link: Optional link to navigate to
     """
-    payload = {
+    payload: dict[str, Any] = {
         "type": "notification",
         "notification_type": notification_type,
         "title": title,

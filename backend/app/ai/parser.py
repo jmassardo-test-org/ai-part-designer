@@ -127,7 +127,7 @@ class Feature(BaseModel):
 
     @field_validator("parameters", mode="before")
     @classmethod
-    def ensure_parameters_mm(cls, v: dict) -> dict:
+    def ensure_parameters_mm(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Ensure feature parameters are in mm."""
         # Common dimension keys that should be converted
         dimension_keys = ["radius", "diameter", "depth", "width", "length", "height", "size"]
@@ -387,7 +387,7 @@ class DescriptionParser:
             parse_time_ms=elapsed_ms,
         )
 
-    def _normalize_parameters(self, data: dict) -> CADParameters:
+    def _normalize_parameters(self, data: dict[str, Any]) -> CADParameters:
         """
         Normalize AI output into CADParameters.
 

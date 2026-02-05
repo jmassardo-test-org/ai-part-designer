@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -60,7 +60,7 @@ class FileResponse(BaseModel):
     status: str = Field(description="File status")
     thumbnail_url: str | None = Field(description="Thumbnail URL")
     download_url: str = Field(description="Download URL")
-    geometry_info: dict | None = Field(description="CAD geometry info")
+    geometry_info: dict[str, Any] | None = Field(description="CAD geometry info")
     created_at: datetime = Field(description="Upload timestamp")
 
     class Config:
@@ -528,7 +528,7 @@ async def download_file(
         )
         logger.debug(f"Downloaded {file_record.storage_path} from MinIO")
 
-        async def iter_bytes():
+        async def iter_bytes() -> AsyncIterator[bytes]:
             yield file_content
 
         return StreamingResponse(
@@ -550,7 +550,7 @@ async def download_file(
                 detail="File content not found",
             )
 
-        def iterfile():
+        def iterfile() -> Iterator[bytes]:
             with open(file_path, "rb") as f:
                 yield from f
 
@@ -620,7 +620,7 @@ class PresignedUploadResponse(BaseModel):
     """Response containing presigned upload URL."""
 
     url: str = Field(description="Presigned upload URL")
-    fields: dict = Field(description="Form fields to include in upload")
+    fields: dict[str, Any] = Field(description="Form fields to include in upload")
     key: str = Field(description="Object key to upload to")
     expires_in: int = Field(description="URL expiration in seconds")
 

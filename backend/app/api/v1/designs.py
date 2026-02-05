@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -85,7 +85,7 @@ class DesignResponse(BaseModel):
     source_type: str
     status: str
     thumbnail_url: str | None
-    extra_data: dict | None = None
+    extra_data: dict[str, Any] | None = None
     created_at: str
     updated_at: str
 
@@ -954,7 +954,7 @@ class VersionResponse(BaseModel):
     created_by_id: UUID | None
     created_at: str
     is_current: bool
-    file_formats: dict
+    file_formats: dict[str, Any]
 
     class Config:
         from_attributes = True

@@ -11,7 +11,7 @@ import io
 import logging
 import secrets
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import pyotp
 import qrcode
@@ -104,13 +104,13 @@ class MessageResponse(BaseModel):
 
 def generate_totp_secret() -> str:
     """Generate a new TOTP secret."""
-    return pyotp.random_base32()
+    return cast(str, pyotp.random_base32())
 
 
 def generate_provisioning_uri(secret: str, email: str, issuer: str = "AssemblematicAI") -> str:
     """Generate TOTP provisioning URI for authenticator apps."""
     totp = pyotp.TOTP(secret)
-    return totp.provisioning_uri(name=email, issuer_name=issuer)
+    return cast(str, totp.provisioning_uri(name=email, issuer_name=issuer))
 
 
 def generate_qr_code_base64(provisioning_uri: str) -> str:
@@ -143,7 +143,7 @@ def generate_backup_codes(count: int = 10) -> list[str]:
     return codes
 
 
-def hash_backup_codes(codes: list[str]) -> list[dict]:
+def hash_backup_codes(codes: list[str]) -> list[dict[str, Any]]:
     """Hash backup codes for storage."""
     return [
         {
@@ -159,10 +159,10 @@ def verify_totp_code(secret: str, code: str) -> bool:
     """Verify a TOTP code."""
     totp = pyotp.TOTP(secret)
     # Allow 1 window of tolerance (30 seconds before/after)
-    return totp.verify(code, valid_window=1)
+    return cast(bool, totp.verify(code, valid_window=1))
 
 
-def verify_backup_code(stored_codes: list[dict], provided_code: str) -> tuple[bool, int | None]:
+def verify_backup_code(stored_codes: list[dict[str, Any]], provided_code: str) -> tuple[bool, int | None]:
     """
     Verify a backup code and return (is_valid, code_index).
 
@@ -483,7 +483,7 @@ async def regenerate_backup_codes(
 )
 async def get_backup_codes_count(
     current_user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     """Get count of remaining backup codes."""
     if not current_user.mfa_enabled:
         return {"remaining": 0, "total": 0}

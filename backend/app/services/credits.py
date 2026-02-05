@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
@@ -341,7 +341,7 @@ class CreditService:
         self,
         user_id: UUID,
         days: int = 30,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Get usage summary for a period.
 

@@ -72,7 +72,7 @@ async def get_user_tier(
     return tier
 
 
-def require_credits(operation: TransactionType) -> Callable:
+def require_credits(operation: TransactionType) -> Callable[..., None]:
     """
     Dependency factory to require credits for an operation.
 
@@ -107,7 +107,7 @@ def require_credits(operation: TransactionType) -> Callable:
     return dependency
 
 
-def require_job_slot() -> Callable:
+def require_job_slot() -> Callable[..., None]:
     """
     Dependency to require an available job slot.
 
@@ -137,7 +137,7 @@ def require_job_slot() -> Callable:
     return dependency
 
 
-def require_storage(bytes_needed: int = 0) -> Callable:
+def require_storage(bytes_needed: int = 0) -> Callable[..., None]:
     """
     Dependency to require available storage.
 
@@ -170,7 +170,7 @@ def require_storage(bytes_needed: int = 0) -> Callable:
     return dependency
 
 
-def require_feature(feature_name: str) -> Callable:
+def require_feature(feature_name: str) -> Callable[..., None]:
     """
     Dependency to require a specific feature.
 

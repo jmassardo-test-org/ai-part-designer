@@ -9,9 +9,10 @@ Provides:
 - Rate limiting integration
 """
 
+from collections.abc import Callable
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
@@ -160,7 +161,7 @@ class AuthContext:
     def __init__(
         self,
         user: User,
-        token_payload: dict,
+        token_payload: dict[str, Any],
         permissions: set[Permission],
     ):
         self.user = user
@@ -200,7 +201,7 @@ class AuthContext:
 async def get_token_payload(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Extract and validate JWT token from request."""
     if credentials is None:
         return None
@@ -231,7 +232,7 @@ async def get_token_payload(
 
 
 async def get_current_user(
-    token_payload: dict | None = Depends(get_token_payload),
+    token_payload: dict[str, Any] | None = Depends(get_token_payload),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """
@@ -273,7 +274,7 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    token_payload: dict | None = Depends(get_token_payload),
+    token_payload: dict[str, Any] | None = Depends(get_token_payload),
     db: AsyncSession = Depends(get_db),
 ) -> User | None:
     """Get current user if authenticated, None otherwise."""
@@ -288,7 +289,7 @@ async def get_current_user_optional(
 
 async def get_auth_context(
     user: User = Depends(get_current_user),
-    token_payload: dict = Depends(get_token_payload),
+    token_payload: dict[str, Any] = Depends(get_token_payload),
 ) -> AuthContext:
     """Get full authentication context for the current user."""
     role = Role(user.role)
@@ -306,7 +307,7 @@ async def get_auth_context(
 # =============================================================================
 
 
-def require_permissions(*required_permissions: Permission):
+def require_permissions(*required_permissions: Permission) -> Callable[[AuthContext], Any]:
     """
     Dependency factory that requires specific permissions.
 
@@ -331,7 +332,7 @@ def require_permissions(*required_permissions: Permission):
     return permission_checker
 
 
-def require_any_permission(*required_permissions: Permission):
+def require_any_permission(*required_permissions: Permission) -> Callable[[AuthContext], Any]:
     """Require at least one of the specified permissions."""
 
     async def permission_checker(
@@ -347,7 +348,7 @@ def require_any_permission(*required_permissions: Permission):
     return permission_checker
 
 
-def require_role(*allowed_roles: Role):
+def require_role(*allowed_roles: Role) -> Callable[[AuthContext], Any]:
     """
     Dependency factory that requires specific roles.
 
@@ -372,7 +373,7 @@ def require_role(*allowed_roles: Role):
     return role_checker
 
 
-def require_admin():
+def require_admin() -> Callable[[AuthContext], Any]:
     """Shortcut for requiring admin role."""
     return require_role(Role.ADMIN, Role.SUPER_ADMIN)
 
@@ -521,7 +522,7 @@ async def check_rate_limit(
     key_prefix: str = "api",
     max_requests: int | None = None,
     window_seconds: int = 60,
-) -> tuple[bool, dict]:
+) -> tuple[bool, dict[str, Any]]:
     """
     Check rate limit for a request.
 

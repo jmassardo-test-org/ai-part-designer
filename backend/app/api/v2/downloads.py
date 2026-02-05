@@ -4,6 +4,8 @@ Download endpoints for CAD v2 generated files.
 Provides file download functionality for generated STEP/STL files.
 """
 
+from typing import Any
+
 from __future__ import annotations
 
 import logging
@@ -113,7 +115,7 @@ async def download_file(
         404: {"description": "Job not found"},
     },
 )
-async def list_job_files(job_id: str) -> dict:
+async def list_job_files(job_id: str) -> dict[str, Any]:
     """List all files generated for a job.
 
     Args:
@@ -159,7 +161,7 @@ async def list_job_files(job_id: str) -> dict:
 # =============================================================================
 
 
-def cleanup_old_exports(max_age_hours: int = DEFAULT_RETENTION_HOURS) -> dict:
+def cleanup_old_exports(max_age_hours: int = DEFAULT_RETENTION_HOURS) -> dict[str, Any]:
     """Clean up old export directories.
 
     Removes job directories older than max_age_hours.

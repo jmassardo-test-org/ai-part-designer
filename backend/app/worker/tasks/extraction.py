@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-@celery_app.task(
+@celery_app.task(  # type: ignore[untyped-decorator]
     name="extraction.extract_component",
     bind=True,
     max_retries=3,
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
     autoretry_for=(Exception,),
     retry_backoff=True,
 )
-def extract_component_task(self, job_id: str) -> dict[str, Any]:
+def extract_component_task(self: Any, job_id: str) -> dict[str, Any]:
     """
     Extract specifications from component datasheet or CAD file.
 
@@ -60,7 +60,7 @@ def extract_component_task(self, job_id: str) -> dict[str, Any]:
     return asyncio.get_event_loop().run_until_complete(_extract_component_async(self, job_id))
 
 
-async def _extract_component_async(task, job_id: str) -> dict[str, Any]:
+async def _extract_component_async(task: Any, job_id: str) -> dict[str, Any]:
     """Async implementation of component extraction."""
     async with async_session_maker() as db:
         # Get the extraction job
@@ -336,19 +336,20 @@ async def _download_file(url: str) -> bytes | None:
     try:
         if url.startswith("http"):
             # External URL - use httpx
-            import httpx
+            import httpx  # type: ignore[import-not-found]
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, follow_redirects=True)
                 if response.status_code == 200:
-                    return response.content
+                    return response.content  # type: ignore[no-any-return]
         else:
             # Storage path - extract key and download
             key = url.split("/", 3)[-1] if "/" in url else url
-            return await storage_client.download(
+            result: bytes | None = await storage_client.download(
                 bucket=StorageBucket.UPLOADS,
                 key=key,
             )
+            return result
     except Exception as e:
         logger.warning(f"Failed to download file from {url}: {e}")
     return None
@@ -395,11 +396,11 @@ async def _update_component_specs(
 # =============================================================================
 
 
-@celery_app.task(
+@celery_app.task(  # type: ignore[untyped-decorator]
     name="extraction.batch_extract",
     bind=True,
 )
-def batch_extract_task(self, component_ids: list[str]) -> dict[str, Any]:
+def batch_extract_task(self: Any, component_ids: list[str]) -> dict[str, Any]:
     """
     Batch extract specifications for multiple components.
 

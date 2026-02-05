@@ -4,6 +4,8 @@ Projects API endpoints.
 CRUD operations for projects and managing designs within projects.
 """
 
+from typing import Any
+
 from datetime import UTC
 from uuid import UUID
 
@@ -58,7 +60,7 @@ class ProjectResponse(BaseModel):
 class ProjectDetailResponse(ProjectResponse):
     """Response schema for project with designs."""
 
-    designs: list[dict]
+    designs: list[dict[str, Any]]
 
 
 class ProjectListResponse(BaseModel):
@@ -302,7 +304,7 @@ async def get_project(
 class ProjectDesignsResponse(BaseModel):
     """Response for paginated project designs list."""
 
-    items: list[dict]
+    items: list[dict[str, Any]]
     total: int
     page: int
     per_page: int
@@ -565,7 +567,7 @@ async def move_design_to_project(
     design_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """
     Move a design to a project.
 

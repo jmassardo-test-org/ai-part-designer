@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
@@ -234,7 +234,7 @@ async def register(
     )
 
 
-async def _send_verification_email(user_id: str, email: str, display_name: str):
+async def _send_verification_email(user_id: str, email: str, display_name: str) -> None:
     """Send verification email (background task)."""
     try:
         from app.services.email import get_email_service
@@ -697,7 +697,7 @@ async def forgot_password(
     )
 
 
-async def _send_password_reset_email(user_id: str, email: str, display_name: str):
+async def _send_password_reset_email(user_id: str, email: str, display_name: str) -> None:
     """Send password reset email (background task)."""
     try:
         from app.core.security import create_verification_token
@@ -779,7 +779,7 @@ async def reset_password(
     )
 
 
-async def blacklist_all_user_tokens(user_id: UUID):
+async def blacklist_all_user_tokens(user_id: UUID) -> None:
     """Invalidate all tokens for a user (security measure after password reset)."""
     try:
         from app.core.cache import get_redis
@@ -844,7 +844,7 @@ async def dev_verify_user(
     request: DevVerifyRequest,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
-) -> dict:
+) -> dict[str, Any]:
     """
     Force-verify a user for testing purposes.
     Only available when ENVIRONMENT is 'development' or 'test'.

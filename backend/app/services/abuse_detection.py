@@ -11,6 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import and_, or_, select, update
@@ -151,7 +152,7 @@ class ViolationEvent:
     violation_type: ViolationType = ViolationType.TOS_VIOLATION
     severity: str = "low"
     description: str = ""
-    evidence: dict = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
     user_id: UUID | None = None
     ip_address: str | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
@@ -257,7 +258,7 @@ class AbuseDetectionService:
         self,
         violation_type: ViolationType,
         previous_count: int,
-        rules: dict,
+        rules: dict[str, Any],
     ) -> AbuseDecision:
         """Determine appropriate action based on violation history."""
 
@@ -312,7 +313,7 @@ class AbuseDetectionService:
         self,
         user_id: UUID | None,
         ip_address: str | None,
-    ) -> list:
+    ) -> list[Any]:
         """Get violation history for user/IP."""
         cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=VIOLATION_MEMORY_DAYS)
 
@@ -343,7 +344,7 @@ class AbuseDetectionService:
         ip_address: str | None,
         duration: BanDuration,
         reason: str,
-        violation_history: list,
+        violation_history: list[Any],
     ) -> UserBan:
         """Apply a ban to user and/or IP."""
 
@@ -418,7 +419,7 @@ class AbuseDetectionService:
         self,
         user_id: UUID | None = None,
         ip_address: str | None = None,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Get ban information if banned."""
         is_banned, ban = await self.is_banned(user_id, ip_address)
 
@@ -557,7 +558,7 @@ class AbuseDetectionService:
         result = await self.db.execute(stmt)
         await self.db.commit()
 
-        return result.rowcount
+        return cast("int", result.rowcount)
 
 
 # =============================================================================

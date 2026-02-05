@@ -7,6 +7,7 @@ query methods and business logic.
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
@@ -299,7 +300,7 @@ class JobRepository(BaseRepository[Job]):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def get_job_stats(self, since: datetime | None = None) -> dict:
+    async def get_job_stats(self, since: datetime | None = None) -> dict[str, Any]:
         """Get job statistics."""
         base_query = select(Job)
 
@@ -342,7 +343,7 @@ class AuditLogRepository(BaseRepository[AuditLog]):
         resource_id: UUID | None = None,
         user_id: UUID | None = None,
         actor_type: str = "user",
-        context: dict | None = None,
+        context: dict[str, Any] | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         status: str = "success",
