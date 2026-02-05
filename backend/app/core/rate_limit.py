@@ -6,6 +6,7 @@ Uses slowapi for rate limiting with Redis backend support.
 """
 
 import time
+from typing import Any
 from collections.abc import Callable
 from functools import wraps
 
@@ -78,7 +79,7 @@ class InMemoryRateLimiter:
     For production, use Redis-backed rate limiting.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._requests: dict[str, list[float]] = {}
 
     def _parse_rate(self, rate: str) -> tuple[int, int]:
@@ -108,7 +109,7 @@ class InMemoryRateLimiter:
         cutoff = time.time() - window
         self._requests[key] = [t for t in self._requests[key] if t > cutoff]
 
-    def is_allowed(self, identifier: str, endpoint: str, rate: str) -> tuple[bool, dict]:
+    def is_allowed(self, identifier: str, endpoint: str, rate: str) -> tuple[bool, dict[str, str]]:
         """
         Check if request is allowed.
 
@@ -178,7 +179,8 @@ def get_identifier(request: Request) -> str:
     """Get unique identifier for rate limiting."""
     # Try to get user ID from request state (set by auth middleware)
     if hasattr(request.state, "user") and request.state.user:
-        return f"user:{request.state.user.id}"
+        user_id: Any = request.state.user.id
+        return f"user:{user_id}"
 
     # Fall back to IP address
     forwarded = request.headers.get("X-Forwarded-For")
@@ -198,7 +200,8 @@ def get_user_tier(request: Request) -> str:
         user = request.state.user
         # Check for tier attribute
         if hasattr(user, "tier"):
-            return user.tier
+            tier: str = user.tier
+            return tier
         # Check for admin status
         if hasattr(user, "is_admin") and user.is_admin:
             return "enterprise"
@@ -207,7 +210,7 @@ def get_user_tier(request: Request) -> str:
     return "anonymous"
 
 
-async def rate_limit_middleware(request: Request, call_next):
+async def rate_limit_middleware(request: Request, call_next: Callable[..., Any]) -> Response:
     """
     Rate limiting middleware.
 
@@ -223,17 +226,17 @@ async def rate_limit_middleware(request: Request, call_next):
     allowed, headers = _rate_limiter.is_allowed(identifier, endpoint, rate)
 
     if not allowed:
-        response = Response(
+        error_response = Response(
             content='{"detail": "Rate limit exceeded. Please try again later."}',
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             media_type="application/json",
         )
         for key, value in headers.items():
-            response.headers[key] = value
-        return response
+            error_response.headers[key] = value
+        return error_response
 
     # Process request
-    response = await call_next(request)
+    response: Response = await call_next(request)
 
     # Add rate limit headers to response
     for key, value in headers.items():
@@ -242,7 +245,7 @@ async def rate_limit_middleware(request: Request, call_next):
     return response
 
 
-def rate_limit(rate: str | None = None, category: str | None = None):
+def rate_limit(rate: str | None = None, category: str | None = None) -> Callable[..., Any]:
     """
     Decorator for rate limiting specific endpoints.
 
@@ -256,9 +259,9 @@ def rate_limit(rate: str | None = None, category: str | None = None):
             ...
     """
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(request: Request, *args, **kwargs):
+        async def wrapper(request: Request, *args: Any, **kwargs: Any) -> Any:
             # Determine rate to use
             if rate:
                 limit = rate
@@ -292,7 +295,7 @@ def rate_limit(rate: str | None = None, category: str | None = None):
 
 
 # Export configuration for documentation
-def get_rate_limit_docs() -> dict:
+def get_rate_limit_docs() -> dict[str, Any]:
     """Get rate limit configuration for API documentation."""
     return {
         "tiers": RATE_LIMITS,

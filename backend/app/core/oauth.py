@@ -60,7 +60,7 @@ else:
 # =============================
 
 
-def get_oauth_client(provider: str):
+def get_oauth_client(provider: str) -> Any:
     """
     Get the OAuth client for a provider.
 
@@ -95,7 +95,7 @@ async def get_oauth_redirect_uri(request: Request, provider: str) -> str:
     return f"{base_url}/api/v1/auth/oauth/{provider}/callback"
 
 
-async def fetch_google_user_info(token: dict) -> dict[str, Any]:
+async def fetch_google_user_info(token: dict[str, Any]) -> dict[str, Any]:
     """
     Fetch user information from Google.
 
@@ -121,7 +121,7 @@ async def fetch_google_user_info(token: dict) -> dict[str, Any]:
     }
 
 
-async def fetch_github_user_info(token: dict) -> dict[str, Any]:
+async def fetch_github_user_info(token: dict[str, Any]) -> dict[str, Any]:
     """
     Fetch user information from GitHub.
 
@@ -168,7 +168,7 @@ async def fetch_github_user_info(token: dict) -> dict[str, Any]:
     }
 
 
-async def fetch_user_info(provider: str, token: dict) -> dict[str, Any]:
+async def fetch_user_info(provider: str, token: dict[str, Any]) -> dict[str, Any]:
     """
     Fetch user information from an OAuth provider.
 

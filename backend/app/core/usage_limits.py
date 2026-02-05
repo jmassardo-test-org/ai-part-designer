@@ -329,7 +329,7 @@ class UsageLimitService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def get_tier_limits(self, tier: UserTier) -> dict:
+    def get_tier_limits(self, tier: UserTier) -> dict[str, int]:
         """Get limits for a user tier."""
         return TIER_LIMITS.get(tier, TIER_LIMITS[UserTier.FREE])
 
@@ -376,7 +376,7 @@ class UsageLimitService:
         resource_type: str,
         period: str,
         amount: int = 1,
-        metadata: dict | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> int:
         """Increment usage count, returns new count."""
         period_start = self._get_period_start(period)
@@ -419,7 +419,7 @@ class UsageLimitService:
         user_id: UUID,
         resource_type: str,
         tier: UserTier,
-    ) -> tuple[bool, dict]:
+    ) -> tuple[bool, dict[str, str | int | bool]]:
         """
         Check if user is within limits for a resource.
 
@@ -555,13 +555,13 @@ class UsageLimitService:
 
         stmt = delete(ConcurrentOperation).where(ConcurrentOperation.expires_at < datetime.now(tz=datetime.UTC))
         result = await self.db.execute(stmt)
-        return result.rowcount
+        return int(result.rowcount or 0)
 
     async def get_usage_summary(
         self,
         user_id: UUID,
         tier: UserTier,
-    ) -> dict:
+    ) -> dict[str, str | dict[str, int] | dict[str, dict[str, int]]]:
         """Get complete usage summary for a user."""
         limits = self.get_tier_limits(tier)
 
@@ -605,8 +605,8 @@ class UsageSummary(BaseModel):
     """User's current usage summary."""
 
     tier: str
-    generations: dict = Field(default_factory=dict)
-    modifications: dict = Field(default_factory=dict)
+    generations: dict[str, int] = Field(default_factory=dict)
+    modifications: dict[str, int] = Field(default_factory=dict)
     storage_used_bytes: int = 0
     storage_limit_bytes: int = 0
     concurrent_generations: int = 0
