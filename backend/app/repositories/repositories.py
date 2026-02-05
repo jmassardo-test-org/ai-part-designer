@@ -6,7 +6,7 @@ query methods and business logic.
 """
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
@@ -294,7 +294,7 @@ class JobRepository(BaseRepository[Job]):
 
     async def get_stale_jobs(self, stale_after_minutes: int = 30) -> Sequence[Job]:
         """Get jobs that have been running too long."""
-        threshold = datetime.utcnow() - timedelta(minutes=stale_after_minutes)
+        threshold = datetime.now(tz=datetime.UTC) - timedelta(minutes=stale_after_minutes)
         query = select(Job).where(Job.status == "running").where(Job.started_at < threshold)
         result = await self.session.execute(query)
         return result.scalars().all()

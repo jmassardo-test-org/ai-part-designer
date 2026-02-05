@@ -7,7 +7,7 @@ Stores annotations pinned to 3D coordinates on CAD models.
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -225,7 +225,7 @@ class DesignAnnotation(Base):
         """Mark annotation as resolved."""
         self.status = status
         self.resolved_by_id = user_id
-        self.resolved_at = datetime.now()
+        self.resolved_at = datetime.now(tz=datetime.UTC)
         self.resolution_note = note
 
     def reopen(self) -> None:

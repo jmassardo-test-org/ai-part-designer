@@ -5,7 +5,7 @@ Provides functions to create, send, and manage notifications
 across different channels (in-app, email, push).
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, func, select, update
@@ -69,7 +69,7 @@ class NotificationService:
         if priority != NotificationPriority.NORMAL:
             notification_data["priority"] = priority.value
         if expires_in_days:
-            expires_at = datetime.now() + timedelta(days=expires_in_days)
+            expires_at = datetime.now(tz=datetime.UTC) + timedelta(days=expires_in_days)
             notification_data["expires_at"] = expires_at.isoformat()
 
         notification = Notification(
@@ -136,7 +136,7 @@ class NotificationService:
         """Queue email notification for sending."""
         # In a real implementation, this would add to a task queue
         # For now, mark as sent immediately (stub)
-        notification.email_sent_at = datetime.now()
+        notification.email_sent_at = datetime.now(tz=datetime.UTC)
         await self.db.commit()
 
     async def get_notifications(
@@ -157,7 +157,7 @@ class NotificationService:
 
         # Filter out expired
         conditions.append(
-            (Notification.expires_at.is_(None)) | (Notification.expires_at > datetime.now())
+            (Notification.expires_at.is_(None)) | (Notification.expires_at > datetime.now(tz=datetime.UTC))
         )
 
         # Count total
@@ -191,7 +191,7 @@ class NotificationService:
                     Notification.read_at.is_(None),
                     Notification.dismissed_at.is_(None),
                     (Notification.expires_at.is_(None))
-                    | (Notification.expires_at > datetime.now()),
+                    | (Notification.expires_at > datetime.now(tz=datetime.UTC)),
                 )
             )
         )
@@ -207,7 +207,7 @@ class NotificationService:
                     Notification.user_id == user_id,
                 )
             )
-            .values(read_at=datetime.now())
+            .values(read_at=datetime.now(tz=datetime.UTC))
         )
         await self.db.commit()
         return (result.rowcount or 0) > 0
@@ -222,7 +222,7 @@ class NotificationService:
                     Notification.read_at.is_(None),
                 )
             )
-            .values(read_at=datetime.now())
+            .values(read_at=datetime.now(tz=datetime.UTC))
         )
         await self.db.commit()
         return result.rowcount or 0
@@ -237,7 +237,7 @@ class NotificationService:
                     Notification.user_id == user_id,
                 )
             )
-            .values(dismissed_at=datetime.now())
+            .values(dismissed_at=datetime.now(tz=datetime.UTC))
         )
         await self.db.commit()
         return (result.rowcount or 0) > 0

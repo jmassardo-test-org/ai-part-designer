@@ -4,7 +4,7 @@ Tests for authentication endpoints.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -125,7 +125,7 @@ class TestLogin:
             display_name="Active User",
             role="user",
             status="active",
-            email_verified_at=datetime.utcnow(),
+            email_verified_at=datetime.now(tz=datetime.UTC),
         )
         db_session.add(user)
         await db_session.commit()
@@ -154,7 +154,7 @@ class TestLogin:
             password_hash=hash_password("CorrectPass123!"),
             display_name="Test User",
             status="active",
-            email_verified_at=datetime.utcnow(),
+            email_verified_at=datetime.now(tz=datetime.UTC),
         )
         db_session.add(user)
         await db_session.commit()

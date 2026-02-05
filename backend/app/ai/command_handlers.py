@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.ai.commands import ParsedCommand, command_parser
@@ -119,7 +119,7 @@ class CommandHandler:
         from app.repositories import DesignRepository
 
         repo = DesignRepository(db)
-        design.updated_at = datetime.utcnow()
+        design.updated_at = datetime.now(tz=datetime.UTC)
         await repo.update(design.id, updated_at=design.updated_at)
         await db.commit()
 

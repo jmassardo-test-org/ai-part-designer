@@ -141,13 +141,6 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # function call in argument defaults (FastAPI Depends)
     "B904",   # raise without from inside except
-    # Temporarily ignored until codebase migrated to timezone-aware datetimes
-    "DTZ003", # datetime.utcnow() - to be replaced with datetime.now(tz=UTC)
-    "DTZ001", # datetime() without tzinfo
-    "DTZ004", # utcfromtimestamp
-    "DTZ005", # datetime.now() without tzinfo
-    "DTZ006", # fromtimestamp without tz
-    "DTZ901", # datetime.min/max without tz
     # Temporarily ignored - requires substantial refactoring
     "ARG001", # unused function argument
     "ARG002", # unused method argument
@@ -173,7 +166,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ARG001", "ARG002", "S101", "PT011", "PT017", "B017", "DTZ003"]
+"tests/*" = ["ARG001", "ARG002", "S101", "PT011", "PT017", "B017"]
 "alembic/*" = ["ERA001"]
 # Files that check library availability via try/import/except pattern
 "app/api/v1/extraction.py" = ["F401"]

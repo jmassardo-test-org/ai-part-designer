@@ -14,7 +14,7 @@ import gzip
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -49,7 +49,7 @@ class BackupRecord:
     id: UUID = field(default_factory=uuid4)
     backup_type: BackupType = BackupType.FULL
     status: BackupStatus = BackupStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
     completed_at: datetime | None = None
     size_bytes: int = 0
     file_count: int = 0
@@ -100,7 +100,7 @@ class RestoreResult:
 
     success: bool
     backup_id: UUID
-    restored_at: datetime = field(default_factory=datetime.utcnow)
+    restored_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
     items_restored: int = 0
     warnings: list[str] = field(default_factory=list)
     error_message: str | None = None
@@ -112,7 +112,7 @@ class VerificationResult:
 
     backup_id: UUID
     is_valid: bool
-    verified_at: datetime = field(default_factory=datetime.utcnow)
+    verified_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
     checksum_match: bool = True
     file_count_match: bool = True
     sample_files_readable: bool = True
@@ -195,7 +195,7 @@ class BackupService:
                 await self._backup_incremental(record)
 
             record.status = BackupStatus.COMPLETED
-            record.completed_at = datetime.utcnow()
+            record.completed_at = datetime.now(tz=datetime.UTC)
 
         except Exception as e:
             record.status = BackupStatus.FAILED
@@ -209,7 +209,7 @@ class BackupService:
 
     async def _backup_database(self, record: BackupRecord) -> None:
         """Create database backup using pg_dump."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=datetime.UTC).strftime("%Y%m%d_%H%M%S")
         backup_filename = f"db_backup_{timestamp}.sql.gz"
         backup_path = self.backup_dir / backup_filename
 
@@ -265,7 +265,7 @@ class BackupService:
 
     async def _backup_files(self, record: BackupRecord) -> None:
         """Backup file storage."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=datetime.UTC).strftime("%Y%m%d_%H%M%S")
         backup_filename = f"files_backup_{timestamp}.tar.gz"
         backup_path = self.backup_dir / backup_filename
 
@@ -570,7 +570,7 @@ class BackupService:
         Returns:
             Number of backups deleted
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(tz=datetime.UTC) - timedelta(days=retention_days)
         backups = await self.list_backups()
 
         # Sort by date, keep newest

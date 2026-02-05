@@ -12,7 +12,7 @@ Or via Makefile:
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -278,12 +278,12 @@ async def create_user(
         display_name=display_name,
         role=role,
         status="active",
-        email_verified_at=datetime.utcnow(),
-        last_login_at=datetime.utcnow() - timedelta(days=1),
+        email_verified_at=datetime.now(tz=datetime.UTC),
+        last_login_at=datetime.now(tz=datetime.UTC) - timedelta(days=1),
         extra_data={
             "org_name": org_name,
             "seeded": True,
-            "seeded_at": datetime.utcnow().isoformat(),
+            "seeded_at": datetime.now(tz=datetime.UTC).isoformat(),
         },
     )
     session.add(user)
@@ -295,8 +295,8 @@ async def create_user(
         user_id=user.id,
         tier=tier,
         status="active",
-        current_period_start=datetime.utcnow() - timedelta(days=15),
-        current_period_end=datetime.utcnow() + timedelta(days=15),
+        current_period_start=datetime.now(tz=datetime.UTC) - timedelta(days=15),
+        current_period_end=datetime.now(tz=datetime.UTC) + timedelta(days=15),
     )
     session.add(subscription)
 

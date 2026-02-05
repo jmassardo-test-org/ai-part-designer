@@ -5,7 +5,7 @@ Handles business logic for team CRUD operations,
 member management, and project assignments.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -262,7 +262,7 @@ class TeamService:
         if not team:
             raise TeamNotFoundError(f"Team with ID {team_id} not found")
 
-        team.deleted_at = datetime.utcnow()
+        team.deleted_at = datetime.now(tz=datetime.UTC)
         team.is_active = False
 
         await self.db.commit()
@@ -369,7 +369,7 @@ class TeamService:
             existing.is_active = True
             existing.role = data.role
             existing.added_by_id = added_by.id
-            existing.joined_at = datetime.utcnow()
+            existing.joined_at = datetime.now(tz=datetime.UTC)
             await self.db.commit()
             await self.db.refresh(existing)
             return existing
@@ -575,7 +575,7 @@ class TeamService:
             # Update permission level
             existing.permission_level = data.permission_level
             existing.assigned_by_id = assigned_by.id
-            existing.assigned_at = datetime.utcnow()
+            existing.assigned_at = datetime.now(tz=datetime.UTC)
             await self.db.commit()
             await self.db.refresh(existing)
             return existing

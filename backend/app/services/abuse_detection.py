@@ -9,7 +9,7 @@ import hashlib
 import ipaddress
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -154,7 +154,7 @@ class ViolationEvent:
     evidence: dict = field(default_factory=dict)
     user_id: UUID | None = None
     ip_address: str | None = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
 
 
 @dataclass
@@ -314,7 +314,7 @@ class AbuseDetectionService:
         ip_address: str | None,
     ) -> list:
         """Get violation history for user/IP."""
-        cutoff = datetime.utcnow() - timedelta(days=VIOLATION_MEMORY_DAYS)
+        cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=VIOLATION_MEMORY_DAYS)
 
         conditions = [AbuseReport.created_at > cutoff]
 
@@ -358,7 +358,7 @@ class AbuseDetectionService:
                 BanDuration.DAYS_7: timedelta(days=7),
                 BanDuration.DAYS_30: timedelta(days=30),
             }
-            expires_at = datetime.utcnow() + duration_map.get(duration, timedelta(hours=24))
+            expires_at = datetime.now(tz=datetime.UTC) + duration_map.get(duration, timedelta(hours=24))
             ban_type = "temporary"
 
         ban = UserBan(
@@ -384,7 +384,7 @@ class AbuseDetectionService:
         ip_address: str | None = None,
     ) -> tuple[bool, UserBan | None]:
         """Check if user or IP is currently banned."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=datetime.UTC)
 
         conditions = [
             UserBan.is_active,
@@ -450,7 +450,7 @@ class AbuseDetectionService:
         """
         # Track this event
         cache_key = f"{ip_address}:{event_type}"
-        now = datetime.utcnow()
+        now = datetime.now(tz=datetime.UTC)
 
         # Add to cache and cleanup old entries
         self._ip_cache[cache_key].append(now)
@@ -505,7 +505,7 @@ class AbuseDetectionService:
             return False
 
         ban.is_active = False
-        ban.lifted_at = datetime.utcnow()
+        ban.lifted_at = datetime.now(tz=datetime.UTC)
         ban.lifted_by = admin_id
 
         await self.db.commit()
@@ -517,7 +517,7 @@ class AbuseDetectionService:
         offset: int = 0,
     ) -> list[UserBan]:
         """Get list of active bans for admin review."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=datetime.UTC)
 
         query = (
             select(UserBan)
@@ -540,7 +540,7 @@ class AbuseDetectionService:
 
     async def cleanup_expired_bans(self) -> int:
         """Deactivate expired bans."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=datetime.UTC)
 
         stmt = (
             update(UserBan)

@@ -414,7 +414,7 @@ class TestSendMessageResponseSchema:
 
     def test_send_message_response_includes_additional_messages_field(self):
         """Verify SendMessageResponse has additional_messages field with correct default."""
-        from datetime import datetime
+        from datetime import UTC, datetime
         from uuid import uuid4
 
         from app.api.v1.conversations import MessageResponse, SendMessageResponse
@@ -424,14 +424,14 @@ class TestSendMessageResponseSchema:
             role="user",
             message_type="text",
             content="Create a box",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(tz=datetime.UTC),
         )
         assistant_msg = MessageResponse(
             id=uuid4(),
             role="assistant",
             message_type="result",
             content="Part generated",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(tz=datetime.UTC),
         )
 
         # Without additional_messages
@@ -455,21 +455,21 @@ class TestSendMessageResponseSchema:
             role="user",
             message_type="text",
             content="Create a cylinder",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(tz=datetime.UTC),
         )
         confirmation_msg = MessageResponse(
             id=uuid4(),
             role="assistant",
             message_type="confirmation",
             content="Here's what I understand: You want a cylinder...",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(tz=datetime.UTC),
         )
         assistant_msg = MessageResponse(
             id=uuid4(),
             role="assistant",
             message_type="result",
             content="Part generated",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(tz=datetime.UTC),
         )
 
         response = SendMessageResponse(

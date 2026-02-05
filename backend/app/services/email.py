@@ -388,14 +388,14 @@ Manage settings: {settings_url}
         Returns:
             Tuple of (subject, html_body, text_body)
         """
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         settings = get_settings()
 
         # Default context
         default_context = {
             "app_name": settings.APP_NAME,
-            "year": datetime.utcnow().year,
+            "year": datetime.now(tz=datetime.UTC).year,
         }
         full_context = {**default_context, **context}
 
@@ -487,7 +487,7 @@ Manage settings: {settings_url}
             EmailTemplate.PASSWORD_CHANGED,
             {
                 "display_name": display_name,
-                "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                "timestamp": datetime.now(tz=datetime.UTC).strftime("%Y-%m-%d %H:%M UTC"),
             },
         )
 

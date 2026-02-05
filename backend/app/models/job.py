@@ -2,7 +2,7 @@
 Job model for async task tracking.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -239,13 +239,13 @@ class Job(Base):
     def start(self) -> None:
         """Mark job as started."""
         self.status = "running"
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(tz=datetime.UTC)
         self.progress = 0
 
     def complete(self, result: dict) -> None:
         """Mark job as completed with result."""
         self.status = "completed"
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(tz=datetime.UTC)
         self.result = result
         self.progress = 100
 
@@ -256,7 +256,7 @@ class Job(Base):
     def fail(self, error_message: str, error_details: dict | None = None) -> None:
         """Mark job as failed with error info."""
         self.status = "failed"
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(tz=datetime.UTC)
         self.error_message = error_message
         self.error = error_details or {"message": error_message}
 
@@ -267,7 +267,7 @@ class Job(Base):
     def cancel(self) -> None:
         """Mark job as cancelled."""
         self.status = "cancelled"
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(tz=datetime.UTC)
 
     def update_progress(self, progress: int, message: str | None = None) -> None:
         """Update job progress."""

@@ -184,12 +184,12 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     ) -> None:
         """Log request with security context."""
         import logging
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         logger = logging.getLogger("security")
 
         log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
             "request_id": request_id,
             "method": request.method,
             "path": request.url.path,
@@ -399,7 +399,7 @@ async def block_ip(ip_address: str, duration_seconds: int = 86400, reason: str =
         f"security:blocked_ip:{ip_address}",
         json.dumps(
             {
-                "blocked_at": datetime.utcnow().isoformat(),
+                "blocked_at": datetime.now(tz=datetime.UTC).isoformat(),
                 "duration": duration_seconds,
                 "reason": reason,
             }

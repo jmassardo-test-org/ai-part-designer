@@ -7,7 +7,7 @@ Tasks for extracting specifications from component datasheets and CAD files.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -70,7 +70,7 @@ async def _extract_component_async(task, job_id: str) -> dict[str, Any]:
 
         # Update job status
         job.status = "processing"
-        job.started_at = datetime.utcnow()
+        job.started_at = datetime.now(tz=datetime.UTC)
         job.current_step = "Initializing extraction"
         await db.commit()
 
@@ -124,7 +124,7 @@ async def _extract_component_async(task, job_id: str) -> dict[str, Any]:
             job.status = "complete"
             job.progress = 100
             job.current_step = "Extraction complete"
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(tz=datetime.UTC)
             job.extracted_data = extracted_data
             job.confidence_score = overall_confidence
             component.extraction_status = "complete"
@@ -148,7 +148,7 @@ async def _extract_component_async(task, job_id: str) -> dict[str, Any]:
             logger.exception(f"Extraction failed for job {job_id}: {e}")
             job.status = "failed"
             job.error_message = str(e)
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(tz=datetime.UTC)
             job.retry_count += 1
             component = await _get_component(db, job.component_id)
             if component:
@@ -387,7 +387,7 @@ async def _update_component_specs(
     if datasheet.get("cutouts"):
         component.clearance_zones = datasheet["cutouts"]
 
-    component.updated_at = datetime.utcnow()
+    component.updated_at = datetime.now(tz=datetime.UTC)
 
 
 # =============================================================================

@@ -171,7 +171,7 @@ def cleanup_old_exports(max_age_hours: int = DEFAULT_RETENTION_HOURS) -> dict:
         Dictionary with cleanup statistics.
     """
     exports_dir = get_exports_dir()
-    cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
+    cutoff_time = datetime.now(tz=datetime.UTC) - timedelta(hours=max_age_hours)
 
     removed_count = 0
     removed_size = 0
@@ -183,7 +183,7 @@ def cleanup_old_exports(max_age_hours: int = DEFAULT_RETENTION_HOURS) -> dict:
 
         try:
             # Check directory modification time
-            mtime = datetime.fromtimestamp(job_dir.stat().st_mtime)
+            mtime = datetime.fromtimestamp(job_dir.stat().st_mtime, tz=datetime.UTC)
             if mtime < cutoff_time:
                 # Calculate size before removal
                 dir_size = sum(f.stat().st_size for f in job_dir.rglob("*") if f.is_file())

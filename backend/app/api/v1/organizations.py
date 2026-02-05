@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -278,7 +278,7 @@ async def create_organization(
         organization_id=org.id,
         user_id=current_user.id,
         role=OrganizationRole.OWNER.value,
-        joined_at=datetime.utcnow(),
+        joined_at=datetime.now(tz=datetime.UTC),
     )
     db.add(owner_member)
 
@@ -486,7 +486,7 @@ async def delete_organization(
     await require_org_role(db, org_id, current_user.id, OrganizationRole.OWNER)
 
     # Soft delete
-    org.deleted_at = datetime.utcnow()
+    org.deleted_at = datetime.now(tz=datetime.UTC)
 
     await log_org_action(
         db,
@@ -967,7 +967,7 @@ async def accept_invite(
         role=invite.role,
         invited_by_id=invite.invited_by_id,
         invited_at=invite.created_at,
-        joined_at=datetime.utcnow(),
+        joined_at=datetime.now(tz=datetime.UTC),
     )
     db.add(member)
 

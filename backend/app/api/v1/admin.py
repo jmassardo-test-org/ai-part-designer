@@ -18,7 +18,7 @@ Provides endpoints for:
 - Marketplace administration
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
@@ -318,7 +318,7 @@ async def get_moderation_stats(
     db: AsyncSession = Depends(get_db),
 ) -> ModerationStatsResponse:
     """Get moderation statistics."""
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(tz=datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Count pending
     pending_count = (
@@ -425,7 +425,7 @@ async def approve_content(
     # Update item
     item.decision = "approved"
     item.reviewer_id = current_user.id
-    item.reviewed_at = datetime.utcnow()
+    item.reviewed_at = datetime.now(tz=datetime.UTC)
 
     if request.notes:
         item.details["review_notes"] = request.notes
@@ -467,7 +467,7 @@ async def reject_content(
     item.decision = "rejected"
     item.reason = request.reason
     item.reviewer_id = current_user.id
-    item.reviewed_at = datetime.utcnow()
+    item.reviewed_at = datetime.now(tz=datetime.UTC)
 
     if request.notes:
         item.details["review_notes"] = request.notes
@@ -506,7 +506,7 @@ async def escalate_content(
 
     item.decision = "escalated"
     item.details["escalated_by"] = str(current_user.id)
-    item.details["escalated_at"] = datetime.utcnow().isoformat()
+    item.details["escalated_at"] = datetime.now(tz=datetime.UTC).isoformat()
 
     if request.notes:
         item.details["escalation_notes"] = request.notes
@@ -517,7 +517,7 @@ async def escalate_content(
         id=item.id,
         decision="escalated",
         reviewed_by=current_user.id,
-        reviewed_at=datetime.utcnow(),
+        reviewed_at=datetime.now(tz=datetime.UTC),
         message="Content escalated for senior review",
     )
 
@@ -556,7 +556,7 @@ async def warn_user(
     # Calculate expiration
     expires_at = None
     if request.expires_in_days:
-        expires_at = datetime.utcnow() + timedelta(days=request.expires_in_days)
+        expires_at = datetime.now(tz=datetime.UTC) + timedelta(days=request.expires_in_days)
 
     # Store warning in user's extra_data (simplified)
     # In production, use dedicated UserWarning model
@@ -569,7 +569,7 @@ async def warn_user(
             "severity": request.severity,
             "message": request.message,
             "issued_by": str(current_user.id),
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(tz=datetime.UTC).isoformat(),
             "expires_at": expires_at.isoformat() if expires_at else None,
             "acknowledged": False,
         }
@@ -587,7 +587,7 @@ async def warn_user(
         severity=request.severity,
         message=request.message,
         acknowledged=False,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(tz=datetime.UTC),
         expires_at=expires_at,
     )
 
@@ -628,11 +628,11 @@ async def ban_user(
     # Calculate expiration
     expires_at = None
     if not request.is_permanent and request.duration_days:
-        expires_at = datetime.utcnow() + timedelta(days=request.duration_days)
+        expires_at = datetime.now(tz=datetime.UTC) + timedelta(days=request.duration_days)
 
     # Ban user
     user.is_banned = True
-    user.banned_at = datetime.utcnow()
+    user.banned_at = datetime.now(tz=datetime.UTC)
     user.ban_reason = request.reason
     user.ban_expires_at = expires_at
 
@@ -644,7 +644,7 @@ async def ban_user(
         reason=request.reason,
         is_permanent=request.is_permanent,
         expires_at=expires_at,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(tz=datetime.UTC),
     )
 
 
@@ -1078,7 +1078,7 @@ async def get_analytics_overview(
         organization_id: Filter by organization
         plan: Filter by subscription plan (free, starter, pro, enterprise)
     """
-    now = datetime.utcnow()
+    now = datetime.now(tz=datetime.UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = now - timedelta(days=7)
     month_ago = now - timedelta(days=30)
@@ -1237,7 +1237,7 @@ async def get_user_analytics(
 ) -> UserAnalyticsResponse:
     """Get user analytics for a period."""
     days = int(period.replace("d", ""))
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(tz=datetime.UTC) - timedelta(days=days)
 
     total_users = (
         await db.execute(select(func.count()).where(User.deleted_at.is_(None)))
@@ -1287,7 +1287,7 @@ async def get_generation_analytics(
 ) -> GenerationAnalyticsResponse:
     """Get generation analytics for a period."""
     days = int(period.replace("d", ""))
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(tz=datetime.UTC) - timedelta(days=days)
 
     total = (
         await db.execute(
@@ -1365,7 +1365,7 @@ async def get_job_analytics(
 ) -> JobAnalyticsResponse:
     """Get job queue analytics."""
     days = int(period.replace("d", ""))
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(tz=datetime.UTC) - timedelta(days=days)
 
     total = (
         await db.execute(select(func.count()).where(Job.created_at >= start_date))
@@ -1460,7 +1460,7 @@ async def get_time_series_analytics(
     db: AsyncSession = Depends(get_db),
 ) -> TimeSeriesAnalyticsResponse:
     """Get time-series analytics for charting."""
-    now = datetime.utcnow()
+    now = datetime.now(tz=datetime.UTC)
     start_date = now - timedelta(days=days)
 
     # Generate date range
@@ -1797,11 +1797,11 @@ async def suspend_user(
 
     user.status = "suspended"
     user.extra_data["suspension_reason"] = request.reason
-    user.extra_data["suspended_at"] = datetime.utcnow().isoformat()
+    user.extra_data["suspended_at"] = datetime.now(tz=datetime.UTC).isoformat()
     user.extra_data["suspended_by"] = str(current_user.id)
     if request.duration_days:
         user.extra_data["suspension_expires"] = (
-            datetime.utcnow() + timedelta(days=request.duration_days)
+            datetime.now(tz=datetime.UTC) + timedelta(days=request.duration_days)
         ).isoformat()
 
     await db.commit()
@@ -1897,7 +1897,7 @@ async def delete_user(
             detail="Cannot delete your own account",
         )
 
-    user.deleted_at = datetime.utcnow()
+    user.deleted_at = datetime.now(tz=datetime.UTC)
     await db.commit()
 
 
@@ -1933,7 +1933,7 @@ async def impersonate_user(
         )
 
     # Create short-lived token (1 hour)
-    expires_at = datetime.utcnow() + timedelta(hours=1)
+    expires_at = datetime.now(tz=datetime.UTC) + timedelta(hours=1)
     token = create_access_token(
         user_id=user.id,
         email=user.email,
@@ -1948,7 +1948,7 @@ async def impersonate_user(
         {
             "id": str(audit_id),
             "by": str(current_user.id),
-            "at": datetime.utcnow().isoformat(),
+            "at": datetime.now(tz=datetime.UTC).isoformat(),
         }
     )
     await db.commit()
@@ -2098,7 +2098,7 @@ async def delete_project(
             detail="Project not found",
         )
 
-    project.deleted_at = datetime.utcnow()
+    project.deleted_at = datetime.now(tz=datetime.UTC)
     await db.commit()
 
 
@@ -2428,7 +2428,7 @@ async def delete_design(
             detail="Design not found",
         )
 
-    design.deleted_at = datetime.utcnow()
+    design.deleted_at = datetime.now(tz=datetime.UTC)
     await db.commit()
 
 
@@ -3210,7 +3210,7 @@ async def cancel_job(
         )
 
     job.status = "cancelled"
-    job.completed_at = datetime.utcnow()
+    job.completed_at = datetime.now(tz=datetime.UTC)
     await db.commit()
     await db.refresh(job)
 
@@ -3526,7 +3526,7 @@ async def cancel_subscription_admin(
         )
 
     sub.status = "cancelled"
-    sub.cancelled_at = datetime.utcnow()
+    sub.cancelled_at = datetime.now(tz=datetime.UTC)
     await db.commit()
 
     return {"message": "Subscription cancelled"}
@@ -3566,7 +3566,7 @@ async def extend_subscription(
     if sub.current_period_end:
         sub.current_period_end = sub.current_period_end + timedelta(days=request.days)
     else:
-        sub.current_period_end = datetime.utcnow() + timedelta(days=request.days)
+        sub.current_period_end = datetime.now(tz=datetime.UTC) + timedelta(days=request.days)
 
     await db.commit()
     await db.refresh(sub)
@@ -3885,7 +3885,7 @@ async def delete_organization(
             detail="Organization not found",
         )
 
-    org.deleted_at = datetime.utcnow()
+    org.deleted_at = datetime.now(tz=datetime.UTC)
     await db.commit()
 
     return {"message": "Organization deleted"}
@@ -4366,7 +4366,7 @@ async def get_notification_stats(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Get notification statistics."""
-    now = datetime.utcnow()
+    now = datetime.now(tz=datetime.UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = now - timedelta(days=7)
 
@@ -4822,7 +4822,7 @@ async def revoke_api_key(
         )
 
     key.is_active = False
-    key.revoked_at = datetime.utcnow()
+    key.revoked_at = datetime.now(tz=datetime.UTC)
     await db.commit()
 
     return {"message": "API key revoked"}
@@ -5064,7 +5064,7 @@ async def get_system_health(
         services=services,
         version="1.0.0",
         uptime_seconds=0,  # Would need app start time tracking
-        last_check=datetime.utcnow(),
+        last_check=datetime.now(tz=datetime.UTC),
     )
 
 
@@ -5588,7 +5588,7 @@ async def update_starter(
     if request.is_public is not None:
         starter.is_public = request.is_public
 
-    starter.updated_at = datetime.utcnow()
+    starter.updated_at = datetime.now(tz=datetime.UTC)
 
     await db.commit()
     await db.refresh(starter)
@@ -5704,7 +5704,7 @@ async def delete_starter(
             detail="Starter design not found",
         )
 
-    starter.deleted_at = datetime.utcnow()
+    starter.deleted_at = datetime.now(tz=datetime.UTC)
     await db.commit()
 
 
@@ -5747,8 +5747,8 @@ async def get_marketplace_stats(
     """Get marketplace statistics for admin dashboard."""
     from app.models.design import Design
 
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    today_start = datetime.now(tz=datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = datetime.now(tz=datetime.UTC) - timedelta(days=7)
 
     # Total starters
     total_starters = (

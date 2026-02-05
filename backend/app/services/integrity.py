@@ -11,7 +11,7 @@ Provides verification and validation of:
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -52,7 +52,7 @@ class IntegrityIssue:
     record_id: str | None = None
     message: str = ""
     details: dict[str, Any] = field(default_factory=dict)
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -71,7 +71,7 @@ class IntegrityIssue:
 class IntegrityReport:
     """Report from an integrity check run."""
 
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
     completed_at: datetime | None = None
     checks_run: list[IntegrityCheckType] = field(default_factory=list)
     issues: list[IntegrityIssue] = field(default_factory=list)
@@ -144,7 +144,7 @@ class DataIntegrityService:
         await self._check_referential_integrity(report)
         await self._collect_stats(report)
 
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(tz=datetime.UTC)
 
         return report
 
@@ -156,7 +156,7 @@ class DataIntegrityService:
         await self._check_orphaned_projects(report)
         await self._check_orphaned_files(report)
 
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(tz=datetime.UTC)
         return report
 
     async def check_storage_integrity(self) -> IntegrityReport:
@@ -166,7 +166,7 @@ class DataIntegrityService:
         await self._check_missing_storage_files(report)
         await self._check_file_checksums(report)
 
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(tz=datetime.UTC)
         return report
 
     async def _check_orphaned_designs(self, report: IntegrityReport) -> None:

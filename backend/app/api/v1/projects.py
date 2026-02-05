@@ -772,7 +772,7 @@ async def copy_example_project(
         is_public=False,
         extra_data={
             "copied_from": str(project_id),
-            "copied_at": datetime.utcnow().isoformat(),
+            "copied_at": datetime.now(tz=datetime.UTC).isoformat(),
             "tags": example.extra_data.get("tags", []),
         },
     )
