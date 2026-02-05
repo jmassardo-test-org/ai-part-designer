@@ -13,7 +13,6 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
-  POETRY_VERSION: "1.7.1"
 
 jobs:
   lint:
@@ -28,33 +27,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: backend/.venv
-          key: venv-lint-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
+          cache: 'pip'
+          cache-dependency-path: 'backend/pyproject.toml'
 
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         working-directory: backend
-        run: poetry install --no-interaction --only dev
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
       - name: Run Ruff linter
         working-directory: backend
-        run: poetry run ruff check app tests --output-format=github
+        run: ruff check app tests --output-format=github
 
       - name: Run Ruff formatter check
         working-directory: backend
-        run: poetry run ruff format app tests --check
+        run: ruff format app tests --check
 
   type-check:
     name: Type Check with MyPy
@@ -68,36 +56,25 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgl1-mesa-glx \
+            libgl1 \
             libglu1-mesa
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: backend/.venv
-          key: venv-typecheck-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
+          cache: 'pip'
+          cache-dependency-path: 'backend/pyproject.toml'
 
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         working-directory: backend
-        run: poetry install --no-interaction
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
       - name: Run MyPy
         working-directory: backend
-        run: poetry run mypy app --show-error-codes
+        run: mypy app --show-error-codes
 
   security:
     name: Security Scan
@@ -111,30 +88,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+          cache: 'pip'
+          cache-dependency-path: 'backend/pyproject.toml'
 
       - name: Install dependencies
         working-directory: backend
-        run: poetry install --no-interaction --only dev
-
-      - name: Export requirements for safety
-        working-directory: backend
-        run: poetry export -f requirements.txt --without-hashes -o requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
       - name: Run Bandit security linter
         working-directory: backend
         continue-on-error: true
-        run: poetry run bandit -r app -ll -ii
+        run: bandit -r app -ll -ii
 
       - name: Run pip-audit
         working-directory: backend
         continue-on-error: true
         run: |
           pip install pip-audit
-          pip-audit -r requirements.txt
+          pip-audit
