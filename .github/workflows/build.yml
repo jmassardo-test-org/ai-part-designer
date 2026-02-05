@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
-          pip install alembic sqlalchemy psycopg2-binary
+          pip install alembic sqlalchemy psycopg2-binary pydantic pydantic-settings
 
       - name: Run migrations (first pass)
         env:
