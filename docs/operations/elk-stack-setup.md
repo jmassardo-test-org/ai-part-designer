@@ -89,7 +89,7 @@ This document describes the ELK (Elasticsearch, Logstash, Kibana) stack setup fo
    curl http://localhost:9200/_cat/indices?v
    ```
 
-   You should see indices like: `ai-part-designer-2024.01.15`
+   You should see indices like: `ai-part-designer-YYYY.MM.DD` (e.g., `ai-part-designer-2026.02.06`)
 
 2. **Query recent logs**:
    ```bash

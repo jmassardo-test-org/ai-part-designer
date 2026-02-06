@@ -110,7 +110,7 @@ To generate load for testing:
 ```bash
 # Send 100 test logs
 for i in {1..100}; do
-  echo "{\"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)\", \"level\": \"info\", \"event\": \"load_test_$i\", \"logger\": \"test.script\", \"app_name\": \"ai-part-designer\", \"environment\": \"development\", \"iteration\": $i}" | nc localhost 5044
+  echo "{\"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)\", \"level\": \"info\", \"event\": \"load_test_$i\", \"logger\": \"test.script\", \"app_name\": \"ai-part-designer\", \"environment\": \"development\", \"iteration\": $i}" | nc localhost 5044
   sleep 0.1
 done
 
