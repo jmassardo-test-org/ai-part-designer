@@ -233,7 +233,7 @@ class EnclosureCompiler:
 
     def _add_honeycomb_vents(
         self,
-        body: "BuildPart",
+        _body: "BuildPart",
         spec: EnclosureSpec,
         vent: VentilationSpec,
         side: WallSide,
@@ -345,7 +345,7 @@ class EnclosureCompiler:
 
     def _add_vent_slots(
         self,
-        body: "BuildPart",
+        _body: "BuildPart",
         spec: EnclosureSpec,
         vent: VentilationSpec,
         side: WallSide,

@@ -301,7 +301,7 @@ class EnclosureGenerationService:
     def _generate_standoffs(
         self,
         components: list[ComponentData],
-        layout: SpatialLayout,
+        _layout: SpatialLayout,
         options: EnclosureOptions,
     ) -> list[Standoff]:
         """Generate standoff specifications for all components."""
@@ -324,7 +324,7 @@ class EnclosureGenerationService:
     def _generate_cutouts(
         self,
         components: list[ComponentData],
-        layout: SpatialLayout,
+        _layout: SpatialLayout,
         style: EnclosureStyle,
         options: EnclosureOptions,
     ) -> list[Cutout]:

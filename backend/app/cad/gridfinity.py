@@ -268,7 +268,7 @@ def generate_gridfinity_bin(
     dividers_x: int = 0,
     dividers_y: int = 0,
     label_tab: bool = False,
-    label_angle: float = 45.0,
+    _label_angle: float = 45.0,
     stacking_lip: bool = True,
     scoop: bool = False,
     wall_thickness: float = 1.2,

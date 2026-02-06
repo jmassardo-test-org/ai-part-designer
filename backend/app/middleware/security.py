@@ -414,9 +414,10 @@ async def unblock_ip(ip_address: str) -> None:
     await redis_client.delete(f"security:blocked_ip:{ip_address}")
 
 
-async def get_security_stats(time_window_hours: int = 24) -> dict[str, Any]:
+async def get_security_stats(_time_window_hours: int = 24) -> dict[str, Any]:
     """Get security statistics for monitoring."""
     # This would query Redis/logs for security metrics
+    # TODO: Implement security stats retrieval from Redis/logs
     return {
         "blocked_ips": 0,  # Count from Redis
         "failed_auths": 0,  # Count from Redis

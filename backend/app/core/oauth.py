@@ -79,12 +79,12 @@ def get_oauth_client(provider: str) -> Any:
     return client
 
 
-async def get_oauth_redirect_uri(request: Request, provider: str) -> str:
+async def get_oauth_redirect_uri(_request: Request, provider: str) -> str:
     """
     Generate the OAuth callback URI.
 
     Args:
-        request: The incoming request
+        _request: The incoming request
         provider: Provider name
 
     Returns:

@@ -242,9 +242,9 @@ async def get_moderation_queue(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     status_filter: Annotated[str | None, Query()] = None,
-    severity_filter: Annotated[str | None, Query()] = None,
+    _severity_filter: Annotated[str | None, Query()] = None,  # TODO: Implement severity filtering
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user),
 ) -> ModerationQueueResponse:
     """Get paginated moderation queue."""
 
@@ -604,7 +604,7 @@ async def ban_user(
     user_id: UUID,
     request: UserBanRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user),
 ) -> UserBanResponse:
     """Ban a user from the platform."""
     # Verify user exists
@@ -1419,7 +1419,7 @@ async def get_job_analytics(
     dependencies=[Depends(require_admin())],
 )
 async def get_storage_analytics(
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
 ) -> StorageAnalyticsResponse:
     """Get storage usage analytics."""
     # Simplified - would calculate from files table
@@ -2172,9 +2172,9 @@ async def transfer_project(
 )
 async def suspend_project(
     project_id: UUID,
-    request: SuspendProjectRequest,
+    _request: SuspendProjectRequest,  # TODO: Use request.reason for audit log
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user),
 ) -> AdminProjectResponse:
     """Suspend a project."""
     query = (
@@ -3621,7 +3621,7 @@ async def get_user_credits(
 async def add_user_credits(
     user_id: UUID,
     amount: Annotated[int, Query(ge=1, le=10000)],
-    reason: Annotated[str | None, Query(max_length=500)] = None,
+    _reason: Annotated[str | None, Query(max_length=500)] = None,  # TODO: Store reason in audit log
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Add credits to user."""

@@ -208,8 +208,8 @@ async def generate_cad(
 
 async def _generate_via_v2(
     request: GenerateRequest,
-    response: Response,
-    settings: Settings,
+    _response: Response,
+    _settings: Settings,
 ) -> GenerateResponse:
     """Generate CAD using the v2 declarative schema pipeline.
 
@@ -321,8 +321,8 @@ async def _generate_via_v2(
 
 async def _generate_via_v1(
     request: GenerateRequest,
-    response: Response,
-    settings: Settings,
+    _response: Response,
+    _settings: Settings,
 ) -> GenerateResponse:
     """Legacy v1 generation pipeline."""
     # Validate AI is configured (check for any provider)

@@ -98,7 +98,7 @@ async def extract_dimensions(
         default=False,
         description="For PDFs, analyze all pages instead of just detected drawing pages",
     ),
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user),
 ) -> DimensionResponse:
     """
     Extract dimensions from an uploaded file.
@@ -231,7 +231,7 @@ async def _extract_from_pdf(
 async def extract_from_url(
     url: str = Form(..., description="URL of the image or PDF"),
     context: str = Form(default="", description="Optional context"),
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user),
 ) -> DimensionResponse:
     """
     Extract dimensions from a file at a URL.

@@ -29,7 +29,7 @@ def generate_from_prompt(
     self: Any,
     job_id: str,
     prompt: str,
-    context: dict[str, Any] | None = None,
+    _context: dict[str, Any] | None = None,
     user_id: str | None = None,
 ) -> dict[str, Any]:
     """

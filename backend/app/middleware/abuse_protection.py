@@ -508,7 +508,7 @@ class GenerationGuardMiddleware:
         self,
         user_id: UUID,
         job_id: UUID,
-        tier: UserTier,
+        _tier: UserTier,
     ) -> UUID:
         """Record that a generation has started."""
         async with self.db_session_factory() as db:

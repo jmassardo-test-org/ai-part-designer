@@ -363,7 +363,7 @@ async def update_comment(
     comment_id: UUID,
     request: CommentUpdate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
 ) -> CommentResponse:
     """Update a comment. Only the author can update their own comments."""
     comment_key = str(comment_id)

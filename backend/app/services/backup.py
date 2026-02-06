@@ -355,14 +355,14 @@ class BackupService:
     async def restore_backup(
         self,
         backup_id: UUID,
-        target_time: datetime | None = None,
+        _target_time: datetime | None = None,
     ) -> RestoreResult:
         """
         Restore from a backup.
 
         Args:
             backup_id: ID of backup to restore
-            target_time: Optional point-in-time for incremental restore
+            _target_time: Optional point-in-time for incremental restore
 
         Returns:
             RestoreResult with operation details

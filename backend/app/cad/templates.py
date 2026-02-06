@@ -133,10 +133,10 @@ def generate_project_box(
     screw_post_diameter: float = 6.0,
     screw_hole_diameter: float = 3.0,
     screw_post_height: float = 0.0,
-    ventilation_slots: bool = False,
-    slot_width: float = 2.0,
-    slot_length: float = 20.0,
-    slot_count: int = 3,
+    _ventilation_slots: bool = False,  # TODO: Implement ventilation slots
+    _slot_width: float = 2.0,
+    _slot_length: float = 20.0,
+    _slot_count: int = 3,
     cable_hole: bool = False,
     cable_hole_diameter: float = 8.0,
     cable_hole_position: str = "back",
@@ -146,6 +146,9 @@ def generate_project_box(
     Generate a parameterized project box/enclosure.
 
     Creates a two-part box (base and lid) suitable for electronics projects.
+    
+    Note: Ventilation slot parameters are reserved for future implementation
+    and are currently not used in the generated design.
 
     Returns:
         Assembly of base and lid as a single Part
@@ -479,8 +482,8 @@ def generate_standoff(
     outer_diameter: float = 8.0,
     inner_diameter: float = 3.0,
     height: float = 10.0,
-    hex_head: bool = False,
-    head_height: float = 3.0,
+    _hex_head: bool = False,  # TODO: Implement hex head feature
+    _head_height: float = 3.0,
     **_kwargs: Any,
 ) -> Part:
     """
@@ -523,7 +526,7 @@ def generate_cable_clip(
     base_thickness: float = 2.0,
     wall_thickness: float = 1.5,
     screw_hole_diameter: float = 3.0,
-    opening_angle: float = 60.0,
+    _opening_angle: float = 60.0,  # TODO: Implement opening angle for snap-in
     **_kwargs: Any,
 ) -> Part:
     """
@@ -695,7 +698,7 @@ def generate_enclosure(
 @register_template("pipe-connector")  # type: ignore[untyped-decorator]
 def generate_pipe_connector(
     pipe_od: float = 25.0,
-    pipe_id: float = 20.0,
+    _pipe_id: float = 20.0,  # TODO: Use pipe_id for validation or internal features
     connector_type: str = "straight",  # straight, elbow, tee, cross
     socket_depth: float = 15.0,
     angle: float = 90.0,

@@ -60,7 +60,7 @@ def extract_component_task(self: Any, job_id: str) -> dict[str, Any]:
     return asyncio.get_event_loop().run_until_complete(_extract_component_async(self, job_id))
 
 
-async def _extract_component_async(task: Any, job_id: str) -> dict[str, Any]:
+async def _extract_component_async(_task: Any, job_id: str) -> dict[str, Any]:
     """Async implementation of component extraction."""
     async with async_session_maker() as db:
         # Get the extraction job
@@ -356,7 +356,7 @@ async def _download_file(url: str) -> bytes | None:
 
 
 async def _update_component_specs(
-    db: AsyncSession,
+    _db: AsyncSession,
     component: ReferenceComponent,
     extracted_data: dict[str, Any],
 ) -> None:
@@ -400,7 +400,7 @@ async def _update_component_specs(
     name="extraction.batch_extract",
     bind=True,
 )
-def batch_extract_task(self: Any, component_ids: list[str]) -> dict[str, Any]:
+def batch_extract_task(_self: Any, component_ids: list[str]) -> dict[str, Any]:
     """
     Batch extract specifications for multiple components.
 

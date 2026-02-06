@@ -147,7 +147,7 @@ def generate_dovetail_tail_board(
     num_tails: int = 3,
     tail_angle: float = 14.0,
     half_pin: bool = True,
-    tolerance: float = 0.1,
+    _tolerance: float = 0.1,
     **_kwargs: Any,
 ) -> Part:
     """

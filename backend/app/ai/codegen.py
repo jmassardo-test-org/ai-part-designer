@@ -672,7 +672,7 @@ async def generate_cadquery_code(
     description: str,
     *,
     intent: Any = None,  # PartIntent from reasoning module
-    build_plan: Any = None,  # BuildPlan from reasoning module
+    _build_plan: Any = None,  # BuildPlan from reasoning module
 ) -> CodeGenerationResult:
     """
     Generate CadQuery code from a natural language description.
@@ -929,7 +929,7 @@ async def generate_modification(
     modification_request: str,
     original_code: str | None = None,
     existing_dimensions: dict[str, float] | None = None,
-    existing_features: list[str] | None = None,
+    _existing_features: list[str] | None = None,
 ) -> CodeGenerationResult:
     """
     Generate CadQuery code that applies a modification to an existing part.

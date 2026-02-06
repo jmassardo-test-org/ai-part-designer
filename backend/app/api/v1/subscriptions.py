@@ -355,7 +355,7 @@ async def resume_subscription(
 @router.get("/usage")
 async def get_usage(
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
 ) -> UsageResponse:
     """
     Get current usage statistics.

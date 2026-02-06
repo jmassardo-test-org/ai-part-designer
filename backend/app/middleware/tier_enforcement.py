@@ -255,14 +255,14 @@ class FeatureRequired:
 
 async def check_generation_quota(
     user: User,
-    db: AsyncSession,
+    _db: AsyncSession,
 ) -> dict[str, Any]:
     """
     Check if user has remaining generation quota.
 
     Args:
         user: The user to check
-        db: Database session
+        _db: Database session
 
     Returns:
         Dict with 'allowed', 'used', 'limit', and 'remaining'
@@ -304,7 +304,7 @@ async def check_generation_quota(
 async def check_storage_quota(
     user: User,
     additional_bytes: int,
-    db: AsyncSession,
+    _db: AsyncSession,
 ) -> dict[str, Any]:
     """
     Check if user has storage space for additional data.
@@ -312,7 +312,7 @@ async def check_storage_quota(
     Args:
         user: The user to check
         additional_bytes: Size of new data to store
-        db: Database session
+        _db: Database session
 
     Returns:
         Dict with 'allowed', 'used_gb', 'limit_gb', and 'remaining_gb'

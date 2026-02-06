@@ -109,7 +109,7 @@ async def create_team(
 )
 async def list_teams(
     organization_id: UUID,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -153,7 +153,7 @@ async def list_teams(
 async def get_team(
     organization_id: UUID,
     team_id: UUID,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> TeamDetailResponse:
     """Get team details with members.
@@ -299,9 +299,9 @@ async def delete_team(
     description="List all members of a team.",
 )
 async def list_team_members(
-    organization_id: UUID,
+    _organization_id: UUID,
     team_id: UUID,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
@@ -658,7 +658,7 @@ async def leave_team(
 )
 async def list_project_teams(
     project_id: UUID,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> list[ProjectTeamResponse]:
     """List teams assigned to a project.
@@ -738,7 +738,7 @@ async def update_project_team(
     project_id: UUID,
     team_id: UUID,
     data: ProjectTeamUpdate,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> ProjectTeamResponse:
     """Update a project-team assignment.
@@ -784,7 +784,7 @@ async def update_project_team(
 async def remove_team_from_project(
     project_id: UUID,
     team_id: UUID,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> None:
     """Remove a team from a project.

@@ -99,7 +99,7 @@ def export_step(
     *,
     author: str | None = None,
     organization: str | None = None,
-    product_name: str = "CAD Export",
+    _product_name: str = "CAD Export",
 ) -> bytes:
     """
     Export shape to STEP format (AP214).
