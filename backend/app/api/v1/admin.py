@@ -3011,7 +3011,7 @@ async def upload_template_preview_image(
     db: AsyncSession = Depends(get_db),
 ) -> AdminTemplateResponse:
     """Upload preview image for a template."""
-    import os
+    from pathlib import Path
 
     import aiofiles
 
@@ -3050,9 +3050,9 @@ async def upload_template_preview_image(
     # Save file
     file_ext = file.filename.split(".")[-1] if file.filename else "png"
     filename = f"template-{template_id}.{file_ext}"
-    upload_dir = os.path.join(settings.UPLOAD_DIR, "templates")
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, filename)
+    upload_dir = Path(settings.UPLOAD_DIR) / "templates"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = upload_dir / filename
 
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)
