@@ -19,6 +19,7 @@ from app.api import api_router
 from app.api.v2 import api_router as api_router_v2
 from app.core.config import get_settings
 from app.core.logging import configure_structlog, get_logger
+from app.core.metrics import collect_db_pool_metrics, collect_redis_metrics, setup_metrics
 from app.middleware.request_context import RequestContextMiddleware
 
 if TYPE_CHECKING:
@@ -93,6 +94,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.warning("ai_provider_initialization_failed", error=str(e), exc_info=True)
 
+    # Collect initial metrics
+    try:
+        await collect_db_pool_metrics()
+        await collect_redis_metrics()
+        logger.info("initial_metrics_collected")
+    except Exception as e:
+        logger.warning("initial_metrics_collection_failed", error=str(e), exc_info=True)
+
     yield
 
     # Shutdown
@@ -157,6 +166,9 @@ def create_app() -> FastAPI:
 
     # Add request context middleware for structured logging
     app.add_middleware(RequestContextMiddleware)
+
+    # Setup Prometheus metrics and expose /metrics endpoint
+    setup_metrics(app)
 
     # Include API routes
     app.include_router(api_router)
