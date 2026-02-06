@@ -3054,7 +3054,7 @@ async def upload_template_preview_image(
     upload_dir.mkdir(parents=True, exist_ok=True)
     file_path = upload_dir / filename
 
-    async with aiofiles.open(file_path, "wb") as f:
+    async with aiofiles.open(str(file_path), "wb") as f:
         await f.write(content)
 
     # Update template with preview URL
