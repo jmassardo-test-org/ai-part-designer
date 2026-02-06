@@ -1039,7 +1039,7 @@ async def add_library_component_to_project(
 @library_router.post("/seed", include_in_schema=False)
 async def seed_library(
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Seed the component library with popular components. Admin only."""
     if not current_user.is_admin:
