@@ -47,18 +47,39 @@ configMapGenerator:
   - REQUIRE_EMAIL_VERIFICATION=true
   - FORCE_HTTPS=true
 
-# Secret should be managed via sealed-secrets, external-secrets, or vault
-# This is a placeholder to show what secrets are needed
-secretGenerator:
-- name: backend-secrets
-  literals:
-  - postgres-user=REPLACE_WITH_SEALED_SECRET
-  - postgres-password=REPLACE_WITH_SEALED_SECRET
-  - anthropic-api-key=REPLACE_WITH_SEALED_SECRET
-  - secret-key=REPLACE_WITH_SEALED_SECRET
-  - s3-endpoint-url=https://s3.us-east-1.amazonaws.com
-  - aws-access-key-id=REPLACE_WITH_SEALED_SECRET
-  - aws-secret-access-key=REPLACE_WITH_SEALED_SECRET
+# IMPORTANT: Secrets MUST be managed outside of version control
+# Required secrets for production:
+#   - postgres-user: PostgreSQL username
+#   - postgres-password: PostgreSQL password
+#   - anthropic-api-key: Anthropic Claude API key
+#   - secret-key: JWT signing secret (generate with: openssl rand -hex 32)
+#   - s3-endpoint-url: S3 endpoint URL
+#   - aws-access-key-id: AWS/S3 access key
+#   - aws-secret-access-key: AWS/S3 secret key
+#
+# Recommended approaches:
+# 1. Sealed Secrets: https://github.com/bitnami-labs/sealed-secrets
+# 2. External Secrets Operator: https://external-secrets.io/
+# 3. HashiCorp Vault: https://www.vaultproject.io/
+# 4. AWS Secrets Manager / GCP Secret Manager / Azure Key Vault
+#
+# Example using sealed-secrets:
+#   kubectl create secret generic backend-secrets \
+#     --namespace=ai-part-designer-prod \
+#     --dry-run=client -o yaml \
+#     --from-literal=postgres-user=<YOUR_DB_USER> \
+#     --from-literal=postgres-password=<YOUR_DB_PASSWORD> \
+#     --from-literal=anthropic-api-key=<YOUR_API_KEY> \
+#     --from-literal=secret-key=<YOUR_SECRET_KEY> \
+#     --from-literal=s3-endpoint-url=<YOUR_S3_ENDPOINT> \
+#     --from-literal=aws-access-key-id=<YOUR_ACCESS_KEY> \
+#     --from-literal=aws-secret-access-key=<YOUR_SECRET_KEY> | \
+#   kubeseal -o yaml > sealed-backend-secrets.yaml
+#
+# Then add to resources above:
+# resources:
+# - ../../base
+# - sealed-backend-secrets.yaml
 
 # Images with production tags (use specific version tags, not 'latest')
 images:

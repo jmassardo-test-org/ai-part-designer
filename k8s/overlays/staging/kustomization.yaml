@@ -41,17 +41,20 @@ configMapGenerator:
   - POSTGRES_HOST=postgres-service.infrastructure.svc.cluster.local
   - REDIS_HOST=redis-service.infrastructure.svc.cluster.local
 
-# Secret generator (use sealed-secrets or external secret management in production)
-secretGenerator:
-- name: backend-secrets
-  literals:
-  - postgres-user=postgres
-  - postgres-password=staging-postgres-password-change-me
-  - anthropic-api-key=sk-ant-staging-api-key
-  - secret-key=staging-secret-key-change-me
-  - s3-endpoint-url=https://s3.us-east-1.amazonaws.com
-  - aws-access-key-id=staging-access-key
-  - aws-secret-access-key=staging-secret-key
+# IMPORTANT: Secrets should NOT be committed to version control
+# Use sealed-secrets, external-secrets, or another secrets management tool
+# Example using sealed-secrets:
+#   kubectl create secret generic backend-secrets \
+#     --namespace=ai-part-designer-staging \
+#     --dry-run=client -o yaml \
+#     --from-literal=postgres-user=postgres \
+#     --from-literal=postgres-password=your-secure-password \
+#     --from-literal=anthropic-api-key=sk-ant-your-key \
+#     --from-literal=secret-key=your-secret-key \
+#     --from-literal=s3-endpoint-url=https://s3.amazonaws.com \
+#     --from-literal=aws-access-key-id=your-access-key \
+#     --from-literal=aws-secret-access-key=your-secret-key | \
+#   kubeseal -o yaml > sealed-backend-secrets.yaml
 
 # Images with staging tags
 images:

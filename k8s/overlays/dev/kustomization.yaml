@@ -41,17 +41,18 @@ configMapGenerator:
   - POSTGRES_HOST=postgres-service.infrastructure.svc.cluster.local
   - REDIS_HOST=redis-service.infrastructure.svc.cluster.local
 
-# Secret generator (for demo - use sealed-secrets or external secret management in production)
-secretGenerator:
-- name: backend-secrets
-  literals:
-  - postgres-user=postgres
-  - postgres-password=dev-postgres-password-change-me
-  - anthropic-api-key=sk-ant-dev-api-key
-  - secret-key=dev-secret-key-change-me
-  - s3-endpoint-url=http://minio-service.infrastructure.svc.cluster.local:9000
-  - aws-access-key-id=minioadmin
-  - aws-secret-access-key=minioadmin
+# IMPORTANT: Secrets should NOT be committed to version control
+# Create secrets manually using kubectl or a secrets management tool
+# Example command to create secrets:
+#   kubectl create secret generic backend-secrets \
+#     --namespace=ai-part-designer-dev \
+#     --from-literal=postgres-user=postgres \
+#     --from-literal=postgres-password=your-secure-password \
+#     --from-literal=anthropic-api-key=sk-ant-your-key \
+#     --from-literal=secret-key=your-secret-key \
+#     --from-literal=s3-endpoint-url=http://minio:9000 \
+#     --from-literal=aws-access-key-id=minioadmin \
+#     --from-literal=aws-secret-access-key=minioadmin
 
 # Images with dev tags
 images:
