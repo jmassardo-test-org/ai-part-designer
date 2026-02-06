@@ -12,7 +12,6 @@ No templates. No pattern matching. Just AI understanding → code.
 
 from __future__ import annotations
 
-import logging
 import re
 import time
 from dataclasses import dataclass
@@ -54,8 +53,9 @@ except ImportError:
     Part = Any
 
 from app.ai.client import get_ai_client
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =============================================================================
@@ -352,7 +352,11 @@ async def generate_directly(
     """
     client = get_ai_client()
 
-    logger.info(f"Direct generation for: {description[:100]}...")
+    logger.info(
+        "direct_generation_started",
+        description_preview=description[:100],
+        max_retries=max_retries,
+    )
 
     prompt = DIRECT_GENERATION_PROMPT.format(
         build123d_reference=BUILD123D_REFERENCE,
@@ -374,14 +378,23 @@ async def generate_directly(
             gen_time = (time.monotonic() - gen_start) * 1000
 
             code = sanitize_code(code)
-            logger.info(f"Generated code (attempt {attempt + 1}):\n{code}")
+            logger.info(
+                "code_generated",
+                attempt=attempt + 1,
+                code_length=len(code),
+                generation_time_ms=round(gen_time, 1),
+            )
 
             # Execute code
             exec_start = time.monotonic()
             shape = execute_build123d_code(code)
             exec_time = (time.monotonic() - exec_start) * 1000
 
-            logger.info(f"Code executed successfully in {exec_time:.1f}ms")
+            logger.info(
+                "code_executed_successfully",
+                execution_time_ms=round(exec_time, 1),
+                attempt=attempt + 1,
+            )
 
             return DirectGenerationResult(
                 code=code,
@@ -394,7 +407,13 @@ async def generate_directly(
         except Exception as e:
             last_error = str(e)
             retry_count += 1
-            logger.warning(f"Attempt {attempt + 1} failed: {e}")
+            logger.warning(
+                "code_generation_attempt_failed",
+                attempt=attempt + 1,
+                error=str(e),
+                error_type=type(e).__name__,
+                retries_remaining=max_retries - attempt,
+            )
 
             if attempt < max_retries:
                 # Ask AI to fix the error
@@ -433,8 +452,11 @@ async def modify_directly(
     """
     client = get_ai_client()
 
-    logger.info(f"Direct modification: {modification_request}")
-    logger.info(f"Original code:\n{original_code}")
+    logger.info(
+        "direct_modification_started",
+        modification_request_preview=modification_request[:100],
+        original_code_length=len(original_code),
+    )
 
     prompt = DIRECT_MODIFICATION_PROMPT.format(
         build123d_reference=BUILD123D_REFERENCE,
@@ -458,14 +480,23 @@ async def modify_directly(
             gen_time = (time.monotonic() - gen_start) * 1000
 
             code = sanitize_code(code)
-            logger.info(f"Generated modified code (attempt {attempt + 1}):\n{code}")
+            logger.info(
+                "modified_code_generated",
+                attempt=attempt + 1,
+                code_length=len(code),
+                generation_time_ms=round(gen_time, 1),
+            )
 
             # Execute code
             exec_start = time.monotonic()
             shape = execute_build123d_code(code)
             exec_time = (time.monotonic() - exec_start) * 1000
 
-            logger.info(f"Modified code executed successfully in {exec_time:.1f}ms")
+            logger.info(
+                "modified_code_executed_successfully",
+                execution_time_ms=round(exec_time, 1),
+                attempt=attempt + 1,
+            )
 
             return DirectGenerationResult(
                 code=code,
@@ -478,7 +509,13 @@ async def modify_directly(
         except Exception as e:
             last_error = str(e)
             retry_count += 1
-            logger.warning(f"Modification attempt {attempt + 1} failed: {e}")
+            logger.warning(
+                "code_modification_attempt_failed",
+                attempt=attempt + 1,
+                error=str(e),
+                error_type=type(e).__name__,
+                retries_remaining=max_retries - attempt,
+            )
 
             if attempt < max_retries:
                 # Ask AI to fix the error
