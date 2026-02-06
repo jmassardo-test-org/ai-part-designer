@@ -3,7 +3,7 @@ Base model classes and mixins for SQLAlchemy ORM.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 from sqlalchemy import DateTime, func
@@ -15,7 +15,7 @@ class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
 
     # Use UUID as default primary key type
-    type_annotation_map = {
+    type_annotation_map: ClassVar[dict[type, Any]] = {
         UUID: PG_UUID(as_uuid=True),
     }
 

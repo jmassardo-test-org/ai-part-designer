@@ -149,7 +149,6 @@ ignore = [
     "ARG002", # unused method argument
     "SIM117", # multiple with statements - sometimes more readable separate
     "E402",   # imports not at top - sometimes needed for path manipulation
-    "RUF012", # mutable class defaults - need ClassVar annotation
     # Style preferences - will address incrementally
     "SIM102", # collapsible if - sometimes clearer as nested
     "SIM105", # contextlib.suppress - try/except is more explicit
