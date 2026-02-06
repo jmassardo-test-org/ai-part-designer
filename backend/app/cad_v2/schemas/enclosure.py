@@ -12,15 +12,11 @@ designed to house electronics like Raspberry Pi, LCDs, and buttons.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.cad_v2.schemas.base import BoundingBox, Dimension, Point3D
-
-if TYPE_CHECKING:
-    # Forward references to avoid circular imports
-    pass  # ComponentMount and Feature will be imported when modules are created
 
 
 class LidType(StrEnum):
