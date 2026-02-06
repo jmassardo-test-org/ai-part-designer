@@ -148,11 +148,6 @@ ignore = [
     "SIM117", # multiple with statements - sometimes more readable separate
     "E402",   # imports not at top - sometimes needed for path manipulation
     "RUF012", # mutable class defaults - need ClassVar annotation
-    # Pathlib migration - to be done incrementally
-    "PTH103", # os.makedirs -> Path.mkdir
-    "PTH108", # os.unlink -> Path.unlink
-    "PTH118", # os.path.join -> Path /
-    "PTH123", # open() -> Path.open()
     # Style preferences - will address incrementally
     "SIM102", # collapsible if - sometimes clearer as nested
     "SIM105", # contextlib.suppress - try/except is more explicit
