@@ -6,7 +6,6 @@ FastAPI application entry point with middleware, routes, and lifecycle hooks.
 
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -19,16 +18,15 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api import api_router
 from app.api.v2 import api_router as api_router_v2
 from app.core.config import get_settings
+from app.core.logging import configure_structlog, get_logger
+from app.middleware.request_context import RequestContextMiddleware
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured logging
+configure_structlog()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -42,8 +40,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     - Cleanup on shutdown
     """
     settings = get_settings()
-    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info(
+        "application_starting",
+        app_name=settings.APP_NAME,
+        version=settings.APP_VERSION,
+        environment=settings.ENVIRONMENT,
+    )
 
     # Startup
     try:
@@ -51,9 +53,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from app.core.database import init_db
 
         await init_db()
-        logger.info("Database initialized")
+        logger.info("database_initialized")
     except Exception as e:
-        logger.warning(f"Database initialization failed: {e}")
+        logger.warning("database_initialization_failed", error=str(e), exc_info=True)
 
     try:
         # Initialize cache
@@ -61,15 +63,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         await redis_client.connect()
         await redis_client.client.ping()
-        logger.info("Redis connected")
+        logger.info("redis_connected")
 
         # Start WebSocket Redis subscriber
         from app.websocket.subscriber import start_redis_subscriber
 
         await start_redis_subscriber()
-        logger.info("WebSocket Redis subscriber started")
+        logger.info("websocket_subscriber_started")
     except Exception as e:
-        logger.warning(f"Redis connection failed: {e}")
+        logger.warning("redis_connection_failed", error=str(e), exc_info=True)
 
     # Check AI configuration
     try:
@@ -79,34 +81,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         health_ok = await provider.health_check()
         if health_ok:
             logger.info(
-                f"AI provider ready: {provider.name} (model: {getattr(provider, 'model', 'N/A')})"
+                "ai_provider_ready",
+                provider_name=provider.name,
+                model=getattr(provider, "model", "N/A"),
             )
         else:
-            logger.warning(f"AI provider {provider.name} is configured but not healthy")
+            logger.warning(
+                "ai_provider_unhealthy",
+                provider_name=provider.name,
+            )
     except Exception as e:
-        logger.warning(f"AI provider initialization failed: {e}")
+        logger.warning("ai_provider_initialization_failed", error=str(e), exc_info=True)
 
     yield
 
     # Shutdown
-    logger.info("Shutting down...")
+    logger.info("application_shutting_down")
 
     try:
         # Stop WebSocket Redis subscriber
         from app.websocket.subscriber import stop_redis_subscriber
 
         await stop_redis_subscriber()
-        logger.info("WebSocket Redis subscriber stopped")
+        logger.info("websocket_subscriber_stopped")
     except Exception as e:
-        logger.warning(f"Redis subscriber shutdown error: {e}")
+        logger.warning("redis_subscriber_shutdown_error", error=str(e), exc_info=True)
 
     try:
         from app.core.database import close_db
 
         await close_db()
-        logger.info("Database connections closed")
+        logger.info("database_connections_closed")
     except Exception as e:
-        logger.warning(f"Database shutdown error: {e}")
+        logger.warning("database_shutdown_error", error=str(e), exc_info=True)
 
 
 def create_app() -> FastAPI:
@@ -148,6 +155,9 @@ def create_app() -> FastAPI:
         https_only=settings.ENVIRONMENT == "production",
     )
 
+    # Add request context middleware for structured logging
+    app.add_middleware(RequestContextMiddleware)
+
     # Include API routes
     app.include_router(api_router)
     app.include_router(api_router_v2)
@@ -178,7 +188,13 @@ def create_app() -> FastAPI:
         exc: Exception,
     ) -> JSONResponse:
         """Handle unexpected exceptions."""
-        logger.exception(f"Unhandled exception: {exc}")
+        logger.exception(
+            "unhandled_exception",
+            error_type=type(exc).__name__,
+            error=str(exc),
+            path=request.url.path,
+            method=request.method,
+        )
 
         # Get origin for CORS headers
         origin = request.headers.get("origin", "")
