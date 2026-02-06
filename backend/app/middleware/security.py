@@ -12,7 +12,7 @@ Provides:
 import secrets
 import time
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,7 +34,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
 
     # Content Security Policy - strict by default
-    CSP_DIRECTIVES = {
+    CSP_DIRECTIVES: ClassVar[dict[str, str]] = {
         "default-src": "'self'",
         "script-src": "'self' 'unsafe-inline'",  # Adjust for your frontend
         "style-src": "'self' 'unsafe-inline'",
@@ -126,7 +126,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     """
 
     # Paths to exclude from logging (health checks, etc.)
-    EXCLUDED_PATHS = {"/health", "/ready", "/metrics"}
+    EXCLUDED_PATHS: ClassVar[set[str]] = {"/health", "/ready", "/metrics"}
 
     async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         # Skip excluded paths

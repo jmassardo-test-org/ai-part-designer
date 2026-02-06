@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import BinaryIO, cast
+from typing import BinaryIO, ClassVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class PDFProcessor:
     """
 
     # Keywords that indicate a drawing page
-    DRAWING_KEYWORDS = [
+    DRAWING_KEYWORDS: ClassVar[list[str]] = [
         "dimension",
         "dimensions",
         "mm",

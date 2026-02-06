@@ -147,7 +147,6 @@ ignore = [
     "ERA001", # commented-out code
     "SIM117", # multiple with statements - sometimes more readable separate
     "E402",   # imports not at top - sometimes needed for path manipulation
-    "RUF012", # mutable class defaults - need ClassVar annotation
     # Pathlib migration - to be done incrementally
     "PTH103", # os.makedirs -> Path.mkdir
     "PTH108", # os.unlink -> Path.unlink
