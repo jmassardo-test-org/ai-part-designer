@@ -10,12 +10,18 @@ Patterns are used for features like ventilation holes,
 button clusters, and mounting hole arrays.
 """
 
+from __future__ import annotations
+
 from enum import StrEnum
-from typing import Annotated, Any, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.cad_v2.schemas.base import Dimension, Point2D
+
+if TYPE_CHECKING:
+    # Forward references to avoid circular imports when features.py is created
+    pass
 
 
 class PatternType(StrEnum):
@@ -212,8 +218,7 @@ class PatternedFeature(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    # The base feature (imported from features.py to avoid circular import)
-    # feature: Feature
+    # The base feature - will be imported from features.py when created to avoid circular import
     feature_type: str = Field(..., description="Feature type to pattern")
     feature_params: dict[str, Any] = Field(
         default_factory=dict,

@@ -47,7 +47,7 @@ class DesignContext(Base):
     )
 
     # Conversation history - list of messages
-    # [{"role": "user", "content": "...", "timestamp": "..."}, ...]
+    # Each message contains role, content, and timestamp
     messages: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=False,
@@ -55,7 +55,7 @@ class DesignContext(Base):
     )
 
     # Current parameters - flattened parameter state
-    # {"length": 100, "width": 50, "height": 30, ...}
+    # Example: {"length": 100, "width": 50, "height": 30, ...}
     parameters: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
@@ -63,7 +63,7 @@ class DesignContext(Base):
     )
 
     # Parameter history - track changes over iterations
-    # [{"version": 1, "parameters": {...}, "instruction": "..."}, ...]
+    # Each entry contains version, parameters dict, and instruction string
     parameter_history: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=False,

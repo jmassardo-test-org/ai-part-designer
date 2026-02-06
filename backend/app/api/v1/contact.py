@@ -115,18 +115,8 @@ async def send_contact_email(
         },
     )
 
-    # TODO: Integrate with email service
-    # Example with SendGrid:
-    # import sendgrid
-    # sg = sendgrid.SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
-    # mail = Mail(
-    #     from_email="noreply@assemblematicai.com",
-    #     to_emails="support@assemblematicai.com",
-    #     subject=f"Contact Form: {subject}",
-    #     html_content=f"<p>From: {name} ({email})</p><p>{message}</p>",
-    # )
-    # sg.send(mail)
-
+    # TODO: Integrate with email service (e.g., SendGrid or similar)
+    # When implemented, send notification to support@assemblematicai.com
     # For development, print to console
     print(f"""
     ========================================

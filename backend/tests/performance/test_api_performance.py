@@ -390,7 +390,7 @@ class TestPerformanceSummary:
             "/api/v1/health",
         )
 
-        # Templates (public)
+        # Public endpoints - Templates
         results["templates_list"] = await measure_request(
             client,
             "GET",

@@ -92,18 +92,13 @@ class Assembly(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Metadata (JSONB) - stored as 'metadata' in database
+    # Assembly metadata (e.g., total_parts, total_cost, units, bounding_box dimensions)
     extra_data: Mapped[dict[str, Any]] = mapped_column(
         "metadata",
         JSONB,
         nullable=False,
         default=dict,
     )
-    # Example: {
-    #   "total_parts": 15,
-    #   "total_cost": 125.50,
-    #   "units": "mm",
-    #   "bounding_box": {"x": 200, "y": 150, "z": 100}
-    # }
 
     # Version tracking
     version: Mapped[int] = mapped_column(
@@ -213,20 +208,20 @@ class AssemblyComponent(Base, TimestampMixin):
     )
 
     # Position in 3D space (relative to assembly origin)
+    # Stores x, y, z coordinates as floats (e.g., x: 10.5, y: 20.0, z: 0.0)
     position: Mapped[dict[str, float]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {"x": 0, "y": 0, "z": 0},
     )
-    # Example: {"x": 10.5, "y": 20.0, "z": 0.0}
 
     # Rotation (Euler angles in degrees)
+    # Stores rx, ry, rz rotation angles as floats
     rotation: Mapped[dict[str, float]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {"rx": 0, "ry": 0, "rz": 0},
     )
-    # Example: {"rx": 0, "ry": 90, "rz": 0}
 
     # Scale (usually 1:1:1)
     scale: Mapped[dict[str, float]] = mapped_column(
@@ -255,17 +250,13 @@ class AssemblyComponent(Base, TimestampMixin):
     )  # Hex color like "#FF5500"
 
     # Additional component metadata (mapped to 'metadata' column)
+    # Component-specific metadata (e.g., material: PLA, finish: matte, tolerance_class: standard)
     component_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata",  # Column name in database
         JSONB,
         nullable=False,
         default=dict,
     )
-    # Example: {
-    #   "material": "PLA",
-    #   "finish": "matte",
-    #   "tolerance_class": "standard"
-    # }
 
     # Relationships
     assembly: Mapped["Assembly"] = relationship(
@@ -341,17 +332,12 @@ class ComponentRelationship(Base, TimestampMixin):
     )
 
     # Constraint data for future constraint solving
+    # Stores connection type, fastener info, and specifications
     constraint_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
     )
-    # Example: {
-    #   "type": "fastened",
-    #   "fastener_type": "M3x8",
-    #   "fastener_count": 4,
-    #   "torque_nm": 0.5
-    # }
 
     # Assembly order (for instructions)
     assembly_order: Mapped[int | None] = mapped_column(
@@ -437,12 +423,12 @@ class Vendor(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Supported categories
+    # Categories this assembly belongs to (e.g., fasteners, bearings, linear_motion, electronics)
     categories: Mapped[list[str]] = mapped_column(
         JSONB,
         nullable=False,
         default=list,
     )
-    # Example: ["fasteners", "bearings", "linear_motion", "electronics"]
 
     # Active status
     is_active: Mapped[bool] = mapped_column(
