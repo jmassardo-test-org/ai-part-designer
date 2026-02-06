@@ -380,7 +380,7 @@ class DataExporter:
                         }
                     )
 
-            with open(export_subdir / "designs.json", "w") as f:
+            with (export_subdir / "designs.json").open("w") as f:
                 json.dump(all_designs, f, indent=2, default=str)
 
             # Job history
@@ -398,7 +398,7 @@ class DataExporter:
                 for j in jobs
             ]
 
-            with open(export_subdir / "jobs.json", "w") as f:
+            with (export_subdir / "jobs.json").open("w") as f:
                 json.dump(jobs_data, f, indent=2, default=str)
 
             # Audit logs
@@ -415,7 +415,7 @@ class DataExporter:
                 for a in audit_logs
             ]
 
-            with open(export_subdir / "activity.json", "w") as f:
+            with (export_subdir / "activity.json").open("w") as f:
                 json.dump(audit_data, f, indent=2, default=str)
 
         # Create archive
