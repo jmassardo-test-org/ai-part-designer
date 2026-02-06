@@ -1,0 +1,227 @@
+---
+# OpenBao Initialization Job for AI Part Designer
+# This job handles initial setup after OpenBao deployment
+#
+# It performs:
+# 1. Initialization of OpenBao (if not already done)
+# 2. Storage of unseal keys in Kubernetes secrets
+# 3. Auto-unseal configuration
+# 4. Policy creation
+# 5. Kubernetes auth method setup
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: openbao-init-config
+  namespace: openbao
+  labels:
+    app: openbao-init
+    component: initialization
+spec:
+  ttlSecondsAfterFinished: 3600  # Keep job for 1 hour after completion
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: openbao-init
+    spec:
+      serviceAccountName: openbao-init
+      restartPolicy: OnFailure
+      containers:
+      - name: init-openbao
+        image: openbao/openbao:2.0.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          
+          echo "=== AI Part Designer OpenBao Initialization ==="
+          
+          # Wait for OpenBao to be ready
+          echo "Waiting for OpenBao to be ready..."
+          until openbao status -address=http://openbao:8200 2>/dev/null | grep -q "Initialized"; do
+            echo "Waiting for OpenBao service..."
+            sleep 5
+          done
+          
+          export VAULT_ADDR=http://openbao:8200
+          
+          # Check if already initialized
+          if openbao status | grep "Initialized.*true"; then
+            echo "OpenBao already initialized"
+            
+            # Unseal if needed (using keys from secret)
+            if openbao status | grep "Sealed.*true"; then
+              echo "Unsealing OpenBao..."
+              for i in 1 2 3; do
+                KEY=$(kubectl get secret openbao-unseal-keys -n openbao -o jsonpath="{.data.key-$i}" | base64 -d)
+                openbao operator unseal "$KEY"
+              done
+            fi
+          else
+            echo "Initializing OpenBao..."
+            
+            # Initialize with 5 key shares, threshold of 3
+            openbao operator init \
+              -key-shares=5 \
+              -key-threshold=3 \
+              -format=json > /tmp/init-output.json
+            
+            # Extract and store keys in Kubernetes secret
+            echo "Storing unseal keys..."
+            kubectl create secret generic openbao-unseal-keys -n openbao \
+              --from-literal=key-1="$(jq -r '.unseal_keys_b64[0]' /tmp/init-output.json)" \
+              --from-literal=key-2="$(jq -r '.unseal_keys_b64[1]' /tmp/init-output.json)" \
+              --from-literal=key-3="$(jq -r '.unseal_keys_b64[2]' /tmp/init-output.json)" \
+              --from-literal=key-4="$(jq -r '.unseal_keys_b64[3]' /tmp/init-output.json)" \
+              --from-literal=key-5="$(jq -r '.unseal_keys_b64[4]' /tmp/init-output.json)" \
+              --from-literal=root-token="$(jq -r '.root_token' /tmp/init-output.json)"
+            
+            echo "⚠️  IMPORTANT: Backup the openbao-unseal-keys secret immediately!"
+            echo "⚠️  Store it securely outside the cluster!"
+            
+            # Unseal OpenBao
+            echo "Unsealing OpenBao..."
+            openbao operator unseal "$(jq -r '.unseal_keys_b64[0]' /tmp/init-output.json)"
+            openbao operator unseal "$(jq -r '.unseal_keys_b64[1]' /tmp/init-output.json)"
+            openbao operator unseal "$(jq -r '.unseal_keys_b64[2]' /tmp/init-output.json)"
+            
+            # Clean up sensitive file
+            rm -f /tmp/init-output.json
+          fi
+          
+          # Authenticate with root token
+          ROOT_TOKEN=$(kubectl get secret openbao-unseal-keys -n openbao -o jsonpath='{.data.root-token}' | base64 -d)
+          export VAULT_TOKEN=$ROOT_TOKEN
+          
+          # Enable audit logging
+          echo "Configuring audit logging..."
+          openbao audit enable file file_path=/openbao/audit/audit.log || echo "Audit already enabled"
+          
+          # Enable KV v2 secrets engine
+          echo "Enabling secrets engine..."
+          openbao secrets enable -path=secret kv-v2 || echo "KV engine already enabled"
+          
+          # Create policies
+          echo "Creating policies..."
+          
+          # API service policy
+          openbao policy write ai-part-designer-api - <<EOF
+          $(cat /policies/api-service-policy.hcl)
+          EOF
+          
+          # Worker service policy
+          openbao policy write ai-part-designer-worker - <<EOF
+          $(cat /policies/worker-service-policy.hcl)
+          EOF
+          
+          # Admin policy
+          openbao policy write ai-part-designer-admin - <<EOF
+          $(cat /policies/admin-access-policy.hcl)
+          EOF
+          
+          # Enable Kubernetes auth method
+          echo "Configuring Kubernetes authentication..."
+          openbao auth enable kubernetes || echo "Kubernetes auth already enabled"
+          
+          # Configure Kubernetes auth
+          openbao write auth/kubernetes/config \
+            kubernetes_host="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT" \
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+            token_reviewer_jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token
+          
+          # Create roles for services
+          echo "Creating Kubernetes auth roles..."
+          
+          # API service role
+          openbao write auth/kubernetes/role/ai-part-designer-api \
+            bound_service_account_names=api-service \
+            bound_service_account_namespaces=ai-part-designer \
+            policies=ai-part-designer-api \
+            ttl=1h
+          
+          # Worker service role
+          openbao write auth/kubernetes/role/ai-part-designer-worker \
+            bound_service_account_names=worker-service \
+            bound_service_account_namespaces=ai-part-designer \
+            policies=ai-part-designer-worker \
+            ttl=1h
+          
+          echo "=== OpenBao initialization complete ==="
+          echo "Root token stored in: openbao-unseal-keys secret"
+          echo "Next steps:"
+          echo "1. Backup unseal keys to secure location"
+          echo "2. Create initial secrets"
+          echo "3. Deploy External Secrets Operator"
+          echo "4. Deploy application workloads"
+        
+        env:
+        - name: VAULT_ADDR
+          value: "http://openbao:8200"
+        - name: VAULT_SKIP_VERIFY
+          value: "true"
+        
+        volumeMounts:
+        - name: policies
+          mountPath: /policies
+          readOnly: true
+      
+      volumes:
+      - name: policies
+        configMap:
+          name: openbao-policies
+
+---
+# Service account for initialization job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openbao-init
+  namespace: openbao
+
+---
+# Role for initialization tasks
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openbao-init
+  namespace: openbao
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+
+---
+# Role binding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openbao-init
+  namespace: openbao
+subjects:
+- kind: ServiceAccount
+  name: openbao-init
+  namespace: openbao
+roleRef:
+  kind: Role
+  name: openbao-init
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ConfigMap with policies
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-policies
+  namespace: openbao
+data:
+  api-service-policy.hcl: |
+    # Will be populated from policies directory
+  worker-service-policy.hcl: |
+    # Will be populated from policies directory
+  admin-access-policy.hcl: |
+    # Will be populated from policies directory
