@@ -277,7 +277,7 @@ async def upload_file(
         # Fallback to local filesystem for development
         upload_dir = Path(settings.UPLOAD_DIR) / f"users/{current_user.id}/{file_id}"
         upload_dir.mkdir(parents=True, exist_ok=True)
-        with open(upload_dir / safe_filename, "wb") as f:
+        with (upload_dir / safe_filename).open("wb") as f:
             f.write(file_content)
 
     # Mark as ready (skip processing for now)
@@ -551,7 +551,7 @@ async def download_file(
             )
 
         def iterfile() -> Iterator[bytes]:
-            with open(file_path, "rb") as f:
+            with file_path.open("rb") as f:
                 yield from f
 
         return StreamingResponse(

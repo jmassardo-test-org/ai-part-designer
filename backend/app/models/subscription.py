@@ -111,20 +111,12 @@ class SubscriptionTier(Base, TimestampMixin):
     )
 
     # Feature flags (JSONB for flexibility)
+    # Boolean flags for features like ai_generation, export_2d, hardware_library, collaboration, etc.
     features: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
     )
-    # Example: {
-    #   "ai_generation": true,
-    #   "export_2d": false,
-    #   "hardware_library": true,
-    #   "collaboration": false,
-    #   "api_access": false,
-    #   "priority_queue": false,
-    #   "white_label": false
-    # }
 
     # Pricing (in cents to avoid float issues)
     price_monthly_cents: Mapped[int] = mapped_column(

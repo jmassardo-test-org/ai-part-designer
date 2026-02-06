@@ -147,7 +147,7 @@ class BackupService:
         index_path = self.backup_dir / "backup_index.json"
         if index_path.exists():
             try:
-                with open(index_path) as f:
+                with index_path.open() as f:
                     data = json.load(f)
                     self._backup_index = {k: BackupRecord.from_dict(v) for k, v in data.items()}
             except Exception:
@@ -156,7 +156,7 @@ class BackupService:
     def _save_backup_index(self) -> None:
         """Save backup index to disk."""
         index_path = self.backup_dir / "backup_index.json"
-        with open(index_path, "w") as f:
+        with index_path.open("w") as f:
             json.dump(
                 {k: v.to_dict() for k, v in self._backup_index.items()},
                 f,
@@ -302,7 +302,7 @@ class BackupService:
             file_count = sum(1 for _ in file_storage_path.rglob("*") if _.is_file())
 
             # Calculate checksum
-            with open(backup_path, "rb") as f:
+            with backup_path.open("rb") as f:
                 checksum = hashlib.sha256(f.read()).hexdigest()
 
             # Update record

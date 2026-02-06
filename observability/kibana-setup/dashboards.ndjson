@@ -1,0 +1,74 @@
+{
+  "version": "8.11.0",
+  "objects": [
+    {
+      "id": "ai-part-designer-overview",
+      "type": "dashboard",
+      "attributes": {
+        "title": "AI Part Designer - Application Overview",
+        "description": "Main dashboard showing application health, errors, and activity",
+        "panelsJSON": "[]",
+        "optionsJSON": "{\"useMargins\":true,\"syncColors\":false,\"hidePanelTitles\":false}",
+        "timeRestore": true,
+        "timeFrom": "now-15m",
+        "timeTo": "now",
+        "refreshInterval": {
+          "pause": false,
+          "value": 30000
+        }
+      }
+    },
+    {
+      "id": "api-requests-by-endpoint",
+      "type": "search",
+      "attributes": {
+        "title": "API Requests by Endpoint",
+        "description": "Shows all API requests grouped by endpoint path",
+        "columns": ["@timestamp", "level", "path", "method", "user_id", "request_id"],
+        "sort": [["@timestamp", "desc"]],
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"query\":{\"query\":\"logger:app.api.*\",\"language\":\"lucene\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+        }
+      }
+    },
+    {
+      "id": "cad-generation-performance",
+      "type": "search",
+      "attributes": {
+        "title": "CAD Generation Performance Metrics",
+        "description": "Performance tracking for CAD generation operations",
+        "columns": ["@timestamp", "event", "duration_ms", "design_id", "user_id"],
+        "sort": [["duration_ms", "desc"]],
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"query\":{\"query\":\"logger:app.cad.* AND duration_ms:*\",\"language\":\"lucene\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+        }
+      }
+    },
+    {
+      "id": "error-log-viewer",
+      "type": "search",
+      "attributes": {
+        "title": "Application Errors and Exceptions",
+        "description": "All error and critical level logs",
+        "columns": ["@timestamp", "level", "event", "error_type", "logger", "user_id"],
+        "sort": [["@timestamp", "desc"]],
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"query\":{\"query\":\"level:(error OR critical)\",\"language\":\"lucene\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+        }
+      }
+    },
+    {
+      "id": "user-activity-trace",
+      "type": "search",
+      "attributes": {
+        "title": "User Activity Trace",
+        "description": "Track user actions with request correlation",
+        "columns": ["@timestamp", "event", "user_id", "request_id", "path", "method"],
+        "sort": [["@timestamp", "desc"]],
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"query\":{\"query\":\"request_id:* AND user_id:*\",\"language\":\"lucene\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+        }
+      }
+    }
+  ]
+}

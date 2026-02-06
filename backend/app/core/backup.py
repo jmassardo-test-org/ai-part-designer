@@ -117,7 +117,7 @@ class DatabaseBackup:
             # Compress if requested
             if compress:
                 compressed_path = filepath.with_suffix(".sql.gz")
-                with open(filepath, "rb") as f_in:
+                with filepath.open("rb") as f_in:
                     with gzip.open(compressed_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
 
@@ -131,7 +131,7 @@ class DatabaseBackup:
             storage_url = None
             if upload_to_storage:
                 storage_key = f"backups/{timestamp[:8]}/{filename}"
-                with open(filepath, "rb") as f:
+                with filepath.open("rb") as f:
                     storage_url = await storage_client.upload_file(
                         StorageBucket.TEMP,
                         storage_key,
@@ -184,7 +184,7 @@ class DatabaseBackup:
         if backup_path.suffix == ".gz":
             decompressed_path = backup_path.with_suffix("")
             with gzip.open(backup_path, "rb") as f_in:
-                with open(decompressed_path, "wb") as f_out:
+                with decompressed_path.open("wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
             backup_path = decompressed_path
 
@@ -343,7 +343,7 @@ class DataExporter:
                     else None,
                 }
 
-                with open(export_subdir / "profile.json", "w") as f:
+                with (export_subdir / "profile.json").open("w") as f:
                     json.dump(user_data, f, indent=2, default=str)
 
             # Projects
@@ -360,7 +360,7 @@ class DataExporter:
                 for p in projects
             ]
 
-            with open(export_subdir / "projects.json", "w") as f:
+            with (export_subdir / "projects.json").open("w") as f:
                 json.dump(projects_data, f, indent=2, default=str)
 
             # Designs
@@ -380,7 +380,7 @@ class DataExporter:
                         }
                     )
 
-            with open(export_subdir / "designs.json", "w") as f:
+            with (export_subdir / "designs.json").open("w") as f:
                 json.dump(all_designs, f, indent=2, default=str)
 
             # Job history
@@ -398,7 +398,7 @@ class DataExporter:
                 for j in jobs
             ]
 
-            with open(export_subdir / "jobs.json", "w") as f:
+            with (export_subdir / "jobs.json").open("w") as f:
                 json.dump(jobs_data, f, indent=2, default=str)
 
             # Audit logs
@@ -415,7 +415,7 @@ class DataExporter:
                 for a in audit_logs
             ]
 
-            with open(export_subdir / "activity.json", "w") as f:
+            with (export_subdir / "activity.json").open("w") as f:
                 json.dump(audit_data, f, indent=2, default=str)
 
         # Create archive
@@ -530,7 +530,7 @@ class DataExporter:
                 "exported_at": datetime.now(tz=datetime.UTC).isoformat(),
             }
 
-            with open(export_path, "w") as f:
+            with export_path.open("w") as f:
                 json.dump(snapshot, f, indent=2, default=str)
 
         logger.info(f"Analytics snapshot exported: {export_path}")

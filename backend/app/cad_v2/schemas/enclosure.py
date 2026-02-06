@@ -9,6 +9,8 @@ Enclosures are the primary use case for the CAD v2 system,
 designed to house electronics like Raspberry Pi, LCDs, and buttons.
 """
 
+from __future__ import annotations
+
 from enum import StrEnum
 from typing import Annotated, Any
 
@@ -273,9 +275,9 @@ class EnclosureSpec(BaseModel):
         Field(default_factory=list, description="Components mounted in enclosure"),
     ]
 
-    # Features (cutouts, ports, vents)
+    # Features (cutouts, ports, vents) - will use proper type when features.py is created
     features: Annotated[
-        list[Any],  # Will be list[Feature] when features.py is created
+        list[Any],
         Field(default_factory=list, description="Features on enclosure walls"),
     ]
 
