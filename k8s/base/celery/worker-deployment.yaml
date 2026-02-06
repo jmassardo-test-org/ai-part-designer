@@ -92,19 +92,19 @@ spec:
               key: STORAGE_BACKEND
         - name: S3_ENDPOINT_URL
           valueFrom:
-            secretKeyRef:
-              name: backend-secrets
-              key: s3-endpoint-url
+            configMapKeyRef:
+              name: backend-config
+              key: S3_ENDPOINT_URL
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: backend-secrets
-              key: aws-access-key-id
+              name: celery-worker-secrets
+              key: access-key-id
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: backend-secrets
-              key: aws-secret-access-key
+              name: celery-worker-secrets
+              key: secret-access-key
         - name: AWS_REGION
           valueFrom:
             configMapKeyRef:

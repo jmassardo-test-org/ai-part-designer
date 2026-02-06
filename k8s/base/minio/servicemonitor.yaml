@@ -1,0 +1,21 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: minio
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+      app.kubernetes.io/component: storage
+  endpoints:
+  - port: api
+    path: /minio/v2/metrics/cluster
+    interval: 30s
+    scrapeTimeout: 10s
+    scheme: http
