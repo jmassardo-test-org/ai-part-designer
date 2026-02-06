@@ -47,6 +47,13 @@ help:
 	@echo "  make build            Build all Docker images"
 	@echo "  make build-frontend   Build frontend for production"
 	@echo ""
+	@echo "Observability:"
+	@echo "  make elk-up           Start ELK stack for log aggregation"
+	@echo "  make elk-down         Stop ELK stack"
+	@echo "  make elk-init         Initialize Kibana with default dashboards"
+	@echo "  make elk-logs         View ELK stack logs"
+	@echo "  make elk-status       Check ELK stack health"
+	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean            Clean up containers, caches, and artifacts"
 	@echo "  make logs             View all service logs"
@@ -387,3 +394,49 @@ health-check:
 	@curl -s http://localhost:8000/health && echo "✅ API is healthy" || echo "❌ API is unhealthy"
 	@docker compose exec redis redis-cli ping > /dev/null && echo "✅ Redis is healthy" || echo "❌ Redis is unhealthy"
 	@docker compose exec postgres pg_isready -U postgres > /dev/null && echo "✅ Postgres is healthy" || echo "❌ Postgres is unhealthy"
+
+# ============================================================================
+# Observability (ELK Stack)
+# ============================================================================
+
+elk-up:
+	@echo "Starting ELK stack for log aggregation..."
+	docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile observability up -d
+	@echo ""
+	@echo "Waiting for services to be ready..."
+	@sleep 10
+	@echo ""
+	@echo "=========================================="
+	@echo "ELK Stack Started!"
+	@echo "=========================================="
+	@echo ""
+	@echo "  Elasticsearch: http://localhost:9200"
+	@echo "  Kibana:        http://localhost:5601"
+	@echo ""
+	@echo "Run 'make elk-init' to set up Kibana dashboards"
+	@echo ""
+
+elk-down:
+	@echo "Stopping ELK stack..."
+	docker compose -f docker-compose.observability.yml --profile observability down
+
+elk-init:
+	@echo "Initializing Kibana with default index patterns and dashboards..."
+	@./observability/kibana-setup/init-kibana.sh
+	@echo ""
+	@echo "✅ Kibana initialized! Visit http://localhost:5601"
+
+elk-logs:
+	docker compose -f docker-compose.observability.yml --profile observability logs -f
+
+elk-status:
+	@echo "Checking ELK stack health..."
+	@echo ""
+	@echo "Elasticsearch:"
+	@curl -sf http://localhost:9200/_cluster/health?pretty || echo "❌ Elasticsearch is not responding"
+	@echo ""
+	@echo "Kibana:"
+	@curl -sf http://localhost:5601/api/status | grep -q "available" && echo "✅ Kibana is available" || echo "❌ Kibana is not available"
+	@echo ""
+	@echo "Indices:"
+	@curl -sf http://localhost:9200/_cat/indices?v | grep ai-part-designer || echo "No ai-part-designer indices found yet"
