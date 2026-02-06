@@ -1,0 +1,154 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: celery-worker
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: celery-worker
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: celery-worker
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/part-of: ai-part-designer
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9808"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: celery
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: worker
+        image: ai-part-designer-backend:latest
+        imagePullPolicy: IfNotPresent
+        command: ["uv", "run", "celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+        env:
+        # Environment (overridden per overlay)
+        - name: ENVIRONMENT
+          value: "production"
+        - name: APP_ENV
+          value: "production"
+        # Database Configuration
+        - name: POSTGRES_HOST
+          value: "postgres-service"
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-password
+        # Redis Configuration
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: REDIS_PORT
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: REDIS_DB
+        # Storage Configuration
+        - name: STORAGE_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: STORAGE_BACKEND
+        - name: S3_ENDPOINT_URL
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: s3-endpoint-url
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: aws-secret-access-key
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: AWS_REGION
+        # AI Provider Configuration
+        - name: AI_PROVIDER
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: AI_PROVIDER
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: anthropic-api-key
+        - name: ANTHROPIC_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: ANTHROPIC_MODEL
+        # Worker Configuration
+        - name: CAD_WORKER_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: CAD_WORKER_TIMEOUT
+        - name: MAX_CONCURRENT_JOBS
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: MAX_CONCURRENT_JOBS
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1000

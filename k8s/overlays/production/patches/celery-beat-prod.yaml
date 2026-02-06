@@ -1,0 +1,16 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: beat
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: APP_ENV
+          value: "production"

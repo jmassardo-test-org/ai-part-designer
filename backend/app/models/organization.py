@@ -81,7 +81,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
         index=True,
     )
 
-    # Owner (creator) - nullable in DB
+    # Organization owner (creator) - nullable for flexibility
     owner_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),

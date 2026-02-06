@@ -8,7 +8,7 @@ with sensible defaults while allowing customization.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID, uuid4
 
 from app.core.security import hash_password
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class Counter:
     """Simple counter for generating unique sequences."""
 
-    _counters: dict[str, int] = {}
+    _counters: ClassVar[dict[str, int]] = {}
 
     @classmethod
     def next(cls, name: str) -> int:

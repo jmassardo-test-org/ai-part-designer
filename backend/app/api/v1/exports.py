@@ -92,7 +92,7 @@ async def process_export(
 
         # Upload to storage
         storage_key = f"exports/{user_id}/{export_path.name}"
-        with open(export_path, "rb") as f:
+        with export_path.open("rb") as f:
             download_url = await storage_client.upload_file(
                 StorageBucket.TEMP,
                 storage_key,

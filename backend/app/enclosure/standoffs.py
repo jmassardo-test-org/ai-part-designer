@@ -228,7 +228,7 @@ class StandoffGenerator:
                 except Exception:
                     pass
             else:
-                # Cylindrical (default)
+                # Standoff is cylindrical (default geometry)
                 Cylinder(
                     standoff.outer_diameter / 2,
                     standoff.height,

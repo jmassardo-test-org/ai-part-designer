@@ -78,7 +78,7 @@ class HardwareSpec:
 # =============================================================================
 
 METRIC_SOCKET_HEAD_SCREWS = {
-    # (thread_diameter, head_diameter, head_height, hex_size)
+    # Tuple format: thread_diameter, head_diameter, head_height, hex_size in mm
     "M2": (2.0, 3.8, 2.0, 1.5),
     "M2.5": (2.5, 4.5, 2.5, 2.0),
     "M3": (3.0, 5.5, 3.0, 2.5),
@@ -98,7 +98,7 @@ COMMON_SCREW_LENGTHS = [6, 8, 10, 12, 16, 20, 25, 30, 35, 40, 50]
 # =============================================================================
 
 THREADED_INSERTS = {
-    # (outer_diameter, length, hole_diameter_for_install)
+    # Tuple format: outer_diameter, length, hole_diameter_for_install in mm
     "M2": (3.2, 3.0, 2.8),
     "M2.5": (4.0, 4.0, 3.5),
     "M3": (4.6, 5.7, 4.0),

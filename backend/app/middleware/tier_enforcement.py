@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -125,7 +125,7 @@ class TierRequired:
             ...
     """
 
-    TIER_ORDER = {
+    TIER_ORDER: ClassVar[dict[str, int]] = {
         TierSlug.FREE.value: 0,
         TierSlug.PRO.value: 1,
         TierSlug.ENTERPRISE.value: 2,

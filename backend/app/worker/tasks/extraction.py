@@ -257,8 +257,8 @@ async def _extract_from_cad(component: ReferenceComponent) -> dict[str, Any] | N
         if file_ext in ("step", "stp"):
             # Parse STEP file
             try:
-                import os
                 import tempfile
+                from pathlib import Path
 
                 from build123d import import_step
 
@@ -282,7 +282,7 @@ async def _extract_from_cad(component: ReferenceComponent) -> dict[str, Any] | N
                         "source": "cad_geometry",
                     }
                 finally:
-                    os.unlink(temp_path)
+                    Path(temp_path).unlink()
 
             except Exception as e:
                 logger.warning(f"Failed to parse STEP file: {e}")
@@ -291,8 +291,8 @@ async def _extract_from_cad(component: ReferenceComponent) -> dict[str, Any] | N
         elif file_ext == "stl":
             # Parse STL file for bounding box
             try:
-                import os
                 import tempfile
+                from pathlib import Path
 
                 from build123d import import_stl
 
@@ -315,7 +315,7 @@ async def _extract_from_cad(component: ReferenceComponent) -> dict[str, Any] | N
                         "source": "cad_geometry",
                     }
                 finally:
-                    os.unlink(temp_path)
+                    Path(temp_path).unlink()
 
             except Exception as e:
                 logger.warning(f"Failed to parse STL file: {e}")

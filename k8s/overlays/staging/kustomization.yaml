@@ -1,0 +1,66 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-part-designer-staging
+
+# Base configuration
+resources:
+- ../../base
+
+# Add environment-specific suffix
+nameSuffix: -staging
+
+# Environment-specific labels
+labels:
+- pairs:
+    environment: staging
+
+# Patches for staging environment
+patches:
+- path: patches/backend-staging.yaml
+  target:
+    kind: Deployment
+    name: backend
+- path: patches/frontend-staging.yaml
+  target:
+    kind: Deployment
+    name: frontend
+- path: patches/celery-worker-staging.yaml
+  target:
+    kind: Deployment
+    name: celery-worker
+
+# ConfigMap generator for environment-specific config
+configMapGenerator:
+- name: backend-config-staging
+  literals:
+  - ENVIRONMENT=staging
+  - DEBUG=false
+  - LOG_LEVEL=INFO
+  - POSTGRES_HOST=postgres-service.infrastructure.svc.cluster.local
+  - REDIS_HOST=redis-service.infrastructure.svc.cluster.local
+
+# IMPORTANT: Secrets should NOT be committed to version control
+# Use sealed-secrets, external-secrets, or another secrets management tool
+# Example using sealed-secrets:
+#   kubectl create secret generic backend-secrets \
+#     --namespace=ai-part-designer-staging \
+#     --dry-run=client -o yaml \
+#     --from-literal=postgres-user=postgres \
+#     --from-literal=postgres-password=your-secure-password \
+#     --from-literal=anthropic-api-key=sk-ant-your-key \
+#     --from-literal=secret-key=your-secret-key \
+#     --from-literal=s3-endpoint-url=https://s3.amazonaws.com \
+#     --from-literal=aws-access-key-id=your-access-key \
+#     --from-literal=aws-secret-access-key=your-secret-key | \
+#   kubeseal -o yaml > sealed-backend-secrets.yaml
+
+# Images with staging tags
+images:
+- name: ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newTag: staging
+- name: ai-part-designer-frontend
+  newName: ghcr.io/jmassardo/ai-part-designer-frontend
+  newTag: staging

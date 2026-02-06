@@ -20,7 +20,7 @@ class ExportFormat(StrEnum):
 
     STEP = "step"
     STL = "stl"
-    # OBJ = "obj"  # Future support
+    # TODO: Add OBJ format support in future release
 
 
 @dataclass

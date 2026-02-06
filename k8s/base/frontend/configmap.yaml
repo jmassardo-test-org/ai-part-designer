@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: ai-part-designer
+data:
+  # API URL - overridden per environment
+  VITE_API_URL: "https://api.example.com/api/v1"
+  VITE_WS_URL: "wss://api.example.com/ws"

@@ -830,8 +830,7 @@ async def invite_member(
     await db.commit()
     await db.refresh(invite)
 
-    # TODO: Send invitation email in background
-    # background_tasks.add_task(send_invite_email, invite)
+    # TODO: Implement background email sending for invitation notifications
 
     return InviteResponse(
         id=invite.id,

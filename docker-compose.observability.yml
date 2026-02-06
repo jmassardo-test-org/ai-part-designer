@@ -1,0 +1,119 @@
+# AI Part Designer - Observability Stack
+# ELK Stack for centralized logging and analysis
+# Usage: docker compose -f docker-compose.yml -f docker-compose.observability.yml up
+
+services:
+  # Elasticsearch - Log storage and search engine
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ai-part-designer-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - cluster.name=ai-part-designer-cluster
+      - node.name=primary-node
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./observability/elastic-config:/usr/share/elasticsearch/config/custom:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ai-part-designer-network
+    profiles:
+      - observability
+
+  # Kibana - Visualization and search interface
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: ai-part-designer-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=ai-part-designer-kibana
+      - xpack.security.enabled=false
+      - TELEMETRY_ENABLED=false
+    ports:
+      - "5601:5601"
+    volumes:
+      - ./observability/kibana-setup:/usr/share/kibana/config/setup:ro
+      - kibana_data:/usr/share/kibana/data
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ai-part-designer-network
+    profiles:
+      - observability
+
+  # Fluentd - Alternative log collection (requires build)
+  # Note: Requires network access to install plugins
+  # To use: docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile fluentd up -d
+  fluentd:
+    build:
+      context: ./observability/fluentd
+      dockerfile: Dockerfile
+    container_name: ai-part-designer-fluentd
+    volumes:
+      - ./observability/fluentd:/fluentd/etc:ro
+      - fluentd_buffer:/fluentd/buffer
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    environment:
+      - FLUENTD_CONF=fluent.conf
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command: fluentd -c /fluentd/etc/fluent.conf
+    networks:
+      - ai-part-designer-network
+    profiles:
+      - fluentd
+
+  # Logstash - Log processor and forwarder
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: ai-part-designer-logstash
+    volumes:
+      - ./observability/logstash:/usr/share/logstash/pipeline:ro
+    environment:
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - ai-part-designer-network
+    profiles:
+      - observability
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  kibana_data:
+    driver: local
+  fluentd_buffer:
+    driver: local
+
+networks:
+  ai-part-designer-network:
+    external: true

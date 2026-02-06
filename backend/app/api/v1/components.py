@@ -303,7 +303,7 @@ async def upload_component(
     except Exception as e:
         logger.warning(f"MinIO upload failed, falling back to local: {e}")
         local_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(local_path, "wb") as f:
+        with local_path.open("wb") as f:
             f.write(content)
 
     # Store file metadata
@@ -576,7 +576,7 @@ async def update_component_files(
         except Exception as e:
             logger.warning(f"MinIO upload failed, falling back to local: {e}")
             local_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(local_path, "wb") as f:
+            with local_path.open("wb") as f:
                 f.write(content)
             return str(local_path)
 

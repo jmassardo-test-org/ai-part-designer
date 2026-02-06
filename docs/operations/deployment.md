@@ -5,14 +5,16 @@ This guide covers deploying AI Part Designer to a production environment.
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
-2. [Environment Configuration](#environment-configuration)
-3. [Docker Deployment](#docker-deployment)
-4. [Database Setup](#database-setup)
-5. [SSL/TLS Configuration](#ssltls-configuration)
-6. [Monitoring & Logging](#monitoring--logging)
-7. [Backup & Recovery](#backup--recovery)
-8. [Scaling](#scaling)
-9. [Security Checklist](#security-checklist)
+2. [Secrets Management](#secrets-management)
+3. [Environment Configuration](#environment-configuration)
+4. [Docker Deployment](#docker-deployment)
+5. [Kubernetes Deployment](#kubernetes-deployment)
+6. [Database Setup](#database-setup)
+7. [SSL/TLS Configuration](#ssltls-configuration)
+8. [Monitoring & Logging](#monitoring--logging)
+9. [Backup & Recovery](#backup--recovery)
+10. [Scaling](#scaling)
+11. [Security Checklist](#security-checklist)
 
 ---
 
@@ -25,6 +27,44 @@ This guide covers deploying AI Part Designer to a production environment.
 - PostgreSQL 15+ (or use Docker)
 - Redis 7+ (for caching and rate limiting)
 - Minimum 4GB RAM, 2 CPU cores
+
+---
+
+## Secrets Management
+
+**⚠️ IMPORTANT**: For production Kubernetes deployments, use OpenBao (Vault fork) for secure secrets management instead of environment variables or `.env` files.
+
+### Quick Start
+
+```bash
+# Deploy OpenBao with External Secrets Operator
+cd k8s/base/openbao
+./deploy-openbao.sh
+
+# This will:
+# 1. Deploy OpenBao in HA mode (3 replicas)
+# 2. Initialize and unseal OpenBao
+# 3. Configure Kubernetes authentication
+# 4. Deploy External Secrets Operator
+# 5. Bootstrap initial secrets
+```
+
+### Key Features
+
+- **Encrypted at Rest**: All secrets encrypted in OpenBao storage
+- **Audit Logging**: Complete audit trail of all secret access
+- **Dynamic Secrets**: Time-limited database credentials
+- **Secret Rotation**: Automated rotation without downtime
+- **Kubernetes Integration**: Secrets sync automatically via External Secrets Operator
+
+### Documentation
+
+See [Secrets Management Operations Guide](./secrets-management.md) for:
+- Detailed deployment instructions
+- Secret rotation procedures
+- Troubleshooting guide
+- Emergency access procedures
+- Audit and compliance
 
 ---
 
@@ -94,6 +134,243 @@ openssl rand -hex 32
 
 # Generate JWT_SECRET_KEY
 openssl rand -hex 64
+```
+
+---
+
+## Kubernetes Deployment
+
+### Prerequisites
+
+- Kubernetes cluster (1.24+)
+- `kubectl` configured with cluster access
+- `helm` 3.x installed
+- Cluster-admin permissions (for initial setup)
+
+### Step 1: Deploy OpenBao for Secrets Management
+
+```bash
+# Clone repository
+git clone https://github.com/jmassardo/ai-part-designer.git
+cd ai-part-designer
+
+# Deploy OpenBao
+cd k8s/base/openbao
+./deploy-openbao.sh
+
+# Backup unseal keys (CRITICAL!)
+kubectl get secret openbao-unseal-keys -n openbao -o yaml \
+  > ~/secure-backup/openbao-keys-$(date +%Y%m%d).yaml
+```
+
+### Step 2: Configure Application Secrets
+
+```bash
+# Port-forward to OpenBao
+kubectl port-forward -n openbao svc/openbao 8200:8200 &
+
+# Set environment variables
+export VAULT_ADDR=http://localhost:8200
+export VAULT_TOKEN=$(kubectl get secret openbao-unseal-keys \
+  -n openbao -o jsonpath='{.data.root-token}' | base64 -d)
+
+# Add AI service API keys
+openbao kv put secret/ai-part-designer/ai-services/openai \
+  api_key="sk-proj-YOUR_KEY" \
+  org_id="org-YOUR_ORG" \
+  model="gpt-4o"
+
+openbao kv put secret/ai-part-designer/ai-services/anthropic \
+  api_key="sk-ant-YOUR_KEY" \
+  model="claude-sonnet-4-20250514"
+
+# Add storage credentials (S3/MinIO)
+openbao kv put secret/ai-part-designer/storage/s3-credentials \
+  access_key_id="YOUR_ACCESS_KEY" \
+  secret_access_key="YOUR_SECRET_KEY" \
+  bucket_name="ai-part-designer-files" \
+  region="us-east-1"
+
+# Add email credentials
+openbao kv put secret/ai-part-designer/email/smtp-config \
+  host="smtp.sendgrid.net" \
+  port="587" \
+  username="apikey" \
+  password="YOUR_SENDGRID_KEY" \
+  from_email="noreply@yourdomain.com"
+
+# Add payment processing keys (if using Stripe)
+openbao kv put secret/ai-part-designer/payments/stripe-keys \
+  publishable_key="pk_live_..." \
+  secret_key="sk_live_..." \
+  webhook_secret="whsec_..."
+```
+
+### Step 3: Deploy Application Services
+
+```bash
+# Create namespace
+kubectl create namespace ai-part-designer
+
+# Deploy PostgreSQL (or use managed service)
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm install postgres bitnami/postgresql \
+  --namespace ai-part-designer \
+  --set auth.database=ai_part_designer \
+  --set primary.persistence.size=50Gi
+
+# Deploy Redis
+helm install redis bitnami/redis \
+  --namespace ai-part-designer \
+  --set auth.enabled=true \
+  --set master.persistence.size=10Gi
+
+# Create ExternalSecrets to sync from OpenBao
+kubectl apply -f k8s/overlays/production/external-secrets/
+
+# Deploy application workloads
+kubectl apply -f k8s/overlays/production/
+
+# Verify deployment
+kubectl get pods -n ai-part-designer
+kubectl get externalsecret -n ai-part-designer
+```
+
+### Step 4: Configure Ingress
+
+```bash
+# Install ingress-nginx controller (if not already installed)
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace
+
+# Apply ingress configuration
+kubectl apply -f k8s/overlays/production/ingress.yaml
+
+# Configure DNS
+# Point your domain to the ingress controller's external IP
+kubectl get svc -n ingress-nginx ingress-nginx-controller
+```
+
+### Step 5: Enable SSL/TLS with cert-manager
+
+```bash
+# Install cert-manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+
+# Create ClusterIssuer for Let's Encrypt
+kubectl apply -f k8s/base/cert-manager/letsencrypt-issuer.yaml
+
+# Update ingress to use TLS
+kubectl annotate ingress ai-part-designer \
+  -n ai-part-designer \
+  cert-manager.io/cluster-issuer=letsencrypt-prod
+```
+
+### Kubernetes Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Ingress (nginx-ingress)                            │
+│  - TLS termination (cert-manager)                   │
+│  - Rate limiting                                    │
+│  - Path routing                                     │
+└─────────────────┬───────────────────────────────────┘
+                  │
+    ┌─────────────┼─────────────┐
+    │             │             │
+    ▼             ▼             ▼
+┌────────┐  ┌──────────┐  ┌──────────┐
+│ API    │  │ Worker   │  │ Frontend │
+│ Service│  │ Service  │  │ Static   │
+│        │  │          │  │ Files    │
+│ HPA    │  │ KEDA     │  │          │
+│ 2-20   │  │ 2-20     │  │          │
+└───┬────┘  └────┬─────┘  └──────────┘
+    │            │
+    │     ┌──────┴───────┐
+    │     │              │
+    ▼     ▼              ▼
+┌─────────────┐  ┌─────────────┐
+│ PostgreSQL  │  │ Redis       │
+│ (Primary)   │  │ (Cache)     │
+│             │  │             │
+│ PVC: 50Gi   │  │ PVC: 10Gi   │
+└─────────────┘  └─────────────┘
+         ▲                ▲
+         │                │
+         └────────┬───────┘
+                  │
+         Secrets from OpenBao
+         (via External Secrets Operator)
+```
+
+### Monitoring & Observability
+
+```bash
+# Install Prometheus & Grafana
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace
+
+# Access Grafana
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+
+# Default credentials
+# Username: admin
+# Password: prom-operator
+```
+
+### Scaling Configuration
+
+```yaml
+# API service - HPA
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+  namespace: ai-part-designer
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Worker service - KEDA (queue-based scaling)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-scaler
+  namespace: ai-part-designer
+spec:
+  scaleTargetRef:
+    name: worker
+  minReplicaCount: 2
+  maxReplicaCount: 20
+  triggers:
+  - type: redis
+    metadata:
+      address: redis:6379
+      listName: celery
+      listLength: "5"
 ```
 
 ---

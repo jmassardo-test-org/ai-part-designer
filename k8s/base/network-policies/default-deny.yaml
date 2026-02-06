@@ -1,0 +1,13 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress

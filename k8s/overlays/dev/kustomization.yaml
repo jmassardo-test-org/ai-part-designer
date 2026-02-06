@@ -1,0 +1,64 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-part-designer-dev
+
+# Base configuration
+resources:
+- ../../base
+
+# Add environment-specific suffix
+nameSuffix: -dev
+
+# Environment-specific labels
+labels:
+- pairs:
+    environment: development
+
+# Patches for development environment
+patches:
+- path: patches/backend-dev.yaml
+  target:
+    kind: Deployment
+    name: backend
+- path: patches/frontend-dev.yaml
+  target:
+    kind: Deployment
+    name: frontend
+- path: patches/celery-worker-dev.yaml
+  target:
+    kind: Deployment
+    name: celery-worker
+
+# ConfigMap generator for environment-specific config
+configMapGenerator:
+- name: backend-config-dev
+  literals:
+  - ENVIRONMENT=development
+  - DEBUG=true
+  - LOG_LEVEL=DEBUG
+  - POSTGRES_HOST=postgres-service.infrastructure.svc.cluster.local
+  - REDIS_HOST=redis-service.infrastructure.svc.cluster.local
+
+# IMPORTANT: Secrets should NOT be committed to version control
+# Create secrets manually using kubectl or a secrets management tool
+# Example command to create secrets:
+#   kubectl create secret generic backend-secrets \
+#     --namespace=ai-part-designer-dev \
+#     --from-literal=postgres-user=postgres \
+#     --from-literal=postgres-password=your-secure-password \
+#     --from-literal=anthropic-api-key=sk-ant-your-key \
+#     --from-literal=secret-key=your-secret-key \
+#     --from-literal=s3-endpoint-url=http://minio:9000 \
+#     --from-literal=aws-access-key-id=minioadmin \
+#     --from-literal=aws-secret-access-key=minioadmin
+
+# Images with dev tags
+images:
+- name: ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newTag: dev
+- name: ai-part-designer-frontend
+  newName: ghcr.io/jmassardo/ai-part-designer-frontend
+  newTag: dev

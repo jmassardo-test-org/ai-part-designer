@@ -231,8 +231,8 @@ class AbuseProtectionMiddleware(BaseHTTPMiddleware):
         process_time = time.time() - start_time
         response.headers["X-Process-Time"] = str(round(process_time * 1000, 2))
 
-        # Log for pattern detection (async, don't wait)
-        # await self._log_request(request, response, client_ip, process_time)
+        # Note: Request logging for pattern detection is not implemented
+        # Would require background task: await self._log_request(request, response, client_ip, process_time)
 
         return response
 

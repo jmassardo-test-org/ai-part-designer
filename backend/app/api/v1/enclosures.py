@@ -310,15 +310,8 @@ async def _run_enclosure_generation(
 
         get_enclosure_service()
 
-        # Placeholder - would fetch real components
-
-        # Generate enclosure
-        # result = await service.generate_enclosure(
-        #     components=components,
-        #     style=style,
-        #     options=request.options,
-        #     layout=request.layout,
-        # )
+        # Placeholder - would fetch real components and generate enclosure
+        # TODO: Implement actual enclosure generation service call
 
         logger.info(f"Enclosure generation job {job_id} completed")
 

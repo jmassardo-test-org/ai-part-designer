@@ -10,6 +10,8 @@ Patterns are used for features like ventilation holes,
 button clusters, and mounting hole arrays.
 """
 
+from __future__ import annotations
+
 from enum import StrEnum
 from typing import Annotated, Any, Literal, Union
 
@@ -212,8 +214,7 @@ class PatternedFeature(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    # The base feature (imported from features.py to avoid circular import)
-    # feature: Feature
+    # The base feature - will be imported from features.py when created to avoid circular import
     feature_type: str = Field(..., description="Feature type to pattern")
     feature_params: dict[str, Any] = Field(
         default_factory=dict,

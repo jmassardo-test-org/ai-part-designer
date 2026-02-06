@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -63,7 +63,7 @@ class AnalyticsEvent(BaseModel):
     app_version: str | None = None
 
     class Config:
-        json_encoders = {
+        json_encoders: ClassVar[dict[type, Any]] = {
             UUID: str,
             datetime: lambda v: v.isoformat(),
         }
