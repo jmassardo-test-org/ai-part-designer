@@ -263,3 +263,39 @@ class TestLogLevels:
         if log_output:  # Some levels might be filtered
             log_data = json.loads(log_output.strip())
             assert log_data["level"] == level
+
+    def test_debug_logs_filtered_in_production(self, monkeypatch):
+        """Test that DEBUG logs are filtered out in production."""
+        from app.core.config import Settings
+
+        monkeypatch.setattr(
+            "app.core.logging.get_settings",
+            lambda: Settings(ENVIRONMENT="production", APP_NAME="test-app", APP_VERSION="1.0.0"),
+        )
+
+        # Capture log output
+        log_stream = StringIO()
+        handler = logging.StreamHandler(log_stream)
+
+        # Configure structlog (sets INFO level in production)
+        configure_structlog()
+
+        # Replace handler
+        root_logger = logging.getLogger()
+        root_logger.handlers.clear()
+        root_logger.addHandler(handler)
+
+        # Create logger and log messages at different levels
+        logger = get_logger("test.module")
+        logger.debug("debug_message_should_not_appear")
+        logger.info("info_message_should_appear")
+
+        # Get output
+        log_output = log_stream.getvalue()
+        log_lines = [line for line in log_output.strip().split("\n") if line]
+
+        # Should have exactly 1 log line (info), debug should be filtered
+        assert len(log_lines) == 1
+        log_data = json.loads(log_lines[0])
+        assert log_data["level"] == "info"
+        assert log_data["event"] == "info_message_should_appear"

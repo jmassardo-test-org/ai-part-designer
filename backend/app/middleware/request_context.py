@@ -48,12 +48,16 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         structlog.contextvars.clear_contextvars()
 
         # Get or generate request ID
+        # Precedence order:
+        # 1. X-Request-ID header (from external proxy/load balancer)
+        # 2. request.state.request_id (from other middleware)
+        # 3. Generate new ID if none exists
         request_id = request.headers.get("X-Request-ID")
         if not request_id:
             # Check if it was set by another middleware
             request_id = getattr(request.state, "request_id", None)
         if not request_id:
-            # Generate new request ID
+            # Generate new request ID (22-char URL-safe base64 string)
             request_id = secrets.token_urlsafe(16)
             request.state.request_id = request_id
 

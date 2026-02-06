@@ -235,33 +235,36 @@ class TestRequestContextMiddleware:
             # First request with user
             await client.get("/test-with-user")
 
-            # Clear log stream
-            log_stream.truncate(0)
-            log_stream.seek(0)
-
             # Second request without user
             await client.get("/test")
 
-        # Get log output from second request
+        # Get all log output
         log_output = log_stream.getvalue()
         log_lines = [line for line in log_output.strip().split("\n") if line]
 
-        # Find the log entry from our endpoint
-        log_data = None
+        # Find both log entries
+        first_request_log = None
+        second_request_log = None
+
         for line in log_lines:
             try:
                 data = json.loads(line)
-                if data.get("event") == "test_request_processed":
-                    log_data = data
-                    break
+                if data.get("event") == "test_request_with_user":
+                    first_request_log = data
+                elif data.get("event") == "test_request_processed":
+                    second_request_log = data
             except json.JSONDecodeError:
                 continue
 
-        assert log_data is not None, "Could not find log entry from endpoint"
+        # Verify both requests logged
+        assert first_request_log is not None, "Could not find first request log"
+        assert second_request_log is not None, "Could not find second request log"
 
-        # User ID from first request should NOT leak into second request
-        # (user_id key should not be present at all)
-        assert "user_id" not in log_data
+        # First request should have user_id
+        assert first_request_log["user_id"] == "test-user-123"
+
+        # Second request should NOT have user_id (context was cleared)
+        assert "user_id" not in second_request_log
 
     @pytest.mark.asyncio
     async def test_handles_user_object_with_id(self):
