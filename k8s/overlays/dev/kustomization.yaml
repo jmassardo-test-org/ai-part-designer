@@ -1,0 +1,63 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-part-designer-dev
+
+# Base configuration
+resources:
+- ../../base
+
+# Add environment-specific suffix
+nameSuffix: -dev
+
+# Environment-specific labels
+labels:
+- pairs:
+    environment: development
+
+# Patches for development environment
+patches:
+- path: patches/backend-dev.yaml
+  target:
+    kind: Deployment
+    name: backend
+- path: patches/frontend-dev.yaml
+  target:
+    kind: Deployment
+    name: frontend
+- path: patches/celery-worker-dev.yaml
+  target:
+    kind: Deployment
+    name: celery-worker
+
+# ConfigMap generator for environment-specific config
+configMapGenerator:
+- name: backend-config-dev
+  literals:
+  - ENVIRONMENT=development
+  - DEBUG=true
+  - LOG_LEVEL=DEBUG
+  - POSTGRES_HOST=postgres-service.infrastructure.svc.cluster.local
+  - REDIS_HOST=redis-service.infrastructure.svc.cluster.local
+
+# Secret generator (for demo - use sealed-secrets or external secret management in production)
+secretGenerator:
+- name: backend-secrets
+  literals:
+  - postgres-user=postgres
+  - postgres-password=dev-postgres-password-change-me
+  - anthropic-api-key=sk-ant-dev-api-key
+  - secret-key=dev-secret-key-change-me
+  - s3-endpoint-url=http://minio-service.infrastructure.svc.cluster.local:9000
+  - aws-access-key-id=minioadmin
+  - aws-secret-access-key=minioadmin
+
+# Images with dev tags
+images:
+- name: ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newTag: dev
+- name: ai-part-designer-frontend
+  newName: ghcr.io/jmassardo/ai-part-designer-frontend
+  newTag: dev

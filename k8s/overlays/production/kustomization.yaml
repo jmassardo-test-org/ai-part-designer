@@ -1,0 +1,70 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-part-designer-prod
+
+# Base configuration
+resources:
+- ../../base
+
+# Add environment-specific suffix
+nameSuffix: -prod
+
+# Environment-specific labels
+labels:
+- pairs:
+    environment: production
+
+# Patches for production environment
+patches:
+- path: patches/backend-prod.yaml
+  target:
+    kind: Deployment
+    name: backend
+- path: patches/frontend-prod.yaml
+  target:
+    kind: Deployment
+    name: frontend
+- path: patches/celery-worker-prod.yaml
+  target:
+    kind: Deployment
+    name: celery-worker
+- path: patches/celery-beat-prod.yaml
+  target:
+    kind: Deployment
+    name: celery-beat
+
+# ConfigMap generator for environment-specific config
+configMapGenerator:
+- name: backend-config-prod
+  literals:
+  - ENVIRONMENT=production
+  - DEBUG=false
+  - LOG_LEVEL=INFO
+  - POSTGRES_HOST=postgres-service.infrastructure.svc.cluster.local
+  - REDIS_HOST=redis-service.infrastructure.svc.cluster.local
+  - REQUIRE_EMAIL_VERIFICATION=true
+  - FORCE_HTTPS=true
+
+# Secret should be managed via sealed-secrets, external-secrets, or vault
+# This is a placeholder to show what secrets are needed
+secretGenerator:
+- name: backend-secrets
+  literals:
+  - postgres-user=REPLACE_WITH_SEALED_SECRET
+  - postgres-password=REPLACE_WITH_SEALED_SECRET
+  - anthropic-api-key=REPLACE_WITH_SEALED_SECRET
+  - secret-key=REPLACE_WITH_SEALED_SECRET
+  - s3-endpoint-url=https://s3.us-east-1.amazonaws.com
+  - aws-access-key-id=REPLACE_WITH_SEALED_SECRET
+  - aws-secret-access-key=REPLACE_WITH_SEALED_SECRET
+
+# Images with production tags (use specific version tags, not 'latest')
+images:
+- name: ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newTag: v1.0.0
+- name: ai-part-designer-frontend
+  newName: ghcr.io/jmassardo/ai-part-designer-frontend
+  newTag: v1.0.0

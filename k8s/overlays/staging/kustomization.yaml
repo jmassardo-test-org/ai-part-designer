@@ -1,0 +1,63 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-part-designer-staging
+
+# Base configuration
+resources:
+- ../../base
+
+# Add environment-specific suffix
+nameSuffix: -staging
+
+# Environment-specific labels
+labels:
+- pairs:
+    environment: staging
+
+# Patches for staging environment
+patches:
+- path: patches/backend-staging.yaml
+  target:
+    kind: Deployment
+    name: backend
+- path: patches/frontend-staging.yaml
+  target:
+    kind: Deployment
+    name: frontend
+- path: patches/celery-worker-staging.yaml
+  target:
+    kind: Deployment
+    name: celery-worker
+
+# ConfigMap generator for environment-specific config
+configMapGenerator:
+- name: backend-config-staging
+  literals:
+  - ENVIRONMENT=staging
+  - DEBUG=false
+  - LOG_LEVEL=INFO
+  - POSTGRES_HOST=postgres-service.infrastructure.svc.cluster.local
+  - REDIS_HOST=redis-service.infrastructure.svc.cluster.local
+
+# Secret generator (use sealed-secrets or external secret management in production)
+secretGenerator:
+- name: backend-secrets
+  literals:
+  - postgres-user=postgres
+  - postgres-password=staging-postgres-password-change-me
+  - anthropic-api-key=sk-ant-staging-api-key
+  - secret-key=staging-secret-key-change-me
+  - s3-endpoint-url=https://s3.us-east-1.amazonaws.com
+  - aws-access-key-id=staging-access-key
+  - aws-secret-access-key=staging-secret-key
+
+# Images with staging tags
+images:
+- name: ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newTag: staging
+- name: ai-part-designer-frontend
+  newName: ghcr.io/jmassardo/ai-part-designer-frontend
+  newTag: staging

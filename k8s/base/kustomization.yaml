@@ -1,0 +1,50 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-part-designer
+
+# Common labels applied to all resources
+labels:
+- pairs:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/part-of: ai-part-designer
+
+# Resources
+resources:
+- namespace.yaml
+# Backend
+- backend/serviceaccount.yaml
+- backend/configmap.yaml
+- backend/deployment.yaml
+- backend/service.yaml
+- backend/hpa.yaml
+- backend/pdb.yaml
+# Frontend
+- frontend/configmap.yaml
+- frontend/deployment.yaml
+- frontend/service.yaml
+- frontend/pdb.yaml
+# Celery
+- celery/serviceaccount.yaml
+- celery/worker-deployment.yaml
+- celery/beat-deployment.yaml
+- celery/worker-hpa.yaml
+- celery/worker-pdb.yaml
+# Network Policies
+- network-policies/default-deny.yaml
+- network-policies/backend-ingress.yaml
+- network-policies/backend-egress.yaml
+- network-policies/frontend-ingress.yaml
+- network-policies/frontend-egress.yaml
+- network-policies/celery-worker-egress.yaml
+- network-policies/celery-beat-egress.yaml
+
+# Images to be customized per environment
+images:
+- name: ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newTag: latest
+- name: ai-part-designer-frontend
+  newName: ghcr.io/jmassardo/ai-part-designer-frontend
+  newTag: latest
