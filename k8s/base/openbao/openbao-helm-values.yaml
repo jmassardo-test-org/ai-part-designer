@@ -1,0 +1,172 @@
+---
+# OpenBao Helm Chart Deployment for AI Part Designer
+# This configures OpenBao with high availability and auto-unseal capabilities
+#
+# Installation:
+#   helm repo add openbao https://openbao.github.io/openbao-helm
+#   helm install openbao openbao/openbao -n openbao --values this-file.yaml
+
+# Global configuration
+global:
+  # Use the openbao namespace
+  namespace: openbao
+
+# Server configuration
+server:
+  # Enable high availability mode with raft storage
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+        
+        listener "tcp" {
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_disable = true
+        }
+        
+        storage "raft" {
+          path = "/openbao/data"
+          
+          retry_join {
+            leader_api_addr = "http://openbao-0.openbao-internal:8200"
+          }
+          
+          retry_join {
+            leader_api_addr = "http://openbao-1.openbao-internal:8200"
+          }
+          
+          retry_join {
+            leader_api_addr = "http://openbao-2.openbao-internal:8200"
+          }
+          
+          autopilot {
+            cleanup_dead_servers = "true"
+            last_contact_threshold = "200ms"
+            last_contact_failure_threshold = "10m"
+            max_trailing_logs = 250000
+            min_quorum = 2
+            server_stabilization_time = "10s"
+          }
+        }
+        
+        service_registration "kubernetes" {}
+        
+        # Telemetry for monitoring
+        telemetry {
+          prometheus_retention_time = "24h"
+          disable_hostname = true
+          unauthenticated_metrics_access = true
+        }
+
+  # Resource requests and limits
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Volume for persistent data
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: null  # Use default storage class
+    accessMode: ReadWriteOnce
+
+  # Audit storage
+  auditStorage:
+    enabled: true
+    size: 5Gi
+    storageClass: null
+    accessMode: ReadWriteOnce
+
+  # Enable service
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8200
+    targetPort: 8200
+
+  # Ingress for external access (optional - for UI)
+  ingress:
+    enabled: false
+    # Enable and configure if you want external access to OpenBao UI
+    # ingressClassName: nginx
+    # hosts:
+    #   - host: openbao.example.com
+    #     paths:
+    #       - /
+    # tls:
+    #   - secretName: openbao-tls
+    #     hosts:
+    #       - openbao.example.com
+
+  # Standalone mode (disable for HA)
+  standalone:
+    enabled: false
+
+  # Security context
+  securityContext:
+    pod:
+      runAsNonRoot: true
+      runAsGroup: 1000
+      runAsUser: 1000
+      fsGroup: 1000
+    container:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
+  # Liveness and readiness probes
+  livenessProbe:
+    enabled: true
+    path: /v1/sys/health?standbyok=true
+    initialDelaySeconds: 60
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  readinessProbe:
+    enabled: true
+    path: /v1/sys/health?standbyok=true&perfstandbyok=true
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  # Node affinity to spread across zones
+  affinity: |
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: openbao
+                app.kubernetes.io/instance: openbao
+            topologyKey: kubernetes.io/hostname
+
+# UI configuration
+ui:
+  enabled: true
+  serviceType: ClusterIP
+  
+# Injector - disabled as we're using External Secrets Operator
+injector:
+  enabled: false
+
+# Service account
+serverServiceAccount:
+  create: true
+  name: openbao
+
+# Metrics service for Prometheus scraping
+serverTelemetryService:
+  enabled: true
