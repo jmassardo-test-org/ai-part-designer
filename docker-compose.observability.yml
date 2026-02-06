@@ -59,9 +59,13 @@ services:
     profiles:
       - observability
 
-  # Fluentd - Log collection and forwarding
+  # Fluentd - Alternative log collection (requires build)
+  # Note: Requires network access to install plugins
+  # To use: docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile fluentd up -d
   fluentd:
-    image: fluent/fluentd:v1.16-1
+    build:
+      context: ./observability/fluentd
+      dockerfile: Dockerfile
     container_name: ai-part-designer-fluentd
     volumes:
       - ./observability/fluentd:/fluentd/etc:ro
@@ -80,9 +84,9 @@ services:
     networks:
       - ai-part-designer-network
     profiles:
-      - observability
+      - fluentd
 
-  # Logstash - Alternative log processor (optional)
+  # Logstash - Log processor and forwarder
   logstash:
     image: docker.elastic.co/logstash/logstash:8.11.0
     container_name: ai-part-designer-logstash
@@ -101,7 +105,6 @@ services:
       - ai-part-designer-network
     profiles:
       - observability
-      - logstash
 
 volumes:
   elasticsearch_data:
