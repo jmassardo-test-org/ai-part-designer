@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+import httpx
 from sqlalchemy import select
 
 from app.ai.vision import vision_extractor
@@ -336,12 +337,10 @@ async def _download_file(url: str) -> bytes | None:
     try:
         if url.startswith("http"):
             # External URL - use httpx
-            import httpx  # type: ignore[import-not-found]
-
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, follow_redirects=True)
                 if response.status_code == 200:
-                    return response.content  # type: ignore[no-any-return]
+                    return bytes(response.content)
         else:
             # Storage path - extract key and download
             key = url.split("/", 3)[-1] if "/" in url else url

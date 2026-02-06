@@ -1,0 +1,551 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # STAGE 1: Quick checks (run in parallel, fail fast)
+  # ============================================================
+  
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --all-extras
+
+      - name: Run Ruff linter
+        working-directory: backend
+        run: uv run ruff check app tests --output-format=github
+
+      - name: Run Ruff formatter check
+        working-directory: backend
+        run: uv run ruff format app tests --check
+
+  backend-typecheck:
+    name: Backend Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --all-extras
+
+      - name: Run MyPy
+        working-directory: backend
+        run: uv run mypy app --show-error-codes
+
+  frontend-lint:
+    name: Frontend Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --all-extras
+
+      - name: Export requirements for pip-audit
+        working-directory: backend
+        run: uv pip compile pyproject.toml -o requirements.txt
+
+      - name: Run Bandit security linter
+        working-directory: backend
+        continue-on-error: true
+        run: uv run bandit -r app -ll -ii
+
+      - name: Run pip-audit
+        working-directory: backend
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+  # ============================================================
+  # STAGE 2: Tests (only run if lint passes)
+  # ============================================================
+  
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: [backend-lint, backend-typecheck]
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1 \
+            libegl1 \
+            libxrender1 \
+            libxext6 \
+            libsm6 \
+            libice6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --all-extras
+
+      - name: Run tests with coverage
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: test
+          SECRET_KEY: test-secret-key-for-ci
+          TESTING: "true"
+        run: |
+          uv run pytest \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            -v
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
+  frontend-test:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    needs: [frontend-lint]
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        working-directory: frontend
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: frontend/coverage/coverage-final.json
+          flags: frontend
+          fail_ci_if_error: false
+
+  # ============================================================
+  # STAGE 3: Migration validation (only on main branch, after tests)
+  # ============================================================
+  
+  migration-check:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+    needs: [backend-test]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync
+
+      - name: Run migrations (first pass)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+        run: |
+          uv run alembic upgrade head
+          echo "✅ First migration pass successful"
+
+      - name: Run migrations (idempotency check)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+        run: |
+          uv run alembic downgrade -1
+          uv run alembic upgrade head
+          echo "✅ Migration idempotency check passed"
+
+      - name: Verify migration history
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+        run: |
+          uv run alembic current
+          uv run alembic history --verbose | head -20
+
+  # ============================================================
+  # STAGE 4: Build Docker images (only after all tests pass)
+  # ============================================================
+  
+  build-backend:
+    name: Build Backend Images
+    runs-on: ubuntu-latest
+    needs: [backend-test, migration-check]
+    if: always() && needs.backend-test.result == 'success' && (needs.migration-check.result == 'success' || needs.migration-check.result == 'skipped')
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        target: [production, worker, beat]
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.target }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          target: ${{ matrix.target }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            VCS_REF=${{ github.sha }}
+
+  build-frontend:
+    name: Build Frontend Image
+    runs-on: ubuntu-latest
+    needs: [frontend-test]
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            VCS_REF=${{ github.sha }}
+
+  # ============================================================
+  # STAGE 5: E2E Tests (after Docker builds succeed)
+  # ============================================================
+  
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Playwright dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start services
+        run: |
+          docker compose -f docker-compose.yml up -d --wait
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/assemblemetic
+          SECRET_KEY: e2e-test-secret-key
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for services to be ready..."
+          timeout 120 bash -c 'until curl -s http://localhost:8000/health > /dev/null; do sleep 2; done'
+          echo "✅ Backend is ready"
+          timeout 60 bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 2; done'
+          echo "✅ Frontend is ready"
+
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
+  # ============================================================
+  # STAGE 6: Release (only on tags, after all checks pass)
+  # ============================================================
+  
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend, e2e-test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)")
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" -20)
+          fi
+          
+          # Write to file to handle multi-line content
+          echo "$CHANGELOG" > /tmp/changelog.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            ## What's Changed
+            $(cat /tmp/changelog.txt)
+            
+            ## Docker Images
+            ```bash
+            # Frontend
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.ref_name }}
+            
+            # Production API
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-production:${{ github.ref_name }}
+            
+            # Celery Worker
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${{ github.ref_name }}
+            
+            # Celery Beat
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-beat:${{ github.ref_name }}
+            ```
+          generate_release_notes: true
