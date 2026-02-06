@@ -32,12 +32,32 @@ from app.core.metrics import (
 )
 
 
+def _get_metric_value(metric, **labels):
+    """
+    Helper function to get the current value of a Prometheus metric.
+
+    Args:
+        metric: The Prometheus metric object (Counter, Gauge, etc.)
+        **labels: Label values to filter the metric
+
+    Returns:
+        The current value of the metric, or 0 if not found
+    """
+    try:
+        labeled_metric = metric.labels(**labels) if labels else metric
+        samples = labeled_metric.collect()[0].samples
+        return samples[0].value if samples else 0
+    except (IndexError, AttributeError):
+        return 0
+
+
 @pytest.fixture(autouse=True)
 def _cleanup_prometheus_registry():
     """Clean up Prometheus registry between tests to avoid duplicate metric errors."""
     yield
     # Unregister collectors added by tests
-    # Note: We can't unregister the default collectors, only custom ones
+    # Note: Accessing _collector_to_names is necessary as prometheus_client doesn't provide
+    # a public API for listing collectors. This is a common pattern in testing.
     collectors_to_remove = []
     for collector in list(REGISTRY._collector_to_names.keys()):
         # Keep the default process and platform collectors
@@ -129,22 +149,22 @@ class TestBusinessMetrics:
     def test_cad_generations_metric_exists(self):
         """Test CAD generation counter exists and can be incremented."""
         # Get initial value
-        initial = cad_generations_total.labels(status="success", template_type="box").collect()[0].samples[0].value
+        initial = _get_metric_value(cad_generations_total, status="success", template_type="box")
 
         # Increment
         cad_generations_total.labels(status="success", template_type="box").inc()
 
         # Verify increment
-        new_value = cad_generations_total.labels(status="success", template_type="box").collect()[0].samples[0].value
+        new_value = _get_metric_value(cad_generations_total, status="success", template_type="box")
         assert new_value == initial + 1
 
     def test_exports_metric_exists(self):
         """Test exports counter exists and can be incremented."""
-        initial = exports_total.labels(format="stl", status="success").collect()[0].samples[0].value
+        initial = _get_metric_value(exports_total, format="stl", status="success")
 
         exports_total.labels(format="stl", status="success").inc()
 
-        new_value = exports_total.labels(format="stl", status="success").collect()[0].samples[0].value
+        new_value = _get_metric_value(exports_total, format="stl", status="success")
         assert new_value == initial + 1
 
     def test_export_duration_histogram(self):
@@ -157,44 +177,50 @@ class TestBusinessMetrics:
 
     def test_ai_requests_metric_exists(self):
         """Test AI requests counter exists and can be incremented."""
-        initial = ai_requests_total.labels(
-            provider="anthropic", model="claude-3", status="success"
-        ).collect()[0].samples[0].value
+        initial = _get_metric_value(
+            ai_requests_total,
+            provider="anthropic",
+            model="claude-3",
+            status="success"
+        )
 
         ai_requests_total.labels(
             provider="anthropic", model="claude-3", status="success"
         ).inc()
 
-        new_value = ai_requests_total.labels(
-            provider="anthropic", model="claude-3", status="success"
-        ).collect()[0].samples[0].value
+        new_value = _get_metric_value(
+            ai_requests_total,
+            provider="anthropic",
+            model="claude-3",
+            status="success"
+        )
         assert new_value == initial + 1
 
     def test_user_registrations_metric_exists(self):
         """Test user registrations counter exists and can be incremented."""
-        initial = user_registrations_total.labels(method="email").collect()[0].samples[0].value
+        initial = _get_metric_value(user_registrations_total, method="email")
 
         user_registrations_total.labels(method="email").inc()
 
-        new_value = user_registrations_total.labels(method="email").collect()[0].samples[0].value
+        new_value = _get_metric_value(user_registrations_total, method="email")
         assert new_value == initial + 1
 
     def test_user_logins_metric_exists(self):
         """Test user logins counter exists and can be incremented."""
-        initial = user_logins_total.labels(method="email", status="success").collect()[0].samples[0].value
+        initial = _get_metric_value(user_logins_total, method="email", status="success")
 
         user_logins_total.labels(method="email", status="success").inc()
 
-        new_value = user_logins_total.labels(method="email", status="success").collect()[0].samples[0].value
+        new_value = _get_metric_value(user_logins_total, method="email", status="success")
         assert new_value == initial + 1
 
     def test_designs_created_metric_exists(self):
         """Test designs created counter exists and can be incremented."""
-        initial = designs_created_total.labels(template_type="parametric").collect()[0].samples[0].value
+        initial = _get_metric_value(designs_created_total, template_type="parametric")
 
         designs_created_total.labels(template_type="parametric").inc()
 
-        new_value = designs_created_total.labels(template_type="parametric").collect()[0].samples[0].value
+        new_value = _get_metric_value(designs_created_total, template_type="parametric")
         assert new_value == initial + 1
 
 
@@ -221,10 +247,10 @@ class TestDatabasePoolMetrics:
             await collect_db_pool_metrics()
 
             # Verify gauges were set
-            assert db_pool_size.collect()[0].samples[0].value == 10
-            assert db_pool_checked_out.collect()[0].samples[0].value == 3
-            assert db_pool_overflow.collect()[0].samples[0].value == 2
-            assert db_pool_checkedin.collect()[0].samples[0].value == 5  # 10 - 3 - 2
+            assert _get_metric_value(db_pool_size) == 10
+            assert _get_metric_value(db_pool_checked_out) == 3
+            assert _get_metric_value(db_pool_overflow) == 2
+            assert _get_metric_value(db_pool_checkedin) == 5  # 10 - 3 - 2
 
     @pytest.mark.asyncio
     async def test_collect_db_pool_metrics_handles_errors(self):
@@ -249,13 +275,12 @@ class TestRedisMetrics:
         mock_client.ping = AsyncMock(return_value=True)
 
         mock_redis_client = MagicMock()
-        mock_redis_client._client = True
         mock_redis_client.client = mock_client
 
         with patch("app.core.cache.redis_client", mock_redis_client):
             await collect_redis_metrics()
 
-            assert redis_connected.collect()[0].samples[0].value == 1
+            assert _get_metric_value(redis_connected) == 1
 
     @pytest.mark.asyncio
     async def test_collect_redis_metrics_when_disconnected(self):
@@ -264,24 +289,24 @@ class TestRedisMetrics:
         mock_client.ping = AsyncMock(side_effect=Exception("Connection failed"))
 
         mock_redis_client = MagicMock()
-        mock_redis_client._client = True
         mock_redis_client.client = mock_client
 
         with patch("app.core.cache.redis_client", mock_redis_client):
             await collect_redis_metrics()
 
-            assert redis_connected.collect()[0].samples[0].value == 0
+            assert _get_metric_value(redis_connected) == 0
 
     @pytest.mark.asyncio
     async def test_collect_redis_metrics_when_client_not_initialized(self):
         """Test collect_redis_metrics handles uninitialized client."""
         mock_redis_client = MagicMock()
-        mock_redis_client._client = None
+        mock_redis_client.client = MagicMock()
+        mock_redis_client.client.ping = AsyncMock(side_effect=RuntimeError("Redis client not connected"))
 
         with patch("app.core.cache.redis_client", mock_redis_client):
             await collect_redis_metrics()
 
-            assert redis_connected.collect()[0].samples[0].value == 0
+            assert _get_metric_value(redis_connected) == 0
 
     @pytest.mark.asyncio
     async def test_collect_redis_metrics_handles_errors(self):
@@ -291,7 +316,7 @@ class TestRedisMetrics:
             await collect_redis_metrics()
 
             # Should set connected to 0
-            assert redis_connected.collect()[0].samples[0].value == 0
+            assert _get_metric_value(redis_connected) == 0
 
 
 # =============================================================================

@@ -183,14 +183,13 @@ async def collect_redis_metrics() -> None:
     try:
         from app.core.cache import redis_client
 
-        # Check if Redis is connected
-        if redis_client._client:
-            try:
-                await redis_client.client.ping()
-                redis_connected.set(1)
-            except Exception:
-                redis_connected.set(0)
-        else:
+        # Check if Redis is connected by attempting a ping
+        try:
+            await redis_client.client.ping()
+            redis_connected.set(1)
+        except (RuntimeError, Exception):
+            # RuntimeError: Redis client not connected
+            # Exception: Connection or ping failed
             redis_connected.set(0)
     except Exception as e:
         logger.warning("failed_to_collect_redis_metrics", error=str(e))
