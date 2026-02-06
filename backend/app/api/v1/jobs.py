@@ -248,9 +248,8 @@ async def cancel_job(
     job.cancel()
     await db.commit()
 
-    # TODO: Also cancel the Celery task if running
-    # if job.celery_task_id:
-    #     celery_app.control.revoke(job.celery_task_id, terminate=True)
+    # TODO: Implement Celery task cancellation when background processing is integrated
+    # Will need to revoke task using: celery_app.control.revoke(task_id, terminate=True)
 
     logger.info(f"Job {job_id} cancelled by user {current_user.id}")
 
@@ -319,10 +318,8 @@ async def retry_job(
 
     await db.commit()
 
-    # TODO: Re-queue the Celery task
-    # task = celery_app.send_task(...)
-    # job.celery_task_id = task.id
-    # await db.commit()
+    # TODO: Implement Celery task re-queuing when background processing is integrated
+    # Will need to send task and store task_id on job
 
     logger.info(f"Job {job_id} queued for retry ({job.retry_count}/{job.max_retries})")
 

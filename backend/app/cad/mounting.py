@@ -253,7 +253,7 @@ class SnapFitGenerator:
             clip = self._generate_cantilever()
 
         # Calculate retention force (simplified engineering estimate)
-        # F = (3 * E * I * delta) / L^3
+        # Using beam deflection formula: force equals 3 times E times I times delta over L cubed
         # Using approximate values for ABS: E ≈ 2.3 GPa
         e_modulus = 2300  # MPa for ABS
         moment_inertia = (cfg.width * cfg.thickness**3) / 12
@@ -648,7 +648,7 @@ class PCBStandoffGenerator:
         """Create hexagonal standoff."""
         cfg = self.config
 
-        # Base (round)
+        # Base is cylindrical/round
         result = Cylinder(
             cfg.base_diameter / 2, cfg.base_height, align=(Align.CENTER, Align.CENTER, Align.MIN)
         )

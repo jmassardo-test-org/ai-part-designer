@@ -363,12 +363,12 @@ class DesignVersion(Base):
     )
 
     # Available formats (JSONB)
+    # Maps format names to S3 URLs (e.g., step, stl, 3mf)
     file_formats: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
     )
-    # Example: {"step": "s3://...", "stl": "s3://...", "3mf": "s3://..."}
 
     # Parameters used for this version
     parameters: Mapped[dict[str, Any]] = mapped_column(
@@ -378,18 +378,12 @@ class DesignVersion(Base):
     )
 
     # Geometry information
+    # Contains bounding box dimensions, volume, surface area, triangle count, and manifold status
     geometry_info: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
     )
-    # Example: {
-    #   "boundingBox": {"x": 100, "y": 50, "z": 30},
-    #   "volume": 150000,
-    #   "surfaceArea": 23000,
-    #   "triangleCount": 12500,
-    #   "isManifold": true
-    # }
 
     # Change tracking
     change_description: Mapped[str | None] = mapped_column(
