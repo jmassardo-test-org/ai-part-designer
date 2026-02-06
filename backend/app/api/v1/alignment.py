@@ -217,7 +217,7 @@ async def preview_alignment(
 @router.post("/", response_model=AlignmentResponse)
 async def align_files(
     request: AlignmentRequest,
-    background_tasks: BackgroundTasks,
+    _background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AlignmentResponse:
@@ -312,8 +312,8 @@ async def get_alignment_modes() -> dict[str, Any]:
 @router.post("/apply", response_model=dict)
 async def apply_alignment(
     request: AlignmentRequest,
-    assembly_name: str = "Aligned Assembly",
-    assembly_description: str | None = None,
+    _assembly_name: str = "Aligned Assembly",
+    _assembly_description: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:

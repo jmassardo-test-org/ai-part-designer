@@ -124,7 +124,7 @@ async def get_template_comments(
     response_model=list[CommentResponse],
 )
 async def get_template_comment_replies(
-    template_id: UUID,
+    _template_id: UUID,
     comment_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_optional_user),
@@ -167,7 +167,7 @@ async def get_template_comment_replies(
     response_model=CommentResponse,
 )
 async def update_template_comment(
-    template_id: UUID,
+    _template_id: UUID,
     comment_id: UUID,
     data: CommentUpdate,
     db: AsyncSession = Depends(get_db),
@@ -213,7 +213,7 @@ async def update_template_comment(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_template_comment(
-    template_id: UUID,
+    _template_id: UUID,
     comment_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -248,7 +248,7 @@ async def delete_template_comment(
     response_model=CommentResponse,
 )
 async def moderate_template_comment(
-    template_id: UUID,
+    _template_id: UUID,
     comment_id: UUID,
     data: CommentModerationAction,
     db: AsyncSession = Depends(get_db),

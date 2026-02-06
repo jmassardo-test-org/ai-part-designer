@@ -302,7 +302,7 @@ class STLExtractor:
         except Exception:
             return None
 
-    def _detect_holes_mesh(self, mesh_data: Any) -> list[MountingHole]:
+    def _detect_holes_mesh(self, _mesh_data: Any) -> list[MountingHole]:
         """
         Attempt to detect holes in STL mesh using curvature analysis.
 
@@ -312,6 +312,7 @@ class STLExtractor:
 
         try:
             # Analyze vertex curvature to find circular regions
+            # TODO: Implement proper hole detection for STL meshes
             # This is a simplified approach - full implementation would use
             # more sophisticated mesh analysis
 

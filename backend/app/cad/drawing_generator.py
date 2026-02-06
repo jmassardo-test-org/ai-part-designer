@@ -303,7 +303,7 @@ class DrawingGenerator:
     def _create_title_block(
         self,
         width: float,
-        height: float,
+        _height: float,
         config: DrawingConfig,
     ) -> list[dict[str, Any]]:
         """Create title block elements."""

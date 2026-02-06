@@ -110,7 +110,7 @@ class DashboardStats(BaseModel):
 @router.get("/dashboard", response_model=DashboardStats)
 async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> DashboardStats:
     """Get overview statistics for abuse dashboard."""
     now = datetime.now(tz=datetime.UTC)
@@ -195,7 +195,7 @@ async def list_bans(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> list[BanResponse]:
     """List all bans with pagination."""
     now = datetime.now(tz=datetime.UTC)
@@ -223,7 +223,7 @@ async def list_bans(
 async def get_ban(
     ban_id: UUID,
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> BanResponse:
     """Get ban details."""
     query = select(UserBan).where(UserBan.id == ban_id)
@@ -306,7 +306,7 @@ async def list_reports(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> list[AbuseReportResponse]:
     """List abuse reports with filtering."""
     query = select(AbuseReport)
@@ -334,7 +334,7 @@ async def list_reports(
 async def get_report(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> AbuseReportResponse:
     """Get abuse report details."""
     query = select(AbuseReport).where(AbuseReport.id == report_id)
@@ -388,7 +388,7 @@ async def get_usage_stats(
     period: str = Query("day", regex="^(hour|day|week|month)$"),
     resource_type: str | None = None,
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """Get usage statistics."""
     now = datetime.now(tz=datetime.UTC)
@@ -439,7 +439,7 @@ async def get_top_users(
     period: str = Query("day", regex="^(day|week|month)$"),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """Get top users by usage."""
     now = datetime.now(tz=datetime.UTC)
@@ -501,7 +501,7 @@ async def get_moderation_queue(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin_user),
+    _admin: User = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """Get items pending moderation review."""
     query = (

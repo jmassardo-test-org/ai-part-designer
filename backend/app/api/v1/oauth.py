@@ -214,7 +214,7 @@ async def oauth_authorize(
 async def oauth_callback(
     request: Request,
     provider: Literal["google", "github"],
-    code: str = Query(..., description="Authorization code from OAuth provider"),
+    _code: str = Query(..., description="Authorization code from OAuth provider"),
     state: str | None = Query(None, description="CSRF state parameter"),
     error: str | None = Query(None, description="Error from OAuth provider"),
     error_description: str | None = Query(None),
@@ -485,7 +485,7 @@ async def link_oauth_provider(
 async def link_oauth_callback(
     request: Request,
     provider: Literal["google", "github"],
-    code: str = Query(...),
+    _code: str = Query(...),
     state: str | None = Query(None),
     error: str | None = Query(None),
     error_description: str | None = Query(None),

@@ -116,11 +116,11 @@ async def batch_insert(
 # =============================================================================
 
 
-def generate_user(tier_slug: str, hashed_pwd: str, index: int) -> User:
+def generate_user(_tier_slug: str, hashed_pwd: str, index: int) -> User:
     """Generate a random user.
 
     Args:
-        tier_slug: The subscription tier for this user.
+        _tier_slug: The subscription tier for this user.
         hashed_pwd: Pre-hashed password for efficiency.
         index: User index for unique email generation.
 

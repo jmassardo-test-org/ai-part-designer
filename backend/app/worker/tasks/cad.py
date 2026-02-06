@@ -248,8 +248,8 @@ def generate_from_template(
     max_retries=3,
 )
 def modify_design(
-    self: Any,
-    job_id: str,
+    _self: Any,  # Celery task context
+    _job_id: str,  # TODO: Use job_id for tracking
     design_id: str,
     modifications: dict[str, Any],
 ) -> dict[str, Any]:
@@ -295,7 +295,7 @@ def validate_geometry(file_url: str) -> dict[str, Any]:
 )
 def generate_thumbnail(
     file_url: str,
-    output_size: tuple[int, int] = (512, 512),
+    _output_size: tuple[int, int] = (512, 512),  # TODO: Use output_size for image generation
 ) -> str:
     """
     Generate thumbnail image from CAD model.
@@ -324,7 +324,7 @@ def generate_from_description_task(
     export_step: bool = True,
     export_stl: bool = True,
     stl_quality: str = "standard",
-    user_id: str | None = None,
+    _user_id: str | None = None,  # TODO: Use user_id for quota tracking
 ) -> dict[str, Any]:
     """
     Generate CAD model from natural language description.

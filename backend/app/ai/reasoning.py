@@ -599,7 +599,7 @@ async def generate_step_code(
 
 
 async def validate_result(
-    original_request: str,
+    _original_request: str,
     intent: PartIntent,
     shape: Any,  # build123d.Part
 ) -> dict[str, Any]:

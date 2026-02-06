@@ -292,7 +292,7 @@ class DataExporter:
         self,
         user_id: str,
         *,
-        format: Literal["json", "csv"] = "json",
+        _format: Literal["json", "csv"] = "json",
     ) -> Path:
         """
         Export all data for a specific user (GDPR compliance).

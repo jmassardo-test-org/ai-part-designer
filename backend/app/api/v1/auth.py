@@ -268,7 +268,7 @@ async def _send_verification_email(user_id: str, email: str, display_name: str) 
 )
 async def login(
     credentials: LoginRequest,
-    request: Request,
+    _request: Request,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> TokenResponse:

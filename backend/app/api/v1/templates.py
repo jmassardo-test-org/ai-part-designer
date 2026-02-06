@@ -368,7 +368,7 @@ async def get_template(
 async def generate_template(
     slug: str,
     request: GenerateRequest,
-    background_tasks: BackgroundTasks,
+    _background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> GenerateResponse:
@@ -469,7 +469,7 @@ async def preview_template(
     slug: str,
     request: PreviewRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
+    _current_user: User | None = Depends(get_current_user_optional),
 ) -> FileResponse:
     """
     Generate a low-poly STL for preview.

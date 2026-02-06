@@ -138,7 +138,7 @@ class PreviewDimensionsResponse(BaseModel):
 
 @router.get("/styles", response_model=StyleTemplateListResponse)
 async def list_style_templates(
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user),
 ) -> StyleTemplateListResponse:
     """
     List available enclosure style templates.
@@ -152,7 +152,7 @@ async def list_style_templates(
 @router.get("/styles/{style_type}")
 async def get_style_details(
     style_type: EnclosureStyleType,
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Get detailed parameters for a style template.
@@ -183,7 +183,7 @@ async def generate_enclosure(
     project_id: UUID,
     request: GenerateEnclosureRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> GenerateEnclosureResponse:
     """
@@ -226,8 +226,8 @@ async def generate_enclosure(
 @router.get("/jobs/{job_id}", response_model=EnclosureJobStatus)
 async def get_enclosure_job_status(
     job_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ) -> EnclosureJobStatus:
     """
     Get status of an enclosure generation job.
@@ -246,8 +246,8 @@ async def get_enclosure_job_status(
 @router.post("/preview-dimensions", response_model=PreviewDimensionsResponse)
 async def preview_enclosure_dimensions(
     request: PreviewDimensionsRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ) -> PreviewDimensionsResponse:
     """
     Preview enclosure dimensions without generating.
@@ -279,9 +279,9 @@ async def preview_enclosure_dimensions(
 
 async def _run_enclosure_generation(
     job_id: UUID,
-    project_id: UUID,
+    _project_id: UUID,
     request: GenerateEnclosureRequest,
-    user_id: UUID,
+    _user_id: UUID,
 ) -> None:
     """
     Background task to run enclosure generation.

@@ -397,7 +397,7 @@ async def get_quota(
 async def get_storage_quota(
     user: User,
     db: AsyncSession,
-    settings: Settings,
+    _settings: Settings,
 ) -> StorageQuotaResponse:
     """Calculate storage quota for a user."""
     # Get total used storage

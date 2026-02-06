@@ -199,7 +199,7 @@ class AuthContext:
 
 
 async def get_token_payload(
-    request: Request,
+    _request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> dict[str, Any] | None:
     """Extract and validate JWT token from request."""

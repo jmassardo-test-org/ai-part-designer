@@ -165,7 +165,7 @@ class CADGenerator:
             shape = self._apply_feature(shape, feature, params)
         return shape
 
-    def _apply_feature(self, shape: Part, feature: Any, params: CADParameters) -> Part:
+    def _apply_feature(self, shape: Part, feature: Any, _params: CADParameters) -> Part:
         """Apply a single feature to the shape using Build123d."""
         feature_params = feature.parameters
 

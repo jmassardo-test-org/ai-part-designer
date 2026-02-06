@@ -147,7 +147,7 @@ class DashboardResponse(BaseModel):
 
 @router.get("/tiers", response_model=list[SubscriptionTierResponse])
 async def list_tiers(
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[SubscriptionTierResponse]:
     """
@@ -187,7 +187,7 @@ async def list_tiers(
 @router.get("/tiers/{tier_slug}", response_model=SubscriptionTierResponse)
 async def get_tier(
     tier_slug: str,
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SubscriptionTierResponse:
     """
@@ -226,7 +226,7 @@ async def get_tier(
 
 @router.get("/credits/balance", response_model=CreditBalanceResponse)
 async def get_credit_balance(
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     credit_service: CreditService = Depends(get_credit_service),
     tier: SubscriptionTier = Depends(get_user_tier),
@@ -250,7 +250,7 @@ async def get_transactions(
     limit: int = 50,
     offset: int = 0,
     transaction_type: str | None = None,
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     credit_service: CreditService = Depends(get_credit_service),
 ) -> list[TransactionResponse]:
@@ -286,7 +286,7 @@ async def get_transactions(
 @router.get("/credits/usage", response_model=UsageSummaryResponse)
 async def get_usage_summary(
     days: int = 30,
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     credit_service: CreditService = Depends(get_credit_service),
 ) -> UsageSummaryResponse:
@@ -323,7 +323,7 @@ async def get_usage_summary(
 
 @router.get("/quota", response_model=QuotaUsageResponse)
 async def get_quota_usage(
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     quota_service: QuotaService = Depends(get_quota_service),
     tier: SubscriptionTier = Depends(get_user_tier),
@@ -356,7 +356,7 @@ async def get_quota_usage(
 
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_usage_dashboard(
-    db: AsyncSession = Depends(get_db),
+    _db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     credit_service: CreditService = Depends(get_credit_service),
     quota_service: QuotaService = Depends(get_quota_service),

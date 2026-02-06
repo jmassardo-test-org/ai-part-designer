@@ -147,7 +147,7 @@ async def process_export(
 async def request_data_export(
     background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    _db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExportRequestResponse:
     """
     Request export of user's personal data.

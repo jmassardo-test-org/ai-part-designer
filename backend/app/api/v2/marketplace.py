@@ -98,7 +98,7 @@ async def browse_designs(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
+    _current_user: User | None = Depends(get_current_user_optional),
 ) -> PaginatedDesignResponse:
     """
     Browse public marketplace designs.

@@ -751,7 +751,7 @@ async def transfer_ownership(
 async def invite_member(
     org_id: UUID,
     request: InviteMemberRequest,
-    background_tasks: BackgroundTasks,
+    _background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> InviteResponse:

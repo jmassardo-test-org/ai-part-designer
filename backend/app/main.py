@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Application lifespan handler.
 
@@ -155,7 +155,7 @@ def create_app() -> FastAPI:
     # Exception handlers
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
-        request: Request,
+        _request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
         """Handle validation errors with clean messages."""

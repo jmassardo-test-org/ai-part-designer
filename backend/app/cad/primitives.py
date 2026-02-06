@@ -209,7 +209,7 @@ def create_torus(
     major_radius: float,
     minor_radius: float,
     *,
-    centered: bool = True,
+    _centered: bool = True,
 ) -> Part:
     """
     Create a torus (donut shape) primitive.

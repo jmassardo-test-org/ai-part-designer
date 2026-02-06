@@ -142,8 +142,6 @@ ignore = [
     "B008",   # function call in argument defaults (FastAPI Depends)
     "B904",   # raise without from inside except
     # Temporarily ignored - requires substantial refactoring
-    "ARG001", # unused function argument
-    "ARG002", # unused method argument
     "ERA001", # commented-out code
     "SIM117", # multiple with statements - sometimes more readable separate
     "E402",   # imports not at top - sometimes needed for path manipulation

@@ -64,7 +64,7 @@ async def health_check(
     description="Returns 200 if the service is ready to accept traffic.",
 )
 async def readiness_check(
-    settings: Settings = Depends(get_settings),
+    _settings: Settings = Depends(get_settings),
 ) -> ReadinessResponse:
     """
     Readiness probe checking dependencies.

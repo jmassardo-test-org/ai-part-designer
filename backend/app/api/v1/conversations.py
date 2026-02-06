@@ -401,8 +401,8 @@ async def list_conversations(
 @router.post("/direct-generate", response_model=DirectGenerateResponse)
 async def direct_generate(
     request: DirectGenerateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    _db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[User, Depends(get_current_user)],
 ) -> DirectGenerateResponse:
     """
     Generate a CAD part directly from natural language description.

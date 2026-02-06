@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
     time_limit=360,  # 6 minutes hard limit
 )
 def compile_enclosure_v2(
-    self: Any,
+    _self: Any,
     job_id: str,
     enclosure_schema: dict[str, Any],
     export_format: str = "step",
@@ -242,7 +242,7 @@ async def _fail_job(
     time_limit=720,  # 12 minutes hard limit
 )
 def generate_from_description_v2(
-    self: Any,
+    _self: Any,
     job_id: str,
     description: str,
     export_format: str = "step",

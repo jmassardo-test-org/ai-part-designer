@@ -241,7 +241,7 @@ async def get_design_context(
 async def refine_design(
     design_id: UUID,
     request: RefineRequest,
-    background_tasks: BackgroundTasks,
+    _background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> RefineResponse:

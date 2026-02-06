@@ -240,7 +240,7 @@ class FeatureCompiler:
 
         return result.part  # type: ignore[no-any-return]
 
-    def _apply_vent_pattern(self, body: Part, vent: VentPattern) -> Part:
+    def _apply_vent_pattern(self, body: Part, _vent: VentPattern) -> Part:
         """Apply a ventilation pattern."""
         # This is handled by EnclosureCompiler._apply_ventilation
         # Individual VentPattern features would be compiled here

@@ -374,7 +374,7 @@ class ContentModerationService:
     async def check_prompt(
         self,
         prompt: str,
-        user_id: UUID | None = None,
+        _user_id: UUID | None = None,
         use_ai: bool = True,
     ) -> ModerationResult:
         """

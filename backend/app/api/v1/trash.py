@@ -131,7 +131,7 @@ def calculate_expiry(deleted_at: datetime, retention_days: int) -> datetime:
 async def list_trash(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
-    item_type: Annotated[str | None, Query()] = None,
+    _item_type: Annotated[str | None, Query()] = None,  # TODO: Implement item type filtering
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TrashListResponse:

@@ -50,14 +50,14 @@ class CompilationResult:
         self,
         output_dir: Path | str,
         format: ExportFormat = ExportFormat.STEP,
-        combined: bool = False,
+        _combined: bool = False,
     ) -> list[Path]:
         """Export compiled parts to files.
 
         Args:
             output_dir: Directory to write files to.
             format: Export format (STEP or STL).
-            combined: If True, export all parts as single file.
+            _combined: If True, export all parts as single file.
 
         Returns:
             List of paths to exported files.
