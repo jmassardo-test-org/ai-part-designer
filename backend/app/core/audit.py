@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import functools
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from fastapi import Request
 from structlog import get_logger
 
-from app.models.audit import AuditActions, AuditLog
+from app.models.audit import AuditLog
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,7 +82,22 @@ def audit_log(
             # Extract common dependencies from kwargs
             current_user: User | None = kwargs.get("current_user")
             db: AsyncSession | None = kwargs.get("db")
-            request: Request | None = kwargs.get("request")
+
+            # Try to find Request object - look in args and kwargs
+            request: Request | None = None
+
+            # Check kwargs first (most likely from FastAPI dependency injection)
+            for value in kwargs.values():
+                if isinstance(value, Request):
+                    request = value
+                    break
+
+            # Check args if not found in kwargs
+            if request is None:
+                for arg in args:
+                    if isinstance(arg, Request):
+                        request = arg
+                        break
 
             # Execute the endpoint
             result = await func(*args, **kwargs)
@@ -183,8 +199,8 @@ def audit_log(
         # Return appropriate wrapper based on function type
         if asyncio.iscoroutinefunction(func):
             return async_wrapper  # type: ignore[return-value]
-        else:
-            return sync_wrapper  # type: ignore[return-value]
+
+        return sync_wrapper  # type: ignore[return-value]
 
     return decorator
 

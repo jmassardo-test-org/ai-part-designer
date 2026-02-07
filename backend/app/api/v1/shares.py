@@ -24,9 +24,11 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import audit_log
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models import Design, DesignShare, User
+from app.models.audit import AuditActions
 
 # Emit deprecation warning when this module is imported
 warnings.warn(
@@ -141,6 +143,15 @@ class PaginatedSharedWithMeResponse(BaseModel):
 
 @router.post(
     "/designs/{design_id}", response_model=ShareResponse, status_code=status.HTTP_201_CREATED
+)
+@audit_log(
+    action=AuditActions.SHARE,
+    resource_type="design",
+    resource_id_param="design_id",
+    context_builder=lambda **kwargs: {
+        "shared_with_email": kwargs["request"].email,
+        "permission": kwargs["request"].permission,
+    },
 )
 async def share_design(
     design_id: UUID,
@@ -414,6 +425,14 @@ async def get_shared_with_me(
 
 
 @router.patch("/{share_id}", response_model=ShareResponse)
+@audit_log(
+    action=AuditActions.UPDATE,
+    resource_type="share",
+    resource_id_param="share_id",
+    context_builder=lambda **kwargs: {
+        "permission": kwargs["request"].permission,
+    },
+)
 async def update_share(
     share_id: UUID,
     request: UpdateShareRequest,
@@ -468,6 +487,11 @@ async def update_share(
 
 
 @router.delete("/{share_id}", status_code=status.HTTP_204_NO_CONTENT)
+@audit_log(
+    action=AuditActions.UNSHARE,
+    resource_type="share",
+    resource_id_param="share_id",
+)
 async def revoke_share(
     share_id: UUID,
     current_user: User = Depends(get_current_user),

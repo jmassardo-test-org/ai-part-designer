@@ -15,8 +15,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from app.api.deps import get_current_user
+from app.core.audit import audit_log
 from app.core.database import get_db
 from app.core.rate_limiter import design_operation_limit, expensive_operation_limit
+from app.models.audit import AuditActions
 from app.models.conversation import Conversation
 from app.models.design import Design
 from app.models.job import Job
@@ -136,6 +138,15 @@ async def get_or_create_default_project(user: User, db: AsyncSession) -> Project
 
 
 @router.post("/designs", response_model=DesignResponse, status_code=status.HTTP_201_CREATED)
+@audit_log(
+    action=AuditActions.CREATE,
+    resource_type="design",
+    resource_id_param="response.id",
+    context_builder=lambda **kwargs: {
+        "name": kwargs["request"].name,
+        "project_id": str(kwargs["request"].project_id) if kwargs["request"].project_id else None,
+    },
+)
 async def create_design(
     request: DesignCreate,
     current_user: User = Depends(get_current_user),
@@ -195,6 +206,16 @@ async def create_design(
 
 @router.post(
     "/designs/from-job", response_model=DesignResponse, status_code=status.HTTP_201_CREATED
+)
+@audit_log(
+    action=AuditActions.CREATE,
+    resource_type="design",
+    resource_id_param="response.id",
+    context_builder=lambda **kwargs: {
+        "name": kwargs["request"].name,
+        "source": "job",
+        "job_id": str(kwargs["request"].job_id),
+    },
 )
 async def create_design_from_job(
     request: DesignFromJobCreate,
@@ -311,6 +332,16 @@ async def create_design_from_job(
 
 @router.post(
     "/designs/from-conversation", response_model=DesignResponse, status_code=status.HTTP_201_CREATED
+)
+@audit_log(
+    action=AuditActions.CREATE,
+    resource_type="design",
+    resource_id_param="response.id",
+    context_builder=lambda **kwargs: {
+        "name": kwargs["request"].name,
+        "source": "conversation",
+        "conversation_id": str(kwargs["request"].conversation_id),
+    },
 )
 async def create_design_from_conversation(
     request: DesignFromConversationCreate,
@@ -582,6 +613,15 @@ class DesignUpdate(BaseModel):
 
 
 @router.patch("/designs/{design_id}", response_model=DesignResponse)
+@audit_log(
+    action=AuditActions.UPDATE,
+    resource_type="design",
+    resource_id_param="design_id",
+    context_builder=lambda **kwargs: {
+        "name": kwargs["update_data"].name if kwargs["update_data"].name else None,
+        "project_moved": kwargs["update_data"].project_id is not None,
+    },
+)
 async def update_design(
     design_id: UUID,
     update_data: DesignUpdate,
@@ -612,7 +652,7 @@ async def update_design(
         )
 
     # Handle move to different project
-    if update_data.project_id is not None and update_data.project_id != design.project_id:
+    if update_data.project_id is not None and update_data.project_id is not design.project_id:
         # Verify user owns the target project
         target_query = (
             select(Project)
@@ -725,6 +765,16 @@ class CopyDesignResponse(BaseModel):
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(expensive_operation_limit)],
 )
+@audit_log(
+    action="copy",
+    resource_type="design",
+    resource_id_param="design_id",
+    context_builder=lambda **kwargs: {
+        "new_name": kwargs["copy_request"].name,
+        "target_project_id": str(kwargs["copy_request"].target_project_id) if kwargs["copy_request"].target_project_id else None,
+        "include_versions": kwargs["copy_request"].include_versions,
+    },
+)
 async def copy_design(
     design_id: UUID,
     copy_request: CopyDesignRequest,
@@ -827,6 +877,11 @@ class DeleteDesignResponse(BaseModel):
     "/designs/{design_id}",
     response_model=DeleteDesignResponse,
     dependencies=[Depends(design_operation_limit)],
+)
+@audit_log(
+    action=AuditActions.DELETE,
+    resource_type="design",
+    resource_id_param="design_id",
 )
 async def delete_design_with_undo(
     design_id: UUID,
