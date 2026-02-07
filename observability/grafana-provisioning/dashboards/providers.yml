@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+- name: AIPartDesignerDashboards
+  type: file
+  folder: Platform Monitoring
+  updateIntervalSeconds: 45
+  allowUiUpdates: true
+  options:
+    path: /etc/grafana/dashboards
+    foldersFromFilesStructure: false

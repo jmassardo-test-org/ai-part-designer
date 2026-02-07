@@ -1,0 +1,699 @@
+{
+  "dashboard": {
+    "title": "Part Designer - API Performance",
+    "uid": "pd_api_perf_72059",
+    "tags": [
+      "ai-part-designer",
+      "auto-generated"
+    ],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": [
+        "10s",
+        "30s",
+        "1m",
+        "5m"
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Total Request Throughput",
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"part-designer-api\"}[2m]))",
+            "refId": "throughput",
+            "interval": "",
+            "legendFormat": ""
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "decimals": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "API Latency (95th Percentile)",
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"part-designer-api\"}[5m])) by (le))",
+            "refId": "p95",
+            "interval": "",
+            "legendFormat": ""
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "decimals": 3,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                },
+                {
+                  "value": 0.5,
+                  "color": "yellow"
+                },
+                {
+                  "value": 1.5,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Server Error Percentage",
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "100 * (sum(rate(http_requests_total{status=~\"5..\",job=\"part-designer-api\"}[5m])) / sum(rate(http_requests_total{job=\"part-designer-api\"}[5m])))",
+            "refId": "errors",
+            "interval": "",
+            "legendFormat": ""
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "yellow"
+                },
+                {
+                  "value": 3,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Concurrent Requests",
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(http_requests_inprogress{job=\"part-designer-api\"})",
+            "refId": "concurrent",
+            "interval": "",
+            "legendFormat": ""
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Requests per Second by HTTP Status",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 5
+        },
+        "targets": [
+          {
+            "expr": "sum by (status) (rate(http_requests_total{job=\"part-designer-api\"}[2m]))",
+            "refId": "by_status",
+            "interval": "",
+            "legendFormat": "HTTP {{status}}"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 20,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "mean",
+              "last",
+              "max"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "type": "timeseries",
+        "title": "Response Time Distribution",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 5
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"part-designer-api\"}[5m])) by (le))",
+            "refId": "p50",
+            "interval": "",
+            "legendFormat": "50th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket{job=\"part-designer-api\"}[5m])) by (le))",
+            "refId": "p90",
+            "interval": "",
+            "legendFormat": "90th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"part-designer-api\"}[5m])) by (le))",
+            "refId": "p95",
+            "interval": "",
+            "legendFormat": "95th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"part-designer-api\"}[5m])) by (le))",
+            "refId": "p99",
+            "interval": "",
+            "legendFormat": "99th percentile"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 0,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "type": "timeseries",
+        "title": "CAD Models Generated (per minute by type)",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 13
+        },
+        "targets": [
+          {
+            "expr": "sum by (template_type) (rate(cad_generations_total[5m])) * 60",
+            "refId": "cad_rate",
+            "interval": "",
+            "legendFormat": "{{template_type}}"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cpm",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 30,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "mean",
+              "max"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "type": "timeseries",
+        "title": "CAD Generation Time (P90 by template)",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 13
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.90, sum by (template_type, le) (rate(cad_generation_duration_seconds_bucket[10m])))",
+            "refId": "cad_duration",
+            "interval": "",
+            "legendFormat": "{{template_type}} (P90)"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 0,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "mean",
+              "last"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "type": "timeseries",
+        "title": "File Exports by Format and Status",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 21
+        },
+        "targets": [
+          {
+            "expr": "sum by (format, status) (rate(exports_total[5m])) * 60",
+            "refId": "exports",
+            "interval": "",
+            "legendFormat": "{{format}} - {{status}}"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops/min",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 25,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      },
+      {
+        "id": 10,
+        "type": "timeseries",
+        "title": "AI Provider Requests (per minute)",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 21
+        },
+        "targets": [
+          {
+            "expr": "sum by (provider, model) (rate(ai_requests_total[5m])) * 60",
+            "refId": "ai_rate",
+            "interval": "",
+            "legendFormat": "{{provider}}/{{model}}"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "rpm",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 15,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "mean",
+              "last"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "type": "timeseries",
+        "title": "AI Token Usage Rate (tokens per hour)",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 29
+        },
+        "targets": [
+          {
+            "expr": "sum by (provider, token_type) (rate(ai_tokens_used_total[1h])) * 3600",
+            "refId": "tokens",
+            "interval": "",
+            "legendFormat": "{{provider}} {{token_type}}"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 20,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "type": "timeseries",
+        "title": "User Registrations and Logins (10-min window)",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 29
+        },
+        "targets": [
+          {
+            "expr": "sum by (method) (rate(user_registrations_total[10m])) * 600",
+            "refId": "registrations",
+            "interval": "",
+            "legendFormat": "Registrations via {{method}}"
+          },
+          {
+            "expr": "sum by (method) (rate(user_logins_total{status=\"success\"}[10m])) * 600",
+            "refId": "logins",
+            "interval": "",
+            "legendFormat": "Logins via {{method}}"
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "fillOpacity": 25,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none"
+              },
+              "axisPlacement": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        }
+      }
+    ],
+    "schemaVersion": 38
+  },
+  "overwrite": true
+}
