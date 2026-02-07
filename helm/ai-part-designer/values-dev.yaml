@@ -24,7 +24,7 @@ logLevel: "DEBUG"
 
 # Local service names
 postgresHost: "postgres-service.ai-part-designer-dev.svc.cluster.local"
-redisHost: "redis-service.ai-part-designer-dev.svc.cluster.local"
+redisHost: "ai-part-designer-redis-master.ai-part-designer-dev.svc.cluster.local"
 
 # Disable autoscaling in dev
 backendHpaMin: 1
@@ -66,11 +66,28 @@ cloudnativePg:
     enabled: false
 
 redis:
+  # Reduced Redis for dev (single instance, no Sentinel)
+  architecture: standalone
+  auth:
+    enabled: true
+    password: "dev-redis-password"
+    sentinel: false
+  sentinel:
+    enabled: false
   master:
     persistence:
       enabled: true
       size: 2Gi
       storageClass: ""
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+  metrics:
+    enabled: false
 
 minio:
   persistence:

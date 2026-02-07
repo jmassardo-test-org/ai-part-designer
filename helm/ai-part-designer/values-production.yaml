@@ -89,25 +89,58 @@ cloudnativePg:
   appUserPassword: "CHANGEME_USE_SECRET_MANAGER"
 
 redis:
+  # Full HA Redis with Sentinel for production
+  architecture: replication
   auth:
+    enabled: true
     password: "CHANGEME_USE_SECRET_MANAGER"
+    sentinel: true
+  sentinel:
+    enabled: true
+    quorum: 2
+    downAfterMilliseconds: 5000
+    failoverTimeout: 10000
+    parallelSyncs: 1
   master:
+    count: 1  # Single master with replicas
     persistence:
       enabled: true
       size: 10Gi
       storageClass: "fast-ssd"
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "100m"
+        memory: "512Mi"
+        cpu: "250m"
       limits:
-        memory: "1Gi"
-        cpu: "500m"
-  # Redis RDB snapshots for persistence
+        memory: "2Gi"
+        cpu: "1000m"
+  replica:
+    replicaCount: 2  # 2 replicas for production HA
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: "fast-ssd"
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+  # Redis RDB + AOF for maximum durability
   commonConfiguration: |-
     save 900 1
     save 300 10
     save 60 10000
+    appendonly yes
+    appendfsync everysec
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
 
 minio:
   rootPassword: "CHANGEME_USE_SECRET_MANAGER"

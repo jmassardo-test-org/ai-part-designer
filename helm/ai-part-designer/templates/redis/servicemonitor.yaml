@@ -1,0 +1,21 @@
+{{- if and .Values.installRedis .Values.redis.metrics.enabled .Values.redis.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: metrics
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: metrics
+  endpoints:
+  - port: http-metrics
+    interval: {{ .Values.redis.metrics.serviceMonitor.interval }}
+    path: /metrics
+    scheme: http
+{{- end }}

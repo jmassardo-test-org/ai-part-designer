@@ -8,6 +8,20 @@ AssemblematicAI has been deployed with the following components:
   - Frontend Web: {{ .Values.frontendReplicas }} replicas
   - Celery Workers: {{ .Values.workerReplicas }} replicas
   - Celery Beat Scheduler: {{ .Values.beatReplicas }} replica
+{{- if .Values.installRedis }}
+  - Redis: {{ .Values.redis.architecture }} mode
+  {{- if eq .Values.redis.architecture "replication" }}
+    - Redis Master: {{ .Values.redis.master.count | default 1 }} pod(s)
+    - Redis Replicas: {{ .Values.redis.replica.replicaCount | default 2 }} pod(s)
+    - Redis Sentinel: Enabled for automatic failover
+  {{- end }}
+{{- end }}
+{{- if .Values.installPostgres }}
+  - PostgreSQL: {{ .Values.cloudnativePg.cluster.instances }} instances (CloudNativePG)
+{{- end }}
+{{- if .Values.installMinio }}
+  - MinIO: Object storage for designs and exports
+{{- end }}
 
 {{- if .Values.ingressEnabled }}
 
