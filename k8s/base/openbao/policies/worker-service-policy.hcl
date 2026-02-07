@@ -25,6 +25,14 @@ path "secret/data/ai-part-designer/storage/s3-credentials" {
   capabilities = ["read"]
 }
 
+path "secret/data/ai-part-designer/storage/minio-credentials" {
+  capabilities = ["read"]
+}
+
+path "secret/data/ai-part-designer/storage/minio-app-credentials" {
+  capabilities = ["read"]
+}
+
 # Email service for notifications from workers
 path "secret/data/ai-part-designer/email/smtp-config" {
   capabilities = ["read"]

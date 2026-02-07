@@ -20,6 +20,7 @@ resources:
 - backend/service.yaml
 - backend/hpa.yaml
 - backend/pdb.yaml
+- backend/external-secret.yaml
 # Frontend
 - frontend/configmap.yaml
 - frontend/deployment.yaml
@@ -31,6 +32,14 @@ resources:
 - celery/beat-deployment.yaml
 - celery/worker-hpa.yaml
 - celery/worker-pdb.yaml
+- celery/external-secret.yaml
+# MinIO Storage
+- minio/secret-store.yaml
+- minio/external-secrets.yaml
+- minio/statefulset.yaml
+- minio/service.yaml
+- minio/servicemonitor.yaml
+- minio/init-buckets-job.yaml
 # Network Policies
 - network-policies/default-deny.yaml
 - network-policies/backend-ingress.yaml
@@ -39,6 +48,7 @@ resources:
 - network-policies/frontend-egress.yaml
 - network-policies/celery-worker-egress.yaml
 - network-policies/celery-beat-egress.yaml
+- minio/network-policy.yaml
 
 # Images to be customized per environment
 images:

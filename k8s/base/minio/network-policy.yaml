@@ -1,0 +1,104 @@
+---
+# Allow ingress to MinIO from backend, celery workers, and initialization jobs
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio-ingress
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+      app.kubernetes.io/component: storage
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow from backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: backend
+          app.kubernetes.io/component: api
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow from celery workers
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: celery-worker
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow from celery beat
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: celery-beat
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow from initialization jobs
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: minio-init
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow from Prometheus for metrics scraping (if in same namespace)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow console access (can be restricted further if needed)
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 9001
+---
+# MinIO egress - typically only needs DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio-egress
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+      app.kubernetes.io/component: storage
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow internal communication between MinIO pods
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: minio
+    ports:
+    - protocol: TCP
+      port: 9000
