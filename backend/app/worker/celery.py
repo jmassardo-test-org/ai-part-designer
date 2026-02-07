@@ -124,5 +124,10 @@ celery_app.conf.update(
             "schedule": 604800.0,  # Weekly (7 days)
             "options": {"queue": "maintenance"},
         },
+        "archive-old-audit-logs": {
+            "task": "app.worker.tasks.maintenance.archive_old_audit_logs",
+            "schedule": 604800.0,  # Weekly (7 days)
+            "options": {"queue": "maintenance"},
+        },
     },
 )

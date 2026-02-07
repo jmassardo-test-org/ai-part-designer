@@ -27,10 +27,28 @@ from app.worker.tasks.extraction import (
     batch_extract_task,
     extract_component_task,
 )
+from app.worker.tasks.maintenance import (
+    archive_old_audit_logs,
+    backup_database,
+    check_data_integrity,
+    check_stale_jobs,
+    cleanup_old_jobs,
+    cleanup_temp_files,
+    purge_expired_trash,
+    send_trash_deletion_warnings,
+    verify_backups,
+)
 
 __all__ = [
+    # Maintenance tasks
+    "archive_old_audit_logs",
+    "backup_database",
     "batch_export",
     "batch_extract_task",
+    "check_data_integrity",
+    "check_stale_jobs",
+    "cleanup_old_jobs",
+    "cleanup_temp_files",
     # CAD v2 tasks
     "compile_enclosure_v2",
     # Export tasks
@@ -46,5 +64,8 @@ __all__ = [
     "generate_thumbnail",
     # AI tasks
     "moderate_content",
+    "purge_expired_trash",
+    "send_trash_deletion_warnings",
     "suggest_modifications",
+    "verify_backups",
 ]
