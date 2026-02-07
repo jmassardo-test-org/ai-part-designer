@@ -968,7 +968,6 @@ class TestCeleryTaskRetry:
         mocker,
     ):
         """Test that retrying a component extraction job re-queues the task."""
-        # Note: "full" is a valid job type for component extraction (CAD + datasheet)
         job = await job_factory.create_failed(
             db=db_session,
             user=test_user,
@@ -1072,3 +1071,69 @@ class TestCeleryTaskRetry:
         await db_session.refresh(job)
         assert job.retry_count == 0
         assert job.status == "failed"  # Should still be failed
+
+    @pytest.mark.asyncio
+    async def test_retry_job_missing_prompt_fails(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers,
+        job_factory,
+    ):
+        """Test that retrying an AI generation job without prompt fails with clear error."""
+        job = await job_factory.create_failed(
+            db=db_session,
+            user=test_user,
+            job_type="ai_generation",
+            retry_count=0,
+            max_retries=3,
+            input_params={},  # Missing prompt
+        )
+
+        response = await client.post(
+            f"/api/v1/jobs/{job.id}/retry",
+            headers=auth_headers,
+        )
+
+        # Should return 500 error with clear message about missing parameter
+        assert response.status_code == 500
+        assert "prompt" in response.json()["detail"].lower()
+
+        # Verify retry was rolled back
+        await db_session.refresh(job)
+        assert job.retry_count == 0
+        assert job.status == "failed"
+
+    @pytest.mark.asyncio
+    async def test_retry_job_missing_schema_fails(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers,
+        job_factory,
+    ):
+        """Test that retrying a CAD compile job without schema fails with clear error."""
+        job = await job_factory.create_failed(
+            db=db_session,
+            user=test_user,
+            job_type="cad_v2_compile",
+            retry_count=0,
+            max_retries=3,
+            input_params={},  # Missing enclosure_schema
+        )
+
+        response = await client.post(
+            f"/api/v1/jobs/{job.id}/retry",
+            headers=auth_headers,
+        )
+
+        # Should return 500 error with clear message about missing parameter
+        assert response.status_code == 500
+        assert "enclosure_schema" in response.json()["detail"].lower()
+
+        # Verify retry was rolled back
+        await db_session.refresh(job)
+        assert job.retry_count == 0
+        assert job.status == "failed"

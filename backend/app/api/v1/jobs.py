@@ -111,32 +111,63 @@ def _requeue_job_task(job: Job) -> str | None:
 
     if job.job_type == "ai_generation":
         # AI generation task
+        prompt = input_params.get("prompt")
+        if not prompt:
+            logger.error(
+                "job_requeue_missing_param",
+                job_id=job_id,
+                job_type=job.job_type,
+                missing_param="prompt",
+            )
+            raise ValueError("Missing required parameter 'prompt' for ai_generation job")
+
         task_result = generate_from_prompt.delay(
             job_id=job_id,
-            prompt=input_params.get("prompt", ""),
+            prompt=prompt,
             _context=input_params.get("context"),
             user_id=user_id,
         )
 
     elif job.job_type == "cad_v2_compile":
         # CAD v2 compilation task
+        enclosure_schema = input_params.get("enclosure_schema")
+        if not enclosure_schema:
+            logger.error(
+                "job_requeue_missing_param",
+                job_id=job_id,
+                job_type=job.job_type,
+                missing_param="enclosure_schema",
+            )
+            raise ValueError("Missing required parameter 'enclosure_schema' for cad_v2_compile job")
+
         task_result = compile_enclosure_v2.delay(
             job_id=job_id,
-            enclosure_schema=input_params.get("enclosure_schema", {}),
+            enclosure_schema=enclosure_schema,
             export_format=input_params.get("export_format", "step"),
             user_id=user_id,
         )
 
     elif job.job_type == "format_conversion":
         # Format conversion task
+        source_url = input_params.get("source_url")
+        if not source_url:
+            logger.error(
+                "job_requeue_missing_param",
+                job_id=job_id,
+                job_type=job.job_type,
+                missing_param="source_url",
+            )
+            raise ValueError("Missing required parameter 'source_url' for format_conversion job")
+
         task_result = convert_format.delay(
             job_id=job_id,
-            source_url=input_params.get("source_url", ""),
+            source_url=source_url,
             target_format=input_params.get("target_format", "step"),
         )
 
     elif job.job_type in ("cad", "datasheet", "full"):
         # Component extraction task
+        # Job types: "cad" (CAD only), "datasheet" (datasheet only), "full" (both)
         task_result = extract_component_task.delay(job_id)
 
     else:
