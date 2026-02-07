@@ -2,19 +2,89 @@
 
 This guide covers deploying AI Part Designer to a production environment.
 
+## Deployment Methods
+
+We support two deployment approaches:
+
+1. **GitOps with ArgoCD (Recommended)** - Automated continuous deployment with Git as source of truth
+2. **Manual Kubernetes/Docker** - Traditional deployment for environments without GitOps
+
+For GitOps deployments, see [ArgoCD Operations Guide](./argocd-operations.md).
+
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Secrets Management](#secrets-management)
-3. [Environment Configuration](#environment-configuration)
-4. [Docker Deployment](#docker-deployment)
-5. [Kubernetes Deployment](#kubernetes-deployment)
-6. [Database Setup](#database-setup)
-7. [SSL/TLS Configuration](#ssltls-configuration)
-8. [Monitoring & Logging](#monitoring--logging)
-9. [Backup & Recovery](#backup--recovery)
-10. [Scaling](#scaling)
-11. [Security Checklist](#security-checklist)
+1. [GitOps Deployment (ArgoCD)](#gitops-deployment-argocd)
+2. [Prerequisites](#prerequisites)
+3. [Secrets Management](#secrets-management)
+4. [Environment Configuration](#environment-configuration)
+5. [Docker Deployment](#docker-deployment)
+6. [Kubernetes Deployment](#kubernetes-deployment)
+7. [Database Setup](#database-setup)
+8. [SSL/TLS Configuration](#ssltls-configuration)
+9. [Monitoring & Logging](#monitoring--logging)
+10. [Backup & Recovery](#backup--recovery)
+11. [Scaling](#scaling)
+12. [Security Checklist](#security-checklist)
+
+---
+
+## GitOps Deployment (ArgoCD)
+
+**⭐ RECOMMENDED**: For production environments, we recommend using ArgoCD for GitOps-based deployments.
+
+### Benefits
+
+- **Automated Deployments**: Changes to main branch automatically deploy to staging
+- **Manual Production Control**: Production requires explicit approval
+- **Easy Rollbacks**: Roll back to any previous Git commit via UI or CLI
+- **Drift Detection**: Automatically detect and correct configuration drift
+- **Audit Trail**: Complete history of all deployments in Git
+- **Visual Dashboard**: Monitor deployment status in real-time
+
+### Quick Start
+
+1. **Install ArgoCD**:
+   ```bash
+   # See k8s/argocd/README.md for detailed instructions
+   kubectl create namespace argocd
+   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.10.0/manifests/install.yaml
+   kubectl apply -f k8s/argocd/
+   ```
+
+2. **Deploy Applications**:
+   ```bash
+   # Deploy staging (auto-sync)
+   kubectl apply -f k8s/argocd/application-staging.yaml
+
+   # Deploy production (manual sync)
+   kubectl apply -f k8s/argocd/application-production.yaml
+   ```
+
+3. **Access ArgoCD UI**:
+   ```bash
+   # Get admin password
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+   # Access UI (after configuring ingress or port-forward)
+   # https://argocd.yourdomain.com
+   ```
+
+### Deployment Workflow
+
+```
+PR Merged → CI Build → Push Images → Update Git → ArgoCD Sync → Deployed
+```
+
+**Staging**: Auto-syncs on every main branch change
+**Production**: Requires manual approval via ArgoCD UI/CLI
+
+### Documentation
+
+- **Setup Guide**: [k8s/argocd/README.md](../../k8s/argocd/README.md)
+- **Operations**: [argocd-operations.md](./argocd-operations.md)
+- **Rollbacks**: [rollback-runbook.md](./rollback-runbook.md)
+
+For non-GitOps deployments, continue with the sections below.
 
 ---
 
