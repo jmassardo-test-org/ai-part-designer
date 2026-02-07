@@ -44,6 +44,13 @@ spec:
           value: {{ .Values.redisPort | quote }}
         - name: REDIS_DB
           value: {{ .Values.redisDb | quote }}
+        {{- if .Values.installRedis }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ai-part-designer-redis
+              key: redis-password
+        {{- end }}
         - name: POSTGRES_HOST
           value: {{ .Values.postgresHost | quote }}
         - name: POSTGRES_PORT

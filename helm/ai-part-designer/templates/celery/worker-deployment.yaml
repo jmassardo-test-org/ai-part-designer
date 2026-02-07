@@ -67,6 +67,13 @@ spec:
           value: {{ .Values.redisPort | quote }}
         - name: REDIS_DB
           value: {{ .Values.redisDb | quote }}
+        {{- if .Values.installRedis }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ai-part-designer-redis
+              key: redis-password
+        {{- end }}
         - name: STORAGE_BACKEND
           value: {{ .Values.storageBackend | quote }}
         - name: S3_ENDPOINT_URL

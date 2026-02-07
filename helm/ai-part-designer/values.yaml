@@ -55,9 +55,14 @@ postgresPort: "5432"
 postgresDb: "assemblematic_ai"
 
 # Redis settings from configmap
-redisHost: "redis-service"
+# For Sentinel mode, this is the master service name
+redisHost: "ai-part-designer-redis-master"
 redisPort: "6379"
 redisDb: "0"
+redisSentinelEnabled: "true"
+redisSentinelService: "ai-part-designer-redis"
+redisSentinelPort: "26379"
+redisMasterSet: "mymaster"
 
 # MinIO storage from configmap
 storageBackend: "minio"
@@ -232,13 +237,58 @@ cloudnativePg:
 postgresUser: "app"
 
 redis:
+  # Redis configuration with Sentinel for HA per US-2.8
+  architecture: replication  # Enables Sentinel mode
   auth:
+    enabled: true
     password: "CHANGEME"
+    sentinel: true
+  sentinel:
+    enabled: true
+    quorum: 2
+    downAfterMilliseconds: 5000
+    failoverTimeout: 10000
+    parallelSyncs: 1
   master:
     persistence:
       enabled: true
       size: 10Gi  # Production default per US-2.6 requirements
       storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+  replica:
+    replicaCount: 2  # 2 replicas for HA (3 total pods with master)
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: ""
+      interval: 30s
+  # Redis persistence configuration (RDB + AOF)
+  commonConfiguration: |-
+    # RDB snapshots
+    save 900 1
+    save 300 10
+    save 60 10000
+    # AOF persistence
+    appendonly yes
+    appendfsync everysec
 
 minio:
   rootPassword: "CHANGEME"

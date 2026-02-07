@@ -133,6 +133,48 @@ aiMaxTokens: "4096"
 aiTemperature: "0.3"
 ```
 
+### Redis Configuration
+
+Redis is deployed with Bitnami Redis Helm chart and serves as both cache and Celery message broker.
+
+#### Architecture Modes
+
+**Production (Sentinel HA)**:
+```yaml
+redis:
+  architecture: replication
+  sentinel:
+    enabled: true
+    quorum: 2
+  replica:
+    replicaCount: 2  # 2 replicas (3 total pods with master)
+```
+
+**Development (Standalone)**:
+```yaml
+redis:
+  architecture: standalone
+  sentinel:
+    enabled: false
+```
+
+#### Key Features
+
+- **High Availability**: Automatic failover with Redis Sentinel (production)
+- **Persistence**: RDB + AOF for durability
+- **Monitoring**: Prometheus metrics via ServiceMonitor
+- **Security**: Password authentication, network policies
+- **Storage**: Configurable PVC sizes per environment
+
+See [Redis Operations Guide](../../docs/operations/redis-deployment.md) for detailed configuration and operational procedures.
+
+#### Service Endpoints
+
+When deployed, Redis services are available at:
+- Master: `ai-part-designer-redis-master:6379`
+- Sentinel: `ai-part-designer-redis:26379`
+- Metrics: `ai-part-designer-redis-metrics:9121`
+
 ## Dependency Management
 
 ### Included Subcharts
