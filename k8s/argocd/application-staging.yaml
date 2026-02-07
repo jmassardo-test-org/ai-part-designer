@@ -1,0 +1,113 @@
+---
+# ArgoCD Application for Staging Environment
+# This application automatically syncs changes from the main branch to the staging environment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ai-part-designer-staging
+  namespace: argocd
+  labels:
+    environment: staging
+    app.kubernetes.io/name: ai-part-designer
+    app.kubernetes.io/component: application
+  # Finalizers ensure proper cleanup when deleting the application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  # Annotations for notifications
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: deployments
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: deployments
+spec:
+  # Project the application belongs to
+  project: default
+
+  # Source repository configuration
+  source:
+    repoURL: https://github.com/jmassardo/ai-part-designer
+    targetRevision: main
+    path: k8s/overlays/staging
+
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ai-part-designer-staging
+
+  # Sync policy configuration
+  syncPolicy:
+    # Automated sync - changes are automatically applied
+    automated:
+      # Prune resources that are no longer defined in Git
+      prune: true
+      # Self-heal when cluster state drifts from Git
+      selfHeal: true
+      # Allow empty resources (useful during initial setup)
+      allowEmpty: false
+
+    # Sync options
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=true
+      # Validate resources before applying
+      - Validate=true
+      # Use server-side apply (recommended for large resources)
+      - ServerSideApply=false
+      # Prune last to avoid dependency issues
+      - PruneLast=true
+      # Replace resources instead of applying (useful for immutable fields)
+      - Replace=false
+
+    # Retry policy for failed syncs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences in certain fields
+  ignoreDifferences:
+    # Ignore replica count differences (for HPA)
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    # Ignore differences in auto-generated fields
+    - group: "*"
+      kind: "*"
+      managedFieldsManagers:
+        - kube-controller-manager
+
+---
+# AppProject for staging (optional - provides additional controls)
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ai-part-designer-staging
+  namespace: argocd
+spec:
+  description: AI Part Designer Staging Environment
+
+  # Source repositories
+  sourceRepos:
+    - https://github.com/jmassardo/ai-part-designer
+
+  # Allowed destinations
+  destinations:
+    - namespace: ai-part-designer-staging
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+
+  # Namespace resource whitelist (empty = allow all)
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Orphaned resources settings
+  orphanedResources:
+    warn: true
