@@ -56,10 +56,22 @@ dependencies = [
     
     # PDF Processing
     "PyMuPDF>=1.24.0",
+    "pdf2image>=1.16.0",
+    
+    # Image Processing
+    "pillow>=10.0.0",
+    "numpy>=1.26.0",
+    
+    # MFA/QR Code
+    "qrcode[pil]>=7.4.0",
+    
+    # Async file operations
+    "aiofiles>=23.2.0",
     
     # Utilities
     "python-dotenv>=1.0.0",
     "structlog>=24.1.0",
+    "deprecated>=1.2.0",
     
     # Monitoring
     "prometheus-fastapi-instrumentator>=7.0.0",

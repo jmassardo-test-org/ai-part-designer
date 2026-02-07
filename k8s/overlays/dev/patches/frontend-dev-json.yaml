@@ -1,0 +1,19 @@
+- op: replace
+  path: /spec/replicas
+  value: 1
+- op: replace
+  path: /spec/template/spec/containers/0/env
+  value:
+  - name: VITE_API_URL
+    value: "http://backend-dev:8000/api/v1"
+  - name: VITE_WS_URL
+    value: "ws://backend-dev:8000/ws"
+- op: replace
+  path: /spec/template/spec/containers/0/resources
+  value:
+    requests:
+      memory: "32Mi"
+      cpu: "25m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"

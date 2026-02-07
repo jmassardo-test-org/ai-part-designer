@@ -67,6 +67,12 @@ COPY pyproject.toml README.md ./
 # Install production dependencies with uv
 RUN uv sync --no-dev
 
+# Set ownership of venv to appuser so uv run works correctly
+RUN chown -R appuser:appuser .venv
+
+# Create uploads directory with proper permissions
+RUN mkdir -p uploads && chown -R appuser:appuser uploads
+
 # Copy application code
 COPY --chown=appuser:appuser . .
 
@@ -80,8 +86,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Production command
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Production command - use .venv directly, single worker for stability
+CMD [".venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # =============================================================================
 # Worker stage (Celery)
@@ -97,14 +103,20 @@ COPY pyproject.toml README.md ./
 # Install dependencies with uv
 RUN uv sync --no-dev
 
+# Set ownership of venv to appuser
+RUN chown -R appuser:appuser .venv
+
+# Create uploads directory with proper permissions
+RUN mkdir -p uploads && chown -R appuser:appuser uploads
+
 # Copy application code
 COPY --chown=appuser:appuser . .
 
 # Switch to non-root user
 USER appuser
 
-# Worker command
-CMD ["uv", "run", "celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info"]
+# Worker command - use .venv directly
+CMD [".venv/bin/celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info"]
 
 # =============================================================================
 # Beat stage (Celery scheduler)
@@ -120,11 +132,17 @@ COPY pyproject.toml README.md ./
 # Install dependencies with uv
 RUN uv sync --no-dev
 
+# Set ownership of venv to appuser
+RUN chown -R appuser:appuser .venv
+
+# Create uploads directory with proper permissions
+RUN mkdir -p uploads && chown -R appuser:appuser uploads
+
 # Copy application code
 COPY --chown=appuser:appuser . .
 
 # Switch to non-root user
 USER appuser
 
-# Beat command
-CMD ["uv", "run", "celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info"]
+# Beat command - use .venv directly
+CMD [".venv/bin/celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info"]

@@ -21,6 +21,12 @@ export interface OAuthConnectionsResponse {
 
 export interface OAuthLinkResponse {
   authorization_url: string;
+  state?: string;
+}
+
+export interface OAuthLoginResponse {
+  authorization_url: string;
+  state?: string;
 }
 
 export const oauthApi = {
@@ -33,6 +39,17 @@ export const oauthApi = {
     });
     if (!response.ok) {
       throw new Error('Failed to fetch OAuth connections');
+    }
+    return response.json();
+  },
+
+  async initiateLogin(provider: string, redirectUri?: string): Promise<OAuthLoginResponse> {
+    const params = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
+    const response = await fetch(`${API_BASE}/auth/oauth/${provider}/login${params}`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to initiate ${provider} login`);
     }
     return response.json();
   },
@@ -51,7 +68,7 @@ export const oauthApi = {
     return response.json();
   },
 
-  async disconnect(provider: string): Promise<void> {
+  async disconnect(provider: string): Promise<{ message: string }> {
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE}/auth/oauth/disconnect/${provider}`, {
       method: 'DELETE',
@@ -62,9 +79,10 @@ export const oauthApi = {
     if (!response.ok) {
       throw new Error(`Failed to disconnect ${provider}`);
     }
+    return { message: `${provider} disconnected successfully` };
   },
 
-  async unlinkProvider(provider: string): Promise<void> {
+  async unlinkProvider(provider: string): Promise<{ message: string }> {
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE}/auth/oauth/unlink/${provider}`, {
       method: 'POST',
@@ -75,5 +93,6 @@ export const oauthApi = {
     if (!response.ok) {
       throw new Error(`Failed to unlink ${provider}`);
     }
+    return { message: `${provider} unlinked successfully` };
   },
 };

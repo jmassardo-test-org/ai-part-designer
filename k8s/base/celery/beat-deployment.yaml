@@ -34,7 +34,7 @@ spec:
       - name: beat
         image: ai-part-designer-backend:latest
         imagePullPolicy: IfNotPresent
-        command: ["uv", "run", "celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info"]
+        command: [".venv/bin/celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info"]
         env:
         # Environment (overridden per overlay)
         - name: ENVIRONMENT

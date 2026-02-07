@@ -63,10 +63,11 @@ resources:
 - ingress/ingress.yaml
 
 # Images to be customized per environment
-images:
-- name: ai-part-designer-backend
-  newName: ghcr.io/jmassardo/ai-part-designer-backend
-  newTag: latest
-- name: ai-part-designer-frontend
-  newName: ghcr.io/jmassardo/ai-part-designer-frontend
-  newTag: latest
+# Note: Image transformations are handled by overlays
+# images:
+# - name: ai-part-designer-backend
+#   newName: ghcr.io/jmassardo/ai-part-designer-backend
+#   newTag: latest
+# - name: ai-part-designer-frontend
+#   newName: ghcr.io/jmassardo/ai-part-designer-frontend
+#   newTag: latest

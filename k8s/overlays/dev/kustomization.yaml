@@ -22,7 +22,7 @@ patches:
   target:
     kind: Deployment
     name: backend
-- path: patches/frontend-dev.yaml
+- path: patches/frontend-dev-json.yaml
   target:
     kind: Deployment
     name: frontend
@@ -54,11 +54,11 @@ configMapGenerator:
 #     --from-literal=aws-access-key-id=minioadmin \
 #     --from-literal=aws-secret-access-key=minioadmin
 
-# Images with dev tags
+# Images with dev tags - using local images for Docker Desktop
 images:
 - name: ai-part-designer-backend
-  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newName: ai-part-designer-backend
   newTag: dev
 - name: ai-part-designer-frontend
-  newName: ghcr.io/jmassardo/ai-part-designer-frontend
+  newName: ai-part-designer-frontend
   newTag: dev

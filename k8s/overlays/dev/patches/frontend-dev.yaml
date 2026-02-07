@@ -9,11 +9,12 @@ spec:
     spec:
       containers:
       - name: frontend
+        # Use K8s service endpoint for dev (within cluster)
         env:
         - name: VITE_API_URL
-          value: "https://api-dev.example.com/api/v1"
+          value: "http://backend-dev:8000/api/v1"
         - name: VITE_WS_URL
-          value: "wss://api-dev.example.com/ws"
+          value: "ws://backend-dev:8000/ws"
         resources:
           requests:
             memory: "32Mi"
@@ -21,3 +22,4 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
+      $patch: replace

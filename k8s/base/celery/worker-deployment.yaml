@@ -41,7 +41,7 @@ spec:
       - name: worker
         image: ai-part-designer-backend:latest
         imagePullPolicy: IfNotPresent
-        command: ["uv", "run", "celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+        command: [".venv/bin/celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
         env:
         # Environment (overridden per overlay)
         - name: ENVIRONMENT
