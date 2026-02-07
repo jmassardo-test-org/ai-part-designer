@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from celery import shared_task
@@ -69,7 +69,7 @@ def generate_daily_report(date: str | None = None) -> dict[str, Any]:
     if date:
         report_date = datetime.fromisoformat(date).date()
     else:
-        report_date = (datetime.now(tz=datetime.UTC) - timedelta(days=1)).date()
+        report_date = (datetime.now(tz=UTC) - timedelta(days=1)).date()
 
     start = datetime.combine(report_date, datetime.min.time())
     end = datetime.combine(report_date, datetime.max.time())
@@ -110,7 +110,7 @@ def generate_daily_report(date: str | None = None) -> dict[str, Any]:
                     "jobs": jobs_by_status,
                     "total_jobs": sum(v["count"] for v in jobs_by_status.values()),
                 },
-                "generated_at": datetime.now(tz=datetime.UTC).isoformat(),
+                "generated_at": datetime.now(tz=UTC).isoformat(),
             }
 
             logger.info(f"Generated daily report for {report_date}")
@@ -150,7 +150,9 @@ def calculate_user_metrics(user_id: str) -> dict[str, Any]:
             project_count = await project_repo.count(filters={"user_id": user_uuid})
 
             # Get recent jobs
-            job_stats = await job_repo.get_job_stats(since=datetime.now(tz=datetime.UTC) - timedelta(days=30))
+            job_stats = await job_repo.get_job_stats(
+                since=datetime.now(tz=UTC) - timedelta(days=30)
+            )
 
             return {
                 "user_id": user_id,
@@ -158,7 +160,7 @@ def calculate_user_metrics(user_id: str) -> dict[str, Any]:
                 "last_30_days": {
                     "jobs": job_stats,
                 },
-                "calculated_at": datetime.now(tz=datetime.UTC).isoformat(),
+                "calculated_at": datetime.now(tz=UTC).isoformat(),
             }
 
     return asyncio.run(run())

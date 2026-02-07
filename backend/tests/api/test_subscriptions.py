@@ -5,7 +5,7 @@ Tests for subscription management, checkout, billing portal,
 and usage endpoints.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from httpx import AsyncClient
@@ -204,7 +204,7 @@ class TestCancelSubscription:
             "is_active": True,
             "is_premium": True,
             "cancel_at_period_end": True,
-            "current_period_end": (datetime.now(tz=datetime.UTC) + timedelta(days=30)).isoformat(),
+            "current_period_end": (datetime.now(tz=UTC) + timedelta(days=30)).isoformat(),
         }
 
         response = await auth_client.post("/api/v1/subscriptions/cancel")

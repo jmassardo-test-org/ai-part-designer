@@ -17,10 +17,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ModelViewer } from '@/components/viewer/ModelViewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDesign, type Design } from '@/lib/designs';
 import { getPreviewData, downloadGeneratedFile } from '@/lib/generate';
-import { ModelViewer } from '@/components/viewer/ModelViewer';
 
 export function DesignDetailPage() {
   const { designId } = useParams<{ designId: string }>();

@@ -2,7 +2,7 @@
  * MobileNav Component Tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -223,6 +223,7 @@ describe('MobileNav with admin user', () => {
   });
 
   it('shows admin link for admin users', async () => {
+    // @ts-expect-error - Dynamic mock override for test
     vi.mocked(await import('@/contexts/AuthContext')).useAuth = () => ({
       user: { 
         id: '1', 
@@ -230,8 +231,19 @@ describe('MobileNav with admin user', () => {
         display_name: 'Admin User',
         role: 'admin',
         is_admin: true,
+        status: 'active',
+        subscription_tier: 'enterprise',
+        created_at: '2024-01-01T00:00:00Z',
+        email_verified_at: '2024-01-01T00:00:00Z',
       },
+      isLoading: false,
+      isAuthenticated: true,
+      token: 'test-token',
+      login: vi.fn(),
+      register: vi.fn(),
       logout: mockLogout,
+      refreshUser: vi.fn(),
+      updateUser: vi.fn(),
     });
 
     const user = userEvent.setup();

@@ -5,15 +5,15 @@
  * Integrates with the toast notification system for feedback.
  */
 
-import { useCallback, useRef, useState } from 'react';
-
+import React, { useCallback, useRef, useState } from 'react';
+import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
-import type { Design, Project } from '@/lib/designs';
 import {
   copyDesign,
   deleteDesignWithUndo,
   undoDeleteDesign,
   updateDesign,
+  type Design,
 } from '@/lib/designs';
 
 // =============================================================================
@@ -208,8 +208,8 @@ export function useDesignManagement({
         const toastResult = toast({
           title: 'Design deleted',
           description: `"${design.name}" was deleted`,
-          action: {
-            label: 'Undo',
+          action: React.createElement(ToastAction, {
+            altText: 'Undo delete',
             onClick: async () => {
               try {
                 const restored = await undoDeleteDesign(
@@ -229,7 +229,7 @@ export function useDesignManagement({
                   title: 'Design restored',
                   description: `"${design.name}" has been restored`,
                 });
-              } catch (error) {
+              } catch {
                 toast({
                   title: 'Could not restore',
                   description: 'The undo window has expired',
@@ -237,7 +237,7 @@ export function useDesignManagement({
                 });
               }
             },
-          },
+          }, 'Undo') as React.ReactElement,
           duration: timeRemaining,
         });
 

@@ -6,7 +6,7 @@
  */
 
 import { X, MessageSquare, Clock, Layers, ChevronRight } from 'lucide-react';
-import React, { useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
 // =============================================================================

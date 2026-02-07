@@ -7,10 +7,8 @@
 
 import {
   Bell,
-  Check,
   CheckCheck,
   X,
-  ExternalLink,
   Share2,
   MessageCircle,
   AlertCircle,
@@ -21,8 +19,6 @@ import {
   CreditCard,
   ChevronRight,
   Settings,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';

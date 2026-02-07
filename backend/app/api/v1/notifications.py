@@ -4,9 +4,8 @@ Notifications API endpoints.
 Handles notification listing, status updates, and preferences.
 """
 
-from typing import Any
-
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

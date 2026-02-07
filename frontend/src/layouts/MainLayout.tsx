@@ -4,7 +4,7 @@
  * Layout for authenticated pages with header and navigation.
  */
 
-import { User, LogOut, Settings, Shield, Plus, Trash2, WifiOff, RefreshCw } from 'lucide-react';
+import { User, LogOut, Settings, Shield, Trash2, WifiOff, RefreshCw } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogoLight, LogoIcon } from '@/components/brand';
@@ -18,7 +18,7 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 
 export function MainLayout() {
   const { user, logout } = useAuth();
-  const { connected, fallbackMode, reconnect } = useWebSocket();
+  const { connected: _connected, fallbackMode, reconnect } = useWebSocket();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);

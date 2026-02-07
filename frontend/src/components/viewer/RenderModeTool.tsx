@@ -202,9 +202,11 @@ export function RenderModeApplicator({ config, originalMaterials }: RenderModeAp
 
     return () => {
       // Cleanup: restore original materials when component unmounts
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const currentOriginalMaterials = originalMaterials.current;
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
-          const originalMaterial = originalMaterials.current.get(object);
+          const originalMaterial = currentOriginalMaterials.get(object);
           if (originalMaterial) {
             object.material = originalMaterial;
           }
@@ -217,7 +219,8 @@ export function RenderModeApplicator({ config, originalMaterials }: RenderModeAp
         }
       });
     };
-  }, [config, scene, originalMaterials]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, scene]);
 
   return null;
 }
@@ -338,6 +341,7 @@ export function RenderModeToolbar({
 /**
  * Hook to manage render mode state.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useRenderMode() {
   const [config, setConfig] = useState<RenderModeConfig>({
     mode: 'shaded',

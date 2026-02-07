@@ -161,7 +161,7 @@ export function SaveDesignModal({
       } else {
         throw new Error('Failed to create project');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to create project');
     } finally {
       setIsCreatingProject(false);

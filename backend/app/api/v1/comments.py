@@ -4,9 +4,8 @@ Comments API endpoints.
 Handles design comments with threading and mentions.
 """
 
+from datetime import UTC, datetime
 from typing import Any
-
-from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -200,7 +199,7 @@ async def create_comment(
     import uuid
 
     comment_id = uuid.uuid4()
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
 
     comment = {
         "id": comment_id,
@@ -386,7 +385,7 @@ async def update_comment(
     # Update comment
     c["content"] = request.content
     c["is_edited"] = True
-    c["updated_at"] = datetime.now(tz=datetime.UTC)
+    c["updated_at"] = datetime.now(tz=UTC)
 
     # Count replies
     reply_count = sum(1 for x in _comments.values() if x.get("parent_id") == c["id"])

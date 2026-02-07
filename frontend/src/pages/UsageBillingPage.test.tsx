@@ -150,9 +150,9 @@ const renderPage = () => {
 describe('UsageBillingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (usageApi.usageApi.getDashboard as any).mockResolvedValue(mockDashboard);
-    (usageApi.usageApi.getTiers as any).mockResolvedValue(mockTiers);
-    (subscriptionsApi.subscriptionsApi.getCurrentSubscription as any).mockResolvedValue(mockSubscription);
+    (usageApi.usageApi.getDashboard as ReturnType<typeof vi.fn>).mockResolvedValue(mockDashboard);
+    (usageApi.usageApi.getTiers as ReturnType<typeof vi.fn>).mockResolvedValue(mockTiers);
+    (subscriptionsApi.subscriptionsApi.getCurrentSubscription as ReturnType<typeof vi.fn>).mockResolvedValue(mockSubscription);
   });
 
   describe('Loading State', () => {
@@ -372,7 +372,7 @@ describe('UsageBillingPage', () => {
     });
 
     it('calls cancel API when confirming cancellation', async () => {
-      (subscriptionsApi.subscriptionsApi.cancelSubscription as any).mockResolvedValue({
+      (subscriptionsApi.subscriptionsApi.cancelSubscription as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockSubscription,
         cancel_at_period_end: true,
       });
@@ -401,7 +401,7 @@ describe('UsageBillingPage', () => {
 
   describe('Resume Subscription Flow', () => {
     it('shows resume button when subscription is canceling', async () => {
-      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as any).mockResolvedValue({
+      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockSubscription,
         cancel_at_period_end: true,
       });
@@ -418,11 +418,11 @@ describe('UsageBillingPage', () => {
     });
 
     it('calls resume API when clicking keep subscription', async () => {
-      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as any).mockResolvedValue({
+      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockSubscription,
         cancel_at_period_end: true,
       });
-      (subscriptionsApi.subscriptionsApi.resumeSubscription as any).mockResolvedValue(mockSubscription);
+      (subscriptionsApi.subscriptionsApi.resumeSubscription as ReturnType<typeof vi.fn>).mockResolvedValue(mockSubscription);
 
       renderPage();
 
@@ -442,7 +442,7 @@ describe('UsageBillingPage', () => {
 
   describe('Error Handling', () => {
     it('displays error message when API fails', async () => {
-      (usageApi.usageApi.getDashboard as any).mockRejectedValue(new Error('API Error'));
+      (usageApi.usageApi.getDashboard as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('API Error'));
 
       renderPage();
 
@@ -452,7 +452,7 @@ describe('UsageBillingPage', () => {
     });
 
     it('shows retry button on error', async () => {
-      (usageApi.usageApi.getDashboard as any).mockRejectedValue(new Error('API Error'));
+      (usageApi.usageApi.getDashboard as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('API Error'));
 
       renderPage();
 
@@ -462,8 +462,8 @@ describe('UsageBillingPage', () => {
     });
 
     it('retries loading when clicking retry', async () => {
-      (usageApi.usageApi.getDashboard as any).mockRejectedValueOnce(new Error('API Error'));
-      (usageApi.usageApi.getDashboard as any).mockResolvedValueOnce(mockDashboard);
+      (usageApi.usageApi.getDashboard as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('API Error'));
+      (usageApi.usageApi.getDashboard as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockDashboard);
 
       renderPage();
 

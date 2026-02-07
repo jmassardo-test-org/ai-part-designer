@@ -2,7 +2,7 @@
  * SaveDesignModal Component Tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SaveDesignModal } from './SaveDesignModal';
@@ -21,9 +21,12 @@ global.fetch = mockFetch;
 describe('SaveDesignModal', () => {
   const mockJob = {
     id: 'job-1',
-    job_type: 'generate',
+    type: 'generate' as const,
     status: 'completed' as const,
-    progress: 100,
+    priority: 1,
+    retry_count: 0,
+    max_retries: 3,
+    progress: { current: 100, total: 100, percentage: 100 },
     input_params: {
       prompt: 'A custom enclosure for Raspberry Pi',
       style: 'industrial',
@@ -150,7 +153,6 @@ describe('SaveDesignModal', () => {
   });
 
   it('allows creating new project', async () => {
-    const user = userEvent.setup();
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
@@ -173,7 +175,6 @@ describe('SaveDesignModal', () => {
   });
 
   it('supports adding tags', async () => {
-    const user = userEvent.setup();
     render(<SaveDesignModal {...defaultProps} />);
     
     await waitFor(() => {

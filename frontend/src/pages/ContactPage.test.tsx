@@ -3,9 +3,9 @@
  */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { BrowserRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { http, HttpResponse } from 'msw';
 import { server } from '@/test/mocks/server';
 import { ContactPage } from './ContactPage';
 

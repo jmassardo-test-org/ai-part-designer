@@ -6,6 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { generateFromDescription, getPreviewData } from '@/lib/generate';
 import { GeneratePage } from './GeneratePage';
 
 // Mock AuthContext
@@ -28,8 +29,6 @@ vi.mock('@/lib/generate', () => ({
 vi.mock('@/components/viewer', () => ({
   ModelViewer: () => <div data-testid="model-viewer">Model Viewer</div>,
 }));
-
-import { generateFromDescription, getPreviewData } from '@/lib/generate';
 
 const renderGeneratePage = () => {
   return render(

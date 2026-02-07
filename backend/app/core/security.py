@@ -12,7 +12,7 @@ import base64
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -162,7 +162,7 @@ def create_access_token(
     if expires_delta is None:
         expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
     expire = now + expires_delta
 
     payload = {
@@ -200,7 +200,7 @@ def create_refresh_token(
     if expires_delta is None:
         expires_delta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
     expire = now + expires_delta
     jti = secrets.token_urlsafe(32)
 
@@ -232,7 +232,7 @@ def create_verification_token(
     Returns:
         Encoded JWT string
     """
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
     expire = now + timedelta(hours=expires_hours)
 
     payload = {
@@ -286,7 +286,7 @@ def verify_token(token: str, expected_type: str | None = None) -> dict[str, Any]
 
     # Check expiration
     exp = payload.get("exp")
-    if exp and datetime.fromtimestamp(exp, tz=datetime.UTC) < datetime.now(tz=datetime.UTC):
+    if exp and datetime.fromtimestamp(exp, tz=UTC) < datetime.now(tz=UTC):
         return None
 
     # Check type if specified

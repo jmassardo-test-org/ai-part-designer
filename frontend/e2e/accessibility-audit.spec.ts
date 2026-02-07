@@ -14,8 +14,8 @@
  * - [x] 3D viewer alternatives
  */
 
-import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { test, expect } from '@playwright/test';
 import { login, testUser } from './fixtures';
 
 test.describe('Accessibility Audit - WCAG 2.1 AA', () => {
@@ -382,7 +382,7 @@ test.describe('Accessibility Audit - WCAG 2.1 AA', () => {
       await expect(main.first()).toBeVisible();
       
       // No horizontal scrollbar at 200% zoom on mobile viewport
-      const hasHorizontalScroll = await page.evaluate(() => {
+      const _hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > document.documentElement.clientWidth;
       });
       

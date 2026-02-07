@@ -5,7 +5,6 @@ Provides CRUD operations for 3D annotations on designs.
 """
 
 from typing import Any
-
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

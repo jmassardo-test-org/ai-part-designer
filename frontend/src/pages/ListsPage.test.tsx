@@ -2,11 +2,12 @@
  * Tests for the ListsPage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { ListsPage } from './ListsPage';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as api from '@/lib/marketplace';
+import type { ListCreate } from '@/types/marketplace';
+import { ListsPage } from './ListsPage';
 
 // Mock the ThemeContext
 vi.mock('@/contexts/ThemeContext', () => ({
@@ -83,15 +84,15 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('ListsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.getMyLists as any).mockResolvedValue(mockLists);
-    (api.createList as any).mockImplementation(async (data: any) => ({
+    (api.getMyLists as ReturnType<typeof vi.fn>).mockResolvedValue(mockLists);
+    (api.createList as ReturnType<typeof vi.fn>).mockImplementation(async (data: ListCreate) => ({
       id: 'list-new',
       ...data,
       item_count: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }));
-    (api.deleteList as any).mockResolvedValue(undefined);
+    (api.deleteList as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   });
 
   it('renders the page header', async () => {
@@ -143,7 +144,7 @@ describe('ListsPage', () => {
   });
 
   it('shows empty state when no lists exist', async () => {
-    (api.getMyLists as any).mockResolvedValue([]);
+    (api.getMyLists as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
     render(<ListsPage />, { wrapper });
 

@@ -2,10 +2,11 @@
  * Tests for CAD v2 React Query hooks.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import React, { ReactNode } from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as api from '../lib/generate-v2';
 import {
   useGenerateV2,
   usePreviewSchema,
@@ -14,7 +15,6 @@ import {
   useJobStatus,
   generateV2Keys,
 } from './useGenerateV2';
-import * as api from '../lib/generate-v2';
 
 // Mock the API module
 vi.mock('../lib/generate-v2', () => ({
@@ -160,7 +160,7 @@ describe('usePreviewSchema', () => {
       wrapper: createWrapper(queryClient),
     });
 
-    result.current.mutate({ description: 'Preview box' });
+    result.current.mutate('Preview box');
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
@@ -194,7 +194,7 @@ describe('useCompileEnclosure', () => {
       wrapper: createWrapper(queryClient),
     });
 
-    const spec = {
+    const enclosure_schema = {
       exterior: {
         width: { value: 100 },
         depth: { value: 80 },
@@ -202,7 +202,7 @@ describe('useCompileEnclosure', () => {
       },
     };
 
-    result.current.mutate({ spec });
+    result.current.mutate({ enclosure_schema });
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);

@@ -1,12 +1,10 @@
 /**
  * Tests for MFA Verification Page
  */
-
+/* eslint-disable import/order */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import MFAVerificationPage from './MFAVerificationPage';
-
 // Mock the hooks and API
 vi.mock('@/lib/api/mfa', () => ({
   mfaApi: {
@@ -31,8 +29,8 @@ vi.mock('react-router-dom', async () => {
     }),
   };
 });
-
 import { mfaApi } from '@/lib/api/mfa';
+import MFAVerificationPage from './MFAVerificationPage';
 
 describe('MFAVerificationPage', () => {
   beforeEach(() => {

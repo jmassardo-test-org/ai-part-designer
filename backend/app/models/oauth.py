@@ -4,7 +4,7 @@ OAuth connection model.
 Tracks linked OAuth provider accounts for users.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -120,4 +120,4 @@ class OAuthConnection(Base, TimestampMixin):
             self.refresh_token = refresh_token
         if expires_at:
             self.token_expires_at = expires_at
-        self.last_used_at = datetime.now(tz=datetime.UTC)
+        self.last_used_at = datetime.now(tz=UTC)

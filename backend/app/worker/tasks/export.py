@@ -3,7 +3,7 @@ Export and file conversion tasks.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -48,7 +48,7 @@ def convert_format(
             await job_repo.update(
                 UUID(job_id),
                 status="running",
-                started_at=datetime.now(tz=datetime.UTC),
+                started_at=datetime.now(tz=UTC),
                 progress=20,
                 progress_message=f"Converting to {target_format.upper()}",
             )
@@ -121,7 +121,7 @@ def convert_format(
             await job_repo.update(
                 UUID(job_id),
                 status="completed",
-                completed_at=datetime.now(tz=datetime.UTC),
+                completed_at=datetime.now(tz=UTC),
                 progress=100,
                 result=result,
             )

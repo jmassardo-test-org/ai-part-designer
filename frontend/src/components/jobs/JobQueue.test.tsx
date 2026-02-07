@@ -2,7 +2,7 @@
  * JobQueue Component Tests
  */
 
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { JobQueue } from './JobQueue';
@@ -52,7 +52,7 @@ describe('JobQueue', () => {
     global.fetch = originalFetch;
   });
 
-  const renderWithMockFetch = (mockResponse: any = { items: [] }) => {
+  const renderWithMockFetch = (mockResponse: { items?: unknown[] } = { items: [] }) => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockResponse),

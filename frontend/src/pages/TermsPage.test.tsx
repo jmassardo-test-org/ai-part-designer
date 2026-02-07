@@ -100,7 +100,7 @@ describe('TermsPage', () => {
 
       // The text is split by <strong> tag, so find the paragraph that contains this info
       // Use queryAllByText to find all matching elements and verify at least one exists
-      const matches = screen.queryAllByText((content, element) => {
+      const matches = screen.queryAllByText((_content, element) => {
         const text = element?.textContent || '';
         return text.includes('NOT') && text.includes('use your designs') && element?.tagName === 'P';
       });

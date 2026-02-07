@@ -1,10 +1,8 @@
+/* eslint-disable import/order */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useTrash } from './useTrash';
-
-// Mock the trash API
 vi.mock('@/lib/api/trash', () => ({
   default: {
     listTrash: vi.fn(),
@@ -23,8 +21,8 @@ vi.mock('@/hooks/use-toast', () => ({
     toast: vi.fn(),
   }),
 }));
-
 import trashApi, { type TrashedItem } from '@/lib/api/trash';
+import { useTrash } from './useTrash';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({

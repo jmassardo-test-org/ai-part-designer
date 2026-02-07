@@ -4,9 +4,8 @@ Assembly API endpoints.
 CRUD operations for assemblies, components, and relationships.
 """
 
-from typing import Any
-
 from datetime import UTC
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

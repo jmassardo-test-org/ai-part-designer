@@ -4,7 +4,7 @@
 
 import { render, screen, waitFor } from '@testing-library/react';
 import { Suspense } from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { lazyWithFallback, preloadComponent } from './index';
 
 // Mock dynamic imports
@@ -33,7 +33,7 @@ describe('lazyWithFallback', () => {
 
   it('renders loading fallback while loading', async () => {
     const LazyComponent = lazyWithFallback(
-      () => new Promise(() => {}), // Never resolves
+      () => new Promise<{ default: React.ComponentType<object> }>(() => {}), // Never resolves
       <div data-testid="loading">Loading...</div>
     );
 
@@ -86,7 +86,7 @@ describe('lazyWithFallback', () => {
 
   it('uses default loading spinner when no fallback provided', () => {
     const LazyComponent = lazyWithFallback(
-      () => new Promise(() => {}) // Never resolves
+      () => new Promise<{ default: React.ComponentType<object> }>(() => {}) // Never resolves
     );
 
     render(<LazyComponent.Suspense />);
@@ -115,7 +115,7 @@ describe('preloadComponent', () => {
 describe('LoadingSpinner', () => {
   it('renders with correct styling', async () => {
     const LazyComponent = lazyWithFallback(
-      () => new Promise(() => {}) // Never resolves
+      () => new Promise<{ default: React.ComponentType<object> }>(() => {}) // Never resolves
     );
 
     render(<LazyComponent.Suspense />);

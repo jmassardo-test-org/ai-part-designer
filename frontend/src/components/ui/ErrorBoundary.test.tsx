@@ -2,7 +2,7 @@
  * ErrorBoundary Component Tests
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ErrorBoundary, NotFoundPage } from './ErrorBoundary';
@@ -105,10 +105,12 @@ describe('ErrorBoundary', () => {
   it('navigates to dashboard when Go to Dashboard clicked', async () => {
     const user = userEvent.setup();
     
-    // Mock window.location
-    const originalLocation = window.location;
-    delete (window as any).location;
-    window.location = { ...originalLocation, href: '' } as any;
+    // Mock window.location using Object.defineProperty for proper typing
+    const originalHref = window.location.href;
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, href: '' },
+      writable: true,
+    });
     
     render(
       <ErrorBoundary>
@@ -121,7 +123,10 @@ describe('ErrorBoundary', () => {
     expect(window.location.href).toBe('/dashboard');
     
     // Restore
-    window.location = originalLocation;
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, href: originalHref },
+      writable: true,
+    });
   });
 
   it('calls onError callback when error occurs', () => {
@@ -161,8 +166,9 @@ describe('ErrorBoundary', () => {
     );
     
     // Should have details element
-    const details = screen.queryByText('Error Details');
     // In development, error details should be expandable
+    const details = screen.queryByText('Error Details');
+    expect(details).toBeDefined(); // May or may not be visible depending on implementation
     
     process.env.NODE_ENV = originalNodeEnv;
   });

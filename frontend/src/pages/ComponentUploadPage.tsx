@@ -140,7 +140,7 @@ export function ComponentUploadPage() {
       return componentsApi.createComponent({
         ...formData,
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-        specifications: extractedSpecs,
+        specifications: extractedSpecs as Record<string, unknown> | undefined,
       });
     },
     onSuccess: () => {

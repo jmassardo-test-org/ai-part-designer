@@ -5,7 +5,7 @@ Teams allow organizations to group members for better resource
 organization and access control within an organization.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -208,7 +208,7 @@ class TeamMember(Base, TimestampMixin):
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
     )
 
     # Status
@@ -304,7 +304,7 @@ class ProjectTeam(Base, TimestampMixin):
     assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
     )
 
     # Relationships

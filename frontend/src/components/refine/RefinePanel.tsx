@@ -79,6 +79,7 @@ export function RefinePanel({
   // Load context on mount
   useEffect(() => {
     loadContext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [designId]);
 
   // Scroll to bottom when messages change

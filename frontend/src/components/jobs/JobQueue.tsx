@@ -11,8 +11,6 @@ import {
   Loader2,
   Box,
   FileBox,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -81,12 +79,13 @@ export function JobQueue() {
 
     // Handle job progress updates
     const unsubProgress = subscribe('job_progress', (message) => {
-      const { job_id, progress, status, message: statusMessage } = message as {
+      const progressMessage = message as unknown as {
         job_id: string;
         progress: number;
         status: string;
         message?: string;
       };
+      const { job_id, progress, status } = progressMessage;
       
       setJobs((prev) =>
         prev.map((job) =>
@@ -99,7 +98,8 @@ export function JobQueue() {
 
     // Handle job completion
     const unsubComplete = subscribe('job_complete', (message) => {
-      const { job_id, result } = message as { job_id: string; result?: Record<string, unknown> };
+      const completeMessage = message as unknown as { job_id: string; result?: Record<string, unknown> };
+      const { job_id } = completeMessage;
       
       setJobs((prev) =>
         prev.map((job) =>
@@ -112,7 +112,8 @@ export function JobQueue() {
 
     // Handle job failure
     const unsubFailed = subscribe('job_failed', (message) => {
-      const { job_id, error } = message as { job_id: string; error: string };
+      const failedMessage = message as unknown as { job_id: string; error: string };
+      const { job_id, error } = failedMessage;
       
       setJobs((prev) =>
         prev.map((job) =>

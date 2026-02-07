@@ -16,8 +16,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/marketplace';
-import type { StarterDetail } from '@/types/marketplace';
 import type { EnclosureSpec } from '@/types/cad-v2';
+import type { StarterDetail } from '@/types/marketplace';
 
 export function StarterDetailPage() {
   const { starterId } = useParams<{ starterId: string }>();

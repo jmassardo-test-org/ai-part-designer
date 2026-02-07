@@ -98,7 +98,7 @@ describe('VirtualTable', () => {
       <VirtualTable 
         data={mockData.slice(0, 5)} 
         columns={columns}
-        rowClassName={(item, index) => index === 0 ? 'first-row' : ''}
+        rowClassName={(_item, index) => index === 0 ? 'first-row' : ''}
       />
     );
     

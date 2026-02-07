@@ -7,7 +7,7 @@ Provides WebSocket connection for real-time updates.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
@@ -74,7 +74,7 @@ async def websocket_endpoint(
         {
             "type": "connected",
             "user_id": user_id,
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
     )
 

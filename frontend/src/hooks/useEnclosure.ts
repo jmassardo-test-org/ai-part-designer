@@ -5,6 +5,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
 import type { EnclosureGenerationOptions } from '@/components/enclosure';
 import api from '@/lib/api';
 import { layoutKeys } from './useLayout';
@@ -167,8 +168,6 @@ export function useEnclosureProgress(
     }, 1000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 }
-
-// Need to import React for useEffect
-import React from 'react';

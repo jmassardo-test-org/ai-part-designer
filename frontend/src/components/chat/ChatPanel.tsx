@@ -71,6 +71,7 @@ export function ChatPanel({ className = '' }: ChatPanelProps) {
     if (token) {
       loadConversations();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
   
   const loadConversations = useCallback(async () => {
@@ -256,7 +257,7 @@ export function ChatPanel({ className = '' }: ChatPanelProps) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       setError(`Failed to download ${format.toUpperCase()} file`);
     }
   }, [token, conversation]);
@@ -278,7 +279,7 @@ export function ChatPanel({ className = '' }: ChatPanelProps) {
       setSaveDescription('');
       setSelectedProjectId(null);
       setShowSaveModal(true);
-    } catch (err) {
+    } catch {
       setError('Failed to load projects');
     }
   }, [token, conversation, understanding]);

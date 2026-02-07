@@ -5,8 +5,6 @@
  * sample part generation walkthrough and 3D viewer.
  */
 
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Play,
   Pause,
@@ -22,6 +20,8 @@ import {
   Settings2,
   Zap,
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { LogoLight, LogoIcon } from '@/components/brand';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';

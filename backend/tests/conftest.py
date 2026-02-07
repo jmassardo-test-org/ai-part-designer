@@ -318,13 +318,27 @@ def mock_redis():
     mock.incr = AsyncMock(return_value=1)  # For rate limiting
     mock.expire = AsyncMock(return_value=True)
     mock.check_rate_limit = AsyncMock(return_value=(True, 100))
+    mock.lpush = AsyncMock(return_value=1)  # For security audit logs
+    mock.lrange = AsyncMock(return_value=[])  # For retrieving audit logs
+    mock.increment_counter = AsyncMock(return_value=1)  # For security counters
     mock._connected = True
 
-    # Patch in all modules that import redis_client
-    with patch("app.core.auth.redis_client", mock), patch("app.core.cache.redis_client", mock):
-        with patch("app.core.rate_limiter.redis_client", mock):
-            with patch("app.core.undo_tokens.redis_client", mock):
-                yield mock
+    # Patch in all modules that import redis_client directly
+    patches = [
+        patch("app.core.auth.redis_client", mock),
+        patch("app.core.cache.redis_client", mock),
+        patch("app.core.rate_limiter.redis_client", mock),
+        patch("app.core.undo_tokens.redis_client", mock),
+        patch("app.services.security_audit.redis_client", mock),
+    ]
+
+    for p in patches:
+        p.start()
+
+    yield mock
+
+    for p in patches:
+        p.stop()
 
 
 @pytest.fixture

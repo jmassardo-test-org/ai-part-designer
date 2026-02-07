@@ -13,7 +13,7 @@ Or via Makefile:
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -313,7 +313,7 @@ async def ensure_vendor_user(db: AsyncSession) -> User:
             role="system",
             status="active",
             password_hash="!",  # Cannot login - invalid hash
-            email_verified_at=datetime.now(tz=datetime.UTC),
+            email_verified_at=datetime.now(tz=UTC),
         )
         db.add(user)
         await db.flush()

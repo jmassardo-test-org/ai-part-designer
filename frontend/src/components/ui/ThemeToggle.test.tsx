@@ -185,7 +185,7 @@ describe('ThemeToggle', () => {
     });
 
     it('closes dropdown when clicking outside', () => {
-      const { container } = renderWithTheme(
+      const { container: _container } = renderWithTheme(
         <div>
           <ThemeToggle showDropdown />
           <div data-testid="outside">Outside</div>

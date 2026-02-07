@@ -432,8 +432,10 @@ describe('SettingsPage', () => {
       
       // Mock window.location.href
       const originalLocation = window.location;
-      delete (window as unknown as { location: Location | undefined }).location;
-      window.location = { ...originalLocation, href: '' } as Location;
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: { ...originalLocation, href: '' },
+      });
 
       renderSettingsPage();
 
@@ -451,7 +453,10 @@ describe('SettingsPage', () => {
         expect(mockInitiateLink).toHaveBeenCalledWith('google');
       });
 
-      window.location = originalLocation;
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: originalLocation,
+      });
     });
 
     it('handles disconnect successfully', async () => {

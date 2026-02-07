@@ -2,9 +2,9 @@
  * Tests for MFA Settings Section
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MFASettingsSection } from './MFASettingsSection';
 
 // Mock the MFA API

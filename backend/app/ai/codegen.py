@@ -313,6 +313,10 @@ def sanitize_code(code: str) -> str:
     code = re.sub(r"^from cadquery import.*$", "# from cadquery (legacy)", code, flags=re.MULTILINE)
     code = re.sub(r"^import cq.*$", "# import cq (legacy)", code, flags=re.MULTILINE)
 
+    # Fix common CadQuery method naming issues (snake_case -> camelCase)
+    code = re.sub(r"\.push_points\(", ".pushPoints(", code)
+    code = re.sub(r"\.fillet\(0\)", "", code)  # Remove invalid .fillet(0) calls
+
     # Check for dangerous patterns
     dangerous_patterns = [
         r"\bimport\s+os\b",

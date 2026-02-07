@@ -2,7 +2,7 @@
 Content moderation model.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -198,13 +198,13 @@ class ModerationLog(Base):
         """File an appeal for this moderation decision."""
         self.is_appealed = True
         self.appeal_reason = reason
-        self.appealed_at = datetime.now(tz=datetime.UTC)
+        self.appealed_at = datetime.now(tz=UTC)
 
     def resolve_appeal(self, decision: str, reviewer_id: UUID) -> None:
         """Resolve the appeal with a decision."""
         self.appeal_decision = decision
         self.reviewer_id = reviewer_id
-        self.reviewed_at = datetime.now(tz=datetime.UTC)
+        self.reviewed_at = datetime.now(tz=UTC)
 
         if decision == "overturned":
             self.decision = "approved"

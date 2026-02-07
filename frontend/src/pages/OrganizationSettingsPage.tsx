@@ -13,15 +13,12 @@ import {
   Crown,
   UserPlus,
   Trash2,
-  MoreVertical,
-  Copy,
-  Check,
   AlertCircle,
   Loader2,
-  ChevronDown,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { TeamsTab } from '@/components/teams/TeamsTab';
 import {
   organizationsApi,
   Organization,
@@ -30,7 +27,6 @@ import {
   OrganizationRole,
 } from '@/lib/api/organizations';
 import { cn } from '@/lib/utils';
-import { TeamsTab } from '@/components/teams/TeamsTab';
 
 // =============================================================================
 // Types
@@ -225,7 +221,7 @@ function MembersTab({ orgId, currentUserId, isAdmin }: MembersTabProps) {
     try {
       const data = await organizationsApi.listMembers(orgId);
       setMembers(data);
-    } catch (err) {
+    } catch {
       setError('Failed to load members');
     } finally {
       setIsLoading(false);
@@ -240,7 +236,7 @@ function MembersTab({ orgId, currentUserId, isAdmin }: MembersTabProps) {
     try {
       await organizationsApi.changeMemberRole(orgId, memberId, newRole);
       await loadMembers();
-    } catch (err) {
+    } catch {
       setError('Failed to change role');
     }
   };
@@ -250,7 +246,7 @@ function MembersTab({ orgId, currentUserId, isAdmin }: MembersTabProps) {
     try {
       await organizationsApi.removeMember(orgId, memberId);
       await loadMembers();
-    } catch (err) {
+    } catch {
       setError('Failed to remove member');
     }
   };
@@ -350,7 +346,7 @@ function InvitesTab({ orgId, isAdmin }: InvitesTabProps) {
     try {
       const data = await organizationsApi.listInvites(orgId);
       setInvites(data);
-    } catch (err) {
+    } catch {
       setError('Failed to load invites');
     } finally {
       setIsLoading(false);
@@ -373,8 +369,8 @@ function InvitesTab({ orgId, isAdmin }: InvitesTabProps) {
       setInviteEmail('');
       setShowInviteForm(false);
       await loadInvites();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to send invite');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { detail?: string } } }).response?.data?.detail || 'Failed to send invite');
     } finally {
       setIsSending(false);
     }
@@ -385,7 +381,7 @@ function InvitesTab({ orgId, isAdmin }: InvitesTabProps) {
     try {
       await organizationsApi.revokeInvite(orgId, inviteId);
       await loadInvites();
-    } catch (err) {
+    } catch {
       setError('Failed to revoke invite');
     }
   };
@@ -495,7 +491,7 @@ function InvitesTab({ orgId, isAdmin }: InvitesTabProps) {
 
 interface SettingsTabProps {
   org: Organization;
-  onUpdate: (updates: { settings: Record<string, any> }) => Promise<void>;
+  onUpdate: (updates: { settings: Record<string, unknown> }) => Promise<void>;
   onDelete: () => Promise<void>;
   isOwner: boolean;
 }
@@ -531,7 +527,7 @@ function SettingsTab({ org, onUpdate, onDelete, isOwner }: SettingsTabProps) {
           <label className="flex items-center gap-3">
             <input
               type="checkbox"
-              checked={settings.allow_member_invites || false}
+              checked={Boolean(settings.allow_member_invites)}
               onChange={(e) =>
                 setSettings({ ...settings, allow_member_invites: e.target.checked })
               }
@@ -545,7 +541,7 @@ function SettingsTab({ org, onUpdate, onDelete, isOwner }: SettingsTabProps) {
           <label className="flex items-center gap-3">
             <input
               type="checkbox"
-              checked={settings.require_2fa || false}
+              checked={Boolean(settings.require_2fa)}
               onChange={(e) =>
                 setSettings({ ...settings, require_2fa: e.target.checked })
               }
@@ -647,7 +643,7 @@ export function OrganizationSettingsPage() {
     try {
       const data = await organizationsApi.get(orgId);
       setOrg(data);
-    } catch (err) {
+    } catch {
       setError('Failed to load organization');
     } finally {
       setIsLoading(false);
@@ -660,7 +656,12 @@ export function OrganizationSettingsPage() {
 
   const handleUpdate = async (updates: Partial<Organization>) => {
     if (!orgId) return;
-    const updated = await organizationsApi.update(orgId, updates);
+    const updated = await organizationsApi.update(orgId, {
+      name: updates.name,
+      description: updates.description ?? undefined,
+      logo_url: updates.logo_url ?? undefined,
+      settings: updates.settings,
+    });
     setOrg(updated);
   };
 

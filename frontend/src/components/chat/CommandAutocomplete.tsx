@@ -4,7 +4,7 @@
  * Shows suggestions when user types slash commands in chat input.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // =============================================================================
 // Types
@@ -203,6 +203,7 @@ export function CommandAutocomplete({
 // Hook for command detection
 // =============================================================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCommandAutocomplete(_options: UseCommandAutocompleteOptions = {}) {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [inputValue, setInputValue] = useState('');

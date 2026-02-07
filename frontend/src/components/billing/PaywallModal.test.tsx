@@ -76,7 +76,7 @@ describe('PaywallModal', () => {
     });
 
     it('displays fallback for unknown feature', () => {
-      renderModal({ feature: 'unknown_feature' as any });
+      renderModal({ feature: 'unknown_feature' });
       expect(screen.getByText('Premium Feature')).toBeInTheDocument();
     });
   });

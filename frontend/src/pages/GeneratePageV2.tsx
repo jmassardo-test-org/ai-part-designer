@@ -192,6 +192,7 @@ export function GeneratePageV2() {
         setResult(response);
       }).catch(console.error);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
   const isGenerating =
@@ -227,13 +228,17 @@ export function GeneratePageV2() {
     });
 
     if (hasVentilation) {
+      // Map 'circular' to 'honeycomb' since addVentilation only supports 'slots' | 'honeycomb'
+      const mappedPattern: 'slots' | 'honeycomb' = ventPattern === 'circular' ? 'honeycomb' : ventPattern;
       spec = addVentilation(spec, {
-        pattern: ventPattern,
+        pattern: mappedPattern,
         sides: ['left', 'right'],
       });
     }
 
-    spec = addLid(spec, lidType);
+    // Map 'hinged' to 'snap_fit' since addLid only supports 'snap_fit' | 'screw_on'
+    const mappedLidType: 'snap_fit' | 'screw_on' = lidType === 'hinged' ? 'snap_fit' : lidType;
+    spec = addLid(spec, mappedLidType);
 
     // Add port features as cutouts
     if (features.length > 0) {
@@ -242,7 +247,7 @@ export function GeneratePageV2() {
         return {
           type: 'port' as const,
           port_type: f.type,
-          face: f.side,
+          side: f.side,
           width: { value: preset?.width || 10, unit: 'mm' as const },
           height: { value: preset?.height || 5, unit: 'mm' as const },
           position: { x: 0, y: 0 }, // Centered by default
@@ -295,7 +300,7 @@ export function GeneratePageV2() {
 
     try {
       if (mode === 'ai') {
-        const preview = await previewSchema.mutateAsync({ description: description.trim() });
+        const preview = await previewSchema.mutateAsync(description.trim());
         if (preview.generated_schema) {
           setGeneratedSpec(preview.generated_schema);
         }
@@ -949,3 +954,5 @@ export function GeneratePageV2() {
     </div>
   );
 }
+
+export default GeneratePageV2;

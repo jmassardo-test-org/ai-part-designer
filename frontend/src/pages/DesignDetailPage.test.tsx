@@ -2,14 +2,14 @@
  * Tests for DesignDetailPage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DesignDetailPage } from './DesignDetailPage';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as designs from '@/lib/designs';
 import * as generate from '@/lib/generate';
+import { DesignDetailPage } from './DesignDetailPage';
 
 // Mock the auth context
 vi.mock('@/contexts/AuthContext', () => ({

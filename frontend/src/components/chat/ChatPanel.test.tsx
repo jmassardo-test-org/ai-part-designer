@@ -409,8 +409,6 @@ describe('ChatMessage', () => {
 });
 describe('State Updates', () => {
   it('updates conversation result when generation completes', async () => {
-    const user = userEvent.setup();
-    
     // Start with an active conversation
     const activeConversation = {
       id: 'conv-1',

@@ -1,13 +1,12 @@
 /**
  * Tests for ComponentLibraryPage component.
  */
-
+/* eslint-disable import/order */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 // Mock components API
 vi.mock('@/lib/api/components', () => ({
   componentsApi: {

@@ -3,7 +3,7 @@ Maintenance and housekeeping tasks.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from celery import shared_task
@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.purge_expired_trash",
 )
 def purge_expired_trash() -> dict[str, Any]:
@@ -60,7 +59,7 @@ def purge_expired_trash() -> dict[str, Any]:
                 if not auto_empty:
                     continue
 
-                cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=retention_days)
+                cutoff = datetime.now(tz=UTC) - timedelta(days=retention_days)
 
                 try:
                     # Find and delete expired designs
@@ -151,7 +150,6 @@ def purge_expired_trash() -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.send_trash_deletion_warnings",
 )
 def send_trash_deletion_warnings() -> dict[str, Any]:
@@ -211,7 +209,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
 
                 # Find items expiring at each warning threshold
                 items_to_warn = []
-                now = datetime.now(tz=datetime.UTC)
+                now = datetime.now(tz=UTC)
 
                 for warning_day in WARNING_DAYS:
                     # Calculate cutoff: items deleted X days ago where X = retention - warning
@@ -338,7 +336,6 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.cleanup_old_jobs",
 )
 def cleanup_old_jobs(days: int = 30) -> dict[str, Any]:
@@ -355,7 +352,7 @@ def cleanup_old_jobs(days: int = 30) -> dict[str, Any]:
     from app.core.database import async_session_maker
     from app.models import Job
 
-    cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=days)
+    cutoff = datetime.now(tz=UTC) - timedelta(days=days)
 
     async def run() -> dict[str, Any]:
         async with async_session_maker() as session:
@@ -375,7 +372,6 @@ def cleanup_old_jobs(days: int = 30) -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.check_stale_jobs",
 )
 def check_stale_jobs(stale_after_minutes: int = 30) -> dict[str, Any]:
@@ -398,7 +394,7 @@ def check_stale_jobs(stale_after_minutes: int = 30) -> dict[str, Any]:
             failed_count = 0
             for job in stale_jobs:
                 job.status = "failed"
-                job.completed_at = datetime.now(tz=datetime.UTC)
+                job.completed_at = datetime.now(tz=UTC)
                 job.error_message = f"Job timed out after {stale_after_minutes} minutes"
                 job.error = {
                     "type": "timeout",
@@ -418,7 +414,6 @@ def check_stale_jobs(stale_after_minutes: int = 30) -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.cleanup_temp_files",
 )
 def cleanup_temp_files(max_age_hours: int = 24) -> dict[str, Any]:
@@ -431,7 +426,7 @@ def cleanup_temp_files(max_age_hours: int = 24) -> dict[str, Any]:
 
     from app.core.storage import StorageBucket, storage_client
 
-    cutoff = datetime.now(tz=datetime.UTC) - timedelta(hours=max_age_hours)
+    cutoff = datetime.now(tz=UTC) - timedelta(hours=max_age_hours)
 
     async def run() -> dict[str, Any]:
         # List temp files
@@ -457,7 +452,6 @@ def cleanup_temp_files(max_age_hours: int = 24) -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.backup_database",
 )
 def backup_database(backup_type: str = "full") -> dict[str, Any]:
@@ -489,7 +483,6 @@ def backup_database(backup_type: str = "full") -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.vacuum_database",
 )
 def vacuum_database() -> dict[str, Any]:
@@ -517,7 +510,6 @@ def vacuum_database() -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.update_search_vectors",
 )
 def update_search_vectors() -> dict[str, Any]:
@@ -556,7 +548,6 @@ def update_search_vectors() -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.generate_missing_thumbnails",
 )
 def generate_missing_thumbnails() -> dict[str, Any]:
@@ -593,7 +584,6 @@ def generate_missing_thumbnails() -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.check_storage_health",
 )
 def check_storage_health() -> dict[str, Any]:
@@ -627,14 +617,13 @@ def check_storage_health() -> dict[str, Any]:
         return {
             "overall_status": "healthy" if all_healthy else "degraded",
             "buckets": results,
-            "checked_at": datetime.now(tz=datetime.UTC).isoformat(),
+            "checked_at": datetime.now(tz=UTC).isoformat(),
         }
 
     return asyncio.run(run())
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.check_data_integrity",
 )
 def check_data_integrity() -> dict[str, Any]:
@@ -681,7 +670,6 @@ def check_data_integrity() -> dict[str, Any]:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
-    
     name="app.worker.tasks.maintenance.verify_backups",
 )
 def verify_backups() -> dict[str, Any]:
@@ -706,13 +694,13 @@ def verify_backups() -> dict[str, Any]:
             "backups_valid": 0,
             "backups_invalid": 0,
             "issues": [],
-            "verified_at": datetime.now(tz=datetime.UTC).isoformat(),
+            "verified_at": datetime.now(tz=UTC).isoformat(),
         }
 
         backup_service = BackupService()
 
         # Get recent backups (last 7 days)
-        cutoff = datetime.now(tz=datetime.UTC) - timedelta(days=7)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=7)
         recent_backups = [
             record
             for record in backup_service._backup_index.values()

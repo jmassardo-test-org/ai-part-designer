@@ -6,7 +6,7 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreatePage } from './CreatePage';
 
@@ -174,6 +174,7 @@ describe('CreatePage', () => {
           created_at: '2026-01-25T10:01:01Z',
         },
         // No additional_messages field - should default to empty array
+        additional_messages: undefined,
         conversation_status: 'clarifying',
         understanding: null,
         ready_to_generate: false,
@@ -442,9 +443,9 @@ describe('CreatePage', () => {
       mockGetConversation.mockResolvedValue(completedConversation);
       
       render(
-        <BrowserRouter initialEntries={['?id=conv-completed']}>
+        <MemoryRouter initialEntries={['/create?id=conv-completed']}>
           <CreatePage />
-        </BrowserRouter>
+        </MemoryRouter>
       );
       
       // Wait for chat view to be loaded
@@ -477,14 +478,18 @@ describe('CreatePage', () => {
       mockGetConversation.mockResolvedValue(completedConversation);
       
       render(
-        <BrowserRouter initialEntries={['?id=conv-completed']}>
+        <MemoryRouter initialEntries={['/create?id=conv-completed']}>
           <CreatePage />
-        </BrowserRouter>
+        </MemoryRouter>
       );
       
       await waitFor(() => {
-        const input = screen.getByRole('textbox');
-        expect(input).toHaveAttribute('placeholder', expect.stringMatching(/\/help/i));
+        // Use getAllByRole since there are multiple textboxes, find the one with help hint
+        const inputs = screen.getAllByRole('textbox');
+        const chatInput = inputs.find(input => 
+          input.getAttribute('placeholder')?.includes('/help')
+        );
+        expect(chatInput).toBeTruthy();
       });
     });
   });

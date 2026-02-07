@@ -149,7 +149,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
 
   // Check if user needs onboarding via API
   useEffect(() => {
@@ -161,7 +161,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
             setCurrentStep(status.current_step);
             setIsOnboarding(true);
           }
-        } catch (error) {
+        } catch {
           // Fallback to localStorage for development/testing
           const onboardingComplete = localStorage.getItem(`onboarding_complete_${user.id}`);
           if (!onboardingComplete) {
@@ -380,6 +380,7 @@ function OnboardingModal({
 // Restart Onboarding Hook
 // =============================================================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useOnboardingRestart() {
   const { user } = useAuth();
 

@@ -19,9 +19,7 @@ if TYPE_CHECKING:
     from structlog.types import EventDict, Processor
 
 
-def add_app_context(
-    _logger: logging.Logger, _method_name: str, event_dict: EventDict
-) -> EventDict:
+def add_app_context(_logger: logging.Logger, _method_name: str, event_dict: EventDict) -> EventDict:
     """
     Add application-level context to log entries.
 

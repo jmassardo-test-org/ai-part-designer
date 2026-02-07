@@ -11,7 +11,7 @@ Provides:
 import hashlib
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID
@@ -156,7 +156,7 @@ class SecurityAuditService:
         event_data = {
             "event_type": event_type.value,
             "severity": severity.value,
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "user_id": str(user_id) if user_id else None,
             "resource_type": resource_type,
             "resource_id": str(resource_id) if resource_id else None,
@@ -189,7 +189,7 @@ class SecurityAuditService:
 
     async def _store_event(self, event_data: dict[str, Any]) -> None:
         """Store event in Redis for real-time analysis."""
-        event_key = f"security:events:{datetime.now(tz=datetime.UTC).strftime('%Y%m%d%H')}"
+        event_key = f"security:events:{datetime.now(tz=UTC).strftime('%Y%m%d%H')}"
         await redis_client.lpush(event_key, json.dumps(event_data))
         await redis_client.expire(event_key, 86400 * 7)  # Keep for 7 days
 
@@ -208,8 +208,7 @@ class SecurityAuditService:
             user_id=UUID(event_data["user_id"]) if event_data.get("user_id") else None,
             ip_address=event_data.get("client_ip"),
             user_agent=event_data.get("user_agent"),
-            changes=event_data.get("details"),
-            severity=event_data["severity"],
+            context={"details": event_data.get("details"), "severity": event_data["severity"]},
         )
         self.db.add(audit_entry)
         await self.db.flush()

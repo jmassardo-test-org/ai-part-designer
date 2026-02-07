@@ -8,7 +8,7 @@ and transaction logging.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
@@ -253,7 +253,7 @@ class CreditService:
         """
         balance = await self.get_balance(user_id)
 
-        now = datetime.now(tz=datetime.UTC)
+        now = datetime.now(tz=UTC)
 
         # Check if refill is due
         if balance.next_refill_at and balance.next_refill_at > now:
@@ -354,7 +354,7 @@ class CreditService:
         """
         from sqlalchemy import func
 
-        since = datetime.now(tz=datetime.UTC) - timedelta(days=days)
+        since = datetime.now(tz=UTC) - timedelta(days=days)
 
         # Get total spent by type
         result = await self.db.execute(
@@ -422,7 +422,7 @@ class QuotaService:
                 storage_used_bytes=0,
                 active_jobs_count=0,
                 projects_count=0,
-                period_start=datetime.now(tz=datetime.UTC),
+                period_start=datetime.now(tz=UTC),
             )
             self.db.add(quota)
             await self.db.flush()

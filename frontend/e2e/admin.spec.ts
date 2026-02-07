@@ -149,8 +149,8 @@ test.describe('Admin Dashboard Error Handling', () => {
     const retryButton = page.locator('button:has-text("Retry"), button:has-text("Try again")');
     
     // Either shows error message or has retry option
-    const hasError = await errorMessage.isVisible().catch(() => false);
-    const hasRetry = await retryButton.isVisible().catch(() => false);
+    const _hasError = await errorMessage.isVisible().catch(() => false);
+    const _hasRetry = await retryButton.isVisible().catch(() => false);
     
     // Page should not have crashed (no Vite error overlay)
     const viteError = page.locator('[plugin\\:vite]');

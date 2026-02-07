@@ -2,14 +2,14 @@
  * LayoutSidebar Component Tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LayoutSidebar } from './LayoutSidebar';
 
 // Mock ComponentItem
 vi.mock('./ComponentItem', () => ({
-  ComponentItem: ({ component, onDragStart, disabled }: any) => (
+  ComponentItem: ({ component, onDragStart, disabled }: { component: { id: string; name: string }; onDragStart: (component: unknown) => void; disabled?: boolean }) => (
     <div 
       data-testid={`component-item-${component.id}`}
       onClick={() => onDragStart(component)}
@@ -45,6 +45,7 @@ describe('LayoutSidebar', () => {
       name: 'Raspberry Pi 4',
       x: 10,
       y: 10,
+      z: 0,
       width: 85,
       depth: 56,
       height: 17,
@@ -59,6 +60,7 @@ describe('LayoutSidebar', () => {
     height: 50,
     gridSize: 10,
     clearance: 2,
+    autoDimensions: false,
   };
 
   const defaultProps = {

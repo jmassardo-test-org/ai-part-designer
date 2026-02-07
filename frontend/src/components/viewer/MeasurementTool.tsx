@@ -431,6 +431,7 @@ export function MeasurementToolbar({
 /**
  * Hook to manage measurements state.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useMeasurements() {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [measurementEnabled, setMeasurementEnabled] = useState(false);

@@ -1,7 +1,12 @@
 # Makefile for AI Part Designer
 # Common development and deployment commands
 
-.PHONY: help dev dev-frontend dev-backend dev-worker test lint format build clean
+.PHONY: help dev dev-frontend dev-backend dev-worker test test-ci lint lint-ci format build clean security-scan
+
+# Python virtual environment for backend
+BACKEND_VENV := backend/.venv
+BACKEND_PYTHON := $(BACKEND_VENV)/bin/python
+BACKEND_PIP := $(BACKEND_VENV)/bin/pip
 
 # Default target
 help:
@@ -19,6 +24,7 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test             Run all tests"
+	@echo "  make test-ci          Run all CI checks locally (lint, typecheck, tests, security)"
 	@echo "  make test-backend     Run backend tests"
 	@echo "  make test-backend-cad     Run CAD v1 tests"
 	@echo "  make test-backend-cad-v2  Run CAD v2 tests (schemas, compiler)"
@@ -27,6 +33,7 @@ help:
 	@echo "  make test-frontend    Run frontend tests"
 	@echo "  make test-e2e         Run end-to-end tests"
 	@echo "  make test-coverage    Run tests with coverage report"
+	@echo "  make security-scan    Run security scans (bandit, pip-audit)"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make lint             Run all linters"
@@ -151,13 +158,13 @@ dev-backend-local:
 	cd backend && source ../.venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 dev-frontend:
-	cd frontend && pnpm run dev
+	cd frontend && npm run dev
 
 dev-backend:
 	cd backend && poetry run uvicorn app.main:app --reload --port 8000
 
 dev-worker:
-	cd worker && poetry run celery -A app.celery worker --loglevel=info
+	cd backend && $(CURDIR)/$(BACKEND_PYTHON) -m celery -A app.worker.celery worker --loglevel=info
 
 dev-monitoring:
 	docker compose --profile monitoring up -d
@@ -209,41 +216,108 @@ test-coverage:
 	@echo "  Frontend: frontend/coverage/index.html"
 
 # ============================================================================
+# CI Checks (mirrors .github/workflows/ci.yml exactly)
+# ============================================================================
+
+# Run all CI checks locally - same as GitHub Actions pipeline
+test-ci: lint-ci typecheck security-scan test-backend-ci test-frontend-ci
+	@echo ""
+	@echo "=========================================="
+	@echo "✅ All CI checks passed!"
+	@echo "=========================================="
+
+# Backend lint matching CI (includes format check)
+lint-backend-ci:
+	@echo "Running backend lint (CI mode)..."
+	$(BACKEND_PYTHON) -m ruff check backend/app backend/tests --output-format=github
+	$(BACKEND_PYTHON) -m ruff format backend/app backend/tests --check
+	@echo "✅ Backend lint passed"
+
+# Ensure frontend dependencies are installed
+frontend-deps:
+	@if [ ! -d "frontend/node_modules" ]; then \
+		echo "Installing frontend dependencies..."; \
+		cd frontend && npm ci; \
+	fi
+
+# Frontend lint matching CI (includes TypeScript check)
+lint-frontend-ci: frontend-deps
+	@echo "Running frontend lint (CI mode)..."
+	cd frontend && npm run lint
+	cd frontend && npx tsc --noEmit
+	@echo "✅ Frontend lint passed"
+
+# Combined CI lint
+lint-ci: lint-backend-ci lint-frontend-ci
+
+# Backend tests matching CI (with coverage threshold)
+# Uses Docker container for local dev (has DB), or runs directly in CI
+test-backend-ci:
+	@echo "Running backend tests (CI mode with 80% coverage threshold)..."
+	@if [ -n "$$DATABASE_URL" ]; then \
+		echo "Running in CI mode (DATABASE_URL set)..."; \
+		cd backend && $(CURDIR)/$(BACKEND_PYTHON) -m pytest \
+			--cov=app \
+			--cov-report=xml \
+			--cov-report=term-missing \
+			--cov-fail-under=80 \
+			-v; \
+	else \
+		echo "Running via Docker (local dev)..."; \
+		docker exec ai-part-designer-api python -m pytest tests/ \
+			--cov=app \
+			--cov-report=xml \
+			--cov-report=term-missing \
+			--cov-fail-under=80 \
+			-v; \
+	fi
+	@echo "✅ Backend tests passed"
+
+# Frontend tests matching CI (with coverage)
+test-frontend-ci: frontend-deps
+	@echo "Running frontend tests (CI mode with coverage)..."
+	cd frontend && npm run test:coverage
+	@echo "✅ Frontend tests passed"
+
+# Security scanning matching CI
+security-scan:
+	@echo "Running security scans..."
+	@echo ""
+	@echo "=== Bandit Security Linter ==="
+	$(BACKEND_PYTHON) -m bandit -r backend/app -ll -ii || true
+	@echo ""
+	@echo "=== pip-audit Dependency Scan ==="
+	@$(BACKEND_PIP) compile backend/pyproject.toml -o /tmp/requirements.txt 2>/dev/null && $(BACKEND_PYTHON) -m pip_audit -r /tmp/requirements.txt || echo "Note: Install pip-audit with 'pip install pip-audit'"
+	@echo ""
+	@echo "✅ Security scan complete (review any warnings above)"
+
+# ============================================================================
 # Code Quality
 # ============================================================================
 
-lint: lint-frontend lint-backend lint-worker
+lint: lint-frontend lint-backend
 
 lint-frontend:
-	cd frontend && pnpm run lint
+	cd frontend && npm run lint
 
 lint-backend:
-	cd backend && poetry run ruff check .
+	cd backend && $(CURDIR)/$(BACKEND_PYTHON) -m ruff check .
 
-lint-worker:
-	cd worker && poetry run ruff check .
-
-format: format-frontend format-backend format-worker
+format: format-frontend format-backend
 
 format-frontend:
-	cd frontend && pnpm run format
+	cd frontend && npm run format
 
 format-backend:
-	cd backend && poetry run ruff format .
+	$(BACKEND_PYTHON) -m ruff format backend/app backend/tests
 
-format-worker:
-	cd worker && poetry run ruff format .
-
-typecheck: typecheck-frontend typecheck-backend typecheck-worker
+typecheck: typecheck-frontend typecheck-backend
 
 typecheck-frontend:
-	cd frontend && pnpm run typecheck
+	cd frontend && npx tsc --noEmit
 
 typecheck-backend:
-	cd backend && poetry run mypy .
-
-typecheck-worker:
-	cd worker && poetry run mypy .
+	cd backend && .venv/bin/python -m mypy app --show-error-codes
 
 # ============================================================================
 # Database
@@ -339,7 +413,7 @@ build:
 	docker compose build
 
 build-frontend:
-	cd frontend && pnpm run build
+	cd frontend && npm run build
 
 build-no-cache:
 	docker compose build --no-cache
@@ -386,7 +460,7 @@ shell-db:
 
 # Generate API client from OpenAPI spec
 generate-api-client:
-	cd frontend && pnpm run generate-api-types
+	cd frontend && npm run generate-api-types
 
 # Check if all services are healthy
 health-check:

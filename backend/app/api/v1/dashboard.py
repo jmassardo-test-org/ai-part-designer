@@ -7,9 +7,8 @@ Provides aggregated data for the user dashboard including:
 - Activity summary
 """
 
-from typing import Any
-
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field

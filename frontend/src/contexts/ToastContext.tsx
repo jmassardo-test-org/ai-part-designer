@@ -57,6 +57,7 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
@@ -194,6 +195,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
 
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast.duration, toast.id]);
 
   // Handle dismiss with animation
@@ -280,10 +282,12 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
 
 let toastFunction: ToastContextValue | null = null;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function setToastRef(ref: ToastContextValue) {
   toastFunction = ref;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function toast(type: ToastType, title: string, message?: string): string | undefined {
   if (!toastFunction) {
     console.warn('Toast not initialized. Make sure ToastProvider is mounted.');

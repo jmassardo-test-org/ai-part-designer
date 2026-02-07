@@ -4,9 +4,9 @@
  * Tests the starter design detail view and remix functionality.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithRouter } from '@/test/utils';
 import { StarterDetailPage } from './StarterDetailPage';
 

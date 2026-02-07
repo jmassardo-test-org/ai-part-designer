@@ -4,8 +4,8 @@
  * Unit tests for the AdminDashboard component and its tabs.
  */
 
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { adminApi } from '@/lib/api/admin';
@@ -118,7 +118,7 @@ vi.mock('@/lib/api/admin', () => ({
   },
 }));
 
-const mockAdminApi = vi.mocked(adminApi);
+const mockAdminApi = vi.mocked(adminApi, true);
 
 // Wrapper for rendering with Router
 const renderWithRouter = (ui: React.ReactElement) => {

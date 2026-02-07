@@ -2,7 +2,7 @@
 Base model classes and mixins for SQLAlchemy ORM.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
@@ -62,7 +62,7 @@ class SoftDeleteMixin:
 
     def soft_delete(self) -> None:
         """Mark the record as deleted."""
-        self.deleted_at = datetime.now(tz=datetime.UTC)
+        self.deleted_at = datetime.now(tz=UTC)
 
     def restore(self) -> None:
         """Restore a soft-deleted record."""

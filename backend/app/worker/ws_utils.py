@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def publish_ws_message(user_id: str, message: dict[str, Any]) -> bool:
         channel = f"ws:user:{user_id}"
         # Add timestamp if not present
         if "timestamp" not in message:
-            message["timestamp"] = datetime.now(tz=datetime.UTC).isoformat()
+            message["timestamp"] = datetime.now(tz=UTC).isoformat()
 
         redis.publish(channel, json.dumps(message))
         return True
@@ -75,7 +75,7 @@ def publish_room_message(room: str, message: dict[str, Any]) -> bool:
     try:
         channel = f"ws:room:{room}"
         if "timestamp" not in message:
-            message["timestamp"] = datetime.now(tz=datetime.UTC).isoformat()
+            message["timestamp"] = datetime.now(tz=UTC).isoformat()
 
         redis.publish(channel, json.dumps(message))
         return True

@@ -3,7 +3,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { componentsApi } from '@/lib/api/components';
@@ -14,7 +14,7 @@ vi.mock('@/lib/api/components', () => ({
   componentsApi: {
     getProjectComponents: vi.fn(),
     updateProjectComponent: vi.fn(),
-    removeProjectComponent: vi.fn(),
+    removeFromProject: vi.fn(),
     reorderProjectComponents: vi.fn(),
   },
 }));
@@ -59,13 +59,13 @@ vi.mock('@dnd-kit/utilities', () => ({
 
 // Mock UI components
 vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: any) => (
+  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) => (
     <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
   ),
 }));
 
 vi.mock('@/components/ui/input', () => ({
-  Input: (props: any) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }));
 
 vi.mock('@/components/ui/badge', () => ({
@@ -99,7 +99,7 @@ vi.mock('@/components/ui/alert-dialog', () => ({
   AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
-  AlertDialogTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+  AlertDialogTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => <>{children}</>,
 }));
 
 vi.mock('@/components/ui/skeleton', () => ({
@@ -154,7 +154,7 @@ describe('ProjectComponentsList', () => {
     vi.clearAllMocks();
     vi.mocked(componentsApi.getProjectComponents).mockResolvedValue(mockComponents);
     vi.mocked(componentsApi.updateProjectComponent).mockResolvedValue(mockComponents[0]);
-    vi.mocked(componentsApi.removeProjectComponent).mockResolvedValue(undefined);
+    vi.mocked(componentsApi.removeFromProject).mockResolvedValue(undefined);
   });
 
   const renderComponent = (projectId: string, props = {}) => {
@@ -276,11 +276,10 @@ describe('ProjectComponentsList', () => {
     const minusButton = buttons.find(b => b.getAttribute('disabled') !== null);
     
     // At least one minus button should be disabled when quantity is 1
+    expect(minusButton).toBeDefined();
   });
 
   it('shows remove confirmation dialog', async () => {
-    const user = userEvent.setup();
-    
     renderComponent('project-1');
     
     await waitFor(() => {
@@ -290,6 +289,7 @@ describe('ProjectComponentsList', () => {
     // Hover over component and click delete
     const deleteButtons = screen.queryAllByRole('button');
     // Find the trash/delete button
+    expect(deleteButtons.length).toBeGreaterThan(0);
   });
 
   it('renders with drag handles', async () => {

@@ -4,10 +4,9 @@ Contact Form API Endpoints.
 Handles contact form submissions from the public website.
 """
 
-from typing import Any
-
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -63,7 +62,7 @@ def check_rate_limit(ip_address: str) -> bool:
     Returns:
         True if within limit, False if exceeded.
     """
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
     cutoff = now.timestamp() - RATE_LIMIT_WINDOW
 
     if ip_address not in _submission_times:

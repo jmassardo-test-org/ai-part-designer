@@ -2,9 +2,9 @@
  * Tests for GeneratePageV2 component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, renderWithRouter } from '@/test/utils';
 import { GeneratePageV2 } from './GeneratePageV2';
 

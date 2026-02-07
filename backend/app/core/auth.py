@@ -10,7 +10,7 @@ Provides:
 """
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any
 from uuid import UUID
@@ -218,7 +218,7 @@ async def get_token_payload(
 
     # Check expiration
     exp = payload.get("exp")
-    if exp and datetime.fromtimestamp(exp, tz=datetime.UTC) < datetime.now(tz=datetime.UTC):
+    if exp and datetime.fromtimestamp(exp, tz=UTC) < datetime.now(tz=UTC):
         return None
 
     # Check if token is blacklisted
@@ -497,7 +497,7 @@ async def blacklist_all_user_tokens(user_id: UUID) -> None:
     # Store a timestamp; tokens issued before this are invalid
     await redis_client.set(
         f"user:token_invalidation:{user_id}",
-        str(datetime.now(tz=datetime.UTC).timestamp()),
+        str(datetime.now(tz=UTC).timestamp()),
         ttl=86400 * 30,  # 30 days
     )
 

@@ -126,6 +126,7 @@ services:
         condition: service_healthy
     command: >
       sh -c "
+        pip install --quiet prometheus-client prometheus-fastapi-instrumentator &&
         alembic upgrade head &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "

@@ -5,22 +5,20 @@
  * Includes team list, create/edit modals, and member management.
  */
 
-import { useState, useEffect, useCallback } from 'react';
 import {
   Users,
   Plus,
   MoreVertical,
   Pencil,
   Trash2,
-  UserPlus,
   Crown,
   Shield,
   Loader2,
   AlertCircle,
   X,
-  Check,
 } from 'lucide-react';
-import { teamsApi, Team, TeamDetail, TeamRole, TeamMemberInfo } from '@/lib/api/teams';
+import { useState, useEffect, useCallback } from 'react';
+import { teamsApi, Team, TeamDetail, TeamRole } from '@/lib/api/teams';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -119,7 +117,7 @@ function TeamModal({ orgId, team, onClose, onSave }: TeamModalProps) {
         });
       }
       onSave(savedTeam);
-    } catch (err) {
+    } catch {
       setError(isEditing ? 'Failed to update team' : 'Failed to create team');
     } finally {
       setIsSubmitting(false);
@@ -242,7 +240,7 @@ function TeamDetailModal({ orgId, teamId, onClose, isAdmin }: TeamDetailModalPro
     try {
       const data = await teamsApi.get(orgId, teamId);
       setTeam(data);
-    } catch (err) {
+    } catch {
       setError('Failed to load team details');
     } finally {
       setIsLoading(false);
@@ -258,7 +256,7 @@ function TeamDetailModal({ orgId, teamId, onClose, isAdmin }: TeamDetailModalPro
     try {
       await teamsApi.removeMember(orgId, teamId, userId);
       loadTeam();
-    } catch (err) {
+    } catch {
       alert('Failed to remove member');
     }
   };
@@ -267,7 +265,7 @@ function TeamDetailModal({ orgId, teamId, onClose, isAdmin }: TeamDetailModalPro
     try {
       await teamsApi.updateMember(orgId, teamId, userId, { role });
       loadTeam();
-    } catch (err) {
+    } catch {
       alert('Failed to update role');
     }
   };
@@ -495,7 +493,7 @@ export function TeamsTab({ orgId, isAdmin }: TeamsTabProps) {
     try {
       const response = await teamsApi.list(orgId);
       setTeams(response.items);
-    } catch (err) {
+    } catch {
       setError('Failed to load teams');
     } finally {
       setIsLoading(false);
@@ -521,7 +519,7 @@ export function TeamsTab({ orgId, isAdmin }: TeamsTabProps) {
     try {
       await teamsApi.delete(orgId, team.id);
       setTeams((prev) => prev.filter((t) => t.id !== team.id));
-    } catch (err) {
+    } catch {
       alert('Failed to delete team');
     }
   };

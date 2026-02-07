@@ -2,7 +2,7 @@
  * EnclosureGenerationDialog Component Tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EnclosureGenerationDialog } from './EnclosureGenerationDialog';
@@ -14,6 +14,7 @@ describe('EnclosureGenerationDialog', () => {
     height: 40,
     gridSize: 5,
     clearance: 2,
+    autoDimensions: true,
   };
 
   const mockPlacements = [
@@ -23,12 +24,13 @@ describe('EnclosureGenerationDialog', () => {
       name: 'Raspberry Pi',
       x: 10,
       y: 10,
+      z: 0,
       width: 85,
       depth: 56,
       height: 17,
       rotation: 0,
       locked: false,
-      faceDirection: 'bottom',
+      faceDirection: 'bottom' as const,
     },
     {
       id: 'placement-2',
@@ -36,12 +38,13 @@ describe('EnclosureGenerationDialog', () => {
       name: 'USB Connector',
       x: 5,
       y: 30,
+      z: 0,
       width: 15,
       depth: 10,
       height: 5,
       rotation: 0,
       locked: false,
-      faceDirection: 'left',
+      faceDirection: 'left' as const,
     },
   ];
 

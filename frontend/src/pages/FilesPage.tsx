@@ -17,10 +17,9 @@ import {
   FolderOpen,
   X,
   Globe,
-  GlobeOff,
 } from 'lucide-react';
-import { PublishToMarketplaceDialog } from '@/components/marketplace/PublishToMarketplaceDialog';
 import { useState, useEffect, useCallback } from 'react';
+import { PublishToMarketplaceDialog } from '@/components/marketplace/PublishToMarketplaceDialog';
 import { FileUploader } from '@/components/upload/FileUploader';
 import { useAuth } from '@/contexts/AuthContext';
 import type { DesignFile } from '@/types';

@@ -1,10 +1,9 @@
 /**
  * useSubscription hook tests.
  */
-
+/* eslint-disable import/order */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 // Mock modules before importing them
 vi.mock('@/lib/api/subscriptions', () => ({
   subscriptionsApi: {
@@ -23,7 +22,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { subscriptionsApi } from '@/lib/api/subscriptions';
 
 describe('useSubscription', () => {
-  const mockSubscriptionsApi = subscriptionsApi as {
+  const mockSubscriptionsApi = subscriptionsApi as unknown as {
     getCurrentSubscription: ReturnType<typeof vi.fn>;
     getUsage: ReturnType<typeof vi.fn>;
     getPaymentHistory: ReturnType<typeof vi.fn>;

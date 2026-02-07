@@ -5,8 +5,8 @@
  * and legal terms for using the platform.
  */
 
+import { FileText, Scale, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { FileText, Shield, Scale, AlertTriangle, ExternalLink } from 'lucide-react';
 import { LogoLight, LogoIcon } from '@/components/brand';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 

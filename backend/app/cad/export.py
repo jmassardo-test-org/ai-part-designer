@@ -99,7 +99,7 @@ def export_step(
     *,
     author: str | None = None,
     organization: str | None = None,
-    _product_name: str = "CAD Export",
+    product_name: str = "CAD Export",
 ) -> bytes:
     """
     Export shape to STEP format (AP214).
@@ -130,6 +130,8 @@ def export_step(
             Interface_Static.SetCVal_s("write.step.product.context", author)
         if organization:
             Interface_Static.SetCVal_s("write.step.assembly", organization)
+        if product_name:
+            Interface_Static.SetCVal_s("write.step.product.name", product_name)
 
         # Create writer and transfer shape
         writer = STEPControl_Writer()
@@ -333,7 +335,9 @@ def export_to_format(
     )
 
 
-def get_mesh_stats(shape: ShapeType, quality: ExportQuality | str = ExportQuality.STANDARD) -> dict[str, Any]:
+def get_mesh_stats(
+    shape: ShapeType, quality: ExportQuality | str = ExportQuality.STANDARD
+) -> dict[str, Any]:
     """
     Get tessellation statistics for a shape.
 

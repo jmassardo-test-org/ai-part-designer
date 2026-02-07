@@ -13,7 +13,7 @@ Migrated from CadQuery to Build123d.
 import hashlib
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
@@ -74,7 +74,7 @@ class ModerationResult:
     """Result of content moderation analysis."""
 
     file_id: UUID
-    analyzed_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
+    analyzed_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     flags: list[ContentFlag] = field(default_factory=list)
     overall_status: ModerationStatus = ModerationStatus.PENDING
     auto_decision: bool = False

@@ -143,7 +143,7 @@ test.describe('v2 Design Save Flow', () => {
   });
 
   // These tests require full backend
-  test.skip(({ page }) => !process.env.RUN_FULL_E2E, 'Skipping full E2E tests');
+  test.skip(({ _page }) => !process.env.RUN_FULL_E2E, 'Skipping full E2E tests');
 
   test('should open save dialog after generation', async ({ page }) => {
     await page.goto('/generate');

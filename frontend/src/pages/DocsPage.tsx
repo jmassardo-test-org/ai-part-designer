@@ -5,26 +5,23 @@
  * API documentation, and FAQ with search functionality.
  */
 
-import { useState, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Book,
   Search,
   ChevronRight,
   ChevronDown,
   Sparkles,
   FileCode,
-  Key,
   HelpCircle,
   Rocket,
   Layers,
   Download,
-  Settings,
   Code,
   ExternalLink,
   Copy,
   Check,
 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { LogoLight, LogoIcon } from '@/components/brand';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';

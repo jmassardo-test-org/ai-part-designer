@@ -1,10 +1,9 @@
 /**
  * useOnboarding hook tests.
  */
-
+/* eslint-disable import/order */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 // Mock modules before importing them
 vi.mock('@/lib/api/onboarding', () => ({
   onboardingApi: {
@@ -26,7 +25,7 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { onboardingApi } from '@/lib/api/onboarding';
 
 describe('useOnboarding', () => {
-  const mockOnboardingApi = onboardingApi as {
+  const mockOnboardingApi = onboardingApi as unknown as {
     getStatus: ReturnType<typeof vi.fn>;
     getSteps: ReturnType<typeof vi.fn>;
     completeStep: ReturnType<typeof vi.fn>;

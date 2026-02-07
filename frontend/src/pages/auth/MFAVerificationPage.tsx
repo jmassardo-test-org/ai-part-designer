@@ -5,12 +5,11 @@
  * User enters their TOTP code or backup code to complete login.
  */
 
+import { Shield, KeyRound, AlertCircle, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Shield, KeyRound, AlertCircle, RefreshCw } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -18,10 +17,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mfaApi } from '@/lib/api/mfa';
 import { useAuth } from '@/contexts/AuthContext';
+import { tokenStorage } from '@/lib/api';
+import { mfaApi } from '@/lib/api/mfa';
 
 /**
  * MFA Verification page shown after initial login credentials are validated.
@@ -29,7 +30,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function MFAVerificationPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login: authLogin } = useAuth();
+  const { refreshUser } = useAuth();
   
   // Get email from location state (passed from login page)
   const email = (location.state as { email?: string })?.email || '';
@@ -58,10 +59,14 @@ export default function MFAVerificationPage() {
       });
       
       // Store tokens and complete login
-      authLogin(response.access_token, response.refresh_token);
+      tokenStorage.setTokens({
+        ...response,
+        expires_in: 3600, // Default 1 hour expiry for MFA login
+      }, true);
+      await refreshUser();
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid verification code. Please try again.');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { detail?: string } } }).response?.data?.detail || 'Invalid verification code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -85,10 +90,14 @@ export default function MFAVerificationPage() {
       });
       
       // Store tokens and complete login
-      authLogin(response.access_token, response.refresh_token);
+      tokenStorage.setTokens({
+        ...response,
+        expires_in: 3600, // Default 1 hour expiry for MFA login
+      }, true);
+      await refreshUser();
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid backup code. Please try again.');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { detail?: string } } }).response?.data?.detail || 'Invalid backup code. Please try again.');
     } finally {
       setIsLoading(false);
     }

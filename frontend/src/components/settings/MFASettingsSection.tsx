@@ -5,7 +5,6 @@
  * Shows QR code for setup and backup codes.
  */
 
-import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
@@ -18,9 +17,10 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';
+import { useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -36,10 +36,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { mfaApi, type MFASetupResponse } from '@/lib/api/mfa';
-import { cn } from '@/lib/utils';
 
 /**
  * MFA Settings section for account settings page.
@@ -70,7 +69,7 @@ export function MFASettingsSection() {
       setSetupData(data);
       setShowSetupDialog(true);
     },
-    onError: (err: any) => {
+    onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
       setError(err.response?.data?.detail || 'Failed to start MFA setup');
     },
   });
@@ -84,7 +83,7 @@ export function MFASettingsSection() {
       setSetupData(null);
       setVerificationCode('');
     },
-    onError: (err: any) => {
+    onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
       setError(err.response?.data?.detail || 'Invalid verification code');
     },
   });
@@ -98,7 +97,7 @@ export function MFASettingsSection() {
       setDisablePassword('');
       setDisableCode('');
     },
-    onError: (err: any) => {
+    onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
       setError(err.response?.data?.detail || 'Failed to disable MFA');
     },
   });
@@ -109,7 +108,7 @@ export function MFASettingsSection() {
     onSuccess: (data) => {
       setSetupData((prev) => prev ? { ...prev, backup_codes: data.backup_codes } : null);
     },
-    onError: (err: any) => {
+    onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
       setError(err.response?.data?.detail || 'Failed to regenerate backup codes');
     },
   });

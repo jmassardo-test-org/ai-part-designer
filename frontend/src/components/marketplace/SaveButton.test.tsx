@@ -2,11 +2,11 @@
  * Tests for the SaveButton component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { SaveButton } from './SaveButton';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as api from '@/lib/marketplace';
+import { SaveButton } from './SaveButton';
 
 // Mock the ThemeContext
 vi.mock('@/contexts/ThemeContext', () => ({
@@ -56,17 +56,17 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('SaveButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.checkSaveStatus as any).mockResolvedValue({
+    (api.checkSaveStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
       design_id: 'design-1',
       is_saved: false,
       in_lists: [],
     });
-    (api.saveDesign as any).mockResolvedValue({
+    (api.saveDesign as ReturnType<typeof vi.fn>).mockResolvedValue({
       design_id: 'design-1',
       saved_at: new Date().toISOString(),
       lists: [],
     });
-    (api.unsaveDesign as any).mockResolvedValue({
+    (api.unsaveDesign as ReturnType<typeof vi.fn>).mockResolvedValue({
       design_id: 'design-1',
       removed_from_lists: 1,
     });
@@ -81,7 +81,7 @@ describe('SaveButton', () => {
   });
 
   it('renders with saved state when initialSaved is true', () => {
-    (api.checkSaveStatus as any).mockResolvedValue({
+    (api.checkSaveStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
       design_id: 'design-1',
       is_saved: true,
       in_lists: ['list-1'],
@@ -107,7 +107,7 @@ describe('SaveButton', () => {
   });
 
   it('calls unsaveDesign when clicking saved button', async () => {
-    (api.checkSaveStatus as any).mockResolvedValue({
+    (api.checkSaveStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
       design_id: 'design-1',
       is_saved: true,
       in_lists: ['list-1'],

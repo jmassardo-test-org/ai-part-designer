@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -31,6 +31,7 @@ from app.models.file import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Iterator
     from datetime import datetime
 
     from sqlalchemy.ext.asyncio import AsyncSession

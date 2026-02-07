@@ -3,7 +3,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -67,7 +67,7 @@ vi.mock('@/components/layout', () => ({
   LayoutEditor: ({ placements, onAddPlacement }: { placements: unknown[]; onAddPlacement: () => void }) => (
     <div data-testid="layout-editor">
       Layout Editor: {placements?.length || 0} placements
-      <button onClick={() => onAddPlacement({}, 0, 0)}>Add Component</button>
+      <button onClick={() => onAddPlacement()}>Add Component</button>
     </div>
   ),
   LayoutPreview3D: ({ placements }: { placements: unknown[] }) => (

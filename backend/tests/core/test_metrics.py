@@ -61,7 +61,11 @@ def _cleanup_prometheus_registry():
     collectors_to_remove = []
     for collector in list(REGISTRY._collector_to_names.keys()):
         # Keep the default process and platform collectors
-        if collector.__class__.__name__ not in ["ProcessCollector", "PlatformCollector", "GCCollector"]:
+        if collector.__class__.__name__ not in [
+            "ProcessCollector",
+            "PlatformCollector",
+            "GCCollector",
+        ]:
             collectors_to_remove.append(collector)
 
     for collector in collectors_to_remove:
@@ -178,21 +182,13 @@ class TestBusinessMetrics:
     def test_ai_requests_metric_exists(self):
         """Test AI requests counter exists and can be incremented."""
         initial = _get_metric_value(
-            ai_requests_total,
-            provider="anthropic",
-            model="claude-3",
-            status="success"
+            ai_requests_total, provider="anthropic", model="claude-3", status="success"
         )
 
-        ai_requests_total.labels(
-            provider="anthropic", model="claude-3", status="success"
-        ).inc()
+        ai_requests_total.labels(provider="anthropic", model="claude-3", status="success").inc()
 
         new_value = _get_metric_value(
-            ai_requests_total,
-            provider="anthropic",
-            model="claude-3",
-            status="success"
+            ai_requests_total, provider="anthropic", model="claude-3", status="success"
         )
         assert new_value == initial + 1
 
@@ -301,7 +297,9 @@ class TestRedisMetrics:
         """Test collect_redis_metrics handles uninitialized client."""
         mock_redis_client = MagicMock()
         mock_redis_client.client = MagicMock()
-        mock_redis_client.client.ping = AsyncMock(side_effect=RuntimeError("Redis client not connected"))
+        mock_redis_client.client.ping = AsyncMock(
+            side_effect=RuntimeError("Redis client not connected")
+        )
 
         with patch("app.core.cache.redis_client", mock_redis_client):
             await collect_redis_metrics()

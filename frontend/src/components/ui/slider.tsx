@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-interface SliderProps extends React.HTMLAttributes<HTMLDivElement> {
+interface SliderProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'defaultValue'> {
   defaultValue?: number[]
   value?: number[]
   min?: number

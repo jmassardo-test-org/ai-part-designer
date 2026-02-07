@@ -36,6 +36,7 @@ const RESOLUTION_SIZES: Record<Exclude<ResolutionPreset, 'custom'>, { label: str
 /**
  * Hook to capture screenshots from the Three.js canvas.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useScreenshotCapture() {
   const { gl, scene, camera } = useThree();
 
@@ -319,6 +320,7 @@ export function ScreenshotToolbar({ onCapture, isCapturing }: ScreenshotToolbarP
 /**
  * Hook to manage screenshot state.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useScreenshot() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [lastCapture, setLastCapture] = useState<string | null>(null);

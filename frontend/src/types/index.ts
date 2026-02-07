@@ -14,7 +14,6 @@ export {
   type AdminComponent,
   type AdminNotification,
   type AdminAPIKey,
-  type AdminServerStats,
 } from './admin';
 export * from './auth';
 // job.ts exports JobListResponse - use this one as the canonical source

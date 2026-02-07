@@ -6,7 +6,6 @@
 
 import { FolderInput, FolderOpen } from 'lucide-react';
 import React, { useState } from 'react';
-
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -63,6 +62,7 @@ export function MoveModal({
       setTargetProjectId(availableProjects[0].id);
       setError(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [design, availableProjects.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {

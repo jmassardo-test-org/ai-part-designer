@@ -7,11 +7,11 @@
 import { Check, X, Loader2, Zap, Building, Sparkles, ChevronDown, ArrowRight, HelpCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { LogoLight, LogoIcon } from '@/components/brand';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { subscriptionsApi, SubscriptionPlan } from '@/lib/api/subscriptions';
 import { cn } from '@/lib/utils';
-import { LogoLight, LogoIcon } from '@/components/brand';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 // =============================
 // Types

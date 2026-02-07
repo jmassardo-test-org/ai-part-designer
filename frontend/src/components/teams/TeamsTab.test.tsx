@@ -2,11 +2,11 @@
  * Tests for TeamsTab component
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TeamsTab } from './TeamsTab';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { teamsApi } from '@/lib/api/teams';
+import { TeamsTab } from './TeamsTab';
 
 // Mock the ThemeContext
 vi.mock('@/contexts/ThemeContext', () => ({

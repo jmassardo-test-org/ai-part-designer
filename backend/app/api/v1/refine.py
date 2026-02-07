@@ -5,7 +5,6 @@ Handles iterative design refinement with AI.
 """
 
 from typing import Any
-
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status

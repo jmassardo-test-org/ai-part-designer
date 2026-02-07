@@ -4,7 +4,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useSlashCommands, CommandHandlerContext } from '../useSlashCommands';
+import { useSlashCommands, CommandHandlerContext, CommandResult } from '../useSlashCommands';
 
 describe('useSlashCommands', () => {
   beforeEach(() => {
@@ -75,7 +75,7 @@ describe('useSlashCommands', () => {
         
         const { result } = renderHook(() => useSlashCommands(context));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('save', []);
         });
@@ -101,7 +101,7 @@ describe('useSlashCommands', () => {
       it('returns error when onSaveDesign not available', async () => {
         const { result } = renderHook(() => useSlashCommands({}));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('save', []);
         });
@@ -144,7 +144,7 @@ describe('useSlashCommands', () => {
         
         const { result } = renderHook(() => useSlashCommands(context));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('export', ['invalid']);
         });
@@ -158,7 +158,7 @@ describe('useSlashCommands', () => {
       it('returns help text with all commands', async () => {
         const { result } = renderHook(() => useSlashCommands());
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('help', []);
         });
@@ -173,7 +173,7 @@ describe('useSlashCommands', () => {
       it('includes command descriptions', async () => {
         const { result } = renderHook(() => useSlashCommands());
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('help', []);
         });
@@ -204,7 +204,7 @@ describe('useSlashCommands', () => {
         
         const { result } = renderHook(() => useSlashCommands(context));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('undo', []);
         });
@@ -219,7 +219,7 @@ describe('useSlashCommands', () => {
         
         const { result } = renderHook(() => useSlashCommands(context));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('undo', []);
         });
@@ -237,7 +237,7 @@ describe('useSlashCommands', () => {
         
         const { result } = renderHook(() => useSlashCommands(context));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('redo', []);
         });
@@ -252,7 +252,7 @@ describe('useSlashCommands', () => {
         
         const { result } = renderHook(() => useSlashCommands(context));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('redo', []);
         });
@@ -266,7 +266,7 @@ describe('useSlashCommands', () => {
       it('returns error for unknown command', async () => {
         const { result } = renderHook(() => useSlashCommands());
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('nonexistent', []);
         });
@@ -283,7 +283,7 @@ describe('useSlashCommands', () => {
         
         const { result } = renderHook(() => useSlashCommands(context));
         
-        let cmdResult;
+        let cmdResult: CommandResult | undefined;
         await act(async () => {
           cmdResult = await result.current.executeCommand('save', []);
         });

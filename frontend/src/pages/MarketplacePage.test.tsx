@@ -2,11 +2,11 @@
  * Tests for the MarketplacePage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { MarketplacePage } from './MarketplacePage';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as api from '@/lib/marketplace';
+import { MarketplacePage } from './MarketplacePage';
 
 // Mock the ThemeContext
 vi.mock('@/contexts/ThemeContext', () => ({
@@ -99,7 +99,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('MarketplacePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.browseDesigns as any).mockResolvedValue({
+    (api.browseDesigns as ReturnType<typeof vi.fn>).mockResolvedValue({
       items: mockDesigns,
       total: 2,
       page: 1,
@@ -108,8 +108,8 @@ describe('MarketplacePage', () => {
       has_next: false,
       has_prev: false,
     });
-    (api.getFeaturedDesigns as any).mockResolvedValue([mockDesigns[1]]);
-    (api.getCategories as any).mockResolvedValue(mockCategories);
+    (api.getFeaturedDesigns as ReturnType<typeof vi.fn>).mockResolvedValue([mockDesigns[1]]);
+    (api.getCategories as ReturnType<typeof vi.fn>).mockResolvedValue(mockCategories);
   });
 
   it('renders the marketplace header', async () => {

@@ -4,9 +4,8 @@ Projects API endpoints.
 CRUD operations for projects and managing designs within projects.
 """
 
-from typing import Any
-
 from datetime import UTC
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -774,7 +773,7 @@ async def copy_example_project(
         is_public=False,
         extra_data={
             "copied_from": str(project_id),
-            "copied_at": datetime.now(tz=datetime.UTC).isoformat(),
+            "copied_at": datetime.now(tz=UTC).isoformat(),
             "tags": example.extra_data.get("tags", []),
         },
     )

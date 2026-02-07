@@ -12,7 +12,6 @@ import {
   Trash2,
   Edit2,
   MoreHorizontal,
-  Grid,
   ChevronRight,
   Heart,
   X,
@@ -20,8 +19,8 @@ import {
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import type { DesignList, ListCreate } from '@/types/marketplace';
 import * as api from '@/lib/marketplace';
+import type { DesignList, ListCreate } from '@/types/marketplace';
 
 // =============================================================================
 // Create List Dialog

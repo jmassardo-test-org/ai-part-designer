@@ -38,7 +38,7 @@ describe('Separator', () => {
   });
 
   it('forwards ref correctly', () => {
-    const ref = createRef<HTMLElement>();
+    const ref = createRef<HTMLDivElement>();
     render(<Separator ref={ref} />);
     expect(ref.current).not.toBeNull();
   });

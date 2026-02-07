@@ -40,6 +40,7 @@ export function LayoutSidebar({
     if (selectedId && activeTab === 'components') {
       setActiveTab('properties');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
   return (
@@ -337,7 +338,7 @@ function PropertiesTab({ placement, onUpdate }: PropertiesTabProps) {
         <h4 className="text-xs font-medium text-slate-400 uppercase mb-2">Face Direction</h4>
         <select
           value={placement.faceDirection || 'none'}
-          onChange={(e) => onUpdate({ faceDirection: e.target.value as any })}
+          onChange={(e) => onUpdate({ faceDirection: e.target.value as ComponentPlacement['faceDirection'] })}
           disabled={placement.locked}
           className="w-full px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
         >

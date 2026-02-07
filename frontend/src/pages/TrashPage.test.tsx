@@ -1,13 +1,12 @@
 /**
  * Tests for TrashPage component.
  */
-
+/* eslint-disable import/order */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 // Mock useTrash hook
 const mockRestoreItem = vi.fn();
 const mockDeleteItem = vi.fn();
@@ -61,7 +60,7 @@ vi.mock('@/hooks/useTrash', () => ({
 
 // Mock UI components that have jsdom issues
 vi.mock('@/components/ui/select', () => ({
-  Select: ({ children, onValueChange }: { children: React.ReactNode; onValueChange?: (value: string) => void }) => <div data-testid="select">{children}</div>,
+  Select: ({ children, onValueChange: _onValueChange }: { children: React.ReactNode; onValueChange?: (value: string) => void }) => <div data-testid="select">{children}</div>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => <option value={value}>{children}</option>,
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <button data-testid="select-trigger" role="combobox">{children}</button>,

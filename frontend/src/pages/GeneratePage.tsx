@@ -31,8 +31,6 @@ import {
   downloadGeneratedFile,
   getPreviewData,
   type GenerateResponse,
-  type AssemblyPart,
-  type BOMItem
 } from '@/lib/generate';
 
 // Example prompts for user guidance
@@ -146,7 +144,7 @@ export function GeneratePage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       setError(`Failed to download ${format.toUpperCase()} file`);
     } finally {
       setDownloading(null);

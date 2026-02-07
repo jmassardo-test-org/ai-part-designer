@@ -8,7 +8,7 @@ supporting AWS S3, GCS, Azure Blob, and MinIO.
 import hashlib
 import logging
 import mimetypes
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -393,7 +393,7 @@ class StorageClient:
         parts = [prefix.strip("/")]
 
         if include_timestamp:
-            parts.append(datetime.now(tz=datetime.UTC).strftime("%Y/%m/%d"))
+            parts.append(datetime.now(tz=UTC).strftime("%Y/%m/%d"))
 
         if unique_id:
             parts.append(str(unique_id))

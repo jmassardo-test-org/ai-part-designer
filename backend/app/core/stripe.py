@@ -5,6 +5,8 @@ Provides a client wrapper for Stripe API operations including
 subscription management, checkout sessions, and webhook handling.
 """
 
+from typing import Any
+
 import stripe
 from stripe import SignatureVerificationError, StripeError
 

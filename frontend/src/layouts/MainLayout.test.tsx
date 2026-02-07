@@ -2,7 +2,7 @@
  * MainLayout Component Tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -27,7 +27,7 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 // Mock brand components
 vi.mock('@/components/brand', () => ({
-  LogoLight: ({ size, showText, className }: any) => (
+  LogoLight: ({ size, showText, className }: { size?: number; showText?: boolean; className?: string }) => (
     <div data-testid="logo-light" data-size={size} className={className}>
       {showText && 'Logo Text'}
     </div>
@@ -59,7 +59,7 @@ vi.mock('@/components/notifications', () => ({
 
 // Mock ThemeToggle
 vi.mock('@/components/ui/ThemeToggle', () => ({
-  ThemeToggle: ({ showDropdown, size }: any) => (
+  ThemeToggle: ({ showDropdown, size }: Record<string, unknown>) => (
     <button data-testid="theme-toggle" data-dropdown={showDropdown} data-size={size}>
       Theme Toggle
     </button>
@@ -314,9 +314,8 @@ describe('MainLayout with admin user', () => {
     
     await user.click(screen.getByText('Test User'));
     
-    // Admin link should appear for admin users
-    const adminLink = screen.queryByText('Admin');
     // Note: Due to mock limitations, we just verify menu opens correctly
+    // Admin link may or may not be visible depending on user role
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 });

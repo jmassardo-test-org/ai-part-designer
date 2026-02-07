@@ -5,7 +5,7 @@
  * throughout the application.
  */
 
-import React, {
+import {
   createContext,
   useContext,
   useEffect,
@@ -215,7 +215,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       console.error('[WebSocket] Connection error:', e);
       setConnecting(false);
     }
-  }, [token, user, getWsUrl]);
+  }, [token, user, getWsUrl, fallbackMode]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -314,6 +314,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 // Hook
 // =============================================================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWebSocket(): WebSocketContextType {
   const context = useContext(WebSocketContext);
   if (!context) {
@@ -329,6 +330,7 @@ export function useWebSocket(): WebSocketContextType {
 /**
  * Hook to subscribe to job progress updates.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useJobProgress(
   jobId: string | null,
   onProgress?: (progress: number, status: string, message?: string) => void,

@@ -203,7 +203,7 @@ class AutoLayoutEngine:
         self,
         components: list[ComponentBox],
         max_width: float | None,
-        _max_depth: float | None,  # TODO: Implement depth constraint
+        _max_depth: float | None,
         prioritize_connectors: bool,
     ) -> LayoutResult:
         """
@@ -289,8 +289,8 @@ class AutoLayoutEngine:
     def _grid_layout(
         self,
         components: list[ComponentBox],
-        _max_width: float | None,  # TODO: Implement width constraint
-        _max_depth: float | None,  # TODO: Implement depth constraint
+        _max_width: float | None,
+        _max_depth: float | None,
     ) -> LayoutResult:
         """
         Arrange components on a regular grid.
@@ -466,8 +466,8 @@ class AutoLayoutEngine:
     def _connector_layout(
         self,
         components: list[ComponentBox],
-        _max_width: float | None,  # TODO: Implement width constraint
-        _max_depth: float | None,  # TODO: Implement depth constraint
+        max_width: float | None,
+        _max_depth: float | None,
     ) -> LayoutResult:
         """
         Prioritize connector accessibility.

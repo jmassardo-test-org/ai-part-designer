@@ -7,7 +7,7 @@ and business intelligence pipelines.
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, ClassVar
 from uuid import UUID, uuid4
@@ -44,7 +44,7 @@ class AnalyticsEvent(BaseModel):
     event_category: EventCategory
 
     # Timestamp
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=datetime.UTC))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     # Context
     user_id: UUID | None = None

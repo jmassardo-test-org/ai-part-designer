@@ -174,7 +174,7 @@ export function ComponentLibraryPage() {
       value,
       label,
       icon: CATEGORY_ICONS[value],
-      count: categories?.find((c: any) => c.name === value)?.total || 0,
+      count: categories?.find((c: { name: string; total: number }) => c.name === value)?.total || 0,
     }));
   }, [categories]);
 
@@ -299,7 +299,7 @@ export function ComponentLibraryPage() {
               className="pl-10"
             />
           </div>
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>

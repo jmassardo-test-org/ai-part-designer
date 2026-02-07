@@ -31,7 +31,7 @@ describe('use-toast', () => {
     });
 
     it('limits toasts to TOAST_LIMIT (5)', () => {
-      let state = { toasts: [] };
+      let state: ReturnType<typeof reducer> = { toasts: [] };
 
       // Add 7 toasts
       for (let i = 0; i < 7; i++) {

@@ -4,8 +4,8 @@ Alignment API endpoints.
 Provides endpoints for aligning and combining CAD files.
 """
 
-from typing import Any
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status

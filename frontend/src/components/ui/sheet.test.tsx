@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
 import { describe, it, expect } from 'vitest';
 import {
@@ -51,7 +50,6 @@ describe('SheetClose', () => {
 
 describe('Sheet with Dialog', () => {
   it('opens sheet when trigger is clicked', async () => {
-    const user = userEvent.setup();
     render(
       <Sheet>
         <SheetTrigger>Open Sheet</SheetTrigger>
@@ -70,7 +68,6 @@ describe('Sheet with Dialog', () => {
   });
 
   it('renders sheet content when open', async () => {
-    const user = userEvent.setup();
     render(
       <Sheet open>
         <SheetContent>

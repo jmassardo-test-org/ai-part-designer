@@ -113,7 +113,7 @@ class ScrewSpec(BaseModel):
     )
 
     @classmethod
-    def m2(cls) -> "ScrewSpec":
+    def m2(cls) -> ScrewSpec:
         """M2 screw specification."""
         return cls(
             hole_diameter=Dimension(value=2.0),
@@ -123,12 +123,12 @@ class ScrewSpec(BaseModel):
         )
 
     @classmethod
-    def m3(cls) -> "ScrewSpec":
+    def m3(cls) -> ScrewSpec:
         """M3 screw specification (default)."""
         return cls()
 
     @classmethod
-    def m4(cls) -> "ScrewSpec":
+    def m4(cls) -> ScrewSpec:
         """M4 screw specification."""
         return cls(
             hole_diameter=Dimension(value=4.0),
@@ -161,7 +161,7 @@ class LidSpec(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_attachment_params(self) -> "LidSpec":
+    def validate_attachment_params(self) -> LidSpec:
         """Ensure appropriate params are set for lid type."""
         if self.type == LidType.SNAP_FIT and self.snap_fit is None:
             # Use defaults
@@ -308,7 +308,7 @@ class EnclosureSpec(BaseModel):
         )
 
     @model_validator(mode="after")
-    def validate_interior_positive(self) -> "EnclosureSpec":
+    def validate_interior_positive(self) -> EnclosureSpec:
         """Ensure interior dimensions are positive."""
         interior = self.interior
         if interior.width_mm <= 0:

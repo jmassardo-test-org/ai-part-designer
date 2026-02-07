@@ -2,20 +2,9 @@
  * Template comments section component.
  */
 
-import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { MessageSquare, Reply, Edit, Trash2, MoreHorizontal, Flag, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +15,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 interface CommentUser {
   id: string;
@@ -77,7 +77,7 @@ interface TemplateCommentsProps {
  * Template comments section with threading support.
  */
 export function TemplateComments({
-  templateId,
+  templateId: _templateId,
   comments,
   currentUserId,
   isAdmin = false,

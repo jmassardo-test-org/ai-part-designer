@@ -245,7 +245,7 @@ describe('ToastContext', () => {
       
       // Reset the toast ref by setting it to null internally
       // We can't directly reset it, but calling toast without provider tests this path
-      const result = toast('success', 'Test', 'Message');
+      toast('success', 'Test', 'Message');
       
       consoleSpy.mockRestore();
     });

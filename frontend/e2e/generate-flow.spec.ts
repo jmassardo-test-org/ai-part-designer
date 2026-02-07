@@ -159,7 +159,7 @@ test.describe('CAD v2 Generation', () => {
   // Note: Actual generation tests require backend to be running
   // These are smoke tests that can run without full backend
   test.describe('Generation Flow (requires backend)', () => {
-    test.skip(({ page }) => !process.env.RUN_FULL_E2E, 'Skipping full E2E tests');
+    test.skip(({ _page }) => !process.env.RUN_FULL_E2E, 'Skipping full E2E tests');
 
     test('should generate enclosure from manual config', async ({ page }) => {
       await page.goto('/generate');

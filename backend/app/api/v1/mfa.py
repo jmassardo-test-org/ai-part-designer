@@ -10,7 +10,7 @@ import base64
 import io
 import logging
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
 import pyotp
@@ -104,13 +104,13 @@ class MessageResponse(BaseModel):
 
 def generate_totp_secret() -> str:
     """Generate a new TOTP secret."""
-    return cast(str, pyotp.random_base32())
+    return cast("str", pyotp.random_base32())
 
 
 def generate_provisioning_uri(secret: str, email: str, issuer: str = "AssemblematicAI") -> str:
     """Generate TOTP provisioning URI for authenticator apps."""
     totp = pyotp.TOTP(secret)
-    return cast(str, totp.provisioning_uri(name=email, issuer_name=issuer))
+    return cast("str", totp.provisioning_uri(name=email, issuer_name=issuer))
 
 
 def generate_qr_code_base64(provisioning_uri: str) -> str:
@@ -159,10 +159,12 @@ def verify_totp_code(secret: str, code: str) -> bool:
     """Verify a TOTP code."""
     totp = pyotp.TOTP(secret)
     # Allow 1 window of tolerance (30 seconds before/after)
-    return cast(bool, totp.verify(code, valid_window=1))
+    return cast("bool", totp.verify(code, valid_window=1))
 
 
-def verify_backup_code(stored_codes: list[dict[str, Any]], provided_code: str) -> tuple[bool, int | None]:
+def verify_backup_code(
+    stored_codes: list[dict[str, Any]], provided_code: str
+) -> tuple[bool, int | None]:
     """
     Verify a backup code and return (is_valid, code_index).
 
@@ -289,7 +291,7 @@ async def enable_mfa(
 
     # Enable MFA
     current_user.mfa_enabled = True
-    current_user.mfa_enabled_at = datetime.now(tz=datetime.UTC)
+    current_user.mfa_enabled_at = datetime.now(tz=UTC)
     await db.commit()
 
     logger.info(f"MFA enabled for user {current_user.id}")
@@ -401,7 +403,7 @@ async def verify_mfa(
         if is_valid and code_index is not None:
             # Mark backup code as used
             current_user.mfa_backup_codes[code_index]["used"] = True
-            current_user.mfa_backup_codes[code_index]["used_at"] = datetime.now(tz=datetime.UTC).isoformat()
+            current_user.mfa_backup_codes[code_index]["used_at"] = datetime.now(tz=UTC).isoformat()
             await db.commit()
 
             remaining = current_user.mfa_backup_codes_remaining
@@ -471,7 +473,7 @@ async def regenerate_backup_codes(
 
     return BackupCodesResponse(
         backup_codes=backup_codes,
-        generated_at=datetime.now(tz=datetime.UTC),
+        generated_at=datetime.now(tz=UTC),
     )
 
 

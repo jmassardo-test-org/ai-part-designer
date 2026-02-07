@@ -5,7 +5,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-
 import { CopyModal } from './CopyModal';
 
 // Mock design and projects
@@ -124,15 +123,16 @@ describe('CopyModal', () => {
     });
   });
 
-  it('shows error for empty name', async () => {
+  it('disables submit button when name is empty', async () => {
     const user = userEvent.setup();
     render(<CopyModal {...defaultProps} />);
 
     const input = screen.getByTestId('copy-name-input');
     await user.clear(input);
-    await user.click(screen.getByText('Copy'));
 
-    expect(screen.getByText('Name is required')).toBeInTheDocument();
+    // Copy button should be disabled when name is empty
+    const copyButton = screen.getByRole('button', { name: 'Copy' });
+    expect(copyButton).toBeDisabled();
   });
 
   it('calls onClose when cancel is clicked', async () => {

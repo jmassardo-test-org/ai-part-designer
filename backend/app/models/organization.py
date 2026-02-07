@@ -6,7 +6,7 @@ roles, and invitations.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -238,7 +238,7 @@ class OrganizationMember(Base, TimestampMixin):
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
     )
 
     # Status
@@ -347,7 +347,7 @@ class OrganizationInvite(Base, TimestampMixin):
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(tz=datetime.UTC) + timedelta(days=7),
+        default=lambda: datetime.now(tz=UTC) + timedelta(days=7),
     )
 
     # Response tracking
@@ -388,12 +388,12 @@ class OrganizationInvite(Base, TimestampMixin):
     @property
     def is_valid(self) -> bool:
         """Check if invite is still valid."""
-        return self.status == InviteStatus.PENDING.value and self.expires_at > datetime.now(tz=datetime.UTC)
+        return self.status == InviteStatus.PENDING.value and self.expires_at > datetime.now(tz=UTC)
 
     def accept(self, user: "User") -> None:
         """Mark invite as accepted."""
         self.status = InviteStatus.ACCEPTED.value
-        self.accepted_at = datetime.now(tz=datetime.UTC)
+        self.accepted_at = datetime.now(tz=UTC)
         self.accepted_by_id = user.id
 
     def decline(self) -> None:

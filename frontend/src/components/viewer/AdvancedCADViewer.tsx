@@ -24,7 +24,6 @@ import {
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three-stdlib';
-
 // Import tools
 import {
   AnnotationListPanel,
@@ -157,6 +156,7 @@ function STLModel({
     return () => {
       geometry?.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, data]);
 
   if (!geometry) return null;
@@ -194,7 +194,7 @@ function LoadingIndicator() {
 function CameraController({
   controlsRef: _controlsRef,
 }: {
-  controlsRef: React.RefObject<any>;
+  controlsRef: React.RefObject<typeof OrbitControls | null>;
 }) {
   return null;
 }
@@ -219,7 +219,7 @@ export function AdvancedCADViewer({
   showScreenshotTool = true,
   className = '',
 }: AdvancedCADViewerProps) {
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<typeof OrbitControls | null>(null);
   const originalMaterialsRef = useRef(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -246,25 +246,27 @@ export function AdvancedCADViewer({
 
   const handleBoundsUpdate = useCallback((min: THREE.Vector3, max: THREE.Vector3) => {
     crossSection.updateBounds(min, max);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [crossSection.updateBounds]);
 
   const resetView = () => {
-    if (controlsRef.current) {
-      controlsRef.current.reset();
+    const controls = controlsRef.current as unknown as { reset?: () => void };
+    if (controls?.reset) {
+      controls.reset();
     }
   };
 
   const zoomIn = () => {
-    if (controlsRef.current) {
-      const camera = controlsRef.current.object;
-      camera.position.multiplyScalar(0.8);
+    const controls = controlsRef.current as unknown as { object?: THREE.Camera };
+    if (controls?.object) {
+      controls.object.position.multiplyScalar(0.8);
     }
   };
 
   const zoomOut = () => {
-    if (controlsRef.current) {
-      const camera = controlsRef.current.object;
-      camera.position.multiplyScalar(1.25);
+    const controls = controlsRef.current as unknown as { object?: THREE.Camera };
+    if (controls?.object) {
+      controls.object.position.multiplyScalar(1.25);
     }
   };
 
@@ -401,7 +403,8 @@ export function AdvancedCADViewer({
 
           {/* Controls */}
           <OrbitControls
-            ref={controlsRef}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ref={controlsRef as any}
             makeDefault
             enableDamping
             dampingFactor={0.05}

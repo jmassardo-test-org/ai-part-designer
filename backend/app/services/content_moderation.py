@@ -11,7 +11,7 @@ Multi-layer defense against prohibited content:
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
@@ -265,7 +265,7 @@ class ModerationResult:
     is_allowlisted: bool = False
     allowlist_reason: str = ""
     processing_time_ms: float = 0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def is_rejected(self) -> bool:
@@ -387,7 +387,7 @@ class ContentModerationService:
         4. Pattern matching for weapons/prohibited items
         5. AI analysis for context
         """
-        start_time = datetime.now(tz=datetime.UTC)
+        start_time = datetime.now(tz=UTC)
         result = ModerationResult(prompt_analyzed=prompt)
 
         # Normalize prompt
@@ -398,7 +398,7 @@ class ContentModerationService:
         if abuse_flags:
             result.flags.extend(abuse_flags)
             result.decision = ModerationDecision.REJECT_AND_BAN
-            result.processing_time_ms = (datetime.now(tz=datetime.UTC) - start_time).total_seconds() * 1000
+            result.processing_time_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
             return result
 
         # Layer 1: Check for off-topic usage
@@ -461,7 +461,7 @@ class ContentModerationService:
         result.decision = self._make_decision(result)
 
         # Calculate processing time
-        result.processing_time_ms = (datetime.now(tz=datetime.UTC) - start_time).total_seconds() * 1000
+        result.processing_time_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
 
         return result
 

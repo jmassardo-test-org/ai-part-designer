@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   X,
   RefreshCw,
-  Download,
   Ruler,
   Circle,
   Square,

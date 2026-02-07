@@ -180,6 +180,7 @@ export function ThemeProvider({
 // Hook
 // =============================================================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme(): ThemeContextValue {
   const context = useContext(ThemeContext);
   if (context === undefined) {
@@ -192,6 +193,7 @@ export function useTheme(): ThemeContextValue {
 // Utility Hook for Theme-Aware Values
 // =============================================================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useThemeValue<T>(lightValue: T, darkValue: T): T {
   const { resolvedTheme } = useTheme();
   return resolvedTheme === 'light' ? lightValue : darkValue;

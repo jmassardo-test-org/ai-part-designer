@@ -4,14 +4,13 @@ Download endpoints for CAD v2 generated files.
 Provides file download functionality for generated STEP/STL files.
 """
 
-from typing import Any
-
 from __future__ import annotations
 
 import logging
 import shutil
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
@@ -173,7 +172,7 @@ def cleanup_old_exports(max_age_hours: int = DEFAULT_RETENTION_HOURS) -> dict[st
         Dictionary with cleanup statistics.
     """
     exports_dir = get_exports_dir()
-    cutoff_time = datetime.now(tz=datetime.UTC) - timedelta(hours=max_age_hours)
+    cutoff_time = datetime.now(tz=UTC) - timedelta(hours=max_age_hours)
 
     removed_count = 0
     removed_size = 0
@@ -185,7 +184,7 @@ def cleanup_old_exports(max_age_hours: int = DEFAULT_RETENTION_HOURS) -> dict[st
 
         try:
             # Check directory modification time
-            mtime = datetime.fromtimestamp(job_dir.stat().st_mtime, tz=datetime.UTC)
+            mtime = datetime.fromtimestamp(job_dir.stat().st_mtime, tz=UTC)
             if mtime < cutoff_time:
                 # Calculate size before removal
                 dir_size = sum(f.stat().st_size for f in job_dir.rglob("*") if f.is_file())

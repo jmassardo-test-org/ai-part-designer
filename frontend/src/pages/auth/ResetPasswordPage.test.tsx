@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { authApi } from '@/lib/auth';
 import { ResetPasswordPage } from './ResetPasswordPage';
 
 // Mock auth API
@@ -15,8 +16,6 @@ vi.mock('@/lib/auth', () => ({
     resetPassword: vi.fn(),
   },
 }));
-
-import { authApi } from '@/lib/auth';
 
 const renderResetPasswordPage = (token: string | null = 'valid-token') => {
   const initialEntry = token ? `/reset-password?token=${token}` : '/reset-password';
@@ -277,7 +276,7 @@ describe('ResetPasswordPage', () => {
     const user = userEvent.setup();
     
     const axiosError = new AxiosError('Token expired');
-    (axiosError as any).response = { data: { detail: 'Token expired' } };
+    Object.assign(axiosError, { response: { data: { detail: 'Token expired' }, status: 400, statusText: 'Bad Request', headers: {}, config: {} } });
     (authApi.resetPassword as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
     renderResetPasswordPage();

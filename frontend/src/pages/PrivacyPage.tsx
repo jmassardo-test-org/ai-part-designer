@@ -5,8 +5,8 @@
  * GDPR/CCPA compliance information, and user rights.
  */
 
+import { Shield, Eye, Lock, UserCheck, Trash2, Download, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Shield, Eye, Lock, Globe, Database, UserCheck, Trash2, Download, Mail } from 'lucide-react';
 import { LogoLight, LogoIcon } from '@/components/brand';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 

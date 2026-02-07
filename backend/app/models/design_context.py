@@ -6,7 +6,7 @@ Tracks conversation history and parameters for iterative design refinement.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -117,7 +117,7 @@ class DesignContext(Base):
         message = {
             "role": "user",
             "content": content,
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         self.messages = [*self.messages, message]
         self.last_instruction = content
@@ -127,7 +127,7 @@ class DesignContext(Base):
         message = {
             "role": "assistant",
             "content": content,
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         if parameters:
             message["parameters"] = parameters
@@ -138,7 +138,7 @@ class DesignContext(Base):
         message = {
             "role": "system",
             "content": content,
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         self.messages = [*self.messages, message]
 
@@ -151,7 +151,7 @@ class DesignContext(Base):
             "version": self.iteration_count,
             "parameters": new_parameters.copy(),
             "instruction": instruction,
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         self.parameter_history = [*self.parameter_history, history_entry]
 
@@ -314,12 +314,12 @@ class DesignRefinementJob(Base):
     def start(self) -> None:
         """Mark job as started."""
         self.status = "processing"
-        self.started_at = datetime.now(tz=datetime.UTC)
+        self.started_at = datetime.now(tz=UTC)
 
     def complete(self, version_id: UUID, new_params: dict[str, Any], ai_response: str) -> None:
         """Mark job as completed."""
         self.status = "completed"
-        self.completed_at = datetime.now(tz=datetime.UTC)
+        self.completed_at = datetime.now(tz=UTC)
         self.result_version_id = version_id
         self.new_parameters = new_params
         self.ai_response = ai_response
@@ -327,7 +327,7 @@ class DesignRefinementJob(Base):
     def fail(self, error: str) -> None:
         """Mark job as failed."""
         self.status = "failed"
-        self.completed_at = datetime.now(tz=datetime.UTC)
+        self.completed_at = datetime.now(tz=UTC)
         self.error_message = error
 
     def to_dict(self) -> dict[str, Any]:

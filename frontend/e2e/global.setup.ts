@@ -31,7 +31,7 @@ setup('seed test database', async ({ request }) => {
         display_name: TEST_USER.displayName,
       },
     });
-  } catch (e) {
+  } catch {
     // User may already exist, continue
   }
 
@@ -44,7 +44,7 @@ setup('seed test database', async ({ request }) => {
         display_name: ADMIN_USER.displayName,
       },
     });
-  } catch (e) {
+  } catch {
     // User may already exist, continue
   }
 
@@ -56,7 +56,7 @@ setup('seed test database', async ({ request }) => {
     await request.post(`${baseURL}/api/v1/auth/dev/verify-user`, {
       data: { email: ADMIN_USER.email },
     });
-  } catch (e) {
+  } catch {
     // Verification may fail if users don't exist, continue
     console.log('Note: Could not force-verify users (may already be verified)');
   }

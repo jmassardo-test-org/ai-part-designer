@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
-import { STLLoader } from 'three-stdlib';
+import { STLLoader, OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 // =============================================================================
 // Types
@@ -126,6 +126,7 @@ function ComponentMesh({
     return () => {
       geometry?.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [component.file_url]);
 
   // Calculate exploded position
@@ -309,7 +310,7 @@ export function AssemblyViewer({
   className = '',
 }: AssemblyViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
 
   // Local state (can be overridden by props)
   const [localExplodeFactor, setLocalExplodeFactor] = useState(0);

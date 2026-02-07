@@ -4,7 +4,6 @@
  * Allows users to set category, tags, and description before publishing.
  */
 
-import { useState, useEffect } from 'react';
 import {
   X,
   Globe,
@@ -14,6 +13,7 @@ import {
   AlertCircle,
   Info,
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategories, publishDesign, unpublishDesign } from '@/lib/marketplace';
 import type { CategoryResponse } from '@/types/marketplace';
@@ -45,7 +45,7 @@ export function PublishToMarketplaceDialog({
   const [category, setCategory] = useState(currentCategory || '');
   const [tags, setTags] = useState<string[]>(currentTags);
   const [tagInput, setTagInput] = useState('');
-  const [description, setDescription] = useState('');
+  const [_description, setDescription] = useState('');
   
   // UI state
   const [categories, setCategories] = useState<CategoryResponse[]>([]);

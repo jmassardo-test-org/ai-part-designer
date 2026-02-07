@@ -324,6 +324,7 @@ export function CrossSectionToolbar({
 /**
  * Hook to manage cross-section state.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCrossSection() {
   const [crossSectionEnabled, setCrossSectionEnabled] = useState(false);
   const [clipPlanes, setClipPlanes] = useState<ClipPlane[]>([]);

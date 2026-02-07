@@ -147,7 +147,7 @@ class DashboardResponse(BaseModel):
 
 @router.get("/tiers", response_model=list[SubscriptionTierResponse])
 async def list_tiers(
-    _db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[SubscriptionTierResponse]:
     """
@@ -187,7 +187,7 @@ async def list_tiers(
 @router.get("/tiers/{tier_slug}", response_model=SubscriptionTierResponse)
 async def get_tier(
     tier_slug: str,
-    _db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SubscriptionTierResponse:
     """

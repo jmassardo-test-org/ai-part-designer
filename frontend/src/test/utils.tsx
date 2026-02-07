@@ -9,6 +9,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // All providers wrapper
+// eslint-disable-next-line react-refresh/only-export-components
 function AllProviders({ children }: { children: React.ReactNode }) {
   return (
     <BrowserRouter>

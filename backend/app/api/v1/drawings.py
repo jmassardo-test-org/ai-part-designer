@@ -4,9 +4,8 @@
 Generate and manage technical 2D drawings from 3D CAD models.
 """
 
-from typing import Any, cast
-
 from pathlib import Path
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -157,14 +156,14 @@ def get_step_file_path(design: Design) -> str | None:
         formats = design.current_version.file_formats or {}
         step_url = formats.get("step") or formats.get("STEP")
         if step_url and Path(step_url).exists():
-            return cast(str, step_url)
+            return cast("str", step_url)
 
     # Check versions for STEP file
     for version in design.versions:
         formats = version.file_formats or {}
         step_url = formats.get("step") or formats.get("STEP")
         if step_url and Path(step_url).exists():
-            return cast(str, step_url)
+            return cast("str", step_url)
 
     # Fall back to file_url if it's a STEP file
     if design.current_version and design.current_version.file_url:

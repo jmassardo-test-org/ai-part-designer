@@ -84,7 +84,7 @@ describe('PrivacyPage', () => {
 
       expect(screen.getByText('Information You Provide')).toBeInTheDocument();
       // Verify the section contains account information text
-      const matches = screen.queryAllByText((content, element) => {
+      const matches = screen.queryAllByText((_content, element) => {
         const text = element?.textContent || '';
         return text.includes('Account Information') && element?.tagName === 'LI';
       });
@@ -145,7 +145,7 @@ describe('PrivacyPage', () => {
       renderWithRouter(<PrivacyPage />);
 
       // Text is split across elements, use getAllByText with function matcher
-      expect(screen.getAllByText((content, element) => 
+      expect(screen.getAllByText((_content, element) => 
         element?.textContent?.toLowerCase().includes('do not sell') || false
       ).length).toBeGreaterThanOrEqual(1);
     });
@@ -166,7 +166,7 @@ describe('PrivacyPage', () => {
       renderWithRouter(<PrivacyPage />);
 
       // Text is within strong elements, use queryAllByText to find at least one match
-      const matches = screen.queryAllByText((content, element) => {
+      const matches = screen.queryAllByText((_content, element) => {
         const text = element?.textContent || '';
         return text.includes('Account Data') && element?.tagName === 'LI';
       });
@@ -179,7 +179,7 @@ describe('PrivacyPage', () => {
       renderWithRouter(<PrivacyPage />);
 
       // Multiple mentions of DPO, use getAllByText
-      expect(screen.getAllByText((content, element) => 
+      expect(screen.getAllByText((_content, element) => 
         element?.textContent?.includes('Data Protection Officer') || false
       ).length).toBeGreaterThanOrEqual(1);
     });

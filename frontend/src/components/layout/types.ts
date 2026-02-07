@@ -158,7 +158,7 @@ export function apiToPlacement(p: PlacementResponse): ComponentPlacement {
     width: p.width,
     depth: p.depth,
     height: p.height,
-    faceDirection: p.faceDirection as any,
+    faceDirection: p.faceDirection as ComponentPlacement['faceDirection'],
     locked: p.locked,
   };
 }

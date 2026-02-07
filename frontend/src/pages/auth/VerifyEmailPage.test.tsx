@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { authApi } from '@/lib/auth';
 import { VerifyEmailPage } from './VerifyEmailPage';
 
 // Mock auth API
@@ -16,8 +17,6 @@ vi.mock('@/lib/auth', () => ({
     resendVerification: vi.fn(),
   },
 }));
-
-import { authApi } from '@/lib/auth';
 
 const renderVerifyEmailPage = (token: string | null = 'valid-token') => {
   const initialEntry = token ? `/verify-email?token=${token}` : '/verify-email';
@@ -161,7 +160,7 @@ describe('VerifyEmailPage', () => {
 
   it('shows error state on verification failure', async () => {
     const axiosError = new AxiosError('Token expired');
-    (axiosError as any).response = { data: { detail: 'Token expired' } };
+    Object.assign(axiosError, { response: { data: { detail: 'Token expired' }, status: 400, statusText: 'Bad Request', headers: {}, config: {} } });
     (authApi.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
     renderVerifyEmailPage();
@@ -173,7 +172,7 @@ describe('VerifyEmailPage', () => {
 
   it('shows error message on verification failure', async () => {
     const axiosError = new AxiosError('Token expired');
-    (axiosError as any).response = { data: { detail: 'Token expired' } };
+    Object.assign(axiosError, { response: { data: { detail: 'Token expired' }, status: 400, statusText: 'Bad Request', headers: {}, config: {} } });
     (authApi.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
     renderVerifyEmailPage();
@@ -185,7 +184,7 @@ describe('VerifyEmailPage', () => {
 
   it('shows error icon on failure', async () => {
     const axiosError = new AxiosError('Error');
-    (axiosError as any).response = { data: { detail: 'Error' } };
+    Object.assign(axiosError, { response: { data: { detail: 'Error' }, status: 400, statusText: 'Bad Request', headers: {}, config: {} } });
     (authApi.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
     renderVerifyEmailPage();
@@ -199,7 +198,7 @@ describe('VerifyEmailPage', () => {
 
   it('shows go to login link on error', async () => {
     const axiosError = new AxiosError('Error');
-    (axiosError as any).response = { data: { detail: 'Error' } };
+    Object.assign(axiosError, { response: { data: { detail: 'Error' }, status: 400, statusText: 'Bad Request', headers: {}, config: {} } });
     (authApi.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
     renderVerifyEmailPage();
@@ -211,7 +210,7 @@ describe('VerifyEmailPage', () => {
 
   it('shows request new verification link on error', async () => {
     const axiosError = new AxiosError('Error');
-    (axiosError as any).response = { data: { detail: 'Error' } };
+    Object.assign(axiosError, { response: { data: { detail: 'Error' }, status: 400, statusText: 'Bad Request', headers: {}, config: {} } });
     (authApi.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
     renderVerifyEmailPage();

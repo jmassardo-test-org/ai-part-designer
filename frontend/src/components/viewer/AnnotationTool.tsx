@@ -604,7 +604,8 @@ export function AnnotationListPanel({
 /**
  * Hook to manage annotation state and interactions.
  */
-export function useAnnotations(designId: string) {
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAnnotations(_designId: string) {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [isAddingAnnotation, setIsAddingAnnotation] = useState(false);
@@ -626,7 +627,7 @@ export function useAnnotations(designId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [designId]);
+  }, []);
 
   const loadReplies = useCallback(async (_annotationId: string) => {
     try {
@@ -636,7 +637,7 @@ export function useAnnotations(designId: string) {
     } catch (error) {
       console.error('Failed to load replies:', error);
     }
-  }, [designId]);
+  }, []);
 
   const selectAnnotation = useCallback((id: string | null) => {
     setSelectedAnnotationId(id);
@@ -672,7 +673,7 @@ export function useAnnotations(designId: string) {
     } catch (error) {
       console.error('Failed to create annotation:', error);
     }
-  }, [designId]);
+  }, []);
 
   const resolveAnnotation = useCallback(async (id: string) => {
     try {
@@ -684,7 +685,7 @@ export function useAnnotations(designId: string) {
     } catch (error) {
       console.error('Failed to resolve annotation:', error);
     }
-  }, [designId]);
+  }, []);
 
   const reopenAnnotation = useCallback(async (id: string) => {
     try {
@@ -696,7 +697,7 @@ export function useAnnotations(designId: string) {
     } catch (error) {
       console.error('Failed to reopen annotation:', error);
     }
-  }, [designId]);
+  }, []);
 
   const deleteAnnotation = useCallback(async (id: string) => {
     try {
@@ -707,7 +708,7 @@ export function useAnnotations(designId: string) {
     } catch (error) {
       console.error('Failed to delete annotation:', error);
     }
-  }, [designId]);
+  }, []);
 
   useEffect(() => {
     loadAnnotations();

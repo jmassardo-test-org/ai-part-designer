@@ -6,6 +6,7 @@ Tests file upload, download, presigned URLs, and bucket operations.
 
 from __future__ import annotations
 
+from datetime import UTC
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -189,7 +190,7 @@ class TestStorageClient:
         mock_s3_client.head_object.return_value = {
             "ContentLength": 1024,
             "ContentType": "application/pdf",
-            "LastModified": datetime(2024, 1, 15, 12, 0, 0, tzinfo=datetime.UTC),
+            "LastModified": datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC),
             "ETag": '"abc123"',
             "Metadata": {"user_id": "456"},
         }

@@ -4,6 +4,7 @@ Tests for conversations API endpoints.
 Tests conversation CRUD and message operations.
 """
 
+from datetime import UTC
 from uuid import uuid4
 
 import pytest
@@ -424,14 +425,14 @@ class TestSendMessageResponseSchema:
             role="user",
             message_type="text",
             content="Create a box",
-            created_at=datetime.now(tz=datetime.UTC),
+            created_at=datetime.now(tz=UTC),
         )
         assistant_msg = MessageResponse(
             id=uuid4(),
             role="assistant",
             message_type="result",
             content="Part generated",
-            created_at=datetime.now(tz=datetime.UTC),
+            created_at=datetime.now(tz=UTC),
         )
 
         # Without additional_messages
@@ -455,21 +456,21 @@ class TestSendMessageResponseSchema:
             role="user",
             message_type="text",
             content="Create a cylinder",
-            created_at=datetime.now(tz=datetime.UTC),
+            created_at=datetime.now(tz=UTC),
         )
         confirmation_msg = MessageResponse(
             id=uuid4(),
             role="assistant",
             message_type="confirmation",
             content="Here's what I understand: You want a cylinder...",
-            created_at=datetime.now(tz=datetime.UTC),
+            created_at=datetime.now(tz=UTC),
         )
         assistant_msg = MessageResponse(
             id=uuid4(),
             role="assistant",
             message_type="result",
             content="Part generated",
-            created_at=datetime.now(tz=datetime.UTC),
+            created_at=datetime.now(tz=UTC),
         )
 
         response = SendMessageResponse(

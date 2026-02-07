@@ -6,7 +6,7 @@
  * The WebSocket connection logic is tested via integration tests.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Test that hooks are properly exported
 describe('useWebSocket module exports', () => {

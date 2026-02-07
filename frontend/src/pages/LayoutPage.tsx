@@ -65,7 +65,7 @@ export function LayoutPage() {
   const handleDimensionsChange = useCallback((updates: Partial<LayoutDimensions>) => {
     if (!layoutId) return;
     
-    const apiUpdates: Record<string, any> = {};
+    const apiUpdates: Record<string, number | boolean | undefined> = {};
     if (updates.width !== undefined) apiUpdates.internalWidth = updates.width;
     if (updates.depth !== undefined) apiUpdates.internalDepth = updates.depth;
     if (updates.height !== undefined) apiUpdates.internalHeight = updates.height;
@@ -95,7 +95,7 @@ export function LayoutPage() {
   const handleUpdatePlacement = useCallback((id: string, updates: Partial<ComponentPlacement>) => {
     if (!layoutId) return;
 
-    const apiUpdates: Record<string, any> = {};
+    const apiUpdates: Record<string, number | string | boolean | undefined> = {};
     if (updates.x !== undefined) apiUpdates.xPosition = updates.x;
     if (updates.y !== undefined) apiUpdates.yPosition = updates.y;
     if (updates.z !== undefined) apiUpdates.zPosition = updates.z;

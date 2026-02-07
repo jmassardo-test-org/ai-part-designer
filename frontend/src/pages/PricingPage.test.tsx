@@ -140,7 +140,7 @@ const renderPage = () => {
 describe('PricingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (subscriptionsApi.subscriptionsApi.getPlans as any).mockResolvedValue(mockPlans);
+    (subscriptionsApi.subscriptionsApi.getPlans as ReturnType<typeof vi.fn>).mockResolvedValue(mockPlans);
   });
 
   describe('Plan Display', () => {
@@ -275,7 +275,7 @@ describe('PricingPage', () => {
 
   describe('Error Handling', () => {
     it('displays error message when API fails', async () => {
-      (subscriptionsApi.subscriptionsApi.getPlans as any).mockRejectedValue(new Error('API Error'));
+      (subscriptionsApi.subscriptionsApi.getPlans as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('API Error'));
 
       renderPage();
 

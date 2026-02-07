@@ -2,18 +2,18 @@
  * Tests for the PublishToMarketplaceDialog component.
  */
 
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
-import { PublishToMarketplaceDialog } from './PublishToMarketplaceDialog';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { server } from '@/test/mocks/server';
+import { PublishToMarketplaceDialog } from './PublishToMarketplaceDialog';
 
 // Hoist mocks to ensure they're available before imports
 const { mockGetCategories, mockPublishDesign, mockUnpublishDesign } = vi.hoisted(() => ({
-  mockGetCategories: vi.fn(() => Promise.resolve([])),
-  mockPublishDesign: vi.fn(() => Promise.resolve({ id: 'design-123', published_at: new Date().toISOString() })),
-  mockUnpublishDesign: vi.fn(() => Promise.resolve(undefined)),
+  mockGetCategories: vi.fn(),
+  mockPublishDesign: vi.fn(),
+  mockUnpublishDesign: vi.fn(),
 }));
 
 // Close MSW server for this test file since we're using vi.mock

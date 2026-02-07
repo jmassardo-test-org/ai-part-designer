@@ -2,7 +2,7 @@
 Tests for Teams API endpoints.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -42,8 +42,8 @@ class TestCreateTeam:
         mock_team.settings = {"color": "#3B82F6"}
         mock_team.is_active = True
         mock_team.created_by_id = mock_current_user.id
-        mock_team.created_at = datetime.now(tz=datetime.UTC)
-        mock_team.updated_at = datetime.now(tz=datetime.UTC)
+        mock_team.created_at = datetime.now(tz=UTC)
+        mock_team.updated_at = datetime.now(tz=UTC)
         mock_team.member_count = 1
 
         with (
@@ -127,8 +127,8 @@ class TestListTeams:
         mock_team.settings = {}
         mock_team.is_active = True
         mock_team.created_by_id = None
-        mock_team.created_at = datetime.now(tz=datetime.UTC)
-        mock_team.updated_at = datetime.now(tz=datetime.UTC)
+        mock_team.created_at = datetime.now(tz=UTC)
+        mock_team.updated_at = datetime.now(tz=UTC)
         mock_team.member_count = 5
 
         with patch.object(TeamService, "list_teams", return_value=([mock_team], 1)):
@@ -185,8 +185,8 @@ class TestGetTeam:
         mock_team.settings = {}
         mock_team.is_active = True
         mock_team.created_by_id = None
-        mock_team.created_at = datetime.now(tz=datetime.UTC)
-        mock_team.updated_at = datetime.now(tz=datetime.UTC)
+        mock_team.created_at = datetime.now(tz=UTC)
+        mock_team.updated_at = datetime.now(tz=UTC)
         mock_team.__dict__ = {
             "id": team_id,
             "organization_id": org_id,
@@ -196,8 +196,8 @@ class TestGetTeam:
             "settings": {},
             "is_active": True,
             "created_by_id": None,
-            "created_at": datetime.now(tz=datetime.UTC),
-            "updated_at": datetime.now(tz=datetime.UTC),
+            "created_at": datetime.now(tz=UTC),
+            "updated_at": datetime.now(tz=UTC),
         }
 
         with (
@@ -249,8 +249,8 @@ class TestUpdateTeam:
         mock_team.settings = {}
         mock_team.is_active = True
         mock_team.created_by_id = None
-        mock_team.created_at = datetime.now(tz=datetime.UTC)
-        mock_team.updated_at = datetime.now(tz=datetime.UTC)
+        mock_team.created_at = datetime.now(tz=UTC)
+        mock_team.updated_at = datetime.now(tz=UTC)
         mock_team.member_count = 5
 
         with (
@@ -351,11 +351,11 @@ class TestTeamMembers:
         mock_member.team_id = team_id
         mock_member.user_id = mock_current_user.id
         mock_member.role = TeamRole.ADMIN.value
-        mock_member.joined_at = datetime.now(tz=datetime.UTC)
+        mock_member.joined_at = datetime.now(tz=UTC)
         mock_member.is_active = True
         mock_member.added_by_id = None
-        mock_member.created_at = datetime.now(tz=datetime.UTC)
-        mock_member.updated_at = datetime.now(tz=datetime.UTC)
+        mock_member.created_at = datetime.now(tz=UTC)
+        mock_member.updated_at = datetime.now(tz=UTC)
         mock_member.user = MagicMock()
         mock_member.user.email = "test@example.com"
         mock_member.user.full_name = "Test User"
@@ -386,11 +386,11 @@ class TestTeamMembers:
         mock_member.team_id = team_id
         mock_member.user_id = new_user_id
         mock_member.role = TeamRole.MEMBER.value
-        mock_member.joined_at = datetime.now(tz=datetime.UTC)
+        mock_member.joined_at = datetime.now(tz=UTC)
         mock_member.is_active = True
         mock_member.added_by_id = mock_current_user.id
-        mock_member.created_at = datetime.now(tz=datetime.UTC)
-        mock_member.updated_at = datetime.now(tz=datetime.UTC)
+        mock_member.created_at = datetime.now(tz=UTC)
+        mock_member.updated_at = datetime.now(tz=UTC)
 
         with (
             patch.object(TeamService, "check_team_permission", return_value=True),
@@ -475,7 +475,7 @@ class TestUserTeams:
             "organization_id": uuid4(),
             "organization_name": "Acme Corp",
             "role": "member",
-            "joined_at": datetime.now(tz=datetime.UTC),
+            "joined_at": datetime.now(tz=UTC),
             "is_active": True,
         }
 
@@ -538,9 +538,9 @@ class TestProjectTeams:
         mock_assignment.team_id = uuid4()
         mock_assignment.permission_level = "editor"
         mock_assignment.assigned_by_id = mock_current_user.id
-        mock_assignment.assigned_at = datetime.now(tz=datetime.UTC)
-        mock_assignment.created_at = datetime.now(tz=datetime.UTC)
-        mock_assignment.updated_at = datetime.now(tz=datetime.UTC)
+        mock_assignment.assigned_at = datetime.now(tz=UTC)
+        mock_assignment.created_at = datetime.now(tz=UTC)
+        mock_assignment.updated_at = datetime.now(tz=UTC)
         mock_assignment.team = MagicMock()
         mock_assignment.team.name = "Engineering"
 
@@ -569,9 +569,9 @@ class TestProjectTeams:
         mock_assignment.team_id = team_id
         mock_assignment.permission_level = "editor"
         mock_assignment.assigned_by_id = mock_current_user.id
-        mock_assignment.assigned_at = datetime.now(tz=datetime.UTC)
-        mock_assignment.created_at = datetime.now(tz=datetime.UTC)
-        mock_assignment.updated_at = datetime.now(tz=datetime.UTC)
+        mock_assignment.assigned_at = datetime.now(tz=UTC)
+        mock_assignment.created_at = datetime.now(tz=UTC)
+        mock_assignment.updated_at = datetime.now(tz=UTC)
 
         with patch.object(TeamService, "assign_team_to_project", return_value=mock_assignment):
             response = await async_client.post(

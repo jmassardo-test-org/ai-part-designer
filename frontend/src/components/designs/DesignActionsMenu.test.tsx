@@ -2,10 +2,9 @@
  * Tests for DesignActionsMenu Component
  */
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-
 import { DesignActionsMenu, RenameModal } from './DesignActionsMenu';
 
 // Mock design and projects
@@ -189,15 +188,16 @@ describe('RenameModal', () => {
     expect(defaultProps.onConfirm).toHaveBeenCalledWith('New Name');
   });
 
-  it('shows error for empty name', async () => {
+  it('disables submit button when name is empty', async () => {
     const user = userEvent.setup();
     render(<RenameModal {...defaultProps} />);
 
     const input = screen.getByTestId('rename-input');
     await user.clear(input);
-    await user.click(screen.getByText('Rename'));
 
-    expect(screen.getByText('Name is required')).toBeInTheDocument();
+    // Rename button should be disabled when name is empty
+    const renameButton = screen.getByRole('button', { name: 'Rename' });
+    expect(renameButton).toBeDisabled();
   });
 
   it('shows error for name exceeding max length', async () => {

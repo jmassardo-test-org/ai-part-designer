@@ -109,7 +109,7 @@ class GridPattern(BaseModel):
         return (self.rows - 1) * self.row_spacing.mm
 
     @model_validator(mode="after")
-    def validate_stagger(self) -> "GridPattern":
+    def validate_stagger(self) -> GridPattern:
         """Set default stagger offset if staggering enabled."""
         if self.stagger and self.stagger_offset is None:
             offset = Dimension(value=self.column_spacing.mm / 2)
@@ -186,7 +186,7 @@ class CustomPattern(BaseModel):
     ]
 
     @model_validator(mode="after")
-    def validate_labels(self) -> "CustomPattern":
+    def validate_labels(self) -> CustomPattern:
         """Ensure labels match positions if provided."""
         if self.labels and len(self.labels) != len(self.positions):
             raise ValueError(

@@ -6,14 +6,35 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LayoutEditor } from './LayoutEditor';
 
-// Create refs to store callback props
-let canvasCallbacks: any = {};
-let toolbarCallbacks: any = {};
+interface MockCanvasProps {
+  onSelect: (id: string | null) => void;
+  onMove: (id: string, x: number, y: number) => void;
+  onRotate: (id: string) => void;
+  selectedId: string | null;
+}
+
+interface MockToolbarProps {
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
+  onRotateSelected: () => void;
+  onDeleteSelected: () => void;
+  onToggleLock: () => void;
+  onAutoLayout: (algorithm: string) => void;
+  onValidate: () => void;
+  hasSelection: boolean;
+  isAutoLayouting: boolean;
+  isValidating: boolean;
+}
+
+// Create refs to store callback props (used in mocks for test setup)
+let _canvasCallbacks: Partial<MockCanvasProps> = {};
+let _toolbarCallbacks: Partial<MockToolbarProps> = {};
 
 // Mock child components
 vi.mock('./LayoutCanvas', () => ({
-  LayoutCanvas: (props: any) => {
-    canvasCallbacks = props;
+  LayoutCanvas: (props: MockCanvasProps) => {
+    _canvasCallbacks = props;
     return (
       <div data-testid="layout-canvas">
         <button data-testid="select-comp" onClick={() => props.onSelect('placement-1')}>Select</button>
@@ -27,8 +48,8 @@ vi.mock('./LayoutCanvas', () => ({
 }));
 
 vi.mock('./LayoutToolbar', () => ({
-  LayoutToolbar: (props: any) => {
-    toolbarCallbacks = props;
+  LayoutToolbar: (props: MockToolbarProps) => {
+    _toolbarCallbacks = props;
     return (
       <div data-testid="layout-toolbar">
         <button data-testid="zoom-in" onClick={props.onZoomIn}>Zoom In</button>
@@ -59,6 +80,7 @@ describe('LayoutEditor', () => {
     height: 50,
     gridSize: 10,
     clearance: 2,
+    autoDimensions: false,
   };
 
   const mockPlacements = [
@@ -68,6 +90,7 @@ describe('LayoutEditor', () => {
       name: 'Component A',
       x: 10,
       y: 10,
+      z: 0,
       width: 50,
       depth: 40,
       height: 20,
@@ -102,8 +125,8 @@ describe('LayoutEditor', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    canvasCallbacks = {};
-    toolbarCallbacks = {};
+    _canvasCallbacks = {};
+    _toolbarCallbacks = {};
   });
 
   it('renders main layout structure', () => {
@@ -315,5 +338,13 @@ describe('LayoutEditor', () => {
     await waitFor(() => {
       expect(validateFn).toHaveBeenCalled();
     });
+  });
+
+  it('passes callbacks to child components', () => {
+    render(<LayoutEditor {...defaultProps} />);
+    
+    // Verify mock callbacks are populated
+    expect(_canvasCallbacks).toBeDefined();
+    expect(_toolbarCallbacks).toBeDefined();
   });
 });

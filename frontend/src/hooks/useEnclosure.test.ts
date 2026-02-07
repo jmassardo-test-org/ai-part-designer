@@ -2,12 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  useGenerateEnclosure,
-  useCheckJobStatus,
-  useDownloadEnclosure,
-} from './useEnclosure';
-
+import type { EnclosureGenerationOptions } from '@/components/enclosure';
 // Mock the API
 vi.mock('@/lib/api', () => ({
   default: {
@@ -15,8 +10,12 @@ vi.mock('@/lib/api', () => ({
     get: vi.fn(),
   },
 }));
-
 import api from '@/lib/api';
+import {
+  useGenerateEnclosure,
+  useCheckJobStatus,
+  useDownloadEnclosure,
+} from './useEnclosure';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -61,7 +60,7 @@ describe('useEnclosure hooks', () => {
           cornerRadius: 5,
           lidType: 'snap' as const,
           lidClearance: 0.2,
-        },
+        } as unknown as EnclosureGenerationOptions,
       };
 
       result.current.mutate(params);
@@ -88,7 +87,7 @@ describe('useEnclosure hooks', () => {
 
       result.current.mutate({
         layoutId: 'layout-123',
-        options: { wallThickness: 2 } as any,
+        options: { wallThickness: 2 } as unknown as EnclosureGenerationOptions,
       });
 
       await waitFor(() => {

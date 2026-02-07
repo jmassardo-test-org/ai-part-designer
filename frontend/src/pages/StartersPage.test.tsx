@@ -2,11 +2,11 @@
  * Tests for the StartersPage component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { StartersPage } from './StartersPage';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as api from '@/lib/marketplace';
+import { StartersPage } from './StartersPage';
 
 // Mock the ThemeContext
 vi.mock('@/contexts/ThemeContext', () => ({
@@ -98,14 +98,14 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('StartersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.getStarters as any).mockResolvedValue({
+    (api.getStarters as ReturnType<typeof vi.fn>).mockResolvedValue({
       items: mockStarters,
       total: 2,
       page: 1,
       page_size: 12,
     });
-    (api.getStarterCategories as any).mockResolvedValue(mockCategories);
-    (api.remixStarter as any).mockResolvedValue({
+    (api.getStarterCategories as ReturnType<typeof vi.fn>).mockResolvedValue(mockCategories);
+    (api.remixStarter as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'remix-1',
       name: 'Raspberry Pi 5 Basic Case (Remix)',
       remixed_from_id: 'starter-1',

@@ -5,8 +5,8 @@
  * Only renders visible rows plus a small buffer.
  */
 
-import { useRef, type ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Column<T> {
@@ -190,6 +190,7 @@ export function VirtualTable<T>({
 /**
  * Hook for virtual list rendering (for custom implementations)
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useVirtualList<T>(
   data: T[],
   options: {

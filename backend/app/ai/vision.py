@@ -177,7 +177,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
                 max_tokens=2000,
                 system=self.SYSTEM_PROMPT,
                 messages=[
-                    {"role": "user", "content": cast(Any, user_content)},
+                    {"role": "user", "content": cast("Any", user_content)},
                 ],
                 temperature=0.1,  # Low temperature for more consistent extraction
             )

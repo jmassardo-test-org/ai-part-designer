@@ -4,12 +4,11 @@ Reference Component API
 CRUD operations for reference components and component library.
 """
 
-from typing import Any, cast
-
 import hashlib
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -188,7 +187,7 @@ class ExtractionJobResponse(BaseModel):
 async def create_component(
     data: ComponentCreate,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> ComponentResponse:
     """Create a new reference component."""
     component = ReferenceComponent(
@@ -233,7 +232,7 @@ class ComponentUploadResponse(BaseModel):
 async def upload_component(
     file: UploadFile = File(..., description="Component file (CAD, datasheet, image)"),
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> ComponentUploadResponse:
     """
     Upload a component file for extraction.
@@ -314,7 +313,7 @@ async def upload_component(
             "size": file_size,
             "checksum": checksum,
             "format": ext.lstrip(".").upper(),
-            "uploaded_at": datetime.now(tz=datetime.UTC).isoformat(),
+            "uploaded_at": datetime.now(tz=UTC).isoformat(),
         }
     }
 
@@ -359,7 +358,7 @@ async def list_components(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> ComponentListResponse:
     """List user's reference components."""
     query = select(ReferenceComponent).where(
@@ -404,7 +403,7 @@ async def list_components(
 async def get_component(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> ComponentResponse:
     """Get a reference component by ID."""
     query = select(ReferenceComponent).where(
@@ -432,7 +431,7 @@ async def update_component(
     component_id: UUID,
     data: ComponentUpdate,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> ComponentResponse:
     """Update a reference component."""
     query = select(ReferenceComponent).where(
@@ -454,7 +453,7 @@ async def update_component(
     for field, value in update_data.items():
         setattr(component, field, value)
 
-    component.updated_at = datetime.now(tz=datetime.UTC)
+    component.updated_at = datetime.now(tz=UTC)
 
     await db.commit()
     await db.refresh(component)
@@ -467,7 +466,7 @@ async def update_specifications(
     component_id: UUID,
     data: SpecificationsUpdate,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> ComponentResponse:
     """Update component specifications manually."""
     query = select(ReferenceComponent).where(
@@ -498,7 +497,7 @@ async def update_specifications(
 
     # Mark as manually edited
     component.extraction_status = "manual"
-    component.updated_at = datetime.now(tz=datetime.UTC)
+    component.updated_at = datetime.now(tz=UTC)
 
     await db.commit()
     await db.refresh(component)
@@ -524,7 +523,7 @@ async def update_component_files(
     thumbnail: UploadFile | None = File(None, description="New thumbnail image"),
     trigger_extraction: bool = Query(True, description="Re-trigger AI extraction after upload"),
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> FileUpdateResponse:
     """
     Update CAD files for an existing component.
@@ -609,7 +608,7 @@ async def update_component_files(
             "size": len(content),
             "checksum": checksum,
             "format": ext.lstrip(".").upper(),
-            "updated_at": datetime.now(tz=datetime.UTC).isoformat(),
+            "updated_at": datetime.now(tz=UTC).isoformat(),
         }
         files_updated += 1
 
@@ -635,7 +634,7 @@ async def update_component_files(
             "path": stored_path,
             "size": len(content),
             "checksum": checksum,
-            "updated_at": datetime.now(tz=datetime.UTC).isoformat(),
+            "updated_at": datetime.now(tz=UTC).isoformat(),
         }
         files_updated += 1
 
@@ -670,7 +669,7 @@ async def update_component_files(
             component.thumbnail_url = f"/uploads/components/{component_id}/thumbnail{ext}"
         files_updated += 1
 
-    component.updated_at = datetime.now(tz=datetime.UTC)
+    component.updated_at = datetime.now(tz=UTC)
 
     # Trigger extraction if requested and CAD file or datasheet was updated
     extraction_job_id = None
@@ -707,7 +706,7 @@ async def update_component_files(
 async def delete_component(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """Soft delete a reference component."""
     query = select(ReferenceComponent).where(
@@ -724,7 +723,7 @@ async def delete_component(
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
 
-    component.deleted_at = datetime.now(tz=datetime.UTC)
+    component.deleted_at = datetime.now(tz=UTC)
     await db.commit()
 
 
@@ -738,7 +737,7 @@ async def trigger_extraction(
     component_id: UUID,
     job_type: str = Query("full", regex="^(datasheet|cad|full)$"),
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> ExtractionJobResponse:
     """Trigger AI extraction for a component."""
     # Verify component exists and user owns it
@@ -799,7 +798,7 @@ async def trigger_extraction(
 async def get_extraction_status(
     component_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    __current_user: User = Depends(get_current_user),
 ) -> ExtractionJobResponse | None:
     """Get latest extraction job status."""
     query = (
@@ -846,7 +845,7 @@ async def browse_library(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    __current_user: User = Depends(get_current_user),
 ) -> LibrarySearchResponse:
     """Browse the component library with search and filters."""
     # Base query
@@ -935,7 +934,7 @@ async def browse_library(
 @library_router.get("/categories")
 async def list_categories(
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    __current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """List all component categories."""
     query = (
@@ -972,7 +971,7 @@ async def list_categories(
 async def get_library_component(
     library_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    __current_user: User = Depends(get_current_user),
 ) -> ComponentResponse:
     """Get full details of a library component."""
     query = (
@@ -988,7 +987,7 @@ async def get_library_component(
         raise HTTPException(status_code=404, detail="Component not found")
 
     # Cast to ComponentResponse as it matches the schema via from_attributes
-    return cast(ComponentResponse, entry.component)
+    return cast("ComponentResponse", entry.component)
 
 
 @library_router.post("/{library_id}/add")
@@ -996,7 +995,7 @@ async def add_library_component_to_project(
     library_id: UUID,
     project_id: UUID | None = None,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Add a library component to user's collection or project."""
     # Get library entry
@@ -1109,7 +1108,7 @@ async def seed_library(
 @library_router.get("/manufacturers")
 async def list_manufacturers(
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    __current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """List all manufacturers in the library."""
     query = (

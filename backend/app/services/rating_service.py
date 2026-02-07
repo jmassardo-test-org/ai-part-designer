@@ -5,7 +5,7 @@ Handles template ratings, feedback, comments, reports, and moderation.
 """
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -449,7 +449,7 @@ class CommentService:
 
         comment.content = data.content
         comment.is_edited = True
-        comment.edited_at = datetime.now(tz=datetime.UTC)
+        comment.edited_at = datetime.now(tz=UTC)
 
         await self.db.flush()
         return comment
@@ -585,7 +585,7 @@ class CommentService:
 
         comment.is_hidden = True
         comment.hidden_by_id = moderator_id
-        comment.hidden_at = datetime.now(tz=datetime.UTC)
+        comment.hidden_at = datetime.now(tz=UTC)
         comment.hidden_reason = reason
 
         await self.db.flush()
@@ -745,7 +745,7 @@ class ReportService:
 
         report.status = ReportStatus.RESOLVED.value
         report.resolved_by_id = moderator_id
-        report.resolved_at = datetime.now(tz=datetime.UTC)
+        report.resolved_at = datetime.now(tz=UTC)
         report.resolution_notes = data.resolution_notes
         report.action_taken = data.action
 
@@ -774,7 +774,7 @@ class ReportService:
 
         report.status = ReportStatus.DISMISSED.value
         report.resolved_by_id = moderator_id
-        report.resolved_at = datetime.now(tz=datetime.UTC)
+        report.resolved_at = datetime.now(tz=UTC)
         report.resolution_notes = notes
         report.action_taken = "dismiss"
 
@@ -826,7 +826,7 @@ class BanService:
         """
         expires_at = None
         if not data.is_permanent and data.duration_days:
-            expires_at = datetime.now(tz=datetime.UTC) + timedelta(days=data.duration_days)
+            expires_at = datetime.now(tz=UTC) + timedelta(days=data.duration_days)
 
         ban = UserBan(
             user_id=data.user_id,
@@ -866,7 +866,7 @@ class BanService:
 
         ban.is_active = False
         ban.unbanned_by_id = admin_id
-        ban.unbanned_at = datetime.now(tz=datetime.UTC)
+        ban.unbanned_at = datetime.now(tz=UTC)
         ban.unban_reason = reason
 
         await self.db.flush()
@@ -896,7 +896,7 @@ class BanService:
 
         # Check if expired
         if ban and not ban.is_permanent and ban.expires_at:
-            if datetime.now(tz=datetime.UTC) > ban.expires_at:
+            if datetime.now(tz=UTC) > ban.expires_at:
                 # Auto-expire the ban
                 ban.is_active = False
                 await self.db.flush()
@@ -991,7 +991,7 @@ class ModerationService:
         pending_reports = pending_result.scalar() or 0
 
         # Reports today
-        today = datetime.now(tz=datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now(tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         today_stmt = (
             select(func.count()).select_from(ContentReport).where(ContentReport.created_at >= today)
         )

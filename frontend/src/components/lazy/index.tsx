@@ -4,6 +4,7 @@
  * Heavy components are lazy loaded to reduce initial bundle size.
  * React.lazy + Suspense enables code splitting by route/component.
  */
+/* eslint-disable react-refresh/only-export-components */
 
 import React, { Suspense, ComponentType } from 'react';
 
@@ -47,13 +48,15 @@ function PageSkeleton() {
 /**
  * Create a lazy component with a fallback
  */
-export function lazyWithFallback<T extends ComponentType<any>>(
-  importFn: () => Promise<{ default: T }>,
+ 
+export function lazyWithFallback<P extends object>(
+  importFn: () => Promise<{ default: ComponentType<P> }>,
   fallback: React.ReactNode = <LoadingSpinner />
-): React.LazyExoticComponent<T> & { Suspense: React.FC<React.ComponentProps<T>> } {
+): React.LazyExoticComponent<ComponentType<P>> & { Suspense: React.FC<P> } {
   const LazyComponent = React.lazy(importFn);
   
-  const SuspenseWrapper: React.FC<React.ComponentProps<T>> = (props) => (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const SuspenseWrapper: React.FC<P> = (props: any) => (
     <Suspense fallback={fallback}>
       <LazyComponent {...props} />
     </Suspense>
@@ -65,8 +68,9 @@ export function lazyWithFallback<T extends ComponentType<any>>(
 /**
  * Preload a component before it's needed
  */
-export function preloadComponent<T extends ComponentType<any>>(
-  importFn: () => Promise<{ default: T }>
+ 
+export function preloadComponent<P extends object>(
+  importFn: () => Promise<{ default: ComponentType<P> }>
 ): void {
   importFn();
 }
@@ -137,6 +141,7 @@ export const LazyFilesPage = lazyWithFallback(
  * Preload dashboard related components
  * Called after login
  */
+ 
 export function preloadDashboard(): void {
   preloadComponent(() => import('@/pages/DashboardPage'));
   preloadComponent(() => import('@/pages/ProjectsPage'));
@@ -146,6 +151,7 @@ export function preloadDashboard(): void {
  * Preload 3D viewer components
  * Called when hovering over a design
  */
+ 
 export function preload3DViewer(): void {
   preloadComponent(() => import('@/components/viewer/CADViewer'));
 }
@@ -154,6 +160,7 @@ export function preload3DViewer(): void {
  * Preload admin components
  * Called for admin users
  */
+ 
 export function preloadAdmin(): void {
   preloadComponent(() => import('@/pages/admin/AdminDashboard'));
 }

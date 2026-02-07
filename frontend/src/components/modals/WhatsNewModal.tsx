@@ -88,6 +88,7 @@ const FEATURES: Feature[] = [
 /**
  * Hook to manage "What's New" modal visibility
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWhatsNewModal(): {
   isOpen: boolean;
   open: () => void;

@@ -2,7 +2,7 @@
  * LayoutPreview3D Component Tests
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LayoutPreview3D } from './LayoutPreview3D';
@@ -30,6 +30,7 @@ describe('LayoutPreview3D', () => {
     height: 50,
     gridSize: 10,
     clearance: 2,
+    autoDimensions: false,
   };
 
   const mockPlacements = [
@@ -39,6 +40,7 @@ describe('LayoutPreview3D', () => {
       name: 'Component A',
       x: 10,
       y: 10,
+      z: 0,
       width: 50,
       depth: 40,
       height: 20,
@@ -51,6 +53,7 @@ describe('LayoutPreview3D', () => {
       name: 'Component B',
       x: 80,
       y: 60,
+      z: 0,
       width: 30,
       depth: 30,
       height: 15,

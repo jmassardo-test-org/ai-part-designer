@@ -5,13 +5,10 @@
  * Includes honeypot spam protection and form validation.
  */
 
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { 
   Send, 
   Mail, 
   MessageSquare, 
-  User, 
   Loader2, 
   CheckCircle, 
   AlertCircle,
@@ -19,6 +16,8 @@ import {
   Clock,
   HelpCircle,
 } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { LogoLight, LogoIcon } from '@/components/brand';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';

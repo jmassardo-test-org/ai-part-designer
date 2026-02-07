@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { authApi } from '@/lib/auth';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 
 // Mock auth API
@@ -15,8 +16,6 @@ vi.mock('@/lib/auth', () => ({
     forgotPassword: vi.fn(),
   },
 }));
-
-import { authApi } from '@/lib/auth';
 
 const renderForgotPasswordPage = () => {
   return render(
@@ -59,7 +58,6 @@ describe('ForgotPasswordPage', () => {
     const user = userEvent.setup();
     renderForgotPasswordPage();
 
-    const emailInput = screen.getByLabelText(/email address/i);
     // Submit without any input to trigger required validation
     const submitButton = screen.getByRole('button', { name: /send reset link/i });
     await user.click(submitButton);
@@ -157,7 +155,7 @@ describe('ForgotPasswordPage', () => {
     const user = userEvent.setup();
     
     const axiosError = new AxiosError('Failed to send reset email');
-    (axiosError as any).response = { data: { detail: 'Failed to send reset email' } };
+    Object.assign(axiosError, { response: { data: { detail: 'Failed to send reset email' }, status: 400, statusText: 'Bad Request', headers: {}, config: {} } });
     (authApi.forgotPassword as ReturnType<typeof vi.fn>).mockRejectedValue(axiosError);
 
     renderForgotPasswordPage();

@@ -9,7 +9,7 @@ import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Generic, TypeVar
 from uuid import UUID
@@ -46,7 +46,7 @@ class ValidationResult:
 
     is_valid: bool
     issues: list[ValidationIssue] = field(default_factory=list)
-    validated_at: datetime = field(default_factory=lambda: datetime.now(tz=datetime.UTC))
+    validated_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def errors(self) -> list[ValidationIssue]:

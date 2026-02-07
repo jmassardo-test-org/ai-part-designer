@@ -2,6 +2,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+// Mock the API
+vi.mock('@/lib/api', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+import api from '@/lib/api';
 import {
   useLayout,
   useProjectLayouts,
@@ -15,18 +25,6 @@ import {
   useAutoLayout,
   layoutKeys,
 } from './useLayout';
-
-// Mock the API
-vi.mock('@/lib/api', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
-
-import api from '@/lib/api';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -309,8 +307,8 @@ describe('useLayout hooks', () => {
     it('returns validation errors', async () => {
       const mockValidation = {
         valid: false,
-        collisions: [{ placement1: 'p1', placement2: 'p2' }],
-        boundaryViolations: ['Component exceeds boundary'],
+        errors: [{ type: 'overlap', message: 'Components overlap', placementIds: ['p1', 'p2'] }],
+        warnings: [],
       };
 
       (api.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: mockValidation });
@@ -323,7 +321,7 @@ describe('useLayout hooks', () => {
 
       await waitFor(() => {
         expect(result.current.data?.valid).toBe(false);
-        expect(result.current.data?.collisions).toHaveLength(1);
+        expect(result.current.data?.errors).toHaveLength(1);
       });
     });
   });

@@ -7,7 +7,7 @@ Provides user registration, login, logout, token refresh, and verification.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -220,7 +220,7 @@ async def register(
     else:
         # Auto-verify in dev mode
         user.status = "active"
-        user.email_verified_at = datetime.now(tz=datetime.UTC)
+        user.email_verified_at = datetime.now(tz=UTC)
         await db.commit()
 
     return UserResponse(
@@ -345,7 +345,7 @@ async def login(
     refresh_token, _ = create_refresh_token(user.id)
 
     # Update last login
-    user.last_login_at = datetime.now(tz=datetime.UTC)
+    user.last_login_at = datetime.now(tz=UTC)
     await db.commit()
 
     logger.info(f"User logged in: {user.email}")
@@ -429,7 +429,7 @@ async def login_mfa(
                 backup_code_used = True
                 # Mark backup code as used
                 user.mfa_backup_codes[i]["used"] = True
-                user.mfa_backup_codes[i]["used_at"] = datetime.now(tz=datetime.UTC).isoformat()
+                user.mfa_backup_codes[i]["used_at"] = datetime.now(tz=UTC).isoformat()
                 break
 
     if not code_valid:
@@ -450,7 +450,7 @@ async def login_mfa(
     refresh_token, _ = create_refresh_token(user.id)
 
     # Update last login
-    user.last_login_at = datetime.now(tz=datetime.UTC)
+    user.last_login_at = datetime.now(tz=UTC)
     await db.commit()
 
     if backup_code_used:
@@ -615,7 +615,7 @@ async def verify_email(
         )
 
     # Verify user
-    user.email_verified_at = datetime.now(tz=datetime.UTC)
+    user.email_verified_at = datetime.now(tz=UTC)
     user.status = "active"
     await db.commit()
 
@@ -788,7 +788,7 @@ async def blacklist_all_user_tokens(user_id: UUID) -> None:
 
         # Store a "tokens invalidated at" timestamp
         key = f"user:{user_id}:tokens_invalidated_at"
-        await redis.set(key, datetime.now(tz=datetime.UTC).isoformat(), ex=86400 * 30)  # 30 days
+        await redis.set(key, datetime.now(tz=UTC).isoformat(), ex=86400 * 30)  # 30 days
 
     except Exception as e:
         logger.warning(f"Failed to blacklist tokens for user {user_id}: {e}")
@@ -865,7 +865,7 @@ async def dev_verify_user(
         )
 
     user.status = "active"
-    user.email_verified_at = datetime.now(tz=datetime.UTC)
+    user.email_verified_at = datetime.now(tz=UTC)
     await db.commit()
 
     logger.info(f"[DEV] User force-verified: {user.email}")

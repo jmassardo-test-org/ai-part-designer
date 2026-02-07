@@ -221,6 +221,7 @@ function STLModel({
     return () => {
       geometry?.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, data]);
 
   if (!geometry) return null;
@@ -257,13 +258,14 @@ function LoadingIndicator() {
 function CameraController({
   controlsRef,
 }: {
-  controlsRef: React.RefObject<any>;
+  controlsRef: React.RefObject<unknown>;
 }) {
   const { camera } = useThree();
 
   const resetCamera = () => {
-    if (controlsRef.current) {
-      controlsRef.current.reset();
+    const current = controlsRef.current as { reset?: () => void } | null;
+    if (current?.reset) {
+      current.reset();
     }
     camera.position.set(100, 100, 100);
     camera.lookAt(0, 0, 0);
@@ -271,10 +273,12 @@ function CameraController({
 
   // Expose reset function via ref
   useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.resetCamera = resetCamera;
+    const current = controlsRef.current as { resetCamera?: () => void };
+    if (current) {
+      current.resetCamera = resetCamera;
     }
-  }, [controlsRef.current]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return null;
 }
@@ -294,13 +298,13 @@ export function ModelViewer({
   onError,
   className = '',
 }: ModelViewerProps) {
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<typeof OrbitControls | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [webglFailed, setWebglFailed] = useState(false);
   
   // Check WebGL availability - includes module-level failure tracking
-  const webglCheck = useMemo(() => checkWebGLAvailability(), [webglFailed]);
+  const webglCheck = useMemo(() => checkWebGLAvailability(), []);
   
   // Handle WebGL errors from the error boundary
   const handleWebGLError = useCallback((err: Error) => {
@@ -332,22 +336,23 @@ export function ModelViewer({
   };
 
   const resetView = () => {
-    if (controlsRef.current?.resetCamera) {
-      controlsRef.current.resetCamera();
+    const controls = controlsRef.current as unknown as { reset?: () => void };
+    if (controls?.reset) {
+      controls.reset();
     }
   };
 
   const zoomIn = () => {
-    if (controlsRef.current) {
-      const camera = controlsRef.current.object;
-      camera.position.multiplyScalar(0.8);
+    const controls = controlsRef.current as unknown as { object?: THREE.Camera };
+    if (controls?.object) {
+      controls.object.position.multiplyScalar(0.8);
     }
   };
 
   const zoomOut = () => {
-    if (controlsRef.current) {
-      const camera = controlsRef.current.object;
-      camera.position.multiplyScalar(1.25);
+    const controls = controlsRef.current as unknown as { object?: THREE.Camera };
+    if (controls?.object) {
+      controls.object.position.multiplyScalar(1.25);
     }
   };
 
@@ -469,7 +474,8 @@ export function ModelViewer({
 
           {/* Controls */}
           <OrbitControls
-            ref={controlsRef}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ref={controlsRef as any}
             makeDefault
             enableDamping
             dampingFactor={0.05}

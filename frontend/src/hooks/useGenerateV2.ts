@@ -4,7 +4,7 @@
  * Provides useMutation hooks for generation and useQuery for job status.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   compileEnclosure,
@@ -134,7 +134,7 @@ export function useJobStatus(
   jobId: string | null,
   options?: {
     enabled?: boolean;
-    refetchInterval?: number | false | ((data: JobStatusResponse | undefined) => number | false);
+    refetchInterval?: number | false | ((query: Query<JobStatusResponse, Error>) => number | false);
   }
 ) {
   const { token } = useAuth();
@@ -143,8 +143,9 @@ export function useJobStatus(
     queryKey: generateV2Keys.job(jobId ?? ''),
     queryFn: () => getJobStatus(jobId!, token ?? undefined),
     enabled: options?.enabled !== false && !!jobId,
-    refetchInterval: options?.refetchInterval ?? ((data) => {
+    refetchInterval: options?.refetchInterval ?? ((query: Query<JobStatusResponse, Error>) => {
       // Auto-poll while job is in progress
+      const data = query.state.data;
       if (!data) return 2000;
       if (data.status === 'pending' || data.status === 'running') return 1000;
       return false; // Stop polling when complete or failed
@@ -335,10 +336,10 @@ export function useCompileEnclosureAsync() {
     // Progress
     status: jobStatus.data?.status ?? (compileMutation.isPending ? 'starting' : undefined),
     progress: jobStatus.data?.progress ?? 0,
-    progressMessage: jobStatus.data?.progress_message,
+    progressMessage: jobStatus.data?.message,
 
     // Result
-    result: jobStatus.data?.result,
+    result: jobStatus.data?.files,
     error: compileMutation.error?.message ?? jobStatus.data?.error,
     isComplete: jobStatus.data?.status === 'completed',
     isFailed: jobStatus.data?.status === 'failed',

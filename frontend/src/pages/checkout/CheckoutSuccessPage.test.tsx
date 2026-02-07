@@ -51,7 +51,7 @@ const renderPage = (searchParams = '') => {
 describe('CheckoutSuccessPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (subscriptionsApi.subscriptionsApi.getCurrentSubscription as any).mockResolvedValue(
+    (subscriptionsApi.subscriptionsApi.getCurrentSubscription as ReturnType<typeof vi.fn>).mockResolvedValue(
       mockActiveSubscription
     );
   });
@@ -178,7 +178,7 @@ describe('CheckoutSuccessPage', () => {
 
   describe('Enterprise Tier', () => {
     it('shows Enterprise welcome for enterprise tier', async () => {
-      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as any).mockResolvedValue({
+      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockActiveSubscription,
         tier: 'enterprise',
       });
@@ -193,7 +193,7 @@ describe('CheckoutSuccessPage', () => {
 
   describe('Error Handling', () => {
     it('shows error message when subscription fetch fails', async () => {
-      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as any).mockRejectedValue(
+      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error('API Error')
       );
 
@@ -205,7 +205,7 @@ describe('CheckoutSuccessPage', () => {
     });
 
     it('still shows success message on API error', async () => {
-      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as any).mockRejectedValue(
+      (subscriptionsApi.subscriptionsApi.getCurrentSubscription as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error('API Error')
       );
 

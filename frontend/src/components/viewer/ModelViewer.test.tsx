@@ -2,8 +2,7 @@
  * ModelViewer Component Tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import * as THREE from 'three';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModelViewer } from './ModelViewer';
 

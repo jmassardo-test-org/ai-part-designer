@@ -7,7 +7,6 @@
 import {
   MessageCircle,
   Send,
-  MoreVertical,
   Edit3,
   Trash2,
   Reply,
@@ -16,7 +15,6 @@ import {
   Bold,
   Italic,
   Link2,
-  Check,
   Clock,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
@@ -409,6 +407,7 @@ export function CommentsPanel({ designId, className = '' }: CommentsPanelProps) 
 
   useEffect(() => {
     loadComments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [designId]);
 
   const loadComments = async () => {
@@ -430,7 +429,7 @@ export function CommentsPanel({ designId, className = '' }: CommentsPanelProps) 
 
     setIsSubmitting(true);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         content: newComment.trim(),
       };
       if (replyingTo) {

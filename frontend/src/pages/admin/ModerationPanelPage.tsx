@@ -7,7 +7,6 @@
  * - Moderation statistics dashboard
  */
 
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -19,14 +18,12 @@ import {
   XCircle,
   Eye,
   EyeOff,
-  Trash2,
   UserX,
-  MessageSquare,
   RefreshCw,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -34,14 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +40,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -57,11 +49,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import {
   moderationApi,
   type ReportDetailResponse,
@@ -149,7 +146,7 @@ function ReportsQueue() {
   
   const resolveMutation = useMutation({
     mutationFn: async ({ reportId, action, notes }: { reportId: string; action: string; notes?: string }) => {
-      return moderationApi.resolveReport(reportId, { action: action as any, resolution_notes: notes });
+      return moderationApi.resolveReport(reportId, { action: action as 'dismiss' | 'warn' | 'hide_content' | 'remove_content' | 'ban_user', resolution_notes: notes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['moderation'] });

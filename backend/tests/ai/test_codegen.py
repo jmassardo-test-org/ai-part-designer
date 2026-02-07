@@ -83,11 +83,15 @@ class TestSanitizeCode:
 
 
 class TestExecuteCadQueryCode:
-    """Tests for CadQuery code execution."""
+    """Tests for Build123d code execution (legacy function name)."""
 
     def test_executes_simple_box(self):
         """Test executing code that creates a simple box."""
-        code = "result = cq.Workplane('XY').box(10, 10, 10)"
+        code = """
+with BuildPart() as p:
+    Box(10, 10, 10)
+result = p.part
+"""
         shape = execute_cadquery_code(code)
 
         assert isinstance(shape, (Part, Compound))
@@ -97,8 +101,12 @@ class TestExecuteCadQueryCode:
 
     def test_executes_cylinder(self):
         """Test executing code that creates a cylinder."""
-        # cylinder(height, radius) - 100mm tall, 25mm radius = 50mm diameter
-        code = "result = cq.Workplane('XY').cylinder(100, 25)"
+        # Cylinder(radius, height) - 25mm radius, 100mm tall
+        code = """
+with BuildPart() as p:
+    Cylinder(25, 100)
+result = p.part
+"""
         shape = execute_cadquery_code(code)
 
         assert isinstance(shape, (Part, Compound))
@@ -113,8 +121,10 @@ class TestExecuteCadQueryCode:
     def test_executes_cylinder_with_hole(self):
         """Test executing cylinder with center hole."""
         code = """
-base = cq.Workplane('XY').cylinder(100, 25)
-result = base.faces('>Z').workplane().hole(10)
+with BuildPart() as p:
+    Cylinder(25, 100)
+    Hole(5, 100)
+result = p.part
 """
         shape = execute_cadquery_code(code)
 
@@ -132,7 +142,12 @@ result = base.faces('>Z').workplane().hole(10)
     def test_executes_with_base_shape(self):
         """Test executing code that modifies a base shape."""
         base = Box(20, 20, 20)
-        code = "result = base_shape.faces('>Z').workplane().hole(5)"
+        code = """
+with BuildPart() as p:
+    add(base_shape)
+    Hole(2.5, 20)
+result = p.part
+"""
         shape = execute_cadquery_code(code, base)
 
         assert isinstance(shape, (Part, Compound))
@@ -143,19 +158,27 @@ result = base.faces('>Z').workplane().hole(10)
 
     def test_raises_on_syntax_error(self):
         """Test that syntax errors raise AIValidationError."""
-        code = "result = cq.Workplane('XY').box(10, 10, 10"  # Missing closing paren
+        code = """
+with BuildPart() as p:
+    Box(10, 10, 10
+result = p.part
+"""  # Missing closing paren
         with pytest.raises(AIValidationError):
             execute_cadquery_code(code)
 
     def test_raises_on_execution_error(self):
         """Test that execution errors raise AIValidationError."""
-        code = "result = cq.Workplane('XY').undefined_method(10, 10, 10)"
+        code = """
+with BuildPart() as p:
+    UndefinedShape(10, 10, 10)
+result = p.part
+"""
         with pytest.raises(AIValidationError):
             execute_cadquery_code(code)
 
     def test_raises_on_non_workplane_result(self):
-        """Test that non-Workplane results raise AIValidationError."""
-        code = "result = 'not a workplane'"
+        """Test that non-Part results raise AIValidationError."""
+        code = "result = 'not a part'"
         with pytest.raises(AIValidationError):
             execute_cadquery_code(code)
 
@@ -170,17 +193,17 @@ class TestModificationContextPrompt:
 
     def test_prompt_has_required_placeholders(self):
         """Test that the prompt has all required placeholders."""
+        assert "{original_code}" in MODIFICATION_CONTEXT_PROMPT
         assert "{original_description}" in MODIFICATION_CONTEXT_PROMPT
         assert "{existing_dimensions}" in MODIFICATION_CONTEXT_PROMPT
-        assert "{existing_features}" in MODIFICATION_CONTEXT_PROMPT
         assert "{modification_request}" in MODIFICATION_CONTEXT_PROMPT
 
     def test_prompt_formats_correctly(self):
         """Test that the prompt formats without errors."""
         formatted = MODIFICATION_CONTEXT_PROMPT.format(
+            original_code="result = cq.Workplane('XY').box(100, 50, 30)",
             original_description="A box 100mm x 50mm x 30mm",
             existing_dimensions="length: 100mm, width: 50mm, height: 30mm",
-            existing_features="3mm fillets on all edges",
             modification_request="add a 10mm hole in the center",
         )
         assert "A box 100mm x 50mm x 30mm" in formatted
@@ -200,9 +223,12 @@ class TestGenerateModification:
         """Test that generate_modification calls the AI client."""
         with patch("app.ai.codegen.get_ai_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.complete.return_value = (
-                "result = cq.Workplane('XY').box(100, 50, 30).faces('>Z').workplane().hole(10)"
-            )
+            mock_client.complete.return_value = """
+with BuildPart() as p:
+    Box(100, 50, 30)
+    Hole(5, 30)
+result = p.part
+"""
             mock_get_client.return_value = mock_client
 
             result = await generate_modification(
@@ -219,9 +245,12 @@ class TestGenerateModification:
         """Test successful modification generation."""
         with patch("app.ai.codegen.get_ai_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.complete.return_value = (
-                "result = cq.Workplane('XY').box(100, 50, 30).faces('>Z').workplane().hole(10)"
-            )
+            mock_client.complete.return_value = """
+with BuildPart() as p:
+    Box(100, 50, 30)
+    Hole(5, 30)
+result = p.part
+"""
             mock_get_client.return_value = mock_client
 
             result = await generate_modification(
@@ -234,12 +263,17 @@ class TestGenerateModification:
             assert "Applied modification" in result.adjustments[0]
 
     @pytest.mark.asyncio
-    async def test_generate_modification_with_existing_features(self):
-        """Test modification generation with existing features."""
+    async def test_generate_modification_with_dimensions(self):
+        """Test modification generation with existing dimensions."""
         with patch("app.ai.codegen.get_ai_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.complete.return_value = """
-result = cq.Workplane('XY').box(100, 50, 30).edges().fillet(3).faces('>Z').workplane().box(25, 25, 25)
+with BuildPart() as p:
+    Box(100, 50, 30)
+    fillet(p.edges(), radius=3)
+    with Locations((0, 0, 30)):
+        Box(25, 25, 25)
+result = p.part
 """
             mock_get_client.return_value = mock_client
 
@@ -247,13 +281,12 @@ result = cq.Workplane('XY').box(100, 50, 30).edges().fillet(3).faces('>Z').workp
                 original_description="A box 100mm x 50mm x 30mm with 3mm fillets",
                 modification_request="add a 25mm cube on top",
                 existing_dimensions={"length": 100, "width": 50, "height": 30},
-                existing_features=["3mm fillet on all edges"],
             )
 
-            # Check that the prompt was called with existing features
+            # Check that the prompt was called with existing dimensions
             call_args = mock_client.complete.call_args
             prompt_content = call_args[0][0][0]["content"]
-            assert "3mm fillet on all edges" in prompt_content
+            assert "length: 100mm" in prompt_content
 
     @pytest.mark.asyncio
     async def test_generate_modification_handles_error(self):

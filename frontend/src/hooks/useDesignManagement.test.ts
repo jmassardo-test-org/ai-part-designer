@@ -2,11 +2,10 @@
  * Tests for useDesignManagement Hook
  */
 
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-
-import { useDesignManagement } from './useDesignManagement';
 import * as designsApi from '@/lib/designs';
+import { useDesignManagement } from './useDesignManagement';
 
 // Mock the designs API
 vi.mock('@/lib/designs', () => ({
@@ -45,7 +44,8 @@ describe('useDesignManagement', () => {
   const token = 'test-token';
   const onDesignChange = vi.fn();
   const onDesignDelete = vi.fn();
-  const onDesignRestore = vi.fn();
+  // @ts-expect-error - Kept for potential future tests
+  const _onDesignRestore = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -325,9 +325,7 @@ describe('useDesignManagement', () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Design deleted',
-          action: expect.objectContaining({
-            label: 'Undo',
-          }),
+          description: expect.stringContaining('Test Design'),
         })
       );
     });

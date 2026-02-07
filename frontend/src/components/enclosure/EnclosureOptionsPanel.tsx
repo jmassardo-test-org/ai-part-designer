@@ -161,7 +161,7 @@ export function EnclosureOptionsPanel({
               <label className="block text-xs text-slate-400 mb-2">Type</label>
               <select
                 value={options.lidType}
-                onChange={(e) => onChange({ lidType: e.target.value as any })}
+                onChange={(e) => onChange({ lidType: e.target.value as EnclosureGenerationOptions['lidType'] })}
                 className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
               >
                 <option value="snap_fit">Snap Fit</option>
@@ -218,7 +218,7 @@ export function EnclosureOptionsPanel({
               <label className="block text-xs text-slate-400 mb-2">Type</label>
               <select
                 value={options.mountingType}
-                onChange={(e) => onChange({ mountingType: e.target.value as any })}
+                onChange={(e) => onChange({ mountingType: e.target.value as EnclosureGenerationOptions['mountingType'] })}
                 className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
               >
                 <option value="none">None</option>
@@ -262,7 +262,7 @@ export function EnclosureOptionsPanel({
               <label className="block text-xs text-slate-400 mb-2">Pattern</label>
               <select
                 value={options.ventilationType}
-                onChange={(e) => onChange({ ventilationType: e.target.value as any })}
+                onChange={(e) => onChange({ ventilationType: e.target.value as EnclosureGenerationOptions['ventilationType'] })}
                 className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
               >
                 <option value="none">None</option>

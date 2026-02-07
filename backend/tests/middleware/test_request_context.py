@@ -305,9 +305,7 @@ class TestRequestContextMiddleware:
 
         @app.get("/test")
         async def test_endpoint(request: Request) -> JSONResponse:
-            return JSONResponse(
-                {"request_id": getattr(request.state, "request_id", None)}
-            )
+            return JSONResponse({"request_id": getattr(request.state, "request_id", None)})
 
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.get("/test")

@@ -25,8 +25,8 @@ describe('OAuthButtons', () => {
 
     // Mock window.location
     const originalLocation = window.location;
-    delete (window as unknown as { location: Location | undefined }).location;
-    window.location = { ...originalLocation, href: '' } as Location;
+    delete (window as unknown as { location?: Location }).location;
+    (window as unknown as { location: Location }).location = { ...originalLocation, href: '' } as Location;
   });
 
   it('renders Google and GitHub buttons', () => {

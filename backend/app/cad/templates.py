@@ -146,7 +146,7 @@ def generate_project_box(
     Generate a parameterized project box/enclosure.
 
     Creates a two-part box (base and lid) suitable for electronics projects.
-    
+
     Note: Ventilation slot parameters are reserved for future implementation
     and are currently not used in the generated design.
 

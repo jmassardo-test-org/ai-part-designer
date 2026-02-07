@@ -8,9 +8,8 @@ Provides endpoints for monitoring and managing:
 - Content moderation queues
 """
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
-
-from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -113,7 +112,7 @@ async def get_dashboard_stats(
     _admin: User = Depends(get_current_admin_user),
 ) -> DashboardStats:
     """Get overview statistics for abuse dashboard."""
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Count active bans
@@ -198,7 +197,7 @@ async def list_bans(
     _admin: User = Depends(get_current_admin_user),
 ) -> list[BanResponse]:
     """List all bans with pagination."""
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
 
     query = select(UserBan)
 
@@ -275,7 +274,7 @@ async def create_ban(
 
     expires_at = None
     if data.ban_type == "temporary" and data.duration_hours:
-        expires_at = datetime.now(tz=datetime.UTC) + timedelta(hours=data.duration_hours)
+        expires_at = datetime.now(tz=UTC) + timedelta(hours=data.duration_hours)
 
     ban = UserBan(
         user_id=data.user_id,
@@ -371,7 +370,7 @@ async def resolve_report(
     report.resolution = data.resolution
     report.action_taken = data.action_taken
     report.resolved_by = admin.id
-    report.resolved_at = datetime.now(tz=datetime.UTC)
+    report.resolved_at = datetime.now(tz=UTC)
 
     await db.commit()
 
@@ -391,7 +390,7 @@ async def get_usage_stats(
     _admin: User = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """Get usage statistics."""
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
 
     period_starts = {
         "hour": now - timedelta(hours=1),
@@ -442,7 +441,7 @@ async def get_top_users(
     _admin: User = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """Get top users by usage."""
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
 
     period_starts = {
         "day": now - timedelta(days=1),

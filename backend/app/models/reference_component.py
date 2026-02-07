@@ -5,7 +5,7 @@ Models for storing reference components (electronics, hardware) with
 mechanical specifications extracted from datasheets and CAD files.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -141,13 +141,13 @@ class ReferenceComponent(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(tz=datetime.UTC),
-        onupdate=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
+        onupdate=lambda: datetime.now(tz=UTC),
         nullable=False,
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
@@ -227,13 +227,13 @@ class ComponentLibrary(Base):
     # Timestamps
     added_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(tz=datetime.UTC),
-        onupdate=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
+        onupdate=lambda: datetime.now(tz=UTC),
         nullable=False,
     )
 
@@ -308,7 +308,7 @@ class ComponentExtractionJob(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
         nullable=False,
     )
 
@@ -371,13 +371,13 @@ class UserComponent(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(tz=datetime.UTC),
-        onupdate=lambda: datetime.now(tz=datetime.UTC),
+        default=lambda: datetime.now(tz=UTC),
+        onupdate=lambda: datetime.now(tz=UTC),
         nullable=False,
     )
 

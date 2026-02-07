@@ -21,7 +21,7 @@ import argparse
 import asyncio
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -333,7 +333,7 @@ async def seed_large_scale(
             role="user",
             status="suspended",
             email_verified_at=None,
-            created_at=datetime.now(tz=datetime.UTC),
+            created_at=datetime.now(tz=UTC),
         )
         users.append(marker_user)
         user_tiers.append((marker_user.id, "free"))

@@ -483,7 +483,7 @@ export function CreatePage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       setError(`Failed to download ${format.toUpperCase()} file`);
     }
   }, [token, conversation]);
@@ -505,7 +505,7 @@ export function CreatePage() {
       setSaveDescription('');
       setSelectedProjectId(null);
       setShowSaveModal(true);
-    } catch (err) {
+    } catch {
       setError('Failed to load projects');
     }
   }, [token, conversation, understanding]);

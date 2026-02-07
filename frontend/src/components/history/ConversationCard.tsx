@@ -6,7 +6,6 @@
  */
 
 import { Layers, Clock, Image as ImageIcon } from 'lucide-react';
-import React from 'react';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -50,6 +49,7 @@ interface ConversationCardProps {
 /**
  * Format a date to relative time (e.g., "2h ago", "Yesterday")
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function formatRelativeTime(date: Date): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -76,6 +76,7 @@ export function formatRelativeTime(date: Date): string {
 /**
  * Extract title from prompt text (first line)
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function extractTitleFromPrompt(prompt: string): string {
   if (!prompt) return 'Untitled Design';
   
@@ -90,6 +91,7 @@ export function extractTitleFromPrompt(prompt: string): string {
 /**
  * Extract preview from prompt text (after first line)
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function extractPreviewFromPrompt(prompt: string): string {
   if (!prompt) return '';
   

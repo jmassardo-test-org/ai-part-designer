@@ -4,7 +4,7 @@ Rating and feedback models for community features.
 Handles template ratings, thumbs up/down, and user feedback.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -504,4 +504,4 @@ class UserBan(Base, TimestampMixin):
             return False
         if self.expires_at is None:
             return False
-        return datetime.now(tz=datetime.UTC) > self.expires_at
+        return datetime.now(tz=UTC) > self.expires_at

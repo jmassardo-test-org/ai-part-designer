@@ -4,8 +4,8 @@
 
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { UnderstandingSidebar } from './UnderstandingSidebar';
 import type { PartUnderstanding } from '@/lib/conversations';
+import { UnderstandingSidebar } from './UnderstandingSidebar';
 
 describe('UnderstandingSidebar', () => {
   describe('Empty State', () => {
@@ -23,17 +23,13 @@ describe('UnderstandingSidebar', () => {
   describe('Classification Display', () => {
     it('displays part category', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
         classification: {
           category: 'bracket',
           subcategory: 'L-bracket',
           confidence: 0.9,
-          reasoning: '',
         },
         dimensions: {},
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -48,17 +44,13 @@ describe('UnderstandingSidebar', () => {
 
     it('displays subcategory when present', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
         classification: {
           category: 'bracket',
           subcategory: 'L-bracket',
           confidence: 0.9,
-          reasoning: '',
         },
         dimensions: {},
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -75,15 +67,12 @@ describe('UnderstandingSidebar', () => {
   describe('Dimensions Display', () => {
     it('displays dimensions when present', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: null,
+        classification: undefined,
         dimensions: {
           length: { name: 'length', value: 100, unit: 'mm', confidence: 1, source: 'explicit' },
           width: { name: 'width', value: 50, unit: 'mm', confidence: 1, source: 'explicit' },
         },
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -99,14 +88,11 @@ describe('UnderstandingSidebar', () => {
 
     it('shows inferred indicator for inferred dimensions', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: null,
+        classification: undefined,
         dimensions: {
           thickness: { name: 'thickness', value: 3, unit: 'mm', confidence: 0.8, source: 'inferred' },
         },
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -123,14 +109,11 @@ describe('UnderstandingSidebar', () => {
   describe('Features Display', () => {
     it('displays features when present', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: null,
+        classification: undefined,
         dimensions: {},
         features: [
-          { feature_type: 'hole', description: '10mm center hole', parameters: {}, location: '', count: 1, confidence: 1 },
+          { feature_type: 'hole', description: '10mm center hole', parameters: {}, location: '', count: 1 },
         ],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -146,14 +129,11 @@ describe('UnderstandingSidebar', () => {
 
     it('shows count for multiple features', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: null,
+        classification: undefined,
         dimensions: {},
         features: [
-          { feature_type: 'hole', description: 'corner holes', parameters: {}, location: '', count: 4, confidence: 1 },
+          { feature_type: 'hole', description: 'corner holes', parameters: {}, location: '', count: 4 },
         ],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -170,12 +150,9 @@ describe('UnderstandingSidebar', () => {
   describe('Missing Critical Display', () => {
     it('displays missing critical dimensions', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: null,
+        classification: undefined,
         dimensions: {},
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: ['height', 'wall_thickness'],
         ambiguities: [],
         assumptions: [],
@@ -194,12 +171,9 @@ describe('UnderstandingSidebar', () => {
   describe('Completeness Indicator', () => {
     it('shows green for high completeness (>=70%)', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: { category: 'box', subcategory: null, confidence: 0.9, reasoning: '' },
+        classification: { category: 'box', subcategory: undefined, confidence: 0.9 },
         dimensions: {},
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -214,12 +188,9 @@ describe('UnderstandingSidebar', () => {
 
     it('shows amber for medium completeness (40-69%)', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: null,
+        classification: undefined,
         dimensions: {},
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],
@@ -234,12 +205,9 @@ describe('UnderstandingSidebar', () => {
 
     it('shows red for low completeness (<40%)', () => {
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: null,
+        classification: undefined,
         dimensions: {},
         features: [],
-        constraints: [],
-        hardware_references: [],
         missing_critical: ['all'],
         ambiguities: [],
         assumptions: [],
@@ -257,16 +225,13 @@ describe('UnderstandingSidebar', () => {
     it('renders correctly with dark mode classes available', () => {
       // The component should use dark: prefixed classes for dark mode support
       const understanding: PartUnderstanding = {
-        user_messages: [],
-        classification: { category: 'enclosure', subcategory: null, confidence: 0.9, reasoning: '' },
+        classification: { category: 'enclosure', subcategory: undefined, confidence: 0.9 },
         dimensions: {
           length: { name: 'length', value: 100, unit: 'mm', confidence: 1, source: 'explicit' },
         },
         features: [
-          { feature_type: 'fillet', description: '3mm fillet', parameters: {}, location: '', count: 4, confidence: 1 },
+          { feature_type: 'fillet', description: '3mm fillet', parameters: {}, location: '', count: 4 },
         ],
-        constraints: [],
-        hardware_references: [],
         missing_critical: [],
         ambiguities: [],
         assumptions: [],

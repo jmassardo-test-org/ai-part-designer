@@ -6,6 +6,7 @@ pagination, and filtering support.
 """
 
 from collections.abc import Sequence
+from datetime import UTC
 from typing import Any, Generic, TypeVar
 from uuid import UUID
 
@@ -197,7 +198,7 @@ class BaseRepository(Generic[ModelType]):
         if soft and hasattr(instance, "deleted_at"):
             from datetime import datetime
 
-            instance.deleted_at = datetime.now(tz=datetime.UTC)
+            instance.deleted_at = datetime.now(tz=UTC)
         else:
             await self.session.delete(instance)
 
