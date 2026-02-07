@@ -143,7 +143,7 @@ class ComponentFileStorage:
             raise ValueError(error)
 
         file_id = uuid4()
-        ext = Path(file.filename).suffix.lower()
+        ext = Path(file.filename or "").suffix.lower()
         filename = f"{component_id}_{file_id}{ext}"
         file_path = DATASHEET_DIR / filename
 
@@ -187,7 +187,7 @@ class ComponentFileStorage:
             raise ValueError(error)
 
         file_id = uuid4()
-        ext = Path(file.filename).suffix.lower()
+        ext = Path(file.filename or "").suffix.lower()
         filename = f"{component_id}_{file_id}{ext}"
         file_path = CAD_DIR / filename
 
@@ -253,7 +253,7 @@ class ComponentFileStorage:
             raise ValueError(f"Image too large. Maximum size: {MAX_IMAGE_SIZE // (1024 * 1024)}MB")
 
         # Open with PIL
-        image = Image.open(io.BytesIO(content))
+        image: Image.Image = Image.open(io.BytesIO(content))
 
         # Convert to RGB if needed
         if image.mode in ("RGBA", "P"):

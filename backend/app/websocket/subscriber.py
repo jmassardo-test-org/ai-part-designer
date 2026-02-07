@@ -86,16 +86,16 @@ class RedisSubscriber:
 
             settings = get_settings()
             redis_url = settings.REDIS_URL
-            self._redis = await aioredis.from_url(redis_url)
-            self._pubsub = self._redis.pubsub()
+            self._redis = await aioredis.from_url(redis_url)  # type: ignore[no-untyped-call]
+            self._pubsub = self._redis.pubsub()  # type: ignore[attr-defined]
 
             # Subscribe to patterns for user and room messages
-            await self._pubsub.psubscribe("ws:user:*", "ws:room:*")
+            await self._pubsub.psubscribe("ws:user:*", "ws:room:*")  # type: ignore[attr-defined]
 
             logger.info("Subscribed to Redis channels ws:user:* and ws:room:*")
 
             # Listen for messages
-            async for message in self._pubsub.listen():
+            async for message in self._pubsub.listen():  # type: ignore[attr-defined]
                 if not self._running:
                     break
 

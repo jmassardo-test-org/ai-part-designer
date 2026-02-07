@@ -164,11 +164,11 @@ async def collect_db_pool_metrics() -> None:
         from app.core.database import engine
 
         pool = engine.pool
-        db_pool_size.set(pool.size())
-        db_pool_checked_out.set(pool.checkedout())
-        db_pool_overflow.set(pool.overflow())
+        db_pool_size.set(pool.size())  # type: ignore[attr-defined]
+        db_pool_checked_out.set(pool.checkedout())  # type: ignore[attr-defined]
+        db_pool_overflow.set(pool.overflow())  # type: ignore[attr-defined]
         # Checked-in connections = size - checked out - overflow
-        checked_in = pool.size() - pool.checkedout() - pool.overflow()
+        checked_in = pool.size() - pool.checkedout() - pool.overflow()  # type: ignore[attr-defined]
         db_pool_checkedin.set(max(0, checked_in))
     except Exception as e:
         logger.warning("failed_to_collect_db_metrics", error=str(e))

@@ -128,7 +128,7 @@ class DataValidator(Generic[T]):
             except Exception as e:
                 issues.append(
                     ValidationIssue(
-                        field=field,
+                        field=field_name,
                         message=f"Validation error: {e!s}",
                         severity=ValidationSeverity.ERROR,
                         value=value,
@@ -142,7 +142,7 @@ class DataValidator(Generic[T]):
     def _get_nested_value(self, data: dict[str, Any], field: str) -> Any:
         """Get value from nested field path (e.g., 'user.email')."""
         keys = field.split(".")
-        value = data
+        value: Any = data
         for key in keys:
             if isinstance(value, dict):
                 value = value.get(key)

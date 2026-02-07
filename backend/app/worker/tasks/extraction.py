@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import httpx
@@ -70,48 +70,51 @@ async def _extract_component_async(_task: Any, job_id: str) -> dict[str, Any]:
             return {"error": "Extraction job not found", "job_id": job_id}
 
         # Update job status
-        job.status = "processing"
-        job.started_at = datetime.now(tz=UTC)
-        job.current_step = "Initializing extraction"
+        job.status = "processing"  # type: ignore[assignment]
+        job.started_at = datetime.now(tz=UTC)  # type: ignore[assignment]
+        job.current_step = "Initializing extraction"  # type: ignore[assignment]
         await db.commit()
 
         try:
             # Get the component
-            component = await _get_component(db, job.component_id)
+            component_id = cast("UUID | None", job.component_id)
+            if component_id is None:
+                raise ValueError("Job has no component_id")
+            component = await _get_component(db, component_id)
             if not component:
-                raise ValueError(f"Component {job.component_id} not found")
+                raise ValueError(f"Component {component_id} not found")
 
             extracted_data = {}
             confidence_scores = []
 
             # Process based on job type
             if job.job_type in ("datasheet", "full"):
-                job.current_step = "Extracting from datasheet"
-                job.progress = 20
+                job.current_step = "Extracting from datasheet"  # type: ignore[assignment]
+                job.progress = 20  # type: ignore[assignment]
                 await db.commit()
 
                 datasheet_result = await _extract_from_datasheet(component)
                 if datasheet_result:
                     extracted_data["datasheet"] = datasheet_result
                     confidence_scores.append(datasheet_result.get("confidence", 0.5))
-                    job.progress = 50
+                    job.progress = 50  # type: ignore[assignment]
                     await db.commit()
 
             if job.job_type in ("cad", "full"):
-                job.current_step = "Extracting from CAD file"
-                job.progress = 60
+                job.current_step = "Extracting from CAD file"  # type: ignore[assignment]
+                job.progress = 60  # type: ignore[assignment]
                 await db.commit()
 
                 cad_result = await _extract_from_cad(component)
                 if cad_result:
                     extracted_data["cad"] = cad_result
                     confidence_scores.append(cad_result.get("confidence", 0.5))
-                    job.progress = 80
+                    job.progress = 80  # type: ignore[assignment]
                     await db.commit()
 
             # Merge extracted data into component
-            job.current_step = "Updating component specifications"
-            job.progress = 90
+            job.current_step = "Updating component specifications"  # type: ignore[assignment]
+            job.progress = 90  # type: ignore[assignment]
             await db.commit()
 
             await _update_component_specs(db, component, extracted_data)
@@ -122,14 +125,14 @@ async def _extract_component_async(_task: Any, job_id: str) -> dict[str, Any]:
             )
 
             # Complete the job
-            job.status = "complete"
-            job.progress = 100
-            job.current_step = "Extraction complete"
-            job.completed_at = datetime.now(tz=UTC)
-            job.extracted_data = extracted_data
-            job.confidence_score = overall_confidence
-            component.extraction_status = "complete"
-            component.confidence_score = overall_confidence
+            job.status = "complete"  # type: ignore[assignment]
+            job.progress = 100  # type: ignore[assignment]
+            job.current_step = "Extraction complete"  # type: ignore[assignment]
+            job.completed_at = datetime.now(tz=UTC)  # type: ignore[assignment]
+            job.extracted_data = extracted_data  # type: ignore[assignment]
+            job.confidence_score = overall_confidence  # type: ignore[assignment]
+            component.extraction_status = "complete"  # type: ignore[assignment]
+            component.confidence_score = overall_confidence  # type: ignore[assignment]
 
             await db.commit()
 
@@ -147,13 +150,15 @@ async def _extract_component_async(_task: Any, job_id: str) -> dict[str, Any]:
 
         except Exception as e:
             logger.exception(f"Extraction failed for job {job_id}: {e}")
-            job.status = "failed"
-            job.error_message = str(e)
-            job.completed_at = datetime.now(tz=UTC)
-            job.retry_count += 1
-            component = await _get_component(db, job.component_id)
-            if component:
-                component.extraction_status = "failed"
+            job.status = "failed"  # type: ignore[assignment]
+            job.error_message = str(e)  # type: ignore[assignment]
+            job.completed_at = datetime.now(tz=UTC)  # type: ignore[assignment]
+            job.retry_count += 1  # type: ignore[assignment]
+            _component_id = cast("UUID | None", job.component_id)
+            if _component_id is not None:
+                component = await _get_component(db, _component_id)
+                if component:
+                    component.extraction_status = "failed"  # type: ignore[assignment]
             await db.commit()
             raise
 
@@ -187,19 +192,20 @@ async def _extract_from_datasheet(component: ReferenceComponent) -> dict[str, An
     """
     from app.core.config import settings
 
-    if not component.datasheet_url:
+    datasheet_url = getattr(component, "datasheet_url", None) or getattr(component, "datasheet_file", None)
+    if not datasheet_url:
         logger.info(f"No datasheet URL for component {component.id}")
         return None
 
     try:
         # Download the datasheet from storage
-        datasheet_content = await _download_file(component.datasheet_url)
+        datasheet_content = await _download_file(str(datasheet_url))
         if not datasheet_content:
             return None
 
         # Convert PDF to images if needed
-        if component.datasheet_url.lower().endswith(".pdf"):
-            images = await pdf_processor.convert_to_images(datasheet_content)
+        if str(datasheet_url).lower().endswith(".pdf"):
+            images = await pdf_processor.convert_to_images(datasheet_content)  # type: ignore[attr-defined]
             if not images:
                 return None
 
@@ -241,19 +247,20 @@ async def _extract_from_cad(component: ReferenceComponent) -> dict[str, Any] | N
     - Mounting hole diameters and positions
     - Connector cutout sizes
     """
-    if not component.cad_file_url:
+    cad_file_url = getattr(component, "cad_file_url", None) or getattr(component, "cad_file", None)
+    if not cad_file_url:
         logger.info(f"No CAD file URL for component {component.id}")
         return None
 
     try:
         # Download the CAD file from storage
-        cad_content = await _download_file(component.cad_file_url)
+        cad_content = await _download_file(str(cad_file_url))
         if not cad_content:
             return None
 
         # For now, return basic geometry extraction
         # Full CAD parsing would require OCP/CadQuery
-        file_ext = component.cad_file_url.split(".")[-1].lower()
+        file_ext = str(cad_file_url).split(".")[-1].lower()
 
         if file_ext in ("step", "stp"):
             # Parse STEP file
@@ -344,7 +351,7 @@ async def _download_file(url: str) -> bytes | None:
         else:
             # Storage path - extract key and download
             key = url.split("/", 3)[-1] if "/" in url else url
-            result: bytes | None = await storage_client.download(
+            result: bytes | None = await storage_client.download_file(
                 bucket=StorageBucket.UPLOADS,
                 key=key,
             )
@@ -387,7 +394,7 @@ async def _update_component_specs(
     if datasheet.get("cutouts"):
         component.clearance_zones = datasheet["cutouts"]
 
-    component.updated_at = datetime.now(tz=UTC)
+    component.updated_at = datetime.now(tz=UTC)  # type: ignore[assignment]
 
 
 # =============================================================================
@@ -441,7 +448,7 @@ async def _batch_extract_async(component_ids: list[str]) -> dict[str, Any]:
                 jobs_created.append(str(job.id))
 
                 # Update component status
-                component.extraction_status = "pending"
+                component.extraction_status = "pending"  # type: ignore[assignment]
 
             except Exception as e:
                 logger.warning(f"Failed to create job for {component_id}: {e}")

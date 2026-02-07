@@ -7,10 +7,10 @@ rate limiting support, and distributed locking.
 
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import redis.asyncio as redis
 from redis.asyncio.lock import Lock
@@ -38,7 +38,7 @@ class RedisClient:
 
     async def connect(self) -> None:
         """Initialize Redis connection pool."""
-        self._client = redis.from_url(
+        self._client = redis.from_url(  # type: ignore[no-untyped-call]
             self.url,
             encoding="utf-8",
             decode_responses=True,
@@ -63,7 +63,8 @@ class RedisClient:
 
     async def get(self, key: str) -> str | None:
         """Get a string value."""
-        return await self.client.get(key)
+        result = await self.client.get(key)
+        return cast("str | None", result)
 
     async def set(
         self,
@@ -79,21 +80,25 @@ class RedisClient:
 
     async def delete(self, *keys: str) -> int:
         """Delete one or more keys."""
-        return await self.client.delete(*keys)
+        result = await self.client.delete(*keys)
+        return int(result)
 
     async def exists(self, key: str) -> bool:
         """Check if a key exists."""
-        return await self.client.exists(key) > 0
+        result = await self.client.exists(key)
+        return int(result) > 0
 
     async def expire(self, key: str, ttl: int | timedelta) -> bool:
         """Set TTL on an existing key."""
         if isinstance(ttl, timedelta):
             ttl = int(ttl.total_seconds())
-        return await self.client.expire(key, ttl)
+        result = await self.client.expire(key, ttl)
+        return bool(result)
 
     async def ttl(self, key: str) -> int:
         """Get remaining TTL for a key (-1 if no TTL, -2 if doesn't exist)."""
-        return await self.client.ttl(key)
+        result = await self.client.ttl(key)
+        return int(result)
 
     # =========================================================================
     # JSON Operations
@@ -125,7 +130,7 @@ class RedisClient:
         key_prefix: str,
         ttl: int | timedelta = 300,
         key_builder: Callable[..., str] | None = None,
-    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    ) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
         """
         Decorator for caching function results.
 
@@ -140,7 +145,7 @@ class RedisClient:
                 ...
         """
 
-        def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
             @wraps(func)
             async def wrapper(*args: Any, **kwargs: Any) -> T:
                 # Build cache key
@@ -270,7 +275,8 @@ class RedisClient:
         """Publish a message to a channel."""
         if not isinstance(message, str):
             message = json.dumps(message, default=str)
-        return await self.client.publish(channel, message)
+        result = await self.client.publish(channel, message)
+        return int(result)
 
     def pubsub(self) -> Any:
         """Get a pub/sub client."""
@@ -282,11 +288,13 @@ class RedisClient:
 
     async def incr(self, key: str, amount: int = 1) -> int:
         """Increment a counter."""
-        return await self.client.incrby(key, amount)
+        result = await self.client.incrby(key, amount)
+        return int(result)
 
     async def decr(self, key: str, amount: int = 1) -> int:
         """Decrement a counter."""
-        return await self.client.decrby(key, amount)
+        result = await self.client.decrby(key, amount)
+        return int(result)
 
     # =========================================================================
     # Hash Operations
@@ -294,19 +302,23 @@ class RedisClient:
 
     async def hget(self, name: str, key: str) -> str | None:
         """Get a hash field."""
-        return await self.client.hget(name, key)
+        result = await self.client.hget(name, key)
+        return cast("str | None", result)
 
     async def hset(self, name: str, key: str, value: str) -> int:
         """Set a hash field."""
-        return await self.client.hset(name, key, value)
+        result = await self.client.hset(name, key, value)
+        return int(result)
 
     async def hgetall(self, name: str) -> dict[str, Any]:
         """Get all hash fields."""
-        return await self.client.hgetall(name)
+        result = await self.client.hgetall(name)
+        return cast("dict[str, Any]", result)
 
     async def hdel(self, name: str, *keys: str) -> int:
         """Delete hash fields."""
-        return await self.client.hdel(name, *keys)
+        result = await self.client.hdel(name, *keys)
+        return int(result)
 
     # =========================================================================
     # List Operations (for simple queues)
@@ -314,7 +326,8 @@ class RedisClient:
 
     async def lpush(self, key: str, *values: str) -> int:
         """Push values to the left of a list."""
-        return await self.client.lpush(key, *values)
+        result = await self.client.lpush(key, *values)
+        return int(result)
 
     async def rpop(self, key: str) -> str | None:
         """Pop from the right of a list."""
@@ -323,7 +336,8 @@ class RedisClient:
 
     async def llen(self, key: str) -> int:
         """Get list length."""
-        return await self.client.llen(key)
+        result = await self.client.llen(key)
+        return int(result)
 
 
 # Global Redis client instance

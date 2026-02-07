@@ -240,34 +240,25 @@ class ComponentDefinition(BaseModel):
     id: str = Field(..., description="Unique component ID (kebab-case)")
     name: str = Field(..., description="Human-readable name")
     category: ComponentCategory = Field(..., description="Component category")
-    aliases: Annotated[
-        list[str],
-        Field(default_factory=list, description="Alternative names for matching"),
-    ]
+    aliases: list[str] = Field(default_factory=list, description="Alternative names for matching")
 
     # Dimensions
-    dimensions: Annotated[
-        "BoundingBox",
-        Field(..., description="Overall component dimensions"),
-    ]
+    dimensions: "BoundingBox" = Field(..., description="Overall component dimensions")
 
     # Mounting
-    mounting_holes: Annotated[
-        list[MountingHole],
-        Field(default_factory=list, description="Screw/mounting hole positions"),
-    ]
+    mounting_holes: list[MountingHole] = Field(
+        default_factory=list, description="Screw/mounting hole positions"
+    )
 
     # Ports and connectors
-    ports: Annotated[
-        list[PortDefinition],
-        Field(default_factory=list, description="Connector/port positions"),
-    ]
+    ports: list[PortDefinition] = Field(
+        default_factory=list, description="Connector/port positions"
+    )
 
     # Keepout zones
-    keepout_zones: Annotated[
-        list[KeepoutZone],
-        Field(default_factory=list, description="Areas requiring clearance"),
-    ]
+    keepout_zones: list[KeepoutZone] = Field(
+        default_factory=list, description="Areas requiring clearance"
+    )
 
     # Metadata
     datasheet_url: str | None = Field(default=None, description="Reference documentation")

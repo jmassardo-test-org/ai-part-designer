@@ -305,7 +305,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
         if not features:
             return []
 
-        unique = []
+        unique: list[dict[str, Any]] = []
         for feature in features:
             is_duplicate = False
             for existing in unique:

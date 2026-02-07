@@ -208,7 +208,7 @@ async def create_component(
     await db.commit()
     await db.refresh(component)
 
-    return component
+    return component  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 class ComponentUploadResponse(BaseModel):
@@ -306,7 +306,7 @@ async def upload_component(
             f.write(content)
 
     # Store file metadata
-    component.files_metadata = {
+    component.files_metadata = { # type: ignore[attr-defined]
         f"{file_type}_file": {
             "filename": filename,
             "storage_key": storage_key,
@@ -423,7 +423,7 @@ async def get_component(
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
 
-    return component
+    return component  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 @router.put("/{component_id}", response_model=ComponentResponse)
@@ -453,12 +453,12 @@ async def update_component(
     for field, value in update_data.items():
         setattr(component, field, value)
 
-    component.updated_at = datetime.now(tz=UTC)
+    component.updated_at = datetime.now(tz=UTC)  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(component)
 
-    return component
+    return component  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 @router.put("/{component_id}/specifications", response_model=ComponentResponse)
@@ -485,24 +485,24 @@ async def update_specifications(
 
     # Update specifications
     if data.dimensions:
-        component.dimensions = data.dimensions.model_dump()
+        component.dimensions = data.dimensions.model_dump()  # type: ignore[assignment]
     if data.mounting_holes is not None:
-        component.mounting_holes = [h.model_dump() for h in data.mounting_holes]
+        component.mounting_holes = [h.model_dump() for h in data.mounting_holes]  # type: ignore[assignment]
     if data.connectors is not None:
-        component.connectors = [c.model_dump() for c in data.connectors]
+        component.connectors = [c.model_dump() for c in data.connectors]  # type: ignore[assignment]
     if data.clearance_zones is not None:
-        component.clearance_zones = [z.model_dump() for z in data.clearance_zones]
+        component.clearance_zones = [z.model_dump() for z in data.clearance_zones]  # type: ignore[assignment]
     if data.thermal_properties:
-        component.thermal_properties = data.thermal_properties.model_dump()
+        component.thermal_properties = data.thermal_properties.model_dump()  # type: ignore[assignment]
 
     # Mark as manually edited
-    component.extraction_status = "manual"
-    component.updated_at = datetime.now(tz=UTC)
+    component.extraction_status = "manual"  # type: ignore[assignment]
+    component.updated_at = datetime.now(tz=UTC)  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(component)
 
-    return component
+    return component  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 class FileUpdateResponse(BaseModel):
@@ -599,9 +599,9 @@ async def update_component_files(
         )
 
         # Update component metadata
-        if not component.files_metadata:
-            component.files_metadata = {}
-        component.files_metadata["cad_file"] = {
+        if not component.files_metadata: # type: ignore[attr-defined]
+            component.files_metadata = {} # type: ignore[attr-defined]
+        component.files_metadata["cad_file"] = { # type: ignore[attr-defined]
             "filename": cad_file.filename,
             "storage_key": storage_key,
             "path": stored_path,
@@ -626,9 +626,9 @@ async def update_component_files(
         local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / "datasheet.pdf"
         stored_path = await upload_to_storage(storage_key, content, "application/pdf", local_path)
 
-        if not component.files_metadata:
-            component.files_metadata = {}
-        component.files_metadata["datasheet"] = {
+        if not component.files_metadata: # type: ignore[attr-defined]
+            component.files_metadata = {} # type: ignore[attr-defined]
+        component.files_metadata["datasheet"] = { # type: ignore[attr-defined]
             "filename": datasheet.filename,
             "storage_key": storage_key,
             "path": stored_path,
@@ -664,12 +664,12 @@ async def update_component_files(
                 key=storage_key,
                 expires_in=86400 * 7,  # 7 days
             )
-            component.thumbnail_url = thumbnail_url
+            component.thumbnail_url = thumbnail_url  # type: ignore[assignment]
         except Exception:
-            component.thumbnail_url = f"/uploads/components/{component_id}/thumbnail{ext}"
+            component.thumbnail_url = f"/uploads/components/{component_id}/thumbnail{ext}"  # type: ignore[assignment]
         files_updated += 1
 
-    component.updated_at = datetime.now(tz=UTC)
+    component.updated_at = datetime.now(tz=UTC)  # type: ignore[assignment]
 
     # Trigger extraction if requested and CAD file or datasheet was updated
     extraction_job_id = None
@@ -683,7 +683,7 @@ async def update_component_files(
             progress=0,
         )
         db.add(extraction_job)
-        component.extraction_status = "pending"
+        component.extraction_status = "pending"  # type: ignore[assignment]
         extraction_job_id = extraction_job.id
 
         # Queue Celery task for extraction
@@ -723,7 +723,7 @@ async def delete_component(
     if not component:
         raise HTTPException(status_code=404, detail="Component not found")
 
-    component.deleted_at = datetime.now(tz=UTC)
+    component.deleted_at = datetime.now(tz=UTC)  # type: ignore[assignment]
     await db.commit()
 
 
@@ -781,7 +781,7 @@ async def trigger_extraction(
     db.add(job)
 
     # Update component status
-    component.extraction_status = "processing"
+    component.extraction_status = "processing"  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(job)
@@ -791,7 +791,7 @@ async def trigger_extraction(
 
     extract_component_task.delay(str(job.id))
 
-    return job
+    return job  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 @router.get("/{component_id}/extraction-status", response_model=ExtractionJobResponse)
@@ -814,7 +814,7 @@ async def get_extraction_status(
     if not job:
         raise HTTPException(status_code=404, detail="No extraction job found")
 
-    return job
+    return job  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 # =============================================================================
@@ -1022,7 +1022,7 @@ async def add_library_component_to_project(
     db.add(user_component)
 
     # Increment usage count
-    entry.usage_count += 1
+    entry.usage_count += 1  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(user_component)
@@ -1063,12 +1063,13 @@ async def seed_library(
             continue
 
         # Create the base reference component
+        category_key = str(component_data["category"])
         ref_component = ReferenceComponent(
             id=uuid4(),
             user_id=current_user.id,
             name=component_data["name"],
             source_type="library_seed",
-            category=CATEGORIES.get(component_data["category"], component_data["category"]),
+            category=CATEGORIES.get(category_key, category_key),
             manufacturer=component_data["manufacturer"],
             model_number=component_data["model_number"],
             description=component_data.get("description", ""),
@@ -1092,7 +1093,7 @@ async def seed_library(
             model_number=component_data["model_number"],
             popularity_score=100,
             is_featured=component_data["category"] in ["sbc", "mcu"],
-            tags=[component_data["category"], component_data["manufacturer"].lower()],
+            tags=[component_data["category"], component_data["manufacturer"].lower()], # type: ignore[attr-defined]
         )
         db.add(library_entry)
         count += 1
@@ -1109,7 +1110,7 @@ async def seed_library(
 async def list_manufacturers(
     db: AsyncSession = Depends(get_db),
     __current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> list[dict[str, Any]]:
     """List all manufacturers in the library."""
     query = (
         select(

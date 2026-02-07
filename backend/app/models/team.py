@@ -146,7 +146,8 @@ class Team(Base, TimestampMixin, SoftDeleteMixin):
     @property
     def member_count(self) -> int:
         """Count of active team members."""
-        count: int = self.members.filter(TeamMember.is_active).count()
+        # Members is a dynamic relationship, need to use len() or count the list
+        count: int = len([m for m in self.members if m.is_active])
         return count
 
     @property

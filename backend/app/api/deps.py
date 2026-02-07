@@ -104,7 +104,7 @@ def require_credits(operation: TransactionType) -> Callable[..., None]:
                 },
             )
 
-    return dependency
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
 
 
 def require_job_slot() -> Callable[..., None]:
@@ -134,7 +134,7 @@ def require_job_slot() -> Callable[..., None]:
                 },
             )
 
-    return dependency
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
 
 
 def require_storage(bytes_needed: int = 0) -> Callable[..., None]:
@@ -167,7 +167,7 @@ def require_storage(bytes_needed: int = 0) -> Callable[..., None]:
                 },
             )
 
-    return dependency
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
 
 
 def require_feature(feature_name: str) -> Callable[..., None]:
@@ -191,7 +191,7 @@ def require_feature(feature_name: str) -> Callable[..., None]:
                 },
             )
 
-    return dependency
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
 
 
 # Alias for convenience

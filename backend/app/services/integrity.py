@@ -372,13 +372,13 @@ class DataIntegrityService:
             (File, "files"),
             (Job, "jobs"),
         ]:
-            result = await self.session.execute(select(func.count(model.id)))
+            result = await self.session.execute(select(func.count(model.id)))  # type: ignore[attr-defined]
             stats[f"{name}_total"] = result.scalar() or 0
 
             # Count soft-deleted if applicable
             if hasattr(model, "deleted_at"):
                 result = await self.session.execute(
-                    select(func.count(model.id)).where(model.deleted_at.isnot(None))
+                    select(func.count(model.id)).where(model.deleted_at.isnot(None))  # type: ignore[attr-defined]
                 )
                 stats[f"{name}_deleted"] = result.scalar() or 0
 

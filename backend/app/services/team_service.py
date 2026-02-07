@@ -136,7 +136,7 @@ class TeamService:
         ]
 
         if not include_inactive:
-            conditions.append(Team.is_active)
+            conditions.append(Team.is_active == True)  # noqa: E712
 
         # Count query
         count_query = select(func.count(Team.id)).where(and_(*conditions))
@@ -177,6 +177,8 @@ class TeamService:
             TeamDuplicateError: If slug already exists.
         """
         # Check for duplicate slug
+        if data.slug is None:
+            raise ValueError("Team slug is required")
         existing = await self.get_team_by_slug(organization_id, data.slug)
         if existing:
             raise TeamDuplicateError(
@@ -314,7 +316,7 @@ class TeamService:
         conditions = [TeamMember.team_id == team_id]
 
         if not include_inactive:
-            conditions.append(TeamMember.is_active)
+            conditions.append(TeamMember.is_active == True)  # noqa: E712
 
         # Count query
         count_query = select(func.count(TeamMember.id)).where(and_(*conditions))

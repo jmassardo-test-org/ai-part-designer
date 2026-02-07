@@ -10,6 +10,7 @@ Comprehensive usage tracking and enforcement for:
 
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -395,10 +396,10 @@ class UsageLimitService:
         record = result.scalar_one_or_none()
 
         if record:
-            record.count += amount
+            record.count += amount  # type: ignore[assignment]
             if metadata:
-                record.extra_data = {**record.extra_data, **metadata}
-            new_count = record.count
+                record.extra_data = {**record.extra_data, **metadata}  # type: ignore[assignment]
+            new_count = int(record.count)
         else:
             record = UsageRecord(
                 user_id=user_id,
@@ -461,6 +462,7 @@ class UsageLimitService:
             current = await self.get_usage(user_id, resource_type, period)
 
             if current >= limit:
+                resets_at = self._get_period_start(period) + self._get_period_duration(period)
                 return False, {
                     "allowed": False,
                     "reason": f"{resource_type} limit exceeded",
@@ -468,7 +470,7 @@ class UsageLimitService:
                     "limit": limit,
                     "current": current,
                     "period": period,
-                    "resets_at": self._get_period_start(period) + self._get_period_duration(period),
+                    "resets_at": resets_at.isoformat(),
                 }
 
         return True, {"allowed": True}
@@ -535,7 +537,7 @@ class UsageLimitService:
         self.db.add(operation)
         await self.db.flush()
 
-        return operation.id
+        return UUID(str(operation.id))  # Extract UUID value from Column
 
     async def end_concurrent_operation(
         self,
@@ -557,33 +559,33 @@ class UsageLimitService:
             ConcurrentOperation.expires_at < datetime.now(tz=UTC)
         )
         result = await self.db.execute(stmt)
-        return int(result.rowcount or 0)
+        return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
     async def get_usage_summary(
         self,
         user_id: UUID,
         tier: UserTier,
-    ) -> dict[str, str | dict[str, int] | dict[str, dict[str, int]]]:
+    ) -> dict[str, Any]:
         """Get complete usage summary for a user."""
         limits = self.get_tier_limits(tier)
 
-        summary = {
-            "tier": tier.value,
-            "limits": limits,
-            "usage": {},
-        }
+        usage: dict[str, dict[str, int]] = {}
 
         # Get current usage for each resource
         resources = ["generation", "modification", "export", "extraction"]
         periods = ["day", "month"]
 
         for resource in resources:
-            summary["usage"][resource] = {}
+            usage[resource] = {}
             for period in periods:
                 count = await self.get_usage(user_id, resource, period)
-                summary["usage"][resource][period] = count
+                usage[resource][period] = count
 
-        return summary
+        return {
+            "tier": tier.value,
+            "limits": limits,
+            "usage": usage,
+        }
 
 
 # =============================================================================

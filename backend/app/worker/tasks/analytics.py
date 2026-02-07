@@ -35,7 +35,7 @@ def process_pending_events() -> dict[str, Any]:
         # 3. Store in data lake for batch analysis
 
         # Group by event type for logging
-        event_counts = {}
+        event_counts: dict[str, int] = {}
         for event in events:
             event_name = event.get("event_name", "unknown")
             event_counts[event_name] = event_counts.get(event_name, 0) + 1

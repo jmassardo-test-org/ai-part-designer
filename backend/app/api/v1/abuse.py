@@ -215,7 +215,7 @@ async def list_bans(
     query = query.order_by(desc(UserBan.created_at)).offset((page - 1) * page_size).limit(page_size)
 
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return list(result.scalars().all())  # type: ignore[arg-type]  # FastAPI converts ORM→Pydantic
 
 
 @router.get("/bans/{ban_id}", response_model=BanResponse)
@@ -232,7 +232,7 @@ async def get_ban(
     if not ban:
         raise HTTPException(status_code=404, detail="Ban not found")
 
-    return ban
+    return ban  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 @router.post("/bans/{ban_id}/lift")
@@ -289,7 +289,7 @@ async def create_ban(
     await db.commit()
     await db.refresh(ban)
 
-    return ban
+    return ban  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 # =============================================================================
@@ -326,7 +326,7 @@ async def list_reports(
     )
 
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return list(result.scalars().all())  # type: ignore[arg-type]  # FastAPI converts ORM→Pydantic
 
 
 @router.get("/reports/{report_id}", response_model=AbuseReportResponse)
@@ -343,7 +343,7 @@ async def get_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    return report
+    return report  # type: ignore[return-value]  # FastAPI converts ORM→Pydantic
 
 
 class ResolveReportRequest(BaseModel):
@@ -366,11 +366,11 @@ async def resolve_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    report.status = "resolved"
-    report.resolution = data.resolution
-    report.action_taken = data.action_taken
-    report.resolved_by = admin.id
-    report.resolved_at = datetime.now(tz=UTC)
+    report.status = "resolved"  # type: ignore[assignment]
+    report.resolution = data.resolution  # type: ignore[assignment]
+    report.action_taken = data.action_taken  # type: ignore[assignment]
+    report.resolved_by = admin.id  # type: ignore[assignment]
+    report.resolved_at = datetime.now(tz=UTC)  # type: ignore[assignment]
 
     await db.commit()
 

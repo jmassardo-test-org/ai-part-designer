@@ -463,7 +463,7 @@ def generate_gridfinity_divider(
         Build123d Part with the divider
     """
     # Start with a base bin that has the appropriate dividers
-    return generate_gridfinity_bin(  # type: ignore[no-any-return]
+    return generate_gridfinity_bin(
         grid_x=grid_x,
         grid_y=grid_y,
         height_units=height_units,

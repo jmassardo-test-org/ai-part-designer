@@ -50,13 +50,13 @@ class FileAlignment(BaseModel):
 class AlignmentModeEnum(StrEnum):
     """Alignment modes available via API."""
 
-    center = "center"
-    origin = "origin"
-    stack_z = "stack_z"
-    stack_x = "stack_x"
-    stack_y = "stack_y"
-    side_by_side = "side_by_side"
-    ground = "ground"
+    CENTER = "center"
+    ORIGIN = "origin"
+    STACK_Z = "stack_z"
+    STACK_X = "stack_x"
+    STACK_Y = "stack_y"
+    SIDE_BY_SIDE = "side_by_side"
+    GROUND = "ground"
 
 
 class AlignmentOptions(BaseModel):
@@ -72,7 +72,7 @@ class AlignmentRequest(BaseModel):
     """Request to align multiple files."""
 
     files: list[FileAlignment] = Field(..., min_length=1)
-    alignment_mode: AlignmentModeEnum = AlignmentModeEnum.center
+    alignment_mode: AlignmentModeEnum = AlignmentModeEnum.CENTER
     options: AlignmentOptions = Field(default_factory=AlignmentOptions)
 
 
@@ -171,13 +171,13 @@ async def preview_alignment(
     transforms = []
     for i, file in enumerate(request.files):
         # Calculate placeholder transform based on mode
-        if request.alignment_mode == AlignmentModeEnum.stack_z:
+        if request.alignment_mode == AlignmentModeEnum.STACK_Z:
             z_offset = i * (50 + request.options.gap)  # Placeholder stacking
             translation = Vector3(x=0, y=0, z=z_offset)
-        elif request.alignment_mode == AlignmentModeEnum.stack_x:
+        elif request.alignment_mode == AlignmentModeEnum.STACK_X:
             x_offset = i * (50 + request.options.gap)
             translation = Vector3(x=x_offset, y=0, z=0)
-        elif request.alignment_mode == AlignmentModeEnum.side_by_side:
+        elif request.alignment_mode == AlignmentModeEnum.SIDE_BY_SIDE:
             x_offset = i * (60 + request.options.gap)
             translation = Vector3(x=x_offset, y=0, z=0)
         else:

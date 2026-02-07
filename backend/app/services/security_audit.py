@@ -124,7 +124,7 @@ class SecurityAuditService:
     RATE_LIMIT_THRESHOLD = 10  # Hits before warning
     SUSPICIOUS_PATTERN_THRESHOLD = 3  # Matches before alert
 
-    def __init__(self, db: AsyncSession = None):
+    def __init__(self, db: AsyncSession | None = None):
         self.db = db
 
     async def log_event(
@@ -194,7 +194,7 @@ class SecurityAuditService:
         await redis_client.expire(event_key, 86400 * 7)  # Keep for 7 days
 
         # Increment event counters
-        await redis_client.increment_counter(
+        await redis_client.increment_counter(  # type: ignore[attr-defined]
             f"security:count:{event_data['event_type']}",
             window_seconds=3600,
         )
@@ -210,6 +210,7 @@ class SecurityAuditService:
             user_agent=event_data.get("user_agent"),
             context={"details": event_data.get("details"), "severity": event_data["severity"]},
         )
+        assert self.db is not None
         self.db.add(audit_entry)
         await self.db.flush()
 
@@ -290,7 +291,7 @@ class SecurityAuditService:
         """Log failed login attempt."""
         # Increment failed login counter
         key = f"security:failed_login:{client_ip}"
-        await redis_client.increment_counter(key, window_seconds=900)
+        await redis_client.increment_counter(key, window_seconds=900)  # type: ignore[attr-defined]
 
         # Hash email for privacy
         email_hash = hashlib.sha256(email.encode()).hexdigest()[:16]
@@ -390,20 +391,20 @@ class SecurityAuditService:
 
         Returns counts of various security events.
         """
-        metrics = {
-            "period_hours": hours,
-            "events": {},
-            "top_blocked_ips": [],
-            "top_failed_logins": [],
-        }
+        events: dict[str, int] = {}
 
         # Get event counts
         for event_type in SecurityEventType:
             count = await redis_client.get(f"security:count:{event_type.value}")
             if count:
-                metrics["events"][event_type.value] = int(count)
+                events[event_type.value] = int(count)
 
-        return metrics
+        return {
+            "period_hours": hours,
+            "events": events,
+            "top_blocked_ips": [],
+            "top_failed_logins": [],
+        }
 
     async def get_user_security_events(
         self,
@@ -428,7 +429,7 @@ class SecurityAuditService:
                 "action": e.action,
                 "timestamp": e.created_at.isoformat(),
                 "ip_address": e.ip_address,
-                "details": e.changes,
+                "details": getattr(e, "changes", None) or getattr(e, "details", {}),
             }
             for e in events
         ]
@@ -439,6 +440,6 @@ class SecurityAuditService:
 # =============================================================================
 
 
-def get_security_audit_service(db: AsyncSession = None) -> SecurityAuditService:
+def get_security_audit_service(db: AsyncSession | None = None) -> SecurityAuditService:
     """Get security audit service instance."""
     return SecurityAuditService(db)

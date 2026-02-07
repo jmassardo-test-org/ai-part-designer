@@ -82,7 +82,7 @@ async def get_template_comments(
     Returns top-level comments with reply counts.
     Hidden comments are excluded unless user is admin.
     """
-    is_admin = current_user and current_user.is_admin
+    is_admin = bool(current_user and current_user.is_admin)
     service = CommentService(db)
     comments, _ = await service.get_template_comments(
         template_id,
@@ -130,7 +130,7 @@ async def get_template_comment_replies(
     current_user: User | None = Depends(get_optional_user),
 ) -> list[CommentResponse]:
     """Get replies to a specific comment."""
-    is_admin = current_user and current_user.is_admin
+    is_admin = bool(current_user and current_user.is_admin)
     service = CommentService(db)
     replies = await service.get_comment_replies(comment_id, include_hidden=is_admin)
 

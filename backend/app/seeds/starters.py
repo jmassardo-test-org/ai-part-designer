@@ -14,6 +14,7 @@ Or via Makefile:
 import asyncio
 import logging
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 VENDOR_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 STARTERS_PROJECT_ID = UUID("00000000-0000-0000-0000-000000000100")
 
-STARTER_DESIGNS = [
+STARTER_DESIGNS: list[dict[str, Any]] = [
     # Raspberry Pi enclosures
     {
         "id": UUID("10000000-0000-0000-0000-000000000001"),

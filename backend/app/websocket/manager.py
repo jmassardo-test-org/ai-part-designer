@@ -331,7 +331,7 @@ def send_ws_message_sync(user_id: str, message: dict[str, Any]) -> None:
 
     try:
         # Use sync Redis client for synchronous context
-        sync_redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        sync_redis = redis.from_url(settings.REDIS_URL, decode_responses=True)  # type: ignore[no-untyped-call]
         # Publish to Redis channel for WebSocket server to pick up
         channel = f"ws:user:{user_id}"
         sync_redis.publish(channel, json.dumps(message))

@@ -323,9 +323,9 @@ async def list_files(
     List files for the current user.
     """
     # Build query
-    conditions = [
+    conditions: list[Any] = [
         FileModel.user_id == current_user.id,
-        not FileModel.is_deleted,
+        FileModel.is_deleted == False,  # noqa: E712
     ]
 
     if file_type:
@@ -408,7 +408,7 @@ async def get_storage_quota(
     ).where(
         and_(
             FileModel.user_id == user.id,
-            not FileModel.is_deleted,
+            FileModel.is_deleted == False,  # noqa: E712
         )
     )
     result = await db.execute(query)
@@ -460,7 +460,7 @@ async def get_file(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            not FileModel.is_deleted,
+            FileModel.is_deleted == False,  # noqa: E712
         )
     )
     result = await db.execute(query)
@@ -509,7 +509,7 @@ async def download_file(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            not FileModel.is_deleted,
+            FileModel.is_deleted == False,  # noqa: E712
         )
     )
     result = await db.execute(query)
@@ -588,7 +588,7 @@ async def delete_file(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            not FileModel.is_deleted,
+            FileModel.is_deleted == False,  # noqa: E712
         )
     )
     result = await db.execute(query)
@@ -698,7 +698,7 @@ async def get_presigned_download_url(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == current_user.id,
-            not FileModel.is_deleted,
+            FileModel.is_deleted == False,  # noqa: E712
         )
     )
     result = await db.execute(query)

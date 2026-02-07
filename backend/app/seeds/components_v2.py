@@ -118,7 +118,7 @@ async def seed_components_v2(db: AsyncSession) -> tuple[int, int]:
             existing_comp.mounting_holes = comp_data["mounting_holes"]
             existing_comp.connectors = comp_data["connectors"]
             existing_comp.tags = comp_data["tags"]
-            existing_comp.notes = comp.id  # Store the registry ID in notes for lookup
+            existing_comp.notes = comp.id  # type: ignore[assignment]
             updated += 1
             logger.debug(f"Updated component: {comp.id}")
         else:

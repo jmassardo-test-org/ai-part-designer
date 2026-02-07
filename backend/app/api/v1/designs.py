@@ -208,8 +208,8 @@ async def create_design_from_job(
     """
     # Find the job
     job_query = select(Job).where(Job.id == request.job_id).where(Job.user_id == current_user.id)
-    result = await db.execute(job_query)
-    job = result.scalar_one_or_none()
+    job_query_result = await db.execute(job_query)
+    job = job_query_result.scalar_one_or_none()
 
     if not job:
         raise HTTPException(
@@ -231,8 +231,8 @@ async def create_design_from_job(
             .where(Project.user_id == current_user.id)
             .where(Project.deleted_at.is_(None))
         )
-        result = await db.execute(project_query)
-        project = result.scalar_one_or_none()
+        project_query_result = await db.execute(project_query)
+        project = project_query_result.scalar_one_or_none()
 
         if not project:
             raise HTTPException(
@@ -328,8 +328,8 @@ async def create_design_from_conversation(
         .where(Conversation.id == request.conversation_id)
         .where(Conversation.user_id == current_user.id)
     )
-    result = await db.execute(conversation_query)
-    conversation = result.scalar_one_or_none()
+    conversation_query_result = await db.execute(conversation_query)
+    conversation = conversation_query_result.scalar_one_or_none()
 
     if not conversation:
         raise HTTPException(
@@ -351,8 +351,8 @@ async def create_design_from_conversation(
             .where(Project.user_id == current_user.id)
             .where(Project.deleted_at.is_(None))
         )
-        result = await db.execute(project_query)
-        project = result.scalar_one_or_none()
+        project_query_result = await db.execute(project_query)
+        project = project_query_result.scalar_one_or_none()
 
         if not project:
             raise HTTPException(

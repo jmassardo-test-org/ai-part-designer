@@ -183,16 +183,16 @@ known-first-party = ["app"]
 
 [tool.mypy]
 python_version = "3.12"
-# Core settings - relaxed for initial pass
-warn_return_any = false  # Too noisy with SQLAlchemy
-warn_unused_ignores = false  # Has false positives
+# Strict mode enabled (PR #278)
+warn_return_any = true
+warn_unused_ignores = false  # Has false positives with overrides
 no_implicit_optional = true
 strict_equality = true
 
-# Disabled until codebase is properly typed
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false  # Disabled - causes cascading errors
+# Strictness flags - all enabled
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
 
 # Plugins
 plugins = ["pydantic.mypy"]
@@ -241,10 +241,17 @@ module = [
     "app.middleware.*",
     "app.websocket.*",
     "app.seeds.*",
+    "app.types.*",
     "app.main",
 ]
 # Allow dynamic attribute access for ORM models and CAD operations
-disable_error_code = ["attr-defined", "union-attr", "assignment", "arg-type", "call-arg", "operator", "index", "call-overload", "misc", "return-value", "var-annotated", "name-defined", "list-item", "prop-decorator", "import-untyped", "truthy-function", "dict-item", "comparison-overlap", "annotation-unchecked"]
+# Removed: truthy-function, dict-item, comparison-overlap (fixed in PR #278)
+# Removed: misc, name-defined, prop-decorator, list-item (fixed in PR #278)
+# Removed: import-untyped, call-overload, var-annotated, index (fixed in PR #278)
+# Removed: operator, call-arg (fixed in PR #278)
+# Removed: return-value (fixed in PR #278)
+# Removed: union-attr, attr-defined, assignment, arg-type (fixed in PR #278)
+# All error codes enabled - strict mode ready
 
 [tool.coverage.run]
 source = ["app"]

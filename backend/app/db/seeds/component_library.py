@@ -1506,7 +1506,8 @@ async def seed_component_library(db: Any) -> int:
 def get_component_by_name(name: str) -> dict[str, Any] | None:
     """Get component data by name."""
     for component in COMPONENT_LIBRARY:
-        if component["name"].lower() == name.lower():
+        comp_name = str(component["name"])
+        if comp_name.lower() == name.lower():
             return component
     return None
 

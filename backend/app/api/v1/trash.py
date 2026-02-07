@@ -158,7 +158,10 @@ async def list_trash(
     # Build response
     items = []
     for design in designs:
-        expires_at = calculate_expiry(design.deleted_at, retention_days)
+        deleted_at = design.deleted_at
+        if deleted_at is None:
+            continue  # Skip designs without deleted_at
+        expires_at = calculate_expiry(deleted_at, retention_days)
         days_left = (expires_at - datetime.now(tz=UTC)).days
 
         items.append(

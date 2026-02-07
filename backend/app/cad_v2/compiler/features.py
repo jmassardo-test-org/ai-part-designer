@@ -177,7 +177,7 @@ class FeatureCompiler:
                     else:
                         Box(slot.width.mm, depth, slot.length.mm)
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part
 
     def _apply_port_cutout(self, body: Part, port: PortCutout) -> Part:
         """Apply a standard port cutout."""
@@ -206,7 +206,7 @@ class FeatureCompiler:
                 depth = wall + 1
                 Box(width, depth, height)
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part
 
     def _apply_button_cutout(self, body: Part, button: ButtonCutout) -> Part:
         """Apply a button cutout (circular)."""
@@ -222,7 +222,7 @@ class FeatureCompiler:
                 # Circular hole for button actuator
                 Cylinder(button.diameter.mm / 2, wall + 1)
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part
 
     def _apply_display_cutout(self, body: Part, display: DisplayCutout) -> Part:
         """Apply a display cutout."""
@@ -238,7 +238,7 @@ class FeatureCompiler:
                 # Viewing area cutout
                 Box(display.viewing_width.mm, wall + 1, display.viewing_height.mm)
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part
 
     def _apply_vent_pattern(self, body: Part, _vent: VentPattern) -> Part:
         """Apply a ventilation pattern."""
@@ -291,4 +291,4 @@ class FeatureCompiler:
                         text_height,
                     )
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part

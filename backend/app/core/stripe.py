@@ -56,7 +56,7 @@ class StripeClient:
         """
         return stripe.Customer.create(
             email=email,
-            name=name,
+            name=name,  # type: ignore[arg-type]
             metadata=metadata or {},
         )
 
@@ -72,7 +72,7 @@ class StripeClient:
         metadata: dict[str, str] | None = None,
     ) -> stripe.Customer:
         """Update a Stripe customer's details."""
-        update_data = {}
+        update_data: dict[str, Any] = {}
         if email:
             update_data["email"] = email
         if name:
@@ -154,7 +154,7 @@ class StripeClient:
                     "price": price_id,
                 }
             ],
-            proration_behavior=proration_behavior,
+            proration_behavior=proration_behavior,  # type: ignore[arg-type]
         )
 
     # =====================
@@ -188,7 +188,7 @@ class StripeClient:
         """
         return stripe.checkout.Session.create(
             customer=customer_id,
-            mode=mode,
+            mode=mode,  # type: ignore[arg-type]
             line_items=[
                 {
                     "price": price_id,
@@ -242,7 +242,7 @@ class StripeClient:
         if product_id:
             params["product"] = product_id
 
-        return list(stripe.Price.list(**params))
+        return list(stripe.Price.list(**params))  # type: ignore[arg-type]
 
     def get_price(self, price_id: str) -> stripe.Price:
         """Retrieve a price by ID."""

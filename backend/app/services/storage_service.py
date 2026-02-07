@@ -118,7 +118,7 @@ class StorageService:
             return bucket, path_parts[0] if path_parts else ""
 
         # Assume it's just a key in the default bucket
-        return self.bucket, url
+        return self.bucket, url  # type: ignore[return-value]  # bucket is always str
 
     async def copy_file(
         self,

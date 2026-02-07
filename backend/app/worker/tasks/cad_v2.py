@@ -149,7 +149,7 @@ def compile_enclosure_v2(
 
                 # Step 3: Export files
                 from app.api.v2.downloads import get_job_dir
-                from app.cad_v2.compiler.export import ExportFormat
+                from app.cad_v2.compiler.engine import ExportFormat
 
                 fmt = ExportFormat.STL if export_format.lower() == "stl" else ExportFormat.STEP
 
@@ -410,7 +410,7 @@ def generate_from_description_v2(
 
                 # Step 3: Export files
                 from app.api.v2.downloads import get_job_dir
-                from app.cad_v2.compiler.export import ExportFormat
+                from app.cad_v2.compiler.engine import ExportFormat
 
                 fmt = ExportFormat.STL if export_format.lower() == "stl" else ExportFormat.STEP
 

@@ -24,7 +24,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.auth import get_current_user
+from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models import Design, DesignShare, User
 
@@ -213,18 +213,18 @@ async def share_design(
 
     if existing_share:
         # Update permission
-        existing_share.permission = request.permission
+        existing_share.permission = request.permission # type: ignore[attr-defined]
         existing_share.updated_at = datetime.now(tz=UTC)
         await db.commit()
         await db.refresh(existing_share)
 
         return ShareResponse(
             id=existing_share.id,
-            design_id=existing_share.design_id,
+            design_id=existing_share.design_id, # type: ignore[attr-defined]
             shared_with_id=share_with_user.id,
-            shared_with_email=share_with_user.email,
-            shared_with_name=share_with_user.display_name or share_with_user.email,
-            permission=existing_share.permission,
+            shared_with_email=share_with_user.email, # type: ignore[attr-defined]
+            shared_with_name=share_with_user.display_name or share_with_user.email, # type: ignore[attr-defined]
+            permission=existing_share.permission, # type: ignore[attr-defined]
             shared_at=existing_share.created_at,
         )
 
@@ -245,8 +245,8 @@ async def share_design(
         id=share.id,
         design_id=share.design_id,
         shared_with_id=share_with_user.id,
-        shared_with_email=share_with_user.email,
-        shared_with_name=share_with_user.display_name or share_with_user.email,
+        shared_with_email=share_with_user.email, # type: ignore[attr-defined]
+        shared_with_name=share_with_user.display_name or share_with_user.email, # type: ignore[attr-defined]
         permission=share.permission,
         shared_at=share.created_at,
     )

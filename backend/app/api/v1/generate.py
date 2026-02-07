@@ -220,8 +220,7 @@ async def _generate_via_v2(
     from uuid import uuid4
 
     from app.cad_v2.ai.schema_generator import SchemaGenerator
-    from app.cad_v2.compiler.engine import CompilationEngine
-    from app.cad_v2.compiler.export import ExportFormat
+    from app.cad_v2.compiler.engine import CompilationEngine, ExportFormat
 
     job_id = str(uuid4())
 
@@ -361,8 +360,8 @@ async def _generate_via_v1(
 
         # Build download URLs (AI code generation always produces single parts)
         downloads = {}
-        parts = []
-        bom = []
+        parts: list[dict[str, Any]] = []
+        bom: list[dict[str, Any]] = []
 
         if result.step_path:
             downloads["step"] = f"/api/v1/generate/{result.job_id}/download/step"

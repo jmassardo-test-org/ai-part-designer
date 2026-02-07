@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.auth import get_current_user
+from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models import Design, DesignShare, User
 
@@ -106,7 +106,7 @@ async def check_design_access(
         select(Design).where(
             and_(
                 Design.id == design_id,
-                not Design.is_deleted,
+                Design.deleted_at.is_(None),
             )
         )
     )
@@ -146,7 +146,7 @@ async def check_design_access(
             detail="You don't have access to this design",
         )
 
-    if require_comment_permission and share.permission == "view":
+    if require_comment_permission and share.permission == "view": # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to comment on this design",

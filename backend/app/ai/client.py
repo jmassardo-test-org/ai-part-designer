@@ -225,7 +225,7 @@ class ClaudeClient:
                 )
 
                 # Extract content
-                content = response.content[0].text
+                content: str | None = response.content[0].text
                 if content is None:
                     raise AIError("Empty response from Claude")
 
@@ -356,7 +356,8 @@ class ClaudeClient:
                 self._total_input_tokens += response.usage.input_tokens
                 self._total_output_tokens += response.usage.output_tokens
 
-            return response.content[0].text
+            content: str = response.content[0].text
+            return content
 
         except Exception as e:
             raise AIError(f"Claude vision request failed: {e}", cause=e)

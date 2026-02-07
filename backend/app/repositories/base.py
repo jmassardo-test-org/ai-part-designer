@@ -51,11 +51,11 @@ class BaseRepository(Generic[ModelType]):
             include_deleted: Include soft-deleted records
             load_relations: List of relationship names to eager load
         """
-        query = select(self.model).where(self.model.id == id)
+        query = select(self.model).where(self.model.id == id)  # type: ignore[attr-defined]
 
         # Handle soft deletes
         if not include_deleted and hasattr(self.model, "deleted_at"):
-            query = query.where(self.model.deleted_at.is_(None))
+            query = query.where(self.model.deleted_at.is_(None))  # type: ignore[attr-defined]
 
         # Eager load relationships
         if load_relations:
@@ -105,14 +105,14 @@ class BaseRepository(Generic[ModelType]):
 
         # Handle soft deletes
         if not include_deleted and hasattr(self.model, "deleted_at"):
-            query = query.where(self.model.deleted_at.is_(None))
+            query = query.where(self.model.deleted_at.is_(None))  # type: ignore[attr-defined]
 
         # Ordering
         if order_by and hasattr(self.model, order_by):
             order_column = getattr(self.model, order_by)
             query = query.order_by(order_column.desc() if order_desc else order_column.asc())
         elif hasattr(self.model, "created_at"):
-            query = query.order_by(self.model.created_at.desc())
+            query = query.order_by(self.model.created_at.desc())  # type: ignore[attr-defined]
 
         # Pagination
         query = query.offset(offset).limit(limit)
@@ -147,7 +147,7 @@ class BaseRepository(Generic[ModelType]):
                 query = query.where(and_(*conditions))
 
         if not include_deleted and hasattr(self.model, "deleted_at"):
-            query = query.where(self.model.deleted_at.is_(None))
+            query = query.where(self.model.deleted_at.is_(None))  # type: ignore[attr-defined]
 
         result = await self.session.execute(query)
         return result.scalar() or 0
@@ -212,10 +212,10 @@ class BaseRepository(Generic[ModelType]):
         include_deleted: bool = False,
     ) -> bool:
         """Check if a record exists."""
-        query = select(func.count()).select_from(self.model).where(self.model.id == id)
+        query = select(func.count()).select_from(self.model).where(self.model.id == id)  # type: ignore[attr-defined]
 
         if not include_deleted and hasattr(self.model, "deleted_at"):
-            query = query.where(self.model.deleted_at.is_(None))
+            query = query.where(self.model.deleted_at.is_(None))  # type: ignore[attr-defined]
 
         result = await self.session.execute(query)
         return (result.scalar() or 0) > 0
@@ -251,7 +251,7 @@ class BaseRepository(Generic[ModelType]):
             query = query.where(or_(*conditions))
 
         if hasattr(self.model, "deleted_at"):
-            query = query.where(self.model.deleted_at.is_(None))
+            query = query.where(self.model.deleted_at.is_(None))  # type: ignore[attr-defined]
 
         query = query.limit(limit)
 

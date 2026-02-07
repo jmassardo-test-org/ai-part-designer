@@ -124,7 +124,7 @@ class DesignContext(Base):
 
     def add_assistant_message(self, content: str, parameters: dict[str, Any] | None = None) -> None:
         """Add an assistant message to the conversation."""
-        message = {
+        message: dict[str, Any] = {
             "role": "assistant",
             "content": content,
             "timestamp": datetime.now(tz=UTC).isoformat(),

@@ -389,7 +389,8 @@ async def add_to_list(
         DesignListItem.list_id == list_id
     )
     result = await db.execute(max_pos_query)
-    max_pos = result.scalar() or 0
+    scalar_result = result.scalar()
+    max_pos = int(scalar_result) if isinstance(scalar_result, int) else 0
 
     # Create item
     item = DesignListItem(
@@ -495,7 +496,7 @@ async def remove_from_list(
         )
     )
 
-    if result.rowcount == 0:
+    if result.rowcount == 0: # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found in list",

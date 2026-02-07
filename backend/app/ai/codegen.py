@@ -423,7 +423,7 @@ def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
         except Exception as e:
             raise AIValidationError(f"Result has no valid geometry: {e}")
 
-        return result  # type: ignore[no-any-return]
+        return result
 
     except SyntaxError as e:
         logger.error(f"Syntax error in generated code: {e}")
@@ -725,21 +725,21 @@ async def generate_cadquery_code(
             ],
         }
         # Build detailed dimension description
-        dims = intent.overall_dimensions
+        intent_dims = intent.overall_dimensions
         thickness = intent.material_thickness
 
-        if dims:
+        if intent_dims:
             # Format dimensions clearly for the AI
             dim_parts = []
-            for k, v in dims.items():
+            for k, v in intent_dims.items():
                 if v and k != "unit":
                     dim_parts.append(f"{k}={v}mm")
-            if thickness and "thickness" not in dims:
+            if thickness and "thickness" not in intent_dims:
                 dim_parts.append(f"thickness={thickness}mm")
 
             dim_str = ", ".join(dim_parts)
             detected_intent["base_shape"] = f"{detected_intent['base_shape']} ({dim_str})"
-            detected_intent["dimensions"] = dims
+            detected_intent["dimensions"] = intent_dims
             detected_intent["thickness"] = thickness
 
         logger.info(f"Using intent from reasoning: {detected_intent}")
@@ -751,8 +751,11 @@ async def generate_cadquery_code(
     logger.info("Pass 1: Generating base geometry...")
 
     # Build more explicit base prompt with dimension context
-    base_info = detected_intent.get("base_shape", description)
-    dims = detected_intent.get("dimensions", {})
+    base_info_raw = detected_intent.get("base_shape", description)
+    base_info = str(base_info_raw) if base_info_raw else str(description)
+    # Ensure dims is always a dict for attribute access
+    dims_raw: Any = detected_intent.get("dimensions", {})
+    dims: dict[str, Any] = dims_raw if isinstance(dims_raw, dict) else {}
     thickness = detected_intent.get("thickness")
 
     # Add explicit instruction based on detected shape type
@@ -864,7 +867,7 @@ async def generate_cadquery_code(
             result_shape, actual_radius, adjustment_msg = _apply_fillet_with_fallback(
                 current_shape, selector, requested_radius, "fillet"
             )
-            if result_shape is not None:
+            if result_shape is not None and actual_radius is not None:
                 actual_code = f'result = base_shape.edges("{selector}").fillet({actual_radius})'
                 all_code.append(f"# === Fillets ===\n{actual_code}")
                 current_shape = result_shape

@@ -119,6 +119,13 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
         """Get logo URL from settings."""
         return self.settings.get("logo_url")
 
+    @logo_url.setter
+    def logo_url(self, value: str | None) -> None:
+        """Set logo URL in settings."""
+        if self.settings is None:
+            self.settings = {}
+        self.settings = {**self.settings, "logo_url": value}
+
     @property
     def subscription_tier(self) -> str:
         """Get subscription tier from settings."""
@@ -185,7 +192,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     @property
     def member_count(self) -> int:
         """Count of active members."""
-        return self.members.count()
+        return len(self.members) if self.members else 0
 
 
 class OrganizationMember(Base, TimestampMixin):

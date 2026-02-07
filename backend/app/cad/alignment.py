@@ -387,7 +387,7 @@ class AlignmentService:
             transformations.append(
                 TransformationResult(
                     transformed_shape=translated,
-                    translation=tuple(translation),
+                    translation=(translation[0], translation[1], translation[2]),
                     original_bbox=bbox,
                     final_bbox=final_bbox,
                 )
@@ -399,12 +399,14 @@ class AlignmentService:
         # Combine all shapes
         combined = self._fuse_parts([t.transformed_shape for t in transformations])
 
-        total_bbox = self.get_bounding_box(combined)
+        combined_bbox = self.get_bounding_box(combined)
+        if combined_bbox is None:
+            raise ValueError("Failed to compute bounding box for combined shape")
 
         return AlignmentResult(
             combined_shape=combined,
             transformations=transformations,
-            total_bbox=total_bbox,
+            total_bbox=combined_bbox,
         )
 
     def side_by_side(
@@ -451,22 +453,26 @@ class AlignmentService:
 
         if mode == AlignmentMode.ORIGIN:
             result = self.align_to_origin(target)
-            total_bbox = result.final_bbox
+            bbox = result.final_bbox
+            if bbox is None:
+                raise ValueError("Failed to compute bounding box for aligned shape")
             return AlignmentResult(
                 combined_shape=result.transformed_shape,
                 transformations=[result],
-                total_bbox=total_bbox,
+                total_bbox=bbox,
             )
 
         if mode == AlignmentMode.CENTER:
             axes = options.get("axes", AlignmentAxis.XYZ)
             result1, result2 = self.align_centers(reference, target, axes)
             combined = self._fuse_parts([result1.transformed_shape, result2.transformed_shape])
-            total_bbox = self.get_bounding_box(combined)
+            center_bbox = self.get_bounding_box(combined)
+            if center_bbox is None:
+                raise ValueError("Failed to compute bounding box for combined shape")
             return AlignmentResult(
                 combined_shape=combined,
                 transformations=[result1, result2],
-                total_bbox=total_bbox,
+                total_bbox=center_bbox,
             )
 
         if mode == AlignmentMode.STACK_Z:

@@ -86,7 +86,7 @@ class StorageClient:
         """
         bucket_name = self._get_bucket_name(bucket)
 
-        extra_args = {}
+        extra_args: dict[str, Any] = {}
         if content_type:
             extra_args["ContentType"] = content_type
         if metadata:

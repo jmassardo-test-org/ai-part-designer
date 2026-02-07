@@ -72,7 +72,7 @@ class Settings(BaseSettings):
         description="Force HTTPS in production",
     )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def ALLOWED_ORIGINS(self) -> list[str]:
         """Get allowed CORS origins based on environment."""
@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "ai_part_designer"
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def DATABASE_URL(self) -> str:
         """Construct async PostgreSQL connection URL."""
@@ -100,7 +100,7 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def DATABASE_URL_SYNC(self) -> str:
         """Construct sync PostgreSQL connection URL (for Alembic)."""
@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str | None = None
     REDIS_DB: int = 0
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def REDIS_URL(self) -> str:
         """Construct Redis connection URL."""

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.cad_v2.ai import SchemaGenerator
 from app.cad_v2.compiler import CompilationEngine
-from app.cad_v2.compiler.export import ExportFormat
+from app.cad_v2.compiler.engine import ExportFormat
 from app.core.auth import get_current_user_optional
 from app.core.database import get_db
 

@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 
 from app.ai.exceptions import AIError
-from app.ai.providers import get_ai_provider
+from app.ai.providers import AIProvider, get_ai_provider
 
 
 class IntentType(StrEnum):
@@ -59,7 +59,7 @@ class IntentParser:
 
     def __init__(self) -> None:
         """Initialize intent parser."""
-        self._provider = None
+        self._provider: AIProvider | None = None
 
     @property
     def provider(self) -> Any:

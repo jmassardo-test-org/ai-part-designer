@@ -232,9 +232,9 @@ class AutoLayoutEngine:
         placements = []
         current_x = self.wall_margin
         current_y = self.wall_margin
-        shelf_height = 0  # Track row (shelf) depth
-        max_used_x = 0
-        max_height_z = 0
+        shelf_height: float = 0  # Track row (shelf) depth
+        max_used_x: float = 0
+        max_height_z: float = 0
 
         # Estimate width if not constrained
         if max_width is None:
@@ -273,9 +273,9 @@ class AutoLayoutEngine:
             max_height_z = max(max_height_z, comp.height)
 
         # Calculate enclosure dimensions
-        enclosure_width = max_used_x + self.wall_margin - self.clearance
-        enclosure_depth = current_y + shelf_height + self.wall_margin
-        enclosure_height = max_height_z + 10  # Add headroom
+        enclosure_width = int(max_used_x + self.wall_margin - self.clearance)
+        enclosure_depth = int(current_y + shelf_height + self.wall_margin)
+        enclosure_height = int(max_height_z + 10)  # Add headroom
 
         return LayoutResult(
             placements=placements,
@@ -317,10 +317,10 @@ class AutoLayoutEngine:
         # Calculate grid dimensions
         n = len(components)
         cols = int((n**0.5) + 0.5)  # Roughly square
-        rows = (n + cols - 1) // cols
+        rows = int((n + cols - 1) // cols)
 
         placements = []
-        max_height_z = 0
+        max_height_z: float = 0
 
         for i, comp in enumerate(components):
             col = i % cols
@@ -400,7 +400,7 @@ class AutoLayoutEngine:
         ]
 
         placed = []
-        max_height_z = 0
+        max_height_z: float = 0
 
         # Place high-power components at corners
         for i, comp in enumerate(high_power[:4]):
@@ -425,7 +425,7 @@ class AutoLayoutEngine:
             # Simple row placement for remaining
             current_x = self.wall_margin
             current_y = target_side / 3  # Start in middle area
-            row_height = 0
+            row_height: float = 0
 
             for comp in remaining:
                 if current_x + comp.rotated_width + self.wall_margin > target_side:
@@ -456,8 +456,8 @@ class AutoLayoutEngine:
 
         return LayoutResult(
             placements=placements,
-            enclosure_width=max_x + self.wall_margin,
-            enclosure_depth=max_y + self.wall_margin,
+            enclosure_width=int(max_x + self.wall_margin),
+            enclosure_depth=int(max_y + self.wall_margin),
             enclosure_height=max_height_z + 10,
             algorithm_used="thermal",
             success=True,
@@ -491,7 +491,7 @@ class AutoLayoutEngine:
                 no_connectors.append(comp)
 
         placements = []
-        max_height_z = 0
+        max_height_z: float = 0
 
         # Estimate width
         if max_width is None:
@@ -551,7 +551,7 @@ class AutoLayoutEngine:
         # Place remaining components in middle
         middle_y = self.wall_margin + front_row_depth + self.clearance
         current_x = self.wall_margin
-        row_depth = 0
+        row_depth: float = 0
 
         for comp in no_connectors + has_side_connectors:
             if current_x + comp.rotated_width + self.wall_margin > max_width:
@@ -576,8 +576,8 @@ class AutoLayoutEngine:
 
         return LayoutResult(
             placements=placements,
-            enclosure_width=max_x + self.wall_margin,
-            enclosure_depth=max_y + self.wall_margin,
+            enclosure_width=int(max_x + self.wall_margin),
+            enclosure_depth=int(max_y + self.wall_margin),
             enclosure_height=max_height_z + 10,
             algorithm_used="connector",
             success=True,

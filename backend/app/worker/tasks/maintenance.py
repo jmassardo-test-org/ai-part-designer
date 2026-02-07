@@ -4,7 +4,7 @@ Maintenance and housekeeping tasks.
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal, cast
 
 from celery import shared_task
 
@@ -35,7 +35,7 @@ def purge_expired_trash() -> dict[str, Any]:
     from app.models import Design, File, Project
 
     async def run() -> dict[str, Any]:
-        deleted_summary = {
+        deleted_summary: dict[str, Any] = {
             "designs": 0,
             "projects": 0,
             "files": 0,
@@ -73,10 +73,11 @@ def purge_expired_trash() -> dict[str, Any]:
 
                     for design in expired_designs:
                         # Clean up storage files
-                        if design.file_url:
+                        file_url = getattr(design, "file_url", None) or design.extra_data.get("file_url")
+                        if file_url:
                             try:
                                 await storage_client.delete_files(
-                                    StorageBucket.DESIGNS, [design.file_url]
+                                    StorageBucket.DESIGNS, [file_url]
                                 )
                                 deleted_summary["storage_files_removed"] += 1
                             except Exception as e:
@@ -110,10 +111,11 @@ def purge_expired_trash() -> dict[str, Any]:
                     expired_files = files_result.scalars().all()
 
                     for file in expired_files:
-                        if file.storage_key:
+                        storage_key = getattr(file, "storage_key", None) or getattr(file, "storage_bucket", None)
+                        if storage_key:
                             try:
                                 await storage_client.delete_files(
-                                    StorageBucket.DESIGNS, [file.storage_key]
+                                    StorageBucket.DESIGNS, [storage_key]
                                 )
                                 deleted_summary["storage_files_removed"] += 1
                             except Exception as e:
@@ -177,7 +179,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
     WARNING_DAYS = [7, 3, 1]
 
     async def run() -> dict[str, Any]:
-        notification_summary = {
+        notification_summary: dict[str, Any] = {
             "users_notified": 0,
             "emails_sent": 0,
             "items_warned": 0,
@@ -188,7 +190,11 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
 
         async with async_session_maker() as session:
             # Get all users with email notifications enabled
-            users_result = await session.execute(select(User).where(User.is_active))
+            users_result = await session.execute(
+                select(User).where(
+                    and_(User.status == "active", User.deleted_at.is_(None))
+                )
+            )
             users = users_result.scalars().all()
 
             for user in users:
@@ -234,6 +240,8 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
                     for design in designs:
                         notification_key = f"design_{design.id}_{warning_day}"
                         if notification_key not in sent_notifications:
+                            # deleted_at is guaranteed non-None by query filter
+                            assert design.deleted_at is not None
                             items_to_warn.append(
                                 {
                                     "name": design.name,
@@ -260,6 +268,8 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
                     for project in projects:
                         notification_key = f"project_{project.id}_{warning_day}"
                         if notification_key not in sent_notifications:
+                            # deleted_at is guaranteed non-None by query filter
+                            assert project.deleted_at is not None
                             items_to_warn.append(
                                 {
                                     "name": project.name,
@@ -273,7 +283,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
                 if items_to_warn:
                     try:
                         # Group by days until deletion
-                        min_days = min(item["days_until_deletion"] for item in items_to_warn)
+                        min_days = min(cast("int", item["days_until_deletion"]) for item in items_to_warn)
 
                         # Build URLs
                         base_url = settings.FRONTEND_URL or "https://assemblematic.ai"
@@ -283,7 +293,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
                         # Send email
                         success = await email_service.send_trash_deletion_warning(
                             email=user.email,
-                            display_name=user.full_name or user.email.split("@")[0],
+                            display_name=user.display_name or user.email.split("@")[0],
                             days_until_deletion=min_days,
                             items=[
                                 {
@@ -362,7 +372,7 @@ def cleanup_old_jobs(days: int = 30) -> dict[str, Any]:
                 .where(Job.created_at < cutoff)
             )
 
-            deleted_count = result.rowcount
+            deleted_count = result.rowcount  # type: ignore[attr-defined]
             await session.commit()
 
             logger.info(f"Cleaned up {deleted_count} old jobs")
@@ -454,7 +464,7 @@ def cleanup_temp_files(max_age_hours: int = 24) -> dict[str, Any]:
 @shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.maintenance.backup_database",
 )
-def backup_database(backup_type: str = "full") -> dict[str, Any]:
+def backup_database(backup_type: Literal["full", "schema", "data"] = "full") -> dict[str, Any]:
     """
     Create database backup and upload to storage.
 
@@ -538,7 +548,7 @@ def update_search_vectors() -> dict[str, Any]:
                 """)
             )
 
-            updated_count = result.rowcount
+            updated_count = result.rowcount  # type: ignore[attr-defined]
             await session.commit()
 
             logger.info(f"Updated {updated_count} search vectors")
@@ -689,7 +699,7 @@ def verify_backups() -> dict[str, Any]:
     from app.services.backup import BackupService, BackupStatus
 
     async def run() -> dict[str, Any]:
-        verification_summary = {
+        verification_summary: dict[str, Any] = {
             "backups_checked": 0,
             "backups_valid": 0,
             "backups_invalid": 0,

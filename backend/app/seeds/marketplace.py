@@ -309,7 +309,7 @@ async def seed_files_for_user(
             cad_format=file_data["cad_format"],
             status=file_data["status"],
             geometry_info=file_data["geometry_info"],
-            checksum_sha256="seeded_" + file_data["filename"],  # Fake checksum
+            checksum_sha256="seeded_" + str(file_data["filename"]),  # Fake checksum
             scan_status="clean",
         )
         db.add(file)
@@ -353,8 +353,8 @@ async def seed_marketplace(db: AsyncSession) -> dict[str, int]:
     designs_result = await db.execute(
         select(Design)
         .where(
-            Design.is_public,
-            Design.deleted_at is None,
+            Design.is_public == True,  # noqa: E712
+            Design.deleted_at.is_(None),
         )
         .limit(10)
     )

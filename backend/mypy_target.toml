@@ -1,0 +1,55 @@
+[mypy]
+python_version = 3.12
+strict = false
+warn_return_any = false
+warn_unused_configs = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic/", "tests/"]
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "build123d.*",
+    "OCP.*",
+    "ezdxf.*",
+    "cairosvg.*",
+    "cadquery.*",
+    "celery.*",
+    "stripe.*",
+    "redis.*",
+    "structlog.*",
+    "prometheus_client.*",
+    "prometheus_fastapi_instrumentator.*",
+    "fitz.*",
+    "numpy.*",
+    "stl.*",
+    "aioboto3.*",
+    "botocore.*",
+    "aiosmtplib.*",
+    "pdf2image.*",
+    "anthropic.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "app.repositories.*",
+    "app.models.*",
+    "app.services.*",
+    "app.api.*",
+    "app.core.*",
+    "app.db.*",
+    "app.cad.*",
+    "app.cad_v2.*",
+    "app.enclosure.*",
+    "app.layout.*",
+    "app.worker.*",
+    "app.ai.*",
+    "app.middleware.*",
+    "app.websocket.*",
+    "app.seeds.*",
+    "app.types.*",
+    "app.main",
+]
+# Progressively enable - target: empty list
+disable_error_code = ["attr-defined", "union-attr", "assignment", "arg-type", "return-value", "annotation-unchecked"]

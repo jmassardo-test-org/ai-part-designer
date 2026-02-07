@@ -468,7 +468,7 @@ async def save_generation(
         )
 
     # Get or create target project
-    project: Project
+    project: Project | None = None
     if request.project_id:
         # Verify project exists and user owns it
         project_query = select(Project).where(

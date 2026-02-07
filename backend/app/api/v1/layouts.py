@@ -521,10 +521,10 @@ async def add_placement(
             detail="Component already in layout",
         )
 
-    # Get component dimensions from specifications
+    # Get component dimensions from dimensions field
     width = depth = height = None
-    if component.specifications:
-        dims = component.specifications.get("dimensions", {})
+    if component.dimensions:
+        dims = component.dimensions
         width = dims.get("length") or dims.get("width")
         depth = dims.get("width") or dims.get("depth")
         height = dims.get("height")
@@ -603,6 +603,11 @@ async def update_placement(
 
     # Verify access through layout/project
     layout = await db.get(SpatialLayout, layout_id)
+    if not layout:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Placement not found",
+        )
     project = await db.get(Project, layout.project_id)
     if not project or project.user_id != current_user.id:
         raise HTTPException(
@@ -691,6 +696,11 @@ async def remove_placement(
 
     # Verify access
     layout = await db.get(SpatialLayout, layout_id)
+    if not layout:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Placement not found",
+        )
     project = await db.get(Project, layout.project_id)
     if not project or project.user_id != current_user.id:
         raise HTTPException(
@@ -842,17 +852,17 @@ async def auto_layout(
     placements = []
     current_x = layout.min_spacing_x
     current_y = layout.min_spacing_y
-    row_height = 0
-    max_x = 0
-    max_y = 0
-    max_z = 0
+    row_height: float = 0
+    max_x: float = 0
+    max_y: float = 0
+    max_z: float = 0
 
     for component in components:
         # Get dimensions
-        dims = component.specifications.get("dimensions", {}) if component.specifications else {}
-        width = dims.get("length") or dims.get("width") or 50
-        depth = dims.get("width") or dims.get("depth") or 50
-        height = dims.get("height") or 20
+        dims = component.dimensions if component.dimensions else {}
+        width = dims.get("length") or dims.get("width") or 50 # type: ignore[attr-defined]
+        depth = dims.get("width") or dims.get("depth") or 50 # type: ignore[attr-defined]
+        height = dims.get("height") or 20 # type: ignore[attr-defined]
 
         # Check if fits in current row
         if current_x + width + layout.min_spacing_x > layout.enclosure_length:

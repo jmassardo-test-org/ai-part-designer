@@ -351,17 +351,18 @@ async def create_conversation(
         .options(selectinload(Conversation.messages))
         .where(Conversation.id == conversation.id)
     )
-    conversation = result.scalars().first()
+    refreshed_conversation = result.scalars().first()
+    assert refreshed_conversation is not None  # Just added, should exist
 
     return ConversationResponse(
-        id=conversation.id,
-        status=conversation.status,
-        title=conversation.title,
-        messages=[_message_to_response(m) for m in conversation.messages],
+        id=refreshed_conversation.id,
+        status=refreshed_conversation.status,
+        title=refreshed_conversation.title,
+        messages=[_message_to_response(m) for m in refreshed_conversation.messages],
         understanding=None,
         result=None,
-        created_at=conversation.created_at,
-        updated_at=conversation.updated_at,
+        created_at=refreshed_conversation.created_at,
+        updated_at=refreshed_conversation.updated_at,
     )
 
 
@@ -595,7 +596,11 @@ async def send_message(
                     request.content
                 )
 
+                gen_result: Any  # Can be ModificationResult or DirectResult
+
                 if is_modification:
+                    # result_data is guaranteed to be not None when is_modification is True
+                    assert conversation.result_data is not None
                     # Get original code for modification
                     original_code = conversation.result_data.get("generated_code")
 
@@ -644,8 +649,9 @@ async def send_message(
                     step_path.write_bytes(step_data)
                     stl_path.write_bytes(stl_data)
 
-                    # Get existing dimensions from result_data
+                    # Get existing values from result_data (guaranteed non-None by assertion above)
                     existing_dims = conversation.result_data.get("dimensions", {})
+                    existing_shape_type = conversation.result_data.get("shape", "custom")
 
                     # Build a result similar to generate_from_description
                     class ModificationResult:
@@ -654,10 +660,10 @@ async def send_message(
                             self.step_path = step_path
                             self.stl_path = stl_path
                             self.is_successful = True
-                            self.shape_type = conversation.result_data.get("shape", "custom")
+                            self.shape_type = existing_shape_type
                             self.dimensions = existing_dims
                             self.confidence = 0.9
-                            self.warnings = []
+                            self.warnings: list[str] = []
                             self.generated_code = code_result.code  # Store for future mods
 
                         def get_stats(self) -> dict[str, Any]:
@@ -702,6 +708,12 @@ async def send_message(
                     step_path.write_bytes(step_data)
                     stl_path.write_bytes(stl_data)
 
+                    # Capture dimensions before class definition (understanding is guaranteed non-None here)
+                    assert understanding is not None
+                    captured_dimensions = {
+                        k: v.value for k, v in understanding.dimensions.items()
+                    }
+
                     # Create a simple result object
                     class DirectResult:
                         def __init__(self) -> None:
@@ -710,11 +722,9 @@ async def send_message(
                             self.stl_path = stl_path
                             self.is_successful = True
                             self.shape_type = "custom"
-                            self.dimensions = {
-                                k: v.value for k, v in understanding.dimensions.items()
-                            }
+                            self.dimensions = captured_dimensions
                             self.confidence = 0.9
-                            self.warnings = []
+                            self.warnings: list[str] = []
                             self.generated_code = direct_result.code
 
                         def get_stats(self) -> dict[str, Any]:

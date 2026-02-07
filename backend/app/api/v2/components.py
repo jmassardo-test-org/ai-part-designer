@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.cad_v2.components import get_registry
 from app.cad_v2.components.registry import ComponentNotFoundError
+from app.cad_v2.schemas.components import ComponentCategory
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,14 @@ async def list_components(
     """
     registry = get_registry()
 
-    components = registry.list_category(category) if category else registry.list_all()
+    if category:
+        try:
+            cat_enum = ComponentCategory(category)
+            components = registry.list_category(cat_enum)
+        except ValueError:
+            components = []  # Invalid category returns empty list
+    else:
+        components = registry.list_all()
 
     return [
         ComponentSummary(

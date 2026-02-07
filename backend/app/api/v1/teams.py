@@ -184,7 +184,7 @@ async def get_team(
             id=m.id,
             user_id=m.user_id,
             email=m.user.email if m.user else "",
-            full_name=m.user.full_name if m.user else None,
+            full_name=m.user.display_name if m.user else None,
             role=m.role,
             joined_at=m.joined_at,
         )
@@ -341,7 +341,7 @@ async def list_team_members(
             created_at=m.created_at,
             updated_at=m.updated_at,
             user_email=m.user.email if m.user else None,
-            user_full_name=m.user.full_name if m.user else None,
+            user_full_name=m.user.display_name if m.user else None,
         )
         items.append(item)
 

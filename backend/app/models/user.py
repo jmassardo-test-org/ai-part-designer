@@ -122,10 +122,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         String(64),
         nullable=True,
     )  # TOTP secret (encrypted)
-    mfa_backup_codes: Mapped[list[str] | None] = mapped_column(
+    mfa_backup_codes: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSONB,
         nullable=True,
-    )  # Hashed backup codes
+    )  # Hashed backup codes with used status
     mfa_enabled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

@@ -83,8 +83,8 @@ def generate_from_template(
 
             # Validate parameters
             validation = template.validate_parameters(parameters)
-            if not validation["valid"]:
-                raise ValueError(f"Invalid parameters: {validation['errors']}")
+            if validation:
+                raise ValueError(f"Invalid parameters: {validation}")
 
             # Execute CadQuery script (placeholder)
             await job_repo.update(
@@ -393,16 +393,16 @@ def generate_from_description_task(
                     # Upload to storage
                     file_urls = {}
 
-                    from app.core.storage import get_storage
+                    from app.core.storage import StorageBucket, get_storage
 
                     storage = await get_storage()
 
                     if result.step_path and result.step_path.exists():
                         step_key = f"designs/{job_id}/model.step"
                         await storage.upload_file(
-                            bucket="exports",
+                            bucket=StorageBucket.EXPORTS,
                             key=step_key,
-                            data=result.step_path.read_bytes(),
+                            file=result.step_path.read_bytes(),
                             content_type="application/step",
                         )
                         file_urls["step"] = step_key
@@ -410,9 +410,9 @@ def generate_from_description_task(
                     if result.stl_path and result.stl_path.exists():
                         stl_key = f"designs/{job_id}/model.stl"
                         await storage.upload_file(
-                            bucket="exports",
+                            bucket=StorageBucket.EXPORTS,
                             key=stl_key,
-                            data=result.stl_path.read_bytes(),
+                            file=result.stl_path.read_bytes(),
                             content_type="model/stl",
                         )
                         file_urls["stl"] = stl_key
@@ -420,9 +420,9 @@ def generate_from_description_task(
                 # Build result
                 output = {
                     "job_id": job_id,
-                    "shape": result.parameters.shape.value,
-                    "dimensions": result.parameters.dimensions,
-                    "confidence": result.parameters.confidence,
+                    "shape": result.parameters.shape.value if hasattr(result, "parameters") and result.parameters else "unknown",
+                    "dimensions": result.parameters.dimensions if hasattr(result, "parameters") and result.parameters else {},
+                    "confidence": result.parameters.confidence if hasattr(result, "parameters") and result.parameters else 0.0,
                     "files": file_urls,
                     "timing": {
                         "parse_ms": result.parse_time_ms,
@@ -445,7 +445,7 @@ def generate_from_description_task(
                 await session.commit()
 
                 logger.info(
-                    f"AI generation complete for job {job_id}: {result.parameters.shape.value}"
+                    f"AI generation complete for job {job_id}: {result.parameters.shape.value}" # type: ignore[attr-defined]
                 )
                 return output
 

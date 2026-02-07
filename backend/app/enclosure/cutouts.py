@@ -264,7 +264,7 @@ class CutoutGenerator:
                     align=(Align.CENTER, Align.CENTER, Align.CENTER),
                 ).locate(Location((cutout.center_x, 0, cutout.center_y)))
 
-        return builder.part  # type: ignore[no-any-return]
+        return builder.part
 
     def generate_all_cutouts(
         self,

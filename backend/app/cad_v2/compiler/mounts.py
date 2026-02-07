@@ -117,7 +117,7 @@ class MountCompiler:
                             align=(Align.CENTER, Align.CENTER, Align.MIN),
                         )
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part
 
     def add_lid_screw_holes(self, lid: Part) -> Part:
         """Add countersunk screw holes to the lid.
@@ -181,7 +181,7 @@ class MountCompiler:
                             align=(Align.CENTER, Align.CENTER, Align.MIN),
                         )
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part
 
     def add_standoffs(
         self,
@@ -253,7 +253,7 @@ class MountCompiler:
                             align=(Align.CENTER, Align.CENTER, Align.MIN),
                         )
 
-        return result.part  # type: ignore[no-any-return]
+        return result.part
 
     def add_component_standoffs(
         self,

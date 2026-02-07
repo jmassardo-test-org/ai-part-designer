@@ -21,6 +21,7 @@ from app.models import (
     Template,
     User,
 )
+from app.models.user import Subscription
 from app.repositories.base import BaseRepository
 
 
@@ -51,8 +52,8 @@ class UserRepository(BaseRepository[User]):
         query = (
             select(func.count())
             .select_from(User)
-            .where(User.is_active.is_(True))
-            .where(User.is_verified.is_(True))
+            .where(User.status == "active")  # is_active is a property
+            .where(User.email_verified_at.isnot(None))  # is_verified is a property
             .where(User.deleted_at.is_(None))
         )
         result = await self.session.execute(query)
@@ -62,8 +63,9 @@ class UserRepository(BaseRepository[User]):
         """Get all users with a specific subscription tier."""
         query = (
             select(User)
-            .where(User.tier == tier)
-            .where(User.is_active.is_(True))
+            .join(Subscription, User.id == Subscription.user_id)
+            .where(Subscription.tier == tier)
+            .where(User.status == "active")  # is_active is a property
             .where(User.deleted_at.is_(None))
         )
         result = await self.session.execute(query)
@@ -89,7 +91,7 @@ class ProjectRepository(BaseRepository[Project]):
         )
 
         if not include_archived:
-            query = query.where(Project.is_archived.is_(False))
+            query = query.where(Project.is_archived.is_(False))  # type: ignore[attr-defined]
 
         query = query.order_by(desc(Project.updated_at)).offset(offset).limit(limit)
 

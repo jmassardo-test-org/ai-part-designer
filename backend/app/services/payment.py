@@ -14,13 +14,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.stripe import StripeError, get_stripe_client
+from app.core.stripe import StripeClient, StripeError, get_stripe_client
 from app.models.payment import PaymentHistory, PaymentStatus, PaymentType
 from app.models.subscription import SubscriptionTier, TierSlug
 from app.models.user import Subscription, User
 
 if TYPE_CHECKING:
-    import stripe
+    from stripe import Invoice
+    from stripe import Subscription as StripeSubscription
+    from stripe.checkout import Session as CheckoutSession
 
 
 logger = logging.getLogger(__name__)
@@ -41,7 +43,7 @@ class PaymentService:
     def __init__(self, db: AsyncSession):
         """Initialize payment service with database session."""
         self.db = db
-        self._stripe = None
+        self._stripe: StripeClient | None = None
 
     @property
     def stripe(self) -> Any:
@@ -353,14 +355,14 @@ class PaymentService:
 
     async def handle_checkout_completed(
         self,
-        session: "stripe.checkout.Session",
+        session: "CheckoutSession",
     ) -> None:
         """
         Handle checkout.session.completed webhook event.
 
         Creates or updates the user's subscription.
         """
-        user_id = session.metadata.get("user_id")
+        user_id = (session.metadata or {}).get("user_id")
         if not user_id:
             logger.warning("Checkout session missing user_id metadata")
             return
@@ -374,14 +376,14 @@ class PaymentService:
 
         # Get subscription details from Stripe
         stripe_sub = self.stripe.get_subscription(session.subscription)
-        plan_slug = session.metadata.get("plan_slug", "pro")
+        plan_slug = (session.metadata or {}).get("plan_slug", "pro")
 
         # Update subscription
         if user.subscription:
             user.subscription.tier = plan_slug
             user.subscription.status = "active"
-            user.subscription.stripe_subscription_id = session.subscription
-            user.subscription.stripe_customer_id = session.customer
+            user.subscription.stripe_subscription_id = str(session.subscription) if session.subscription else None
+            user.subscription.stripe_customer_id = str(session.customer) if session.customer else None
             user.subscription.current_period_start = datetime.fromtimestamp(
                 stripe_sub.current_period_start, tz=UTC
             )
@@ -396,7 +398,7 @@ class PaymentService:
 
     async def handle_subscription_updated(
         self,
-        subscription: "stripe.Subscription",
+        subscription: "StripeSubscription",
     ) -> None:
         """Handle customer.subscription.updated webhook event."""
         # Find user by subscription ID
@@ -410,8 +412,8 @@ class PaymentService:
             return
 
         # Update period dates
-        sub.current_period_start = datetime.fromtimestamp(subscription.current_period_start, tz=UTC)
-        sub.current_period_end = datetime.fromtimestamp(subscription.current_period_end, tz=UTC)
+        sub.current_period_start = datetime.fromtimestamp(subscription.current_period_start, tz=UTC)  # type: ignore[attr-defined]
+        sub.current_period_end = datetime.fromtimestamp(subscription.current_period_end, tz=UTC)  # type: ignore[attr-defined]
         sub.cancel_at_period_end = subscription.cancel_at_period_end
 
         # Update status
@@ -429,7 +431,7 @@ class PaymentService:
 
     async def handle_subscription_deleted(
         self,
-        subscription: "stripe.Subscription",
+        subscription: "StripeSubscription",
     ) -> None:
         """Handle customer.subscription.deleted webhook event."""
         result = await self.db.execute(
@@ -452,7 +454,7 @@ class PaymentService:
 
     async def handle_invoice_paid(
         self,
-        invoice: "stripe.Invoice",
+        invoice: "Invoice",
     ) -> None:
         """Handle invoice.paid webhook event."""
         # Find user by customer ID
@@ -469,8 +471,8 @@ class PaymentService:
         payment = PaymentHistory(
             user_id=sub.user_id,
             stripe_invoice_id=invoice.id,
-            stripe_subscription_id=invoice.subscription,
-            stripe_charge_id=invoice.charge,
+            stripe_subscription_id=getattr(invoice, "subscription", None),
+            stripe_charge_id=getattr(invoice, "charge", None),
             payment_type=PaymentType.SUBSCRIPTION.value,
             status=PaymentStatus.SUCCEEDED.value,
             amount_cents=invoice.amount_paid,
@@ -496,7 +498,7 @@ class PaymentService:
 
     async def handle_invoice_payment_failed(
         self,
-        invoice: "stripe.Invoice",
+        invoice: "Invoice",
     ) -> None:
         """Handle invoice.payment_failed webhook event."""
         # Find subscription
@@ -514,7 +516,7 @@ class PaymentService:
             payment = PaymentHistory(
                 user_id=sub.user_id,
                 stripe_invoice_id=invoice.id,
-                stripe_subscription_id=invoice.subscription,
+                stripe_subscription_id=getattr(invoice, "subscription", None),
                 payment_type=PaymentType.SUBSCRIPTION.value,
                 status=PaymentStatus.FAILED.value,
                 amount_cents=invoice.amount_due,

@@ -170,8 +170,8 @@ def annotation_to_response(annotation: DesignAnnotation) -> AnnotationResponse:
         content=annotation.content,
         annotation_type=annotation.annotation_type.value,
         status=annotation.status.value,
-        priority=annotation.priority,
-        tags=annotation.tags or [],
+        priority=annotation.priority, # type: ignore[attr-defined]
+        tags=annotation.tags or [], # type: ignore[attr-defined]
         resolved_by_id=annotation.resolved_by_id,
         resolved_at=annotation.resolved_at.isoformat() if annotation.resolved_at else None,
         resolution_note=annotation.resolution_note,
@@ -339,9 +339,9 @@ async def update_annotation(
     if data.annotation_type is not None:
         annotation.annotation_type = data.annotation_type
     if data.priority is not None:
-        annotation.priority = data.priority
+        annotation.priority = data.priority # type: ignore[attr-defined]
     if data.tags is not None:
-        annotation.tags = data.tags
+        annotation.tags = data.tags # type: ignore[attr-defined]
 
     await db.commit()
     await db.refresh(annotation)

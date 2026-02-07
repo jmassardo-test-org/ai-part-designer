@@ -110,12 +110,12 @@ class RedisRateLimiter(RateLimiter):
             try:
                 import redis.asyncio as redis
 
-                self._redis = redis.from_url(
+                self._redis = redis.from_url(  # type: ignore[no-untyped-call]
                     self.redis_url,
                     encoding="utf-8",
                     decode_responses=True,
                 )
-                await self._redis.ping()
+                await self._redis.ping()  # type: ignore[attr-defined]
                 self._connected = True
             except Exception as e:
                 print(f"Redis connection failed: {e}")
@@ -358,7 +358,7 @@ class TokenBucketRateLimiter(RateLimiter):
             try:
                 import redis.asyncio as redis
 
-                self._redis = redis.from_url(
+                self._redis = redis.from_url(  # type: ignore[no-untyped-call]
                     self.redis_url,
                     encoding="utf-8",
                     decode_responses=True,

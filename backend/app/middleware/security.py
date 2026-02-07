@@ -257,7 +257,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         key = f"security:failed_auth:{client_ip}"
 
         # Increment counter
-        count = await redis_client.increment_counter(key, window_seconds=3600)
+        count = await redis_client.increment_counter(key, window_seconds=3600)  # type: ignore[attr-defined]
 
         # Log if threshold exceeded
         if count > 10:

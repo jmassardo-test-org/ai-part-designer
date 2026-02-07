@@ -395,7 +395,7 @@ class ResourceAuthorizer:
         design_id: UUID,
         user_id: UUID,
         required_permission: str = "read",
-        db: AsyncSession = None,
+        db: AsyncSession | None = None,
     ) -> bool:
         """
         Check if user can access a design.
@@ -414,6 +414,8 @@ class ResourceAuthorizer:
         from app.models import Design, DesignShare
 
         # Check if user owns the design
+        if db is None:
+            return False
         result = await db.execute(
             select(Design).where(Design.id == design_id).where(Design.deleted_at.is_(None))
         )
@@ -434,15 +436,16 @@ class ResourceAuthorizer:
         permission_hierarchy = {"read": 0, "write": 1, "admin": 2}
         required_level = permission_hierarchy.get(required_permission, 0)
 
-        result = await db.execute(
+        share_result = await db.execute(
             select(DesignShare)
             .where(DesignShare.design_id == design_id)
             .where(DesignShare.shared_with_user_id == user_id)
         )
-        share = result.scalar_one_or_none()
+        share = share_result.scalar_one_or_none()
 
         if share:
-            share_level = permission_hierarchy.get(share.permission, 0)
+            perm_str = str(share.permission) if share.permission else "read"
+            share_level = permission_hierarchy.get(perm_str, 0)
             if share_level >= required_level:
                 return True
 
@@ -452,13 +455,15 @@ class ResourceAuthorizer:
     async def authorize_project_access(
         project_id: UUID,
         user_id: UUID,
-        db: AsyncSession = None,
+        db: AsyncSession | None = None,
     ) -> bool:
         """Check if user owns a project."""
         from sqlalchemy import select
 
         from app.models import Project
 
+        if db is None:
+            return False
         result = await db.execute(
             select(Project)
             .where(Project.id == project_id)

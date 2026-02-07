@@ -142,7 +142,7 @@ async def get_file_or_404(
         and_(
             FileModel.id == file_id,
             FileModel.user_id == user.id,
-            not FileModel.is_deleted,
+            FileModel.is_deleted == False,  # noqa: E712
         )
     )
     result = await db.execute(query)
@@ -418,7 +418,7 @@ async def combine_files(
     try:
         # Combine shapes
         combined = modifier.combine_shapes(shapes, request.operation)
-        result = modifier.ModifyResult.from_shape(
+        result = modifier.ModifyResult.from_shape( # type: ignore[attr-defined]
             combined, [f"{request.operation} of {len(shapes)} shapes"]
         )
 
@@ -504,7 +504,7 @@ async def get_geometry_info(
         else:
             shape = modifier.load_step(file_path)
 
-        result = modifier.ModifyResult.from_shape(shape, [])
+        result = modifier.ModifyResult.from_shape(shape, []) # type: ignore[attr-defined]
 
         # Cache the result
         file_record.geometry_info = result.geometry_info
@@ -717,7 +717,7 @@ async def align_files(
 
         # Create geometry info
         modifier = CADModifier()
-        geometry_result = modifier.ModifyResult.from_shape(result.combined_shape, [])
+        geometry_result = modifier.ModifyResult.from_shape(result.combined_shape, []) # type: ignore[attr-defined]
 
         # Create file record
         new_file = FileModel(
@@ -897,7 +897,7 @@ async def generate_snap_fit(
 
         # Get geometry info
         modifier = CADModifier()
-        geometry_result = modifier.ModifyResult.from_shape(shape, [])
+        geometry_result = modifier.ModifyResult.from_shape(shape, []) # type: ignore[attr-defined]
 
         # Create file record
         new_file = FileModel(
@@ -975,7 +975,7 @@ async def generate_din_rail_mount(
 
         # Get geometry info
         modifier = CADModifier()
-        geometry_result = modifier.ModifyResult.from_shape(result.mount, [])
+        geometry_result = modifier.ModifyResult.from_shape(result.mount, []) # type: ignore[attr-defined]
 
         # Create file record
         new_file = FileModel(
@@ -1056,7 +1056,7 @@ async def generate_wall_mount(
 
         # Get geometry info
         modifier = CADModifier()
-        geometry_result = modifier.ModifyResult.from_shape(result.bracket, [])
+        geometry_result = modifier.ModifyResult.from_shape(result.bracket, []) # type: ignore[attr-defined]
 
         # Create file record
         new_file = FileModel(
@@ -1168,7 +1168,7 @@ async def generate_pcb_standoffs(
 
         # Get geometry info
         modifier = CADModifier()
-        geometry_result = modifier.ModifyResult.from_shape(combined, [])
+        geometry_result = modifier.ModifyResult.from_shape(combined, []) # type: ignore[attr-defined]
 
         # Create file record
         new_file = FileModel(

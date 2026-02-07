@@ -84,15 +84,17 @@ class TemplateListItem(BaseModel):
     name: str
     slug: str
     category: str
-    description: str | None
-    min_tier: str
-    tier_required: str  # Alias for frontend compatibility
-    thumbnail_url: str | None
-    use_count: int
-    usage_count: int  # Alias for frontend compatibility
-    tags: list[str]
-    parameters: list[dict[str, Any]]  # Flattened parameter list for frontend
-    is_featured: bool
+    description: str | None = None
+    min_tier: str = "free"
+    tier_required: str = ""  # Alias for frontend compatibility
+    thumbnail_url: str | None = None
+    use_count: int = 0
+    usage_count: int = 0  # Alias for frontend compatibility
+    tags: list[str] = Field(default_factory=list)
+    parameters: list[dict[str, Any]] = Field(
+        default_factory=list
+    )  # Flattened parameter list for frontend
+    is_featured: bool = False
 
 
 class TemplateDetail(BaseModel):
@@ -250,8 +252,8 @@ async def list_templates(
 
     # Get templates
     query = query.order_by(Template.category, Template.name).limit(limit).offset(offset)
-    result = await db.execute(query)
-    templates = result.scalars().all()
+    template_result = await db.execute(query)
+    templates = template_result.scalars().all()
 
     # Filter by user tier if authenticated
     # Admin users can see all templates regardless of tier
@@ -436,7 +438,7 @@ async def generate_template(
             output_path.write_bytes(data)
 
         # Increment usage count
-        template.usage_count += 1
+        template.usage_count += 1  # type: ignore[attr-defined]
         await db.commit()
 
         # In production, upload to S3 and return presigned URL

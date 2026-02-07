@@ -50,6 +50,9 @@ async def websocket_endpoint(
     # Authenticate
     try:
         payload = decode_token(token)
+        if payload is None:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
         user_id = payload.get("sub")
         if not user_id:
             await websocket.close(code=4001, reason="Invalid token")

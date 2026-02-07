@@ -13,6 +13,7 @@ Or via Makefile:
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,7 +40,7 @@ PLATFORM_ADMIN = {
 }
 
 # Free tier users
-FREE_USERS = [
+FREE_USERS: list[dict[str, str]] = [
     {
         "email": "demo@example.com",
         "password": "demo123",
@@ -58,7 +59,7 @@ FREE_USERS = [
 ]
 
 # Pro tier users
-PRO_USERS = [
+PRO_USERS: list[dict[str, str]] = [
     {
         "email": "pro@example.com",
         "password": "pro123",
@@ -77,7 +78,7 @@ PRO_USERS = [
 ]
 
 # Enterprise organizations with users
-ENTERPRISE_ORGS = [
+ENTERPRISE_ORGS: list[dict[str, Any]] = [
     {
         "org_name": "Acme Robotics",
         "domain": "acmerobotics.com",
@@ -140,7 +141,7 @@ ENTERPRISE_ORGS = [
 ]
 
 # Sample project templates per user type
-SAMPLE_PROJECTS = {
+SAMPLE_PROJECTS: dict[str, list[dict[str, Any]]] = {
     "free": [
         {
             "name": "My First Enclosure",
@@ -400,14 +401,14 @@ async def create_sample_data(
         )
 
 
-async def seed_users() -> dict:
+async def seed_users() -> dict[str, Any]:
     """
     Seed all users and sample data.
 
     Returns:
         Summary of seeded data
     """
-    summary = {
+    summary: dict[str, Any] = {
         "users_created": 0,
         "projects_created": 0,
         "designs_created": 0,

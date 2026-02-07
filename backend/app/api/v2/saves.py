@@ -268,7 +268,7 @@ async def unsave_design(
     )
 
     # Decrement save count if save existed
-    if delete_save_result.rowcount > 0:
+    if delete_save_result.rowcount > 0: # type: ignore[attr-defined]
         await db.execute(
             update(Design).where(Design.id == design_id).values(save_count=Design.save_count - 1)
         )

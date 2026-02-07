@@ -199,7 +199,9 @@ async def get_starter_categories(
     result = await db.execute(query)
     rows = result.all()
 
-    category_counts = {row.category: row.count for row in rows}
+    category_counts: dict[str, int] = {
+        str(row[0]): int(row[1]) for row in rows  # category, count
+    }
 
     return [
         {

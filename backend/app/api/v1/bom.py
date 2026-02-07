@@ -213,7 +213,7 @@ async def get_bom(
 
     # Build response items
     items = []
-    categories = {}
+    categories: dict[str, int] = {}
     total_cost = Decimal("0")
     total_quantity = 0
     longest_lead_time = 0
@@ -668,7 +668,7 @@ async def get_bom_summary(
     bom_result = await db.execute(bom_query)
     bom_items = bom_result.scalars().all()
 
-    categories = {}
+    categories: dict[str, int] = {}
     total_cost = Decimal("0")
     total_quantity = 0
     longest_lead_time = 0

@@ -201,12 +201,13 @@ async def get_presets() -> dict[str, Any]:
     common development boards.
     """
     from app.cad_v2.components import get_registry
+    from app.cad_v2.schemas.components import ComponentCategory
 
     registry = get_registry()
     presets = {}
 
     # Generate presets for boards
-    for comp in registry.list_category("board"):
+    for comp in registry.list_category(ComponentCategory.BOARD):
         dims = comp.dimensions
         # Add clearance
         preset = {

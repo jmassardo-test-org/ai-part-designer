@@ -189,7 +189,8 @@ class RatingService:
         dist_result = await self.db.execute(dist_stmt)
         distribution = dict.fromkeys(range(1, 6), 0)
         for row in dist_result:
-            distribution[row.rating] = row.count
+            count_val: int = getattr(row, "count", 0) or 0
+            distribution[row.rating] = count_val
 
         return TemplateRatingSummary(
             template_id=template_id,
@@ -513,7 +514,7 @@ class CommentService:
             TemplateComment.parent_id.is_(None),  # Only top-level comments
         ]
         if not include_hidden:
-            conditions.append(not TemplateComment.is_hidden)
+            conditions.append(TemplateComment.is_hidden == False)  # noqa: E712
 
         stmt = (
             select(TemplateComment)
@@ -549,7 +550,7 @@ class CommentService:
         """
         conditions = [TemplateComment.parent_id == comment_id]
         if not include_hidden:
-            conditions.append(not TemplateComment.is_hidden)
+            conditions.append(TemplateComment.is_hidden == False)  # noqa: E712
 
         stmt = (
             select(TemplateComment)
@@ -630,7 +631,7 @@ class CommentService:
             .where(
                 and_(
                     TemplateComment.parent_id == comment_id,
-                    not TemplateComment.is_hidden,
+                    TemplateComment.is_hidden == False,  # noqa: E712
                 )
             )
         )

@@ -388,7 +388,7 @@ async def login_mfa(
     # Decode the MFA token
     try:
         payload = verify_token(request.mfa_token, TokenType.ACCESS)
-        if not payload.get("mfa_pending"):
+        if payload is None or not payload.get("mfa_pending"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid MFA token",
@@ -453,7 +453,7 @@ async def login_mfa(
     user.last_login_at = datetime.now(tz=UTC)
     await db.commit()
 
-    if backup_code_used:
+    if backup_code_used and user.mfa_backup_codes:
         remaining = sum(1 for c in user.mfa_backup_codes if not c.get("used", False))
         logger.info(f"User {user.email} used backup code. {remaining} remaining.")
 
@@ -491,7 +491,7 @@ async def login_form(
 
     return await login(
         credentials=credentials,
-        request=Request(scope={"type": "http"}),
+        _request=Request(scope={"type": "http"}),
         db=db,
         settings=settings,
     )
@@ -704,7 +704,7 @@ async def _send_password_reset_email(user_id: str, email: str, display_name: str
         from app.services.email import get_email_service
 
         # Use verification token with password_reset type
-        token = create_verification_token(UUID(user_id), token_type=TokenType.PASSWORD_RESET)
+        token = create_verification_token(UUID(user_id), purpose=TokenType.PASSWORD_RESET.value)  # type: ignore[attr-defined]
         settings = get_settings()
         reset_url = f"{settings.CORS_ORIGINS[0]}/reset-password?token={token}"
 
@@ -788,7 +788,7 @@ async def blacklist_all_user_tokens(user_id: UUID) -> None:
 
         # Store a "tokens invalidated at" timestamp
         key = f"user:{user_id}:tokens_invalidated_at"
-        await redis.set(key, datetime.now(tz=UTC).isoformat(), ex=86400 * 30)  # 30 days
+        await redis.set(key, datetime.now(tz=UTC).isoformat(), ex=86400 * 30)  # type: ignore[call-arg]  # redis-py stubs incomplete
 
     except Exception as e:
         logger.warning(f"Failed to blacklist tokens for user {user_id}: {e}")

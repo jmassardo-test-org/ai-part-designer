@@ -72,14 +72,16 @@ async def readiness_check(
     Verifies database, cache, and storage connectivity.
     Returns 503 if any critical dependency is down.
     """
-    checks = {}
+    checks: dict[str, bool | str | None] = {}
 
     # Check database
     try:
+        from sqlalchemy import text
+
         from app.core.database import async_session_maker
 
         async with async_session_maker() as session:
-            await session.execute("SELECT 1")
+            await session.execute(text("SELECT 1"))
         checks["database"] = True
     except Exception:
         checks["database"] = False
@@ -89,7 +91,7 @@ async def readiness_check(
         from app.core.cache import get_redis
 
         redis = await get_redis()
-        await redis.ping()
+        await redis.ping()  # type: ignore[attr-defined]
         checks["cache"] = True
     except Exception:
         checks["cache"] = False

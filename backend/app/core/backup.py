@@ -11,7 +11,7 @@ import logging
 import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from app.core.config import settings
 from app.core.storage import StorageBucket, storage_client
@@ -145,7 +145,7 @@ class DatabaseBackup:
                     )
                 logger.info(f"Uploaded backup to storage: {storage_key}")
 
-            backup_info = {
+            backup_info: dict[str, Any] = {
                 "filename": filename,
                 "filepath": str(filepath),
                 "backup_type": backup_type,
@@ -332,12 +332,12 @@ class DataExporter:
                 user_data = {
                     "id": str(user.id),
                     "email": user.email,
-                    "full_name": user.full_name,
+                    "full_name": user.display_name,
                     "tier": user.tier,
                     "created_at": user.created_at.isoformat(),
                     "settings": {
-                        "default_units": user.settings.default_units if user.settings else None,
-                        "theme": user.settings.theme if user.settings else None,
+                        "default_units": user.settings.preferences.get("defaultUnits") if user.settings else None,
+                        "theme": user.settings.preferences.get("theme") if user.settings else None,
                     }
                     if user.settings
                     else None,
@@ -447,6 +447,7 @@ class DataExporter:
 
         from app.core.database import async_session_maker
         from app.models import Design, Job, Template, User
+        from app.models.user import Subscription
 
         timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
         export_path = self.export_dir / f"analytics_snapshot_{timestamp}.json"
@@ -458,9 +459,9 @@ class DataExporter:
             )
 
             users_by_tier = await session.execute(
-                select(User.tier, func.count(User.id))
-                .where(User.created_at.between(start_date, end_date))
-                .group_by(User.tier)
+                select(Subscription.tier, func.count(Subscription.id))
+                .where(Subscription.created_at.between(start_date, end_date))
+                .group_by(Subscription.tier)
             )
 
             # Design metrics
@@ -504,11 +505,11 @@ class DataExporter:
                 },
                 "users": {
                     "total_new": user_count.scalar() or 0,
-                    "by_tier": dict(users_by_tier.all()),
+                    "by_tier": {row[0]: row[1] for row in users_by_tier.all()},
                 },
                 "designs": {
                     "total_new": design_count.scalar() or 0,
-                    "by_source": dict(designs_by_source.all()),
+                    "by_source": {row[0]: row[1] for row in designs_by_source.all()},
                 },
                 "jobs": [
                     {

@@ -519,7 +519,7 @@ async def create_build_plan(intent: PartIntent) -> BuildPlan:
 
         data = json.loads(content)
 
-        steps = []
+        steps: list[BuildStep] = []
         for step_data in data.get("steps", []):
             steps.append(
                 BuildStep(
@@ -616,7 +616,7 @@ async def validate_result(
         edges = shape.edges()
 
         # Detect features (simplified for Build123d)
-        detected_features = []
+        detected_features: list[str] = []
         # Feature detection is more complex in Build123d
         # Would need to analyze face/edge geometry types
 

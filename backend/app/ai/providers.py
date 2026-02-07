@@ -147,7 +147,8 @@ class AnthropicProvider(AIProvider):
                 messages=chat_messages,
                 temperature=temperature,
             )
-            return response.content[0].text
+            content: str = response.content[0].text
+            return content
         except Exception as e:
             raise AIError(
                 f"Anthropic request failed: {e}", details={"provider": "anthropic"}
@@ -200,7 +201,8 @@ class AnthropicProvider(AIProvider):
                 messages=chat_messages,
                 temperature=temperature,
             )
-            return response.content[0].text
+            content: str = response.content[0].text
+            return content
         except Exception as e:
             raise AIError(
                 f"Anthropic vision request failed: {e}", details={"provider": "anthropic"}

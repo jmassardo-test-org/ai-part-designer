@@ -14,6 +14,8 @@ Or via Makefile:
 import asyncio
 from uuid import uuid4
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 # Template seed data organized by category
 TEMPLATE_SEEDS = [
     # =============================================
@@ -609,7 +611,7 @@ result = create_enclosure(
 ]
 
 
-async def seed_templates(db_session) -> int:
+async def seed_templates(db_session: AsyncSession) -> int:
     """
     Seed templates into the database.
 
@@ -660,7 +662,7 @@ async def seed_templates(db_session) -> int:
     return created_count
 
 
-async def main():
+async def main() -> None:
     """Run template seeding."""
     from app.core.database import async_session_maker
 

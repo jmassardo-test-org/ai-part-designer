@@ -191,7 +191,7 @@ def require_tier(minimum_tier: str) -> Callable[[F], F]:
 
             return await func(*args, user=user, **kwargs)
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]  # decorator type
 
     return decorator
 

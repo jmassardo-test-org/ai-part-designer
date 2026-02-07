@@ -169,7 +169,7 @@ async def seed_tiers(session: AsyncSession) -> int:
     return created
 
 
-async def main():
+async def main() -> None:
     """Main entry point."""
     logging.basicConfig(
         level=logging.INFO,

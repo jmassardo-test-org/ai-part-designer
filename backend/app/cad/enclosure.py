@@ -337,7 +337,7 @@ class EnclosureGenerator:
                     align=(Align.CENTER, Align.CENTER, Align.MAX),
                 ).locate(Location((0, 0, cfg.box_height / 2 + cfg.flange_thickness)))
 
-        return builder.part  # type: ignore[no-any-return]
+        return builder.part
 
     def _generate_lid(self) -> Part:
         """Generate the lid with clearance holes."""
@@ -415,7 +415,7 @@ class EnclosureGenerator:
                     mode=Mode.SUBTRACT,
                 ).locate(Location((x, y, cfg.lid_height / 2)))
 
-        return builder.part  # type: ignore[no-any-return]
+        return builder.part
 
     def _get_mounting_hole_positions(self) -> list[tuple[float, float]]:
         """Calculate mounting hole positions on the flange."""

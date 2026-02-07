@@ -168,7 +168,7 @@ class STEPExtractor:
         tolerance: float = 0.5,
     ) -> list[MountingHole]:
         """Remove duplicate holes that are at the same position."""
-        unique = []
+        unique: list[MountingHole] = []
 
         for hole in holes:
             is_duplicate = False
@@ -308,7 +308,7 @@ class STLExtractor:
 
         This is more difficult than STEP analysis and less accurate.
         """
-        holes = []
+        holes: list[MountingHole] = []
 
         try:
             # Analyze vertex curvature to find circular regions

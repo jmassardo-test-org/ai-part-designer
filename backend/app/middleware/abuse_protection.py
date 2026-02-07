@@ -263,7 +263,7 @@ class AbuseProtectionMiddleware(BaseHTTPMiddleware):
                         content={
                             "detail": "Access denied",
                             "reason": "Your account or IP has been banned",
-                            "ban_type": ban.ban_type,
+                            "ban_type": getattr(ban, "ban_type", "standard"),
                             "expires_at": ban.expires_at.isoformat() if ban.expires_at else None,
                         },
                     )
@@ -416,7 +416,7 @@ class GenerationGuardMiddleware:
 
         mod_result = await content_moderation.check_prompt(
             prompt=prompt,
-            user_id=user_id,
+            _user_id=user_id,
             use_ai=True,
         )
 
@@ -470,10 +470,10 @@ class GenerationGuardMiddleware:
         async with self.db_session_factory() as db:
             from app.core.usage_limits import UsageLimitService
 
-            service = UsageLimitService(db)
+            usage_service = UsageLimitService(db)
 
             # Check daily/monthly limits
-            allowed, details = await service.check_limit(
+            allowed, details = await usage_service.check_limit(
                 user_id=user_id,
                 resource_type="generation",
                 tier=tier,
@@ -487,7 +487,7 @@ class GenerationGuardMiddleware:
                 )
 
             # Check concurrent limit
-            concurrent_allowed, current = await service.check_concurrent_limit(
+            concurrent_allowed, current = await usage_service.check_concurrent_limit(
                 user_id=user_id,
                 operation_type="generation",
                 tier=tier,

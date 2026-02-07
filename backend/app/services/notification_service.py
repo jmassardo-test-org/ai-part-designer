@@ -211,7 +211,7 @@ class NotificationService:
             .values(read_at=datetime.now(tz=UTC))
         )
         await self.db.commit()
-        return (result.rowcount or 0) > 0
+        return (result.rowcount or 0) > 0  # type: ignore[attr-defined]
 
     async def mark_all_as_read(self, user_id: UUID) -> int:
         """Mark all notifications as read for a user."""
@@ -226,7 +226,7 @@ class NotificationService:
             .values(read_at=datetime.now(tz=UTC))
         )
         await self.db.commit()
-        return result.rowcount or 0
+        return result.rowcount or 0  # type: ignore[attr-defined]
 
     async def dismiss(self, notification_id: UUID, user_id: UUID) -> bool:
         """Dismiss a notification."""
@@ -241,7 +241,7 @@ class NotificationService:
             .values(dismissed_at=datetime.now(tz=UTC))
         )
         await self.db.commit()
-        return (result.rowcount or 0) > 0
+        return (result.rowcount or 0) > 0  # type: ignore[attr-defined]
 
     async def get_preferences(self, user_id: UUID) -> list[NotificationPreference]:
         """Get all notification preferences for a user."""

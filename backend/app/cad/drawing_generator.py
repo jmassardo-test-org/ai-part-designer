@@ -178,7 +178,7 @@ class DrawingGenerator:
 
         try:
             # Load the STEP file using Build123d
-            shape = self._b3d.import_step(step_file_path)
+            shape = self._b3d.import_step(step_file_path)  # type: ignore[attr-defined]
 
             # Generate views
             views_data = []
@@ -269,7 +269,7 @@ class DrawingGenerator:
         if config.orientation == "landscape":
             width, height = height, width
 
-        drawing = {
+        drawing: dict[str, Any] = {
             "width": width,
             "height": height,
             "views": views_data,
@@ -574,7 +574,7 @@ class DrawingGenerator:
         if config.orientation == "landscape":
             width, height = height, width
 
-        drawing = {
+        drawing: dict[str, Any] = {
             "width": width,
             "height": height,
             "views": [],

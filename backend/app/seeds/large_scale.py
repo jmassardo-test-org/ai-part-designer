@@ -417,7 +417,7 @@ async def seed_large_scale(
         # =================================================================
         logger.info("Generating projects...")
         projects = []
-        user_org_map = {}  # Map users to their orgs
+        user_org_map: dict[str, list[str]] = {}  # Map users to their orgs
         for m in memberships:
             if str(m.user_id) not in user_org_map:
                 user_org_map[str(m.user_id)] = []
@@ -467,8 +467,8 @@ async def seed_large_scale(
         logger.info("Generating audit logs...")
         audit_logs = []
         for _ in range(min(2000, num_users)):
-            user = random.choice(users) if random.random() > 0.1 else None
-            audit_logs.append(generate_audit_log(str(user.id) if user else None))
+            audit_user: User | None = random.choice(users) if random.random() > 0.1 else None
+            audit_logs.append(generate_audit_log(str(audit_user.id) if audit_user else None))
 
         await batch_insert(session, audit_logs, label="audit_logs")
 
@@ -563,49 +563,49 @@ async def clean_seed_data(session: AsyncSession) -> dict[str, int]:
     # Delete in reverse dependency order
     # 1. Audit logs (no dependencies)
     result = await session.execute(delete(AuditLog))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["audit_logs"] = count
     logger.info(f"  Deleted {count} audit logs")
 
     # 2. Notifications
     result = await session.execute(delete(Notification))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["notifications"] = count
     logger.info(f"  Deleted {count} notifications")
 
     # 3. Designs (depend on projects)
     result = await session.execute(delete(Design))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["designs"] = count
     logger.info(f"  Deleted {count} designs")
 
     # 4. Projects (depend on users/orgs)
     result = await session.execute(delete(Project))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["projects"] = count
     logger.info(f"  Deleted {count} projects")
 
     # 5. Organization members
     result = await session.execute(delete(OrganizationMember))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["memberships"] = count
     logger.info(f"  Deleted {count} memberships")
 
     # 6. Organizations
     result = await session.execute(delete(Organization))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["organizations"] = count
     logger.info(f"  Deleted {count} organizations")
 
     # 7. Subscriptions
     result = await session.execute(delete(Subscription))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["subscriptions"] = count
     logger.info(f"  Deleted {count} subscriptions")
 
     # 8. Users (seeded users only - based on email pattern)
     result = await session.execute(delete(User).where(User.email.like("seed_%")))
-    count = result.rowcount or 0
+    count = result.rowcount or 0  # type: ignore[attr-defined]
     deleted["users"] = count
     logger.info(f"  Deleted {count} seeded users")
 
@@ -620,7 +620,7 @@ async def clean_seed_data(session: AsyncSession) -> dict[str, int]:
 # =============================================================================
 
 
-async def async_main(args) -> int:
+async def async_main(args: argparse.Namespace) -> int:
     """Async main entry point - all DB operations happen here."""
 
     # Handle --check flag: just check and exit
@@ -677,10 +677,10 @@ async def async_main(args) -> int:
     # Get configuration
     if args.scale:
         config = SCALE_PRESETS[args.scale]
-        num_users = config["users"]
-        num_orgs = config["orgs"]
-        projects_range = config["projects_per_user"]
-        designs_range = config["designs_per_project"]
+        num_users = int(config["users"])  # type: ignore[call-overload]
+        num_orgs = int(config["orgs"])  # type: ignore[call-overload]
+        projects_range: tuple[int, int] = config["projects_per_user"]  # type: ignore[assignment]
+        designs_range: tuple[int, int] = config["designs_per_project"]  # type: ignore[assignment]
     else:
         num_users = args.users
         num_orgs = args.orgs
@@ -738,7 +738,7 @@ async def async_main(args) -> int:
     return 0
 
 
-def main():
+def main() -> None:
     """CLI entry point for large-scale seeding."""
     parser = argparse.ArgumentParser(
         description="Generate large-scale seed data for admin panel testing"

@@ -8,7 +8,7 @@ using the authlib library.
 import logging
 from typing import Any
 
-from authlib.integrations.starlette_client import OAuth, OAuthError
+from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore[import-untyped]
 from starlette.requests import Request
 
 from app.core.config import settings

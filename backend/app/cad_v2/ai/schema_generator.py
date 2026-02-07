@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.ai.exceptions import AIError
-from app.ai.providers import get_ai_provider
+from app.ai.providers import AIProvider, get_ai_provider
 from app.cad_v2.ai.intent import IntentParser, IntentType, ParsedIntent
 from app.cad_v2.ai.prompts import ENCLOSURE_GENERATION
 from app.cad_v2.components import get_registry
@@ -79,7 +79,7 @@ class SchemaGenerator:
 
     def __init__(self) -> None:
         """Initialize schema generator."""
-        self._provider = None
+        self._provider: AIProvider | None = None
         self._intent_parser = IntentParser()
         self._registry = get_registry()
 

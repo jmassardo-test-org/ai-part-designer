@@ -211,9 +211,9 @@ async def generate_enclosure(
     background_tasks.add_task(
         _run_enclosure_generation,
         job_id=job_id,
-        project_id=project_id,
+        _project_id=project_id,
         request=request,
-        user_id=current_user.id,
+        _user_id=current_user.id,
     )
 
     return GenerateEnclosureResponse(

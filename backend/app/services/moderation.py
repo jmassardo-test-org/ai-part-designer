@@ -257,8 +257,9 @@ class ContentModerator:
         all_flags.extend(filename_flags)
 
         # Check metadata
-        if file_record.metadata:
-            metadata_flags = self.check_metadata(file_record.metadata)
+        # Note: The File model uses geometry_info for CAD metadata
+        if hasattr(file_record, 'geometry_info') and file_record.geometry_info:
+            metadata_flags = self.check_metadata(file_record.geometry_info)
             all_flags.extend(metadata_flags)
 
         # Check geometry if shape provided

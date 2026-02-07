@@ -314,7 +314,7 @@ async def get_project_designs(
     project_id: UUID,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    status: str | None = Query(None, description="Filter by design status"),
+    status_filter: str | None = Query(None, description="Filter by design status", alias="status"),
     search: str | None = Query(None, description="Search by design name"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -350,8 +350,8 @@ async def get_project_designs(
     )
 
     # Apply filters
-    if status:
-        designs_query = designs_query.where(Design.status == status)
+    if status_filter:
+        designs_query = designs_query.where(Design.status == status_filter)
 
     if search:
         designs_query = designs_query.where(Design.name.ilike(f"%{search}%"))
@@ -363,8 +363,8 @@ async def get_project_designs(
         .where(Design.project_id == project_id)
         .where(Design.deleted_at.is_(None))
     )
-    if status:
-        count_query = count_query.where(Design.status == status)
+    if status_filter:
+        count_query = count_query.where(Design.status == status_filter)
     if search:
         count_query = count_query.where(Design.name.ilike(f"%{search}%"))
 
@@ -700,14 +700,14 @@ async def list_example_projects(
     List all example projects available for users to explore or copy.
     """
     # Query projects marked as examples
-    query = select(Project).where(Project.deleted_at.is_(None)).where(Project.is_public.is_(True))
+    query = select(Project).where(Project.deleted_at.is_(None)).where(Project.is_public.is_(True)) # type: ignore[attr-defined]
     result = await db.execute(query)
     projects = result.scalars().all()
 
     examples = []
     for project in projects:
         # Check if marked as example
-        if not project.extra_data.get("is_example"):
+        if not project.extra_data.get("is_example"): # type: ignore[attr-defined]
             continue
 
         # Get design count
@@ -725,7 +725,7 @@ async def list_example_projects(
                 name=project.name,
                 description=project.description,
                 design_count=design_count,
-                tags=project.extra_data.get("tags", []),
+                tags=project.extra_data.get("tags", []), # type: ignore[attr-defined]
                 thumbnail_url=None,
             )
         )
@@ -759,7 +759,7 @@ async def copy_example_project(
         )
 
     # Verify it's an example project
-    if not example.extra_data.get("is_example"):
+    if not example.extra_data.get("is_example"): # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This is not an example project",
@@ -774,7 +774,7 @@ async def copy_example_project(
         extra_data={
             "copied_from": str(project_id),
             "copied_at": datetime.now(tz=UTC).isoformat(),
-            "tags": example.extra_data.get("tags", []),
+            "tags": example.extra_data.get("tags", []), # type: ignore[attr-defined]
         },
     )
     db.add(new_project)
@@ -791,7 +791,7 @@ async def copy_example_project(
             project_id=new_project.id,
             name=design.name,
             description=design.description,
-            prompt=design.prompt,
+            prompt=design.prompt, # type: ignore[attr-defined]
             parameters=design.parameters,
             status="draft",
             is_public=False,

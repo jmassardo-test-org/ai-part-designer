@@ -11,7 +11,7 @@ import io
 import logging
 import secrets
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import pyotp
 import qrcode
@@ -104,13 +104,13 @@ class MessageResponse(BaseModel):
 
 def generate_totp_secret() -> str:
     """Generate a new TOTP secret."""
-    return cast("str", pyotp.random_base32())
+    return pyotp.random_base32()
 
 
 def generate_provisioning_uri(secret: str, email: str, issuer: str = "AssemblematicAI") -> str:
     """Generate TOTP provisioning URI for authenticator apps."""
     totp = pyotp.TOTP(secret)
-    return cast("str", totp.provisioning_uri(name=email, issuer_name=issuer))
+    return totp.provisioning_uri(name=email, issuer_name=issuer)
 
 
 def generate_qr_code_base64(provisioning_uri: str) -> str:
@@ -127,7 +127,7 @@ def generate_qr_code_base64(provisioning_uri: str) -> str:
     img = qr.make_image(fill_color="black", back_color="white")
 
     buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
+    img.save(buffer, format="PNG")  # type: ignore[call-arg]  # type stubs incomplete
     buffer.seek(0)
 
     return base64.b64encode(buffer.read()).decode("utf-8")
@@ -159,7 +159,7 @@ def verify_totp_code(secret: str, code: str) -> bool:
     """Verify a TOTP code."""
     totp = pyotp.TOTP(secret)
     # Allow 1 window of tolerance (30 seconds before/after)
-    return cast("bool", totp.verify(code, valid_window=1))
+    return totp.verify(code, valid_window=1)
 
 
 def verify_backup_code(
@@ -333,7 +333,7 @@ async def disable_mfa(
     code_valid = False
 
     # Try TOTP first
-    if len(request.code) == 6 and request.code.isdigit():
+    if len(request.code) == 6 and request.code.isdigit() and current_user.mfa_secret:
         code_valid = verify_totp_code(current_user.mfa_secret, request.code)
 
     # Try backup code
@@ -389,7 +389,7 @@ async def verify_mfa(
     code = request.code.strip()
 
     # Try TOTP verification first (6 digits)
-    if len(code) == 6 and code.isdigit() and verify_totp_code(current_user.mfa_secret, code):
+    if len(code) == 6 and code.isdigit() and current_user.mfa_secret and verify_totp_code(current_user.mfa_secret, code):
         return MFAVerifyResponse(
             verified=True,
             message="Code verified successfully.",
@@ -456,7 +456,7 @@ async def regenerate_backup_codes(
         )
 
     # Verify TOTP code
-    if not verify_totp_code(current_user.mfa_secret, request.code):
+    if not current_user.mfa_secret or not verify_totp_code(current_user.mfa_secret, request.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code.",

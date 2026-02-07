@@ -203,11 +203,11 @@ def generate_from_prompt(
                     else [],
                 },
                 "geometry_info": {
-                    "bounding_box": generation_result.geometry_info.get("bounding_box")
-                    if generation_result.geometry_info
+                    "bounding_box": generation_result.geometry_info.get("bounding_box")  # type: ignore[attr-defined]
+                    if getattr(generation_result, "geometry_info", None)
                     else None,
-                    "volume": generation_result.geometry_info.get("volume")
-                    if generation_result.geometry_info
+                    "volume": generation_result.geometry_info.get("volume")  # type: ignore[attr-defined]
+                    if getattr(generation_result, "geometry_info", None)
                     else None,
                 },
                 "warnings": generation_result.warnings,
@@ -361,9 +361,11 @@ Respond with a JSON object containing suggested parameter changes:
 Only output the JSON. No markdown."""
 
             try:
-                response = await ai_client.generate(
-                    prompt=prompt,
-                    system_prompt="You are a CAD design assistant that suggests parameter modifications.",
+                response = await ai_client.complete(
+                    messages=[
+                        {"role": "system", "content": "You are a CAD design assistant that suggests parameter modifications."},
+                        {"role": "user", "content": prompt},
+                    ],
                     temperature=0.3,
                 )
 

@@ -346,8 +346,8 @@ def create_l_bracket(
         if holes_per_flange > 0:
             # Calculate hole positions based on count
             if holes_per_flange == 2:
-                h_hole_y = [0]
-                h_hole_x = [hole_offset, leg_length - hole_offset]
+                h_hole_y: list[float] = [0.0]
+                h_hole_x: list[float] = [hole_offset, leg_length - hole_offset]
             elif holes_per_flange >= 4:
                 half_width_offset = (width / 2) - hole_offset
                 h_hole_y = [half_width_offset, -half_width_offset]
@@ -366,8 +366,8 @@ def create_l_bracket(
             # Holes on vertical flange
             if holes_per_flange >= 2:
                 if holes_per_flange == 2:
-                    v_hole_y = [0]
-                    v_hole_z = [hole_offset + thickness, leg_length - hole_offset]
+                    v_hole_y: list[float] = [0.0]
+                    v_hole_z: list[float] = [hole_offset + thickness, leg_length - hole_offset]
                 else:
                     half_width_offset = (width / 2) - hole_offset
                     v_hole_y = [half_width_offset, -half_width_offset]
@@ -386,4 +386,4 @@ def create_l_bracket(
             except Exception:
                 pass  # Skip fillet if it fails
 
-    return part.part  # type: ignore[no-any-return]
+    return part.part

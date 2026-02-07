@@ -14,6 +14,7 @@ Or via Makefile:
 import asyncio
 import logging
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -247,7 +248,7 @@ async def seed_example_projects(session: AsyncSession, user: User) -> int:
     count = 0
 
     for project_data in EXAMPLE_PROJECTS:
-        project_id = UUID(project_data["id"])
+        project_id = UUID(str(project_data["id"]))
 
         # Check if project already exists
         existing = await session.execute(select(Project).where(Project.id == project_id))
@@ -267,7 +268,8 @@ async def seed_example_projects(session: AsyncSession, user: User) -> int:
         await session.flush()
 
         # Create designs for the project
-        for design_data in project_data.get("designs", []):
+        designs_list: list[dict[str, Any]] = project_data.get("designs", [])  # type: ignore[assignment]
+        for design_data in designs_list:
             design = Design(
                 project_id=project.id,
                 user_id=user.id,
@@ -350,7 +352,7 @@ async def copy_example_project(
     return new_project
 
 
-async def run_seeder():
+async def run_seeder() -> None:
     """Run the example projects seeder."""
     async with async_session_maker() as session:
         user = await seed_system_user(session)

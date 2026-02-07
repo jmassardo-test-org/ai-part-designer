@@ -143,7 +143,7 @@ def pdf_to_images(pdf_path: Path, max_pages: int = MAX_PAGES_TO_ANALYZE) -> list
         last_page=max_pages,
         dpi=150,  # Good balance of quality and size
     )
-    return cast("list[Image.Image]", images)
+    return list(images)
 
 
 def resize_image(image: Image.Image, target_width: int = TARGET_IMAGE_WIDTH) -> Image.Image:

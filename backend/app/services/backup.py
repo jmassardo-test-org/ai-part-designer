@@ -136,9 +136,9 @@ class BackupService:
         backup_dir: str | None = None,
         s3_bucket: str | None = None,
     ):
-        self.backup_dir = Path(backup_dir or settings.BACKUP_DIR or "/tmp/backups")
+        self.backup_dir = Path(backup_dir or getattr(settings, "BACKUP_DIR", None) or "/tmp/backups")
         self.backup_dir.mkdir(parents=True, exist_ok=True)
-        self.s3_bucket = s3_bucket or settings.BACKUP_S3_BUCKET
+        self.s3_bucket = s3_bucket or getattr(settings, "BACKUP_S3_BUCKET", None)
         self._backup_index: dict[str, BackupRecord] = {}
         self._load_backup_index()
 
@@ -271,7 +271,7 @@ class BackupService:
         backup_path = self.backup_dir / backup_filename
 
         # Get file storage path
-        file_storage_path = Path(settings.FILE_STORAGE_PATH or "/tmp/uploads")
+        file_storage_path = Path(getattr(settings, "FILE_STORAGE_PATH", None) or "/tmp/uploads")
 
         if not file_storage_path.exists():
             record.metadata["files_backup"] = "no_files"

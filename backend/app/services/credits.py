@@ -125,7 +125,7 @@ class CreditService:
         reference_type: str | None = None,
         reference_id: UUID | None = None,
         description: str | None = None,
-    ) -> CreditTransaction:
+    ) -> CreditTransaction | None:
         """
         Check balance and deduct credits for an operation.
 
@@ -139,7 +139,7 @@ class CreditService:
             description: Transaction description
 
         Returns:
-            CreditTransaction record
+            CreditTransaction record, or None for free operations
         """
         cost = get_operation_cost(operation)
 

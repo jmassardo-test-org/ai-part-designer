@@ -12,7 +12,7 @@ designed to house electronics like Raspberry Pi, LCDs, and buttons.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -270,16 +270,14 @@ class EnclosureSpec(BaseModel):
     lid: LidSpec | None = Field(default=None, description="Lid configuration")
 
     # Components (mounted inside)
-    components: Annotated[
-        list[Any],  # Will be list[ComponentMount] when components.py is created
-        Field(default_factory=list, description="Components mounted in enclosure"),
-    ]
+    components: list[Any] = Field(
+        default_factory=list, description="Components mounted in enclosure"
+    )
 
     # Features (cutouts, ports, vents) - will use proper type when features.py is created
-    features: Annotated[
-        list[Any],
-        Field(default_factory=list, description="Features on enclosure walls"),
-    ]
+    features: list[Any] = Field(
+        default_factory=list, description="Features on enclosure walls"
+    )
 
     # Ventilation
     ventilation: VentilationSpec = Field(
