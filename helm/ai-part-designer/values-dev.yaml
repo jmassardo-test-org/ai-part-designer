@@ -46,6 +46,25 @@ cloudnative-pg:
       size: 10Gi
       storageClass: ""
 
+# CloudNativePG PostgreSQL Configuration (Dev)
+cloudnativePg:
+  cluster:
+    instances: 1
+    storage:
+      size: 10Gi
+      storageClass: ""
+    backup:
+      enabled: false
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+  pooler:
+    enabled: false
+
 redis:
   master:
     persistence:

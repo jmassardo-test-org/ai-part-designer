@@ -1,0 +1,109 @@
+{{- if .Values.installPostgres }}
+{{- if .Values.networkPoliciesEnabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+spec:
+  podSelector:
+    matchLabels:
+      postgresql: postgres-cluster
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow traffic from backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: backend
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow traffic from celery workers
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: celery-worker
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow traffic from celery beat
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: celery-beat
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow traffic between postgres cluster members
+  - from:
+    - podSelector:
+        matchLabels:
+          postgresql: postgres-cluster
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 8000
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9187
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-egress
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+spec:
+  podSelector:
+    matchLabels:
+      postgresql: postgres-cluster
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow access to MinIO for backups
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: minio
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow communication between postgres cluster members
+  - to:
+    - podSelector:
+        matchLabels:
+          postgresql: postgres-cluster
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 8000
+  # Allow HTTPS for external backup destinations (if not using MinIO)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+{{- end }}
+{{- end }}

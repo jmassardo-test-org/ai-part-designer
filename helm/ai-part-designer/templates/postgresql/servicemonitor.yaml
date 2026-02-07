@@ -1,0 +1,162 @@
+{{- if .Values.installPostgres }}
+{{- if .Values.cloudnativePg.cluster.monitoring.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-monitoring-queries
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+data:
+  queries: |
+    # Database size metrics
+    pg_database:
+      query: |
+        SELECT
+          pg_database.datname as database,
+          pg_database_size(pg_database.datname) as size_bytes
+        FROM pg_database
+      metrics:
+        - database:
+            usage: "LABEL"
+            description: "Name of the database"
+        - size_bytes:
+            usage: "GAUGE"
+            description: "Size of the database in bytes"
+    
+    # Table bloat metrics
+    pg_table_bloat:
+      query: |
+        SELECT
+          schemaname,
+          tablename,
+          pg_total_relation_size(schemaname||'.'||tablename) AS total_bytes,
+          pg_relation_size(schemaname||'.'||tablename) AS table_bytes,
+          pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename) AS index_bytes
+        FROM pg_tables
+        WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+      metrics:
+        - schemaname:
+            usage: "LABEL"
+            description: "Schema name"
+        - tablename:
+            usage: "LABEL"
+            description: "Table name"
+        - total_bytes:
+            usage: "GAUGE"
+            description: "Total size of table including indexes"
+        - table_bytes:
+            usage: "GAUGE"
+            description: "Size of table data"
+        - index_bytes:
+            usage: "GAUGE"
+            description: "Size of indexes"
+    
+    # Connection pool stats
+    pg_stat_database_connections:
+      query: |
+        SELECT
+          datname as database,
+          numbackends as connections,
+          xact_commit as commits,
+          xact_rollback as rollbacks,
+          blks_read as blocks_read,
+          blks_hit as blocks_hit,
+          tup_returned as tuples_returned,
+          tup_fetched as tuples_fetched,
+          tup_inserted as tuples_inserted,
+          tup_updated as tuples_updated,
+          tup_deleted as tuples_deleted,
+          conflicts as conflicts,
+          temp_files as temp_files,
+          temp_bytes as temp_bytes,
+          deadlocks as deadlocks
+        FROM pg_stat_database
+        WHERE datname NOT IN ('template0', 'template1', 'postgres')
+      metrics:
+        - database:
+            usage: "LABEL"
+            description: "Database name"
+        - connections:
+            usage: "GAUGE"
+            description: "Number of active connections"
+        - commits:
+            usage: "COUNTER"
+            description: "Number of committed transactions"
+        - rollbacks:
+            usage: "COUNTER"
+            description: "Number of rolled back transactions"
+        - blocks_read:
+            usage: "COUNTER"
+            description: "Number of disk blocks read"
+        - blocks_hit:
+            usage: "COUNTER"
+            description: "Number of disk blocks found in cache"
+        - tuples_returned:
+            usage: "COUNTER"
+            description: "Number of rows returned"
+        - tuples_fetched:
+            usage: "COUNTER"
+            description: "Number of rows fetched"
+        - tuples_inserted:
+            usage: "COUNTER"
+            description: "Number of rows inserted"
+        - tuples_updated:
+            usage: "COUNTER"
+            description: "Number of rows updated"
+        - tuples_deleted:
+            usage: "COUNTER"
+            description: "Number of rows deleted"
+        - conflicts:
+            usage: "COUNTER"
+            description: "Number of queries canceled due to conflicts"
+        - temp_files:
+            usage: "COUNTER"
+            description: "Number of temporary files created"
+        - temp_bytes:
+            usage: "COUNTER"
+            description: "Total bytes written to temporary files"
+        - deadlocks:
+            usage: "COUNTER"
+            description: "Number of deadlocks detected"
+    
+    # Replication lag
+    pg_replication_lag:
+      query: |
+        SELECT
+          client_addr,
+          state,
+          CASE WHEN pg_last_wal_receive_lsn() = pg_last_wal_replay_lsn() THEN 0
+               ELSE EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))
+          END AS lag_seconds
+        FROM pg_stat_replication
+      metrics:
+        - client_addr:
+            usage: "LABEL"
+            description: "Client address of replica"
+        - state:
+            usage: "LABEL"
+            description: "Replication state"
+        - lag_seconds:
+            usage: "GAUGE"
+            description: "Replication lag in seconds"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres-cluster
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+spec:
+  selector:
+    matchLabels:
+      postgresql: postgres-cluster
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+{{- end }}
+{{- end }}

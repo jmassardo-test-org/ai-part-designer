@@ -1,0 +1,123 @@
+{{- if .Values.installPostgres }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-cluster
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+spec:
+  instances: {{ .Values.cloudnativePg.cluster.instances }}
+  
+  # Primary update strategy for rolling updates
+  primaryUpdateStrategy: unsupervised
+  
+  # Bootstrap configuration
+  bootstrap:
+    initdb:
+      database: {{ .Values.postgresDb }}
+      owner: {{ .Values.postgresUser | default "app" }}
+      secret:
+        name: postgres-superuser
+  
+  # PostgreSQL configuration
+  postgresql:
+    parameters:
+      max_connections: {{ .Values.cloudnativePg.cluster.postgresql.parameters.max_connections | default "200" | quote }}
+      shared_buffers: {{ .Values.cloudnativePg.cluster.postgresql.parameters.shared_buffers | default "256MB" | quote }}
+      effective_cache_size: {{ .Values.cloudnativePg.cluster.postgresql.parameters.effective_cache_size | default "1GB" | quote }}
+      maintenance_work_mem: {{ .Values.cloudnativePg.cluster.postgresql.parameters.maintenance_work_mem | default "64MB" | quote }}
+      checkpoint_completion_target: {{ .Values.cloudnativePg.cluster.postgresql.parameters.checkpoint_completion_target | default "0.9" | quote }}
+      wal_buffers: {{ .Values.cloudnativePg.cluster.postgresql.parameters.wal_buffers | default "16MB" | quote }}
+      default_statistics_target: {{ .Values.cloudnativePg.cluster.postgresql.parameters.default_statistics_target | default "100" | quote }}
+      random_page_cost: {{ .Values.cloudnativePg.cluster.postgresql.parameters.random_page_cost | default "1.1" | quote }}
+      effective_io_concurrency: {{ .Values.cloudnativePg.cluster.postgresql.parameters.effective_io_concurrency | default "200" | quote }}
+      work_mem: {{ .Values.cloudnativePg.cluster.postgresql.parameters.work_mem | default "4MB" | quote }}
+      huge_pages: {{ .Values.cloudnativePg.cluster.postgresql.parameters.huge_pages | default "off" | quote }}
+      min_wal_size: {{ .Values.cloudnativePg.cluster.postgresql.parameters.min_wal_size | default "1GB" | quote }}
+      max_wal_size: {{ .Values.cloudnativePg.cluster.postgresql.parameters.max_wal_size | default "4GB" | quote }}
+      max_worker_processes: {{ .Values.cloudnativePg.cluster.postgresql.parameters.max_worker_processes | default "8" | quote }}
+      max_parallel_workers_per_gather: {{ .Values.cloudnativePg.cluster.postgresql.parameters.max_parallel_workers_per_gather | default "4" | quote }}
+      max_parallel_workers: {{ .Values.cloudnativePg.cluster.postgresql.parameters.max_parallel_workers | default "8" | quote }}
+      max_parallel_maintenance_workers: {{ .Values.cloudnativePg.cluster.postgresql.parameters.max_parallel_maintenance_workers | default "4" | quote }}
+  
+  # Storage configuration
+  storage:
+    size: {{ .Values.cloudnativePg.cluster.storage.size | default "100Gi" }}
+    {{- if .Values.cloudnativePg.cluster.storage.storageClass }}
+    storageClass: {{ .Values.cloudnativePg.cluster.storage.storageClass }}
+    {{- else if .Values.persistentStorage.storageClassName }}
+    storageClass: {{ .Values.persistentStorage.storageClassName }}
+    {{- end }}
+  
+  # Monitoring configuration
+  {{- if .Values.cloudnativePg.cluster.monitoring.enabled }}
+  monitoring:
+    enablePodMonitor: true
+    customQueriesConfigMap:
+      - name: postgres-monitoring-queries
+        key: queries
+  {{- end }}
+  
+  # Backup configuration
+  {{- if .Values.cloudnativePg.cluster.backup.enabled }}
+  backup:
+    barmanObjectStore:
+      destinationPath: {{ .Values.cloudnativePg.cluster.backup.destinationPath }}
+      {{- if .Values.cloudnativePg.cluster.backup.endpointURL }}
+      endpointURL: {{ .Values.cloudnativePg.cluster.backup.endpointURL }}
+      {{- end }}
+      s3Credentials:
+        accessKeyId:
+          name: postgres-backup-secret
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: postgres-backup-secret
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+        maxParallel: 2
+      data:
+        compression: gzip
+        jobs: 2
+    retentionPolicy: {{ .Values.cloudnativePg.cluster.backup.retentionPolicy | default "30d" }}
+  {{- end }}
+  
+  # Resource management
+  resources:
+    requests:
+      memory: {{ .Values.cloudnativePg.cluster.resources.requests.memory | default "1Gi" }}
+      cpu: {{ .Values.cloudnativePg.cluster.resources.requests.cpu | default "500m" }}
+    limits:
+      memory: {{ .Values.cloudnativePg.cluster.resources.limits.memory | default "2Gi" }}
+      cpu: {{ .Values.cloudnativePg.cluster.resources.limits.cpu | default "2000m" }}
+  
+  # Affinity rules for high availability
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: preferred
+  
+  # Node maintenance and failover configuration
+  nodeMaintenanceWindow:
+    inProgress: false
+    reusePVC: true
+  
+  failoverDelay: 0
+  switchoverDelay: 60
+  
+  # Service template for custom service configuration
+  managed:
+    roles:
+    - name: app
+      ensure: present
+      login: true
+      passwordSecret:
+        name: postgres-app-user
+  
+  # Enable superuser access
+  enableSuperuserAccess: true
+  superuserSecret:
+    name: postgres-superuser
+{{- end }}

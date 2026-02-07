@@ -152,6 +152,85 @@ cloudnative-pg:
       size: 100Gi  # Production default per US-2.6 requirements
       storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
 
+# CloudNativePG PostgreSQL Configuration
+cloudnativePg:
+  cluster:
+    instances: 3
+    storage:
+      size: 100Gi
+      storageClass: ""
+    postgresql:
+      parameters:
+        max_connections: "200"
+        shared_buffers: "256MB"
+        effective_cache_size: "1GB"
+        maintenance_work_mem: "64MB"
+        checkpoint_completion_target: "0.9"
+        wal_buffers: "16MB"
+        default_statistics_target: "100"
+        random_page_cost: "1.1"
+        effective_io_concurrency: "200"
+        work_mem: "4MB"
+        huge_pages: "off"
+        min_wal_size: "1GB"
+        max_wal_size: "4GB"
+        max_worker_processes: "8"
+        max_parallel_workers_per_gather: "4"
+        max_parallel_workers: "8"
+        max_parallel_maintenance_workers: "4"
+    monitoring:
+      enabled: true
+    backup:
+      enabled: true
+      destinationPath: "s3://backups/postgresql"
+      endpointURL: "http://minio:9000"
+      schedule: "0 2 * * *"
+      retentionPolicy: "30d"
+      immediate: false
+      suspend: false
+      s3:
+        accessKeyId: "minio"
+        secretAccessKey: "CHANGEME"
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+  pooler:
+    enabled: true
+    instances: 2
+    type: "rw"
+    pgbouncer:
+      poolMode: "session"
+      parameters:
+        max_client_conn: "1000"
+        default_pool_size: "25"
+        max_db_connections: "100"
+        max_user_connections: "100"
+        reserve_pool_size: "5"
+        reserve_pool_timeout: "5"
+        log_connections: "0"
+        log_disconnections: "0"
+        server_idle_timeout: "600"
+        server_lifetime: "3600"
+        server_connect_timeout: "15"
+        query_timeout: "0"
+        stats_period: "60"
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+  superuserPassword: "CHANGEME"
+  appUserPassword: "CHANGEME"
+
+# PostgreSQL connection settings (for application)
+postgresUser: "app"
+
 redis:
   auth:
     password: "CHANGEME"

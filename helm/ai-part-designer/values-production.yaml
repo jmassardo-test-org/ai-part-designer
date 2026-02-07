@@ -54,6 +54,40 @@ cloudnative-pg:
       destinationPath: "s3://backups/postgresql"
       retentionPolicy: "30d"
 
+# CloudNativePG PostgreSQL Configuration (Production)
+cloudnativePg:
+  cluster:
+    instances: 3
+    storage:
+      size: 100Gi
+      storageClass: "fast-ssd"
+    postgresql:
+      parameters:
+        max_connections: "200"
+        shared_buffers: "512MB"
+        effective_cache_size: "2GB"
+        maintenance_work_mem: "128MB"
+    monitoring:
+      enabled: true
+    backup:
+      enabled: true
+      destinationPath: "s3://backups/postgresql"
+      endpointURL: "http://minio:9000"
+      schedule: "0 2 * * *"
+      retentionPolicy: "30d"
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  pooler:
+    enabled: true
+    instances: 3
+  superuserPassword: "CHANGEME_USE_SECRET_MANAGER"
+  appUserPassword: "CHANGEME_USE_SECRET_MANAGER"
+
 redis:
   auth:
     password: "CHANGEME_USE_SECRET_MANAGER"

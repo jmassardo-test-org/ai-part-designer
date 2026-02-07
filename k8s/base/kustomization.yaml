@@ -40,6 +40,14 @@ resources:
 - minio/service.yaml
 - minio/servicemonitor.yaml
 - minio/init-buckets-job.yaml
+# CloudNativePG PostgreSQL
+- cloudnative-pg/secrets.yaml
+- cloudnative-pg/cluster.yaml
+- cloudnative-pg/pooler.yaml
+- cloudnative-pg/scheduled-backup.yaml
+- cloudnative-pg/service.yaml
+- cloudnative-pg/servicemonitor.yaml
+- cloudnative-pg/network-policy.yaml
 # Network Policies
 - network-policies/default-deny.yaml
 - network-policies/backend-ingress.yaml

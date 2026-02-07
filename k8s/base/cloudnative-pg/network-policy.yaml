@@ -1,0 +1,99 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  podSelector:
+    matchLabels:
+      postgresql: postgres-cluster
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: backend
+    ports:
+    - protocol: TCP
+      port: 5432
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: celery-worker
+    ports:
+    - protocol: TCP
+      port: 5432
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: celery-beat
+    ports:
+    - protocol: TCP
+      port: 5432
+  - from:
+    - podSelector:
+        matchLabels:
+          postgresql: postgres-cluster
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9187
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-egress
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  podSelector:
+    matchLabels:
+      postgresql: postgres-cluster
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: minio
+    ports:
+    - protocol: TCP
+      port: 9000
+  - to:
+    - podSelector:
+        matchLabels:
+          postgresql: postgres-cluster
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 8000
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443

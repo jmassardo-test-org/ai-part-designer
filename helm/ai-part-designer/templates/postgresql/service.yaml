@@ -1,0 +1,40 @@
+{{- if .Values.installPostgres }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  selector:
+    postgresql: postgres-cluster
+    role: primary
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+---
+{{- if .Values.cloudnativePg.pooler.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-pooler-service
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres-pooler
+    app.kubernetes.io/component: database-pooler
+spec:
+  type: ClusterIP
+  selector:
+    cnpg.io/poolerName: postgres-pooler
+  ports:
+  - name: pgbouncer
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+{{- end }}
+{{- end }}
