@@ -958,7 +958,7 @@ class TestCeleryTaskRetry:
         assert job.celery_task_id == "new-task-id-789"
 
     @pytest.mark.asyncio
-    async def test_retry_job_requeues_component_extraction_task(
+    async def test_retry_job_requeues_full_component_extraction_task(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
@@ -967,7 +967,7 @@ class TestCeleryTaskRetry:
         job_factory,
         mocker,
     ):
-        """Test that retrying a component extraction job re-queues the task."""
+        """Test that retrying a 'full' component extraction job re-queues the task."""
         job = await job_factory.create_failed(
             db=db_session,
             user=test_user,

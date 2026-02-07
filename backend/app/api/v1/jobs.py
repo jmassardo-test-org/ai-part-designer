@@ -168,6 +168,8 @@ def _requeue_job_task(job: Job) -> str | None:
     elif job.job_type in ("cad", "datasheet", "full"):
         # Component extraction task
         # Job types: "cad" (CAD only), "datasheet" (datasheet only), "full" (both)
+        # All three types use the same task, which determines what to extract
+        # based on the job type and available files
         task_result = extract_component_task.delay(job_id)
 
     else:
