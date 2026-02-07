@@ -1,0 +1,48 @@
+{{/* Converted from k8s/base/backend/configmap.yaml */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  labels:
+    {{- include "ai-part-designer.backend.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+data:
+  APP_NAME: {{ .Values.assemblematicAppName | quote }}
+  APP_VERSION: {{ .Values.assemblematicVersion | quote }}
+  API_V1_PREFIX: {{ .Values.assemblematicApiPrefix | quote }}
+  POSTGRES_PORT: {{ .Values.postgresPort | quote }}
+  POSTGRES_DB: {{ .Values.postgresDb | quote }}
+  REDIS_PORT: {{ .Values.redisPort | quote }}
+  REDIS_DB: {{ .Values.redisDb | quote }}
+  STORAGE_BACKEND: {{ .Values.storageBackend | quote }}
+  AWS_REGION: {{ .Values.awsRegion | quote }}
+  S3_ENDPOINT_URL: {{ .Values.minioEndpoint | quote }}
+  STORAGE_BUCKET_DESIGNS: {{ .Values.designsBucket | quote }}
+  STORAGE_BUCKET_EXPORTS: {{ .Values.exportsBucket | quote }}
+  STORAGE_BUCKET_THUMBNAILS: {{ .Values.thumbnailsBucket | quote }}
+  STORAGE_BUCKET_UPLOADS: {{ .Values.uploadsBucket | quote }}
+  STORAGE_BUCKET_TEMP: {{ .Values.tempBucket | quote }}
+  AI_PROVIDER: {{ .Values.aiProvider | quote }}
+  ANTHROPIC_MODEL: {{ .Values.anthropicModel | quote }}
+  AI_MAX_TOKENS: {{ .Values.aiMaxTokens | quote }}
+  AI_TEMPERATURE: {{ .Values.aiTemperature | quote }}
+  ACCESS_TOKEN_EXPIRE_MINUTES: {{ .Values.accessTokenMinutes | quote }}
+  REFRESH_TOKEN_EXPIRE_DAYS: {{ .Values.refreshTokenDays | quote }}
+  ALGORITHM: {{ .Values.jwtAlgorithm | quote }}
+  PASSWORD_MIN_LENGTH: {{ .Values.passwordMinLength | quote }}
+  MAX_LOGIN_ATTEMPTS: {{ .Values.maxLoginAttempts | quote }}
+  LOCKOUT_DURATION_MINUTES: {{ .Values.lockoutMinutes | quote }}
+  REQUIRE_EMAIL_VERIFICATION: {{ .Values.requireEmailVerification | quote }}
+  SESSION_TIMEOUT_MINUTES: {{ .Values.sessionTimeoutMinutes | quote }}
+  CONCURRENT_SESSION_LIMIT: {{ .Values.concurrentSessionLimit | quote }}
+  CORS_ALLOW_CREDENTIALS: {{ .Values.corsAllowCredentials | quote }}
+  RATE_LIMIT_ENABLED: {{ .Values.rateLimitEnabled | quote }}
+  RATE_LIMIT_PER_MINUTE: {{ .Values.rateLimitPerMinute | quote }}
+  RATE_LIMIT_PER_HOUR: {{ .Values.rateLimitPerHour | quote }}
+  CAD_WORKER_TIMEOUT: {{ .Values.cadWorkerTimeout | quote }}
+  MAX_CONCURRENT_JOBS: {{ .Values.maxConcurrentJobs | quote }}
+  JOB_RETRY_DELAY: {{ .Values.jobRetryDelay | quote }}
+  MAX_UPLOAD_SIZE_MB: {{ .Values.maxUploadSizeMB | quote }}
+  CAD_V2_ENABLED: {{ .Values.cadV2Enabled | quote }}
+  CAD_V2_AS_DEFAULT: {{ .Values.cadV2AsDefault | quote }}
+  LOG_LEVEL: {{ .Values.logLevel | quote }}

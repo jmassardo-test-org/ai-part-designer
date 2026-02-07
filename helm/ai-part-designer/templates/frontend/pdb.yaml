@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  labels:
+    {{- include "ai-part-designer.frontend.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "ai-part-designer.frontend.selectorLabels" . | nindent 6 }}

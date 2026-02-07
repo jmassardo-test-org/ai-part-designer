@@ -1,0 +1,59 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+AssemblematicAI has been deployed with the following components:
+
+  - Backend API: {{ .Values.backendReplicas }} replicas
+  - Frontend Web: {{ .Values.frontendReplicas }} replicas
+  - Celery Workers: {{ .Values.workerReplicas }} replicas
+  - Celery Beat Scheduler: {{ .Values.beatReplicas }} replica
+
+{{- if .Values.ingressEnabled }}
+
+The application is accessible at:
+  https://{{ .Values.ingressHost }}
+
+API Documentation:
+  https://{{ .Values.ingressHost }}/docs
+
+{{- else }}
+
+To access the application locally:
+
+  1. Forward the frontend port:
+     kubectl port-forward -n {{ .Release.Namespace }} svc/frontend 8080:80
+
+  2. Forward the backend port:
+     kubectl port-forward -n {{ .Release.Namespace }} svc/backend 8000:8000
+
+  3. Access the application:
+     - Frontend: http://localhost:8080
+     - Backend API: http://localhost:8000
+     - API Docs: http://localhost:8000/docs
+
+{{- end }}
+
+IMPORTANT: Before the application can function properly, you must create secrets:
+
+  kubectl create secret generic backend-secrets \
+    --namespace={{ .Release.Namespace }} \
+    --from-literal=postgres-user=<your-user> \
+    --from-literal=postgres-password=<your-password> \
+    --from-literal=anthropic-api-key=<your-api-key> \
+    --from-literal=secret-key=<your-secret-key> \
+    --from-literal=access-key-id=<minio-access-key> \
+    --from-literal=secret-access-key=<minio-secret-key>
+
+  kubectl create secret generic celery-worker-secrets \
+    --namespace={{ .Release.Namespace }} \
+    --from-literal=access-key-id=<minio-access-key> \
+    --from-literal=secret-access-key=<minio-secret-key>
+
+To check the status of your deployment:
+
+  helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  kubectl get pods -n {{ .Release.Namespace }}
+
+For more information, visit:
+  https://github.com/jmassardo/ai-part-designer

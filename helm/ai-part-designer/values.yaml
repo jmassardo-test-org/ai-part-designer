@@ -1,0 +1,164 @@
+# Converted from k8s/base manifests - application-specific configuration
+
+backendImage: ghcr.io/jmassardo/ai-part-designer-backend:latest
+frontendImage: ghcr.io/jmassardo/ai-part-designer-frontend:latest
+
+# From k8s/base/backend/deployment.yaml
+backendReplicas: 3
+backendMemRequest: "512Mi"
+backendCpuRequest: "250m"
+backendMemLimit: "2Gi"
+backendCpuLimit: "1000m"
+
+# From k8s/base/frontend/deployment.yaml
+frontendReplicas: 2
+frontendMemRequest: "64Mi"
+frontendCpuRequest: "50m"
+frontendMemLimit: "256Mi"
+frontendCpuLimit: "200m"
+
+# From k8s/base/celery/worker-deployment.yaml
+workerReplicas: 3
+workerConcurrency: 4
+workerMemRequest: "1Gi"
+workerCpuRequest: "500m"
+workerMemLimit: "4Gi"
+workerCpuLimit: "2000m"
+
+# From k8s/base/celery/beat-deployment.yaml
+beatReplicas: 1
+beatMemRequest: "128Mi"
+beatCpuRequest: "50m"
+beatMemLimit: "512Mi"
+beatCpuLimit: "200m"
+
+# From k8s/base/backend/hpa.yaml
+backendHpaMin: 3
+backendHpaMax: 10
+backendCpuPercent: 70
+backendMemPercent: 80
+
+# From k8s/base/celery/worker-hpa.yaml
+workerHpaMin: 3
+workerHpaMax: 10
+workerCpuPercent: 70
+workerMemPercent: 80
+
+# From k8s/base/backend/configmap.yaml - Application Settings
+assemblematicAppName: "AssemblematicAI"
+assemblematicVersion: "0.1.0"
+assemblematicApiPrefix: "/api/v1"
+
+# Database settings from configmap
+postgresHost: "postgres-service"
+postgresPort: "5432"
+postgresDb: "assemblematic_ai"
+
+# Redis settings from configmap
+redisHost: "redis-service"
+redisPort: "6379"
+redisDb: "0"
+
+# MinIO storage from configmap
+storageBackend: "minio"
+minioEndpoint: "http://minio:9000"
+awsRegion: "us-east-1"
+designsBucket: "designs"
+exportsBucket: "exports"
+thumbnailsBucket: "thumbnails"
+uploadsBucket: "uploads"
+tempBucket: "temp"
+
+# AI Provider configuration from configmap
+aiProvider: "anthropic"
+anthropicModel: "claude-sonnet-4-20250514"
+aiMaxTokens: "4096"
+aiTemperature: "0.3"
+
+# Security settings from configmap
+accessTokenMinutes: "15"
+refreshTokenDays: "7"
+jwtAlgorithm: "HS256"
+passwordMinLength: "8"
+maxLoginAttempts: "5"
+lockoutMinutes: "15"
+requireEmailVerification: "true"
+sessionTimeoutMinutes: "60"
+concurrentSessionLimit: "5"
+corsAllowCredentials: "true"
+
+# Rate limiting from configmap
+rateLimitEnabled: "true"
+rateLimitPerMinute: "60"
+rateLimitPerHour: "1000"
+
+# Job processing settings from configmap
+cadWorkerTimeout: "300"
+maxConcurrentJobs: "10"
+jobRetryDelay: "60"
+
+# File upload from configmap
+maxUploadSizeMB: "50"
+
+# CAD v2 features from configmap
+cadV2Enabled: "true"
+cadV2AsDefault: "true"
+
+# Logging from configmap
+logLevel: "INFO"
+
+# Environment overrides
+deploymentEnvironment: "production"
+debugEnabled: false
+
+# Frontend config from k8s/base/frontend/configmap.yaml
+viteApiUrl: "http://backend:8000"
+viteWsUrl: "ws://backend:8000"
+
+# Ingress settings
+ingressEnabled: false
+ingressHost: "app.example.com"
+ingressTlsSecret: "ai-part-designer-tls"
+ingressCertIssuer: "letsencrypt-prod"
+
+# Network policies
+networkPoliciesEnabled: true
+
+# External secrets
+externalSecretsEnabled: false
+
+# Service accounts
+createServiceAccounts: true
+
+# Dependency toggles
+installPostgres: true
+installRedis: true
+installMinio: true
+installVault: false
+installIngress: false
+installCerts: false
+
+# Subchart configs
+cloudnative-pg:
+  cluster:
+    instances: 3
+    storage:
+      size: 20Gi
+
+redis:
+  auth:
+    password: "CHANGEME"
+  master:
+    persistence:
+      size: 8Gi
+
+minio:
+  rootPassword: "CHANGEME"
+  persistence:
+    size: 50Gi
+  buckets:
+    - name: designs
+    - name: exports
+    - name: thumbnails
+    - name: uploads
+    - name: temp

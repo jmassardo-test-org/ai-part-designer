@@ -1,0 +1,13 @@
+{{/* Converted from k8s/base/backend/pdb.yaml */}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  labels:
+    {{- include "ai-part-designer.backend.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      {{- include "ai-part-designer.backend.selectorLabels" . | nindent 6 }}

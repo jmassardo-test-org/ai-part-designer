@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: celery-worker-pdb
+  labels:
+    {{- include "ai-part-designer.worker.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      {{- include "ai-part-designer.worker.selectorLabels" . | nindent 6 }}

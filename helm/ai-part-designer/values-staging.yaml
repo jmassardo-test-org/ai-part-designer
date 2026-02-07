@@ -1,0 +1,36 @@
+# Staging environment overrides
+backendImage: ghcr.io/jmassardo/ai-part-designer-backend:staging
+frontendImage: ghcr.io/jmassardo/ai-part-designer-frontend:staging
+
+# Moderate resources for staging
+backendReplicas: 2
+frontendReplicas: 2
+workerReplicas: 2
+
+# Staging environment settings
+deploymentEnvironment: "staging"
+debugEnabled: false
+logLevel: "INFO"
+
+# Enable ingress for staging
+ingressEnabled: true
+ingressHost: "staging.ai-part-designer.example.com"
+
+# Staging-specific CORS
+viteApiUrl: "https://staging.ai-part-designer.example.com"
+
+# Moderate storage
+cloudnative-pg:
+  cluster:
+    instances: 2
+    storage:
+      size: 15Gi
+
+redis:
+  master:
+    persistence:
+      size: 4Gi
+
+minio:
+  persistence:
+    size: 25Gi

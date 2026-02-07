@@ -1,0 +1,28 @@
+{{/* Converted from k8s/base/backend/hpa.yaml */}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  labels:
+    {{- include "ai-part-designer.backend.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: {{ .Values.backendHpaMin }}
+  maxReplicas: {{ .Values.backendHpaMax }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.backendCpuPercent }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.backendMemPercent }}

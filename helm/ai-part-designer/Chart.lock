@@ -1,0 +1,21 @@
+dependencies:
+- name: cloudnative-pg
+  repository: https://cloudnative-pg.github.io/charts
+  version: 0.22.1
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 18.19.4
+- name: minio
+  repository: https://charts.min.io/
+  version: 5.2.0
+- name: openbao
+  repository: https://openbao.github.io/openbao-helm
+  version: 0.4.0
+- name: ingress-nginx
+  repository: https://kubernetes.github.io/ingress-nginx
+  version: 4.11.3
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: 1.16.2
+digest: sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+generated: "2026-02-07T00:00:00.000000000Z"
