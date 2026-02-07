@@ -30,6 +30,7 @@ class StorageBucket(StrEnum):
     THUMBNAILS = "thumbnails"
     UPLOADS = "uploads"
     TEMP = "temp"
+    ARCHIVES = "archives"
 
 
 class StorageClient:

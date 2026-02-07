@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     SESSION_TIMEOUT_MINUTES: int = 60
     CONCURRENT_SESSION_LIMIT: int = 5  # Max active sessions per user
 
+    # Audit log retention
+    AUDIT_LOG_RETENTION_DAYS: int = Field(
+        default=90,
+        description="Number of days to retain audit logs before archival",
+    )
+
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     CORS_ALLOW_CREDENTIALS: bool = True

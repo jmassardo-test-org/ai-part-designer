@@ -73,12 +73,12 @@ def purge_expired_trash() -> dict[str, Any]:
 
                     for design in expired_designs:
                         # Clean up storage files
-                        file_url = getattr(design, "file_url", None) or design.extra_data.get("file_url")
+                        file_url = getattr(design, "file_url", None) or design.extra_data.get(
+                            "file_url"
+                        )
                         if file_url:
                             try:
-                                await storage_client.delete_files(
-                                    StorageBucket.DESIGNS, [file_url]
-                                )
+                                await storage_client.delete_files(StorageBucket.DESIGNS, [file_url])
                                 deleted_summary["storage_files_removed"] += 1
                             except Exception as e:
                                 deleted_summary["errors"].append(
@@ -111,7 +111,9 @@ def purge_expired_trash() -> dict[str, Any]:
                     expired_files = files_result.scalars().all()
 
                     for file in expired_files:
-                        storage_key = getattr(file, "storage_key", None) or getattr(file, "storage_bucket", None)
+                        storage_key = getattr(file, "storage_key", None) or getattr(
+                            file, "storage_bucket", None
+                        )
                         if storage_key:
                             try:
                                 await storage_client.delete_files(
@@ -191,9 +193,7 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
         async with async_session_maker() as session:
             # Get all users with email notifications enabled
             users_result = await session.execute(
-                select(User).where(
-                    and_(User.status == "active", User.deleted_at.is_(None))
-                )
+                select(User).where(and_(User.status == "active", User.deleted_at.is_(None)))
             )
             users = users_result.scalars().all()
 
@@ -283,7 +283,9 @@ def send_trash_deletion_warnings() -> dict[str, Any]:
                 if items_to_warn:
                     try:
                         # Group by days until deletion
-                        min_days = min(cast("int", item["days_until_deletion"]) for item in items_to_warn)
+                        min_days = min(
+                            cast("int", item["days_until_deletion"]) for item in items_to_warn
+                        )
 
                         # Build URLs
                         base_url = settings.FRONTEND_URL or "https://assemblematic.ai"
@@ -772,5 +774,224 @@ def verify_backups() -> dict[str, Any]:
             )
 
         return verification_summary
+
+    return asyncio.run(run())
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="app.worker.tasks.maintenance.archive_old_audit_logs",
+)
+def archive_old_audit_logs() -> dict[str, Any]:
+    """
+    Archive audit logs older than the retention period.
+
+    This task:
+    1. Queries audit logs older than configured retention period (default 90 days)
+    2. Generates summary statistics for analytics
+    3. Compresses and exports logs to cold storage (ARCHIVES bucket)
+    4. Deletes archived logs from database to reduce table size
+
+    Runs weekly via Celery beat.
+    """
+    import asyncio
+    import gzip
+    import json
+    from io import BytesIO
+
+    from sqlalchemy import delete, func, select
+
+    from app.core.config import settings
+    from app.core.database import async_session_maker
+    from app.core.storage import StorageBucket, storage_client
+    from app.models.audit import AuditLog
+
+    async def run() -> dict[str, Any]:
+        archive_summary: dict[str, Any] = {
+            "logs_archived": 0,
+            "logs_deleted": 0,
+            "archive_files_created": 0,
+            "total_size_bytes": 0,
+            "summary_stats": {},
+            "errors": [],
+        }
+
+        async with async_session_maker() as session:
+            # Calculate cutoff date
+            cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS)
+
+            # Query old audit logs
+            logs_result = await session.execute(
+                select(AuditLog)
+                .where(AuditLog.created_at < cutoff_date)
+                .order_by(AuditLog.created_at)
+            )
+            old_logs = logs_result.scalars().all()
+
+            if not old_logs:
+                logger.info("No audit logs to archive")
+                return archive_summary
+
+            logger.info(
+                f"Found {len(old_logs)} audit logs older than {settings.AUDIT_LOG_RETENTION_DAYS} days"
+            )
+
+            # Generate summary statistics before archiving
+            try:
+                stats_result = await session.execute(
+                    select(
+                        AuditLog.action,
+                        AuditLog.resource_type,
+                        AuditLog.status,
+                        func.count(AuditLog.id).label("count"),
+                    )
+                    .where(AuditLog.created_at < cutoff_date)
+                    .group_by(AuditLog.action, AuditLog.resource_type, AuditLog.status)
+                )
+                stats = stats_result.all()
+
+                summary_stats = {
+                    "period_start": min(log.created_at for log in old_logs).isoformat(),
+                    "period_end": max(log.created_at for log in old_logs).isoformat(),
+                    "total_logs": len(old_logs),
+                    "by_action": {},
+                    "by_resource_type": {},
+                    "by_status": {},
+                }
+
+                for stat in stats:
+                    action, resource_type, status, count = stat
+
+                    # Count by action
+                    if action not in summary_stats["by_action"]:
+                        summary_stats["by_action"][action] = 0
+                    summary_stats["by_action"][action] += count
+
+                    # Count by resource type
+                    if resource_type not in summary_stats["by_resource_type"]:
+                        summary_stats["by_resource_type"][resource_type] = 0
+                    summary_stats["by_resource_type"][resource_type] += count
+
+                    # Count by status
+                    if status not in summary_stats["by_status"]:
+                        summary_stats["by_status"][status] = 0
+                    summary_stats["by_status"][status] += count
+
+                archive_summary["summary_stats"] = summary_stats
+            except Exception as e:
+                archive_summary["errors"].append(f"Failed to generate statistics: {e}")
+                logger.error(f"Error generating audit log statistics: {e}")
+
+            # Archive logs in batches (1000 logs per file)
+            batch_size = 1000
+            archive_timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
+
+            for batch_num, i in enumerate(range(0, len(old_logs), batch_size)):
+                batch = old_logs[i : i + batch_size]
+
+                try:
+                    # Serialize logs to JSON
+                    logs_data = [
+                        {
+                            "id": str(log.id),
+                            "user_id": str(log.user_id) if log.user_id else None,
+                            "actor_type": log.actor_type,
+                            "action": log.action,
+                            "resource_type": log.resource_type,
+                            "resource_id": str(log.resource_id) if log.resource_id else None,
+                            "context": log.context,
+                            "ip_address": log.ip_address,
+                            "user_agent": log.user_agent,
+                            "status": log.status,
+                            "error_message": log.error_message,
+                            "created_at": log.created_at.isoformat(),
+                        }
+                        for log in batch
+                    ]
+
+                    json_data = json.dumps(logs_data, indent=2)
+
+                    # Compress with gzip
+                    compressed_buffer = BytesIO()
+                    with gzip.GzipFile(fileobj=compressed_buffer, mode="wb") as gz_file:
+                        gz_file.write(json_data.encode("utf-8"))
+
+                    compressed_data = compressed_buffer.getvalue()
+                    archive_summary["total_size_bytes"] += len(compressed_data)
+
+                    # Upload to cold storage
+                    archive_key = f"audit-logs/{archive_timestamp}/batch_{batch_num:04d}.json.gz"
+                    await storage_client.upload_file(
+                        bucket=StorageBucket.ARCHIVES,
+                        key=archive_key,
+                        file=compressed_data,
+                        content_type="application/gzip",
+                        metadata={
+                            "original_count": str(len(batch)),
+                            "period_start": batch[0].created_at.isoformat(),
+                            "period_end": batch[-1].created_at.isoformat(),
+                            "archived_at": archive_timestamp,
+                        },
+                    )
+
+                    archive_summary["archive_files_created"] += 1
+                    archive_summary["logs_archived"] += len(batch)
+
+                    logger.info(f"Archived batch {batch_num} ({len(batch)} logs) to {archive_key}")
+
+                except Exception as e:
+                    archive_summary["errors"].append(f"Failed to archive batch {batch_num}: {e}")
+                    logger.error(f"Error archiving audit log batch {batch_num}: {e}")
+                    continue
+
+            # Also save summary statistics file
+            try:
+                summary_json = json.dumps(archive_summary["summary_stats"], indent=2)
+                summary_compressed = BytesIO()
+                with gzip.GzipFile(fileobj=summary_compressed, mode="wb") as gz_file:
+                    gz_file.write(summary_json.encode("utf-8"))
+
+                summary_key = f"audit-logs/{archive_timestamp}/summary.json.gz"
+                await storage_client.upload_file(
+                    bucket=StorageBucket.ARCHIVES,
+                    key=summary_key,
+                    file=summary_compressed.getvalue(),
+                    content_type="application/gzip",
+                    metadata={"type": "summary", "archived_at": archive_timestamp},
+                )
+                logger.info(f"Saved summary statistics to {summary_key}")
+            except Exception as e:
+                archive_summary["errors"].append(f"Failed to save summary: {e}")
+                logger.error(f"Error saving audit log summary: {e}")
+
+            # Delete archived logs from database
+            try:
+                result = await session.execute(
+                    delete(AuditLog).where(AuditLog.created_at < cutoff_date)
+                )
+                archive_summary["logs_deleted"] = result.rowcount or 0
+                await session.commit()
+
+                logger.info(f"Deleted {archive_summary['logs_deleted']} archived audit logs")
+            except Exception as e:
+                archive_summary["errors"].append(f"Failed to delete archived logs: {e}")
+                logger.error(f"Error deleting archived audit logs: {e}")
+                await session.rollback()
+
+        # Log final summary
+        if archive_summary["errors"]:
+            logger.warning(
+                f"Audit log archival completed with {len(archive_summary['errors'])} errors. "
+                f"Archived {archive_summary['logs_archived']} logs in "
+                f"{archive_summary['archive_files_created']} files "
+                f"({archive_summary['total_size_bytes']} bytes)"
+            )
+        else:
+            logger.info(
+                f"Successfully archived {archive_summary['logs_archived']} audit logs "
+                f"in {archive_summary['archive_files_created']} files "
+                f"({archive_summary['total_size_bytes']} bytes)"
+            )
+
+        return archive_summary
 
     return asyncio.run(run())
