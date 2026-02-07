@@ -57,6 +57,10 @@ resources:
 - network-policies/celery-worker-egress.yaml
 - network-policies/celery-beat-egress.yaml
 - minio/network-policy.yaml
+# Ingress and TLS
+# Note: Comment these out if not using ingress-nginx and cert-manager
+- cert-manager/cluster-issuer.yaml
+- ingress/ingress.yaml
 
 # Images to be customized per environment
 images:

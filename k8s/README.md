@@ -27,6 +27,10 @@ k8s/
 │   │   ├── beat-deployment.yaml
 │   │   ├── worker-hpa.yaml
 │   │   └── worker-pdb.yaml
+│   ├── cert-manager/              # TLS certificate automation
+│   │   └── cluster-issuer.yaml    # Let's Encrypt + self-signed issuers
+│   ├── ingress/                   # External traffic routing
+│   │   └── ingress.yaml           # NGINX Ingress with TLS and security
 │   └── network-policies/          # Network security policies
 │       ├── default-deny.yaml
 │       ├── backend-ingress.yaml
@@ -35,6 +39,7 @@ k8s/
 │       ├── frontend-egress.yaml
 │       ├── celery-worker-egress.yaml
 │       └── celery-beat-egress.yaml
+├── DNS_CONFIGURATION.md           # DNS setup guide for ingress
 └── overlays/                      # Environment-specific configurations
     ├── dev/
     │   ├── kustomization.yaml
@@ -388,7 +393,73 @@ These manifests assume the following infrastructure services are available:
 
 4. **Ingress Controller**
    - For external traffic routing
-   - Example: nginx-ingress, traefik
+   - NGINX Ingress Controller (recommended)
+   - See [INGRESS.md](INGRESS.md) for examples
+
+5. **cert-manager (optional)**
+   - For automatic TLS certificate provisioning
+   - ClusterIssuers in `base/cert-manager/cluster-issuer.yaml`
+   - See [DNS_CONFIGURATION.md](DNS_CONFIGURATION.md) for setup
+
+## External Access with Ingress
+
+The base manifests include pre-configured Ingress resources with TLS and security features:
+
+- **Location**: `k8s/base/ingress/ingress.yaml`
+- **Certificate Issuers**: `k8s/base/cert-manager/cluster-issuer.yaml`
+
+### Quick Setup
+
+1. **Install NGINX Ingress Controller**:
+   ```bash
+   # Via Helm (recommended)
+   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+   helm install ingress-nginx ingress-nginx/ingress-nginx \
+     --namespace ingress-nginx \
+     --create-namespace
+   ```
+
+2. **Install cert-manager**:
+   ```bash
+   helm repo add jetstack https://charts.jetstack.io
+   helm install cert-manager jetstack/cert-manager \
+     --namespace cert-manager \
+     --create-namespace \
+     --set installCRDs=true
+   ```
+
+3. **Apply base manifests** (includes ingress):
+   ```bash
+   kubectl apply -k k8s/overlays/production
+   ```
+
+4. **Configure DNS** - See [DNS_CONFIGURATION.md](DNS_CONFIGURATION.md)
+
+### Ingress Features
+
+- ✅ Automatic TLS with Let's Encrypt
+- ✅ HTTP to HTTPS redirect
+- ✅ Rate limiting (100 req/s per IP)
+- ✅ Request size limits (100MB for CAD uploads)
+- ✅ Security headers (HSTS, X-Frame-Options, etc.)
+- ✅ WebSocket support for real-time updates
+- ✅ Extended timeouts for AI CAD generation
+- ✅ Health check endpoints
+
+### Customization
+
+To customize ingress settings, edit `k8s/base/ingress/ingress.yaml`:
+
+```yaml
+# Change rate limits
+nginx.ingress.kubernetes.io/limit-rps: "200"
+
+# Change certificate issuer
+cert-manager.io/cluster-issuer: "letsencrypt-staging"
+
+# Change max upload size
+nginx.ingress.kubernetes.io/proxy-body-size: "200m"
+```
 
 ## Security Best Practices
 
@@ -405,13 +476,12 @@ These manifests assume the following infrastructure services are available:
 
 ## Next Steps
 
-1. **Ingress Configuration**: Add Ingress resources for external access
-2. **Cert-Manager**: Configure automatic TLS certificate management
-3. **Monitoring**: Deploy Prometheus and Grafana for metrics
-4. **Logging**: Configure centralized logging (EFK/ELK stack)
-5. **Backup Strategy**: Implement database and volume backups
-6. **Disaster Recovery**: Document and test DR procedures
-7. **CI/CD Integration**: Automate deployments with GitOps (ArgoCD/Flux)
+1. **External Access**: Configure ingress and DNS - see [DNS_CONFIGURATION.md](DNS_CONFIGURATION.md)
+2. **Monitoring**: Deploy Prometheus and Grafana for metrics
+3. **Logging**: Configure centralized logging (EFK/ELK stack)
+4. **Backup Strategy**: Implement database and volume backups
+5. **Disaster Recovery**: Document and test DR procedures
+6. **CI/CD Integration**: Automate deployments with GitOps (ArgoCD/Flux)
 
 ## References
 
