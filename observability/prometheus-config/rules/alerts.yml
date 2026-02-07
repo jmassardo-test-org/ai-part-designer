@@ -1,0 +1,98 @@
+groups:
+- name: api_health_monitoring
+  interval: 30s
+  rules:
+  - alert: HighServerErrorRate
+    expr: (sum(rate(http_requests_total{status=~"5..",job="part-designer-api"}[5m]))
+      / sum(rate(http_requests_total{job="part-designer-api"}[5m]))) > 0.025
+    for: 4m
+    labels:
+      severity: warning
+      component: api-gateway
+    annotations:
+      summary: API server error rate elevated above 2.5%
+      description: The API is experiencing {{ $value | humanizePercentage }} server
+        errors. Investigate logs and recent deployments.
+  - alert: SlowAPILatency
+    expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="part-designer-api"}[8m]))
+      by (le)) > 1.5
+    for: 6m
+    labels:
+      severity: warning
+      component: api-gateway
+    annotations:
+      summary: API response time degraded (P95 > 1.5s)
+      description: 95th percentile latency is {{ $value }}s. Check for slow queries
+        or external API delays.
+- name: cad_generation_monitoring
+  interval: 30s
+  rules:
+  - alert: CADGenerationFailureRate
+    expr: (sum(rate(cad_generations_total{status="error"}[15m])) / sum(rate(cad_generations_total[15m])))
+      > 0.12
+    for: 10m
+    labels:
+      severity: critical
+      component: cad-engine
+    annotations:
+      summary: CAD generation failure rate exceeds 12%
+      description: '{{ $value | humanizePercentage }} of CAD generations are failing.
+        Check CadQuery engine and parameter validation.'
+  - alert: SlowCADGeneration
+    expr: histogram_quantile(0.90, sum(rate(cad_generation_duration_seconds_bucket[10m]))
+      by (le)) > 25
+    for: 8m
+    labels:
+      severity: warning
+      component: cad-engine
+    annotations:
+      summary: CAD generation taking longer than expected
+      description: 'P90 generation time is {{ $value }}s (threshold: 25s). Check for
+        complex models or resource constraints.'
+- name: infrastructure_monitoring
+  interval: 30s
+  rules:
+  - alert: DatabasePoolHighUtilization
+    expr: (db_pool_checked_out_connections / db_pool_size) > 0.80
+    for: 5m
+    labels:
+      severity: warning
+      component: database
+    annotations:
+      summary: Database connection pool at high capacity
+      description: Pool utilization is {{ $value | humanizePercentage }}. Consider
+        increasing pool size or investigating connection leaks.
+  - alert: RedisDisconnected
+    expr: redis_connected != 1
+    for: 90s
+    labels:
+      severity: critical
+      component: cache
+    annotations:
+      summary: Redis cache is not connected
+      description: Cannot connect to Redis. Check Redis service health and network
+        connectivity.
+- name: ai_integration_monitoring
+  interval: 30s
+  rules:
+  - alert: AIProviderErrorRate
+    expr: (sum(rate(ai_requests_total{status="error"}[15m])) / sum(rate(ai_requests_total[15m])))
+      > 0.10
+    for: 5m
+    labels:
+      severity: warning
+      component: ai-provider
+    annotations:
+      summary: AI provider error rate elevated
+      description: '{{ $value | humanizePercentage }} of AI requests failing. Check
+        API keys, rate limits, and provider status.'
+  - alert: HighAITokenUsage
+    expr: sum(rate(ai_tokens_used_total[1h])) * 3600 > 150000
+    for: 45m
+    labels:
+      severity: info
+      component: ai-provider
+    annotations:
+      summary: AI token consumption is high
+      description: 'Consuming {{ $value }} tokens/hour (threshold: 150k/hr). Monitor
+        for cost implications.'
