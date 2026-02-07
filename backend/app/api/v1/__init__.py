@@ -46,6 +46,7 @@ from app.api.v1.template_comments import router as template_comments_router
 from app.api.v1.templates import router as templates_router
 from app.api.v1.trash import router as trash_router
 from app.api.v1.usage import router as usage_router
+from app.api.v1.users import router as users_router
 from app.api.v1.versions import router as versions_router
 from app.api.v1.webhooks import router as webhooks_router
 from app.api.v1.ws import router as ws_router
@@ -96,5 +97,6 @@ api_router.include_router(teams_router, tags=["teams"])
 api_router.include_router(ratings_router, tags=["ratings"])
 api_router.include_router(template_comments_router, tags=["template-comments"])
 api_router.include_router(moderation_router, tags=["moderation"])
+api_router.include_router(users_router, tags=["users"])
 
 __all__ = ["api_router"]
