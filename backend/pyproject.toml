@@ -63,6 +63,16 @@ dependencies = [
     
     # Monitoring
     "prometheus-fastapi-instrumentator>=7.0.0",
+    
+    # Distributed Tracing
+    "opentelemetry-api>=1.21.0",
+    "opentelemetry-sdk>=1.21.0",
+    "opentelemetry-instrumentation-fastapi>=0.42b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.42b0",
+    "opentelemetry-instrumentation-redis>=0.42b0",
+    "opentelemetry-instrumentation-httpx>=0.42b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.21.0",
+    "opentelemetry-exporter-jaeger>=1.21.0",
 ]
 
 [project.optional-dependencies]
@@ -209,6 +219,7 @@ module = [
     "structlog.*",
     "prometheus_client.*",
     "prometheus_fastapi_instrumentator.*",
+    "opentelemetry.*",
 ]
 ignore_missing_imports = true
 

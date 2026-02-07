@@ -228,9 +228,19 @@ class Settings(BaseSettings):
     STRIPE_PRICE_ID_ENTERPRISE_YEARLY: str | None = None
 
     # ===========================================
-    # Monitoring
+    # Monitoring & Observability
     # ===========================================
+    # OpenTelemetry / Distributed Tracing
     OTEL_EXPORTER_ENDPOINT: str | None = None
+    JAEGER_HOST: str = "localhost"
+    JAEGER_PORT: int = 6831
+    OTLP_ENDPOINT: str = "http://localhost:4317"
+    TRACING_ENABLED: bool = Field(
+        default=True,
+        description="Enable distributed tracing with OpenTelemetry",
+    )
+
+    # Error tracking
     SENTRY_DSN: str | None = None
     LOG_LEVEL: str = "INFO"
 
