@@ -26,25 +26,42 @@ installMinio: true
 installIngress: true
 installCerts: true
 
-# Full HA configuration
+# Production storage configuration
+# Use high-IOPS SSD storage class with data retention policy
+persistentStorage:
+  # Override with your cluster's high-performance StorageClass name
+  # Examples: "premium-rwo" (GKE), "gp3-retain" (EKS), "managed-premium-retain" (AKS)
+  # IMPORTANT: Use a StorageClass with reclaimPolicy: Retain for production
+  storageClassName: "fast-ssd"
+  expandable: true
+
+# Full HA configuration with production storage sizes per US-2.6
 cloudnative-pg:
   cluster:
     instances: 3
     storage:
-      size: 20Gi
+      size: 100Gi
+      storageClass: "fast-ssd"
     postgresql:
       parameters:
         max_connections: "200"
         shared_buffers: "256MB"
     monitoring:
       enabled: true
+    # CloudNativePG handles backup integration to MinIO
+    backup:
+      enabled: true
+      destinationPath: "s3://backups/postgresql"
+      retentionPolicy: "30d"
 
 redis:
   auth:
     password: "CHANGEME_USE_SECRET_MANAGER"
   master:
     persistence:
-      size: 8Gi
+      enabled: true
+      size: 10Gi
+      storageClass: "fast-ssd"
     resources:
       requests:
         memory: "256Mi"
@@ -52,11 +69,18 @@ redis:
       limits:
         memory: "1Gi"
         cpu: "500m"
+  # Redis RDB snapshots for persistence
+  commonConfiguration: |-
+    save 900 1
+    save 300 10
+    save 60 10000
 
 minio:
   rootPassword: "CHANGEME_USE_SECRET_MANAGER"
   persistence:
-    size: 50Gi
+    enabled: true
+    size: 500Gi
+    storageClass: "fast-ssd"
   resources:
     requests:
       memory: "512Mi"
@@ -64,6 +88,18 @@ minio:
     limits:
       memory: "2Gi"
       cpu: "1000m"
+
+# OpenBao storage for production secrets vault
+openbao:
+  server:
+    dataStorage:
+      enabled: true
+      size: 10Gi
+      storageClass: "fast-ssd"
+    auditStorage:
+      enabled: true
+      size: 5Gi
+      storageClass: "fast-ssd"
 
 # Enable network policies in production
 networkPoliciesEnabled: true

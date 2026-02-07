@@ -19,18 +19,31 @@ ingressHost: "staging.ai-part-designer.example.com"
 # Staging-specific CORS
 viteApiUrl: "https://staging.ai-part-designer.example.com"
 
-# Moderate storage
+# Staging storage configuration
+# Use standard SSD storage class for staging
+persistentStorage:
+  # Override with your cluster's standard SSD StorageClass name
+  # Examples: "standard-ssd" (GKE), "gp3" (EKS), "managed-premium" (AKS)
+  storageClassName: "standard"
+  expandable: true
+
+# Moderate storage per US-2.6 requirements
 cloudnative-pg:
   cluster:
     instances: 2
     storage:
       size: 15Gi
+      storageClass: "standard"
 
 redis:
   master:
     persistence:
+      enabled: true
       size: 4Gi
+      storageClass: "standard"
 
 minio:
   persistence:
+    enabled: true
     size: 25Gi
+    storageClass: "standard"

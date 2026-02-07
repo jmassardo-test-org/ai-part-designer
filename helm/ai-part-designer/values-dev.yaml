@@ -32,18 +32,29 @@ backendHpaMax: 1
 workerHpaMin: 1
 workerHpaMax: 1
 
-# Smaller storage for dev
+# Development storage configuration
+# Use local-path or cluster default for dev environments
+persistentStorage:
+  storageClassName: ""  # Uses cluster default (e.g., local-path, standard)
+  expandable: true
+
+# Smaller storage for dev per US-2.6 requirements
 cloudnative-pg:
   cluster:
     instances: 1
     storage:
       size: 10Gi
+      storageClass: ""
 
 redis:
   master:
     persistence:
+      enabled: true
       size: 2Gi
+      storageClass: ""
 
 minio:
   persistence:
+    enabled: true
     size: 10Gi
+    storageClass: ""
