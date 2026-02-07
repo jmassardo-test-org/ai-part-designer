@@ -67,6 +67,7 @@ ENDPOINT_CATEGORIES = {
     # Export endpoints
     "/api/v1/files/export": "export",
     "/api/v1/designs/export": "export",
+    "/api/v1/users/me/audit-logs/export": "export",
     # Health check (should be very permissive)
     "/api/v1/health": "health",
     "/health": "health",
