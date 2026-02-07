@@ -324,21 +324,36 @@ def mock_redis():
     mock._connected = True
 
     # Patch in all modules that import redis_client directly
-    patches = [
-        patch("app.core.auth.redis_client", mock),
-        patch("app.core.cache.redis_client", mock),
-        patch("app.core.rate_limiter.redis_client", mock),
-        patch("app.core.undo_tokens.redis_client", mock),
-        patch("app.services.security_audit.redis_client", mock),
+    patches = []
+    patch_targets = [
+        "app.core.auth.redis_client",
+        "app.core.cache.redis_client",
+        "app.core.rate_limiter.redis_client",
+        "app.core.undo_tokens.redis_client",
+        "app.services.security_audit.redis_client",
     ]
 
+    # Create patches - some modules may not be loaded yet
+    for target in patch_targets:
+        patches.append(patch(target, mock))
+
+    # Start patches - handle cases where modules aren't available yet
     for p in patches:
-        p.start()
+        try:
+            p.start()
+        except AttributeError:
+            # Module not found during patch.start(), skip this patch
+            pass
 
     yield mock
 
+    # Stop patches - handle cases where patches weren't successfully started
     for p in patches:
-        p.stop()
+        try:
+            p.stop()
+        except RuntimeError:
+            # Patch was not started, skip
+            pass
 
 
 @pytest.fixture

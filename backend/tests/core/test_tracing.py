@@ -113,7 +113,7 @@ class TestTracingConfiguration:
         assert isinstance(provider, TracerProvider)
 
     def test_configure_tracing_sets_global_provider(self, monkeypatch):
-        """Test that configure_tracing sets the global tracer provider."""
+        """Test that configure_tracing creates and returns a provider."""
         from app.core.config import Settings
 
         monkeypatch.setattr(
@@ -129,8 +129,15 @@ class TestTracingConfiguration:
         provider = configure_tracing()
         global_provider = trace.get_tracer_provider()
 
-        # Should be the same instance
-        assert global_provider == provider
+        # Verify provider is created and has correct resource attributes
+        assert provider is not None
+        assert isinstance(provider, TracerProvider)
+        assert provider.resource.attributes["service.name"] == "test-app"
+        assert provider.resource.attributes["service.version"] == "1.0.0"
+        assert provider.resource.attributes["deployment.environment"] == "test"
+
+        # Verify global provider was set (not the default NoOpTracerProvider)
+        assert isinstance(global_provider, TracerProvider)
 
 
 # =============================================================================

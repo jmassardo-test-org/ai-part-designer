@@ -133,3 +133,4 @@ backend/uploads/
 secrets/
 credentials.json
 service-account.json
+backend/uv.lock

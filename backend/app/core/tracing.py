@@ -159,6 +159,10 @@ def instrument_database(engine: AsyncEngine) -> None:
     - Connection pool metrics
     - Transaction boundaries
 
+    Note: SQLAlchemy instrumentation requires the sync engine for proper
+    instrumentation of connection pooling and SQL execution. This works with
+    async engines through the underlying sync engine layer.
+
     Args:
         engine: SQLAlchemy async engine instance to instrument.
     """
