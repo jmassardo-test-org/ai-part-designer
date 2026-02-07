@@ -13,9 +13,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
 
 if TYPE_CHECKING:
+    from httpx import AsyncClient
     from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
@@ -181,7 +181,6 @@ class TestOAuthCallback:
                     assert "is_new_user=true" in response.headers["location"]
 
                     # Verify user was created in database
-                    from app.models import User
                     from app.repositories import UserRepository
 
                     user_repo = UserRepository(db_session)
@@ -420,7 +419,7 @@ class TestOAuthConnectionManagement:
         db_session: AsyncSession,
     ) -> None:
         """Test that user cannot unlink their last authentication method."""
-        from app.core.security import hash_password, create_access_token
+        from app.core.security import create_access_token, hash_password
         from app.models import OAuthConnection, User
 
         # Create user with ONLY OAuth (no password)
@@ -463,7 +462,9 @@ class TestOAuthConnectionManagement:
         # Should prevent unlinking
         if response.status_code == 400:
             data = response.json()
-            assert "cannot unlink" in data["detail"].lower() or "last" in data["detail"].lower()
+            assert (
+                "cannot unlink" in data["detail"].lower() or "last" in data["detail"].lower()
+            )
 
 
 # =============================================================================
