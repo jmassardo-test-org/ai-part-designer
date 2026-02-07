@@ -250,7 +250,6 @@ redis:
     failoverTimeout: 10000
     parallelSyncs: 1
   master:
-    count: 3  # 3 Redis master/replica pods
     persistence:
       enabled: true
       size: 10Gi  # Production default per US-2.6 requirements
@@ -263,7 +262,7 @@ redis:
         memory: "512Mi"
         cpu: "500m"
   replica:
-    replicaCount: 2  # 2 replicas per master for HA
+    replicaCount: 2  # 2 replicas for HA (3 total pods with master)
     persistence:
       enabled: true
       size: 10Gi

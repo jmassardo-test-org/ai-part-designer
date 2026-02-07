@@ -146,10 +146,8 @@ redis:
   sentinel:
     enabled: true
     quorum: 2
-  master:
-    count: 1
   replica:
-    replicaCount: 2
+    replicaCount: 2  # 2 replicas (3 total pods with master)
 ```
 
 **Development (Standalone)**:

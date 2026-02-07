@@ -72,7 +72,6 @@ redis:
     failoverTimeout: 10000
     parallelSyncs: 1
   master:
-    count: 1  # Single master for staging
     persistence:
       enabled: true
       size: 4Gi
@@ -85,7 +84,7 @@ redis:
         memory: "512Mi"
         cpu: "500m"
   replica:
-    replicaCount: 1  # 1 replica for staging
+    replicaCount: 1  # 1 replica for staging (2 total pods with master)
     persistence:
       enabled: true
       size: 4Gi

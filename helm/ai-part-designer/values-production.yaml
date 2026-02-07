@@ -102,7 +102,6 @@ redis:
     failoverTimeout: 10000
     parallelSyncs: 1
   master:
-    count: 1  # Single master with replicas
     persistence:
       enabled: true
       size: 10Gi
@@ -115,7 +114,7 @@ redis:
         memory: "2Gi"
         cpu: "1000m"
   replica:
-    replicaCount: 2  # 2 replicas for production HA
+    replicaCount: 2  # 2 replicas for production HA (3 total pods with master)
     persistence:
       enabled: true
       size: 10Gi

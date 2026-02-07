@@ -11,7 +11,7 @@ AssemblematicAI has been deployed with the following components:
 {{- if .Values.installRedis }}
   - Redis: {{ .Values.redis.architecture }} mode
   {{- if eq .Values.redis.architecture "replication" }}
-    - Redis Master: {{ .Values.redis.master.count | default 1 }} pod(s)
+    - Redis Master: 1 pod
     - Redis Replicas: {{ .Values.redis.replica.replicaCount | default 2 }} pod(s)
     - Redis Sentinel: Enabled for automatic failover
   {{- end }}
