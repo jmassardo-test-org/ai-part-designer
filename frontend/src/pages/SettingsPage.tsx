@@ -19,12 +19,14 @@ import {
   Link2,
   Unlink,
   BellOff,
+  FileText,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { oauthApi, OAuthConnection } from '@/lib/api/oauth';
+import AuditLogViewer from '@/components/settings/AuditLogViewer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -498,7 +500,7 @@ export function SettingsPage() {
   const location = useLocation();
 
   // Determine initial section from URL path or search params
-  type SectionId = 'profile' | 'password' | 'connected' | 'notifications' | 'billing' | 'account';
+  type SectionId = 'profile' | 'password' | 'connected' | 'notifications' | 'billing' | 'audit' | 'account';
   
   const getInitialSection = (): SectionId => {
     // Check if path is /settings/notifications
@@ -695,6 +697,7 @@ export function SettingsPage() {
     { id: 'connected', label: 'Connected Accounts', icon: Link2 },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'audit', label: 'Audit Log', icon: FileText },
     { id: 'account', label: 'Account', icon: Trash2 },
   ] as const;
 
@@ -1054,6 +1057,11 @@ export function SettingsPage() {
           {/* Billing Section */}
           {activeSection === 'billing' && (
             <BillingSection />
+          )}
+
+          {/* Audit Log Section */}
+          {activeSection === 'audit' && (
+            <AuditLogViewer />
           )}
 
           {/* Account Section */}
