@@ -216,35 +216,39 @@ async def export_user_audit_logs_csv(
     writer = csv.writer(output)
 
     # Header
-    writer.writerow([
-        "ID",
-        "Timestamp",
-        "Action",
-        "Resource Type",
-        "Resource ID",
-        "Actor Type",
-        "Status",
-        "Error Message",
-        "IP Address",
-        "User Agent",
-        "Context",
-    ])
+    writer.writerow(
+        [
+            "ID",
+            "Timestamp",
+            "Action",
+            "Resource Type",
+            "Resource ID",
+            "Actor Type",
+            "Status",
+            "Error Message",
+            "IP Address",
+            "User Agent",
+            "Context",
+        ]
+    )
 
     # Data rows
     for log in logs:
-        writer.writerow([
-            str(log.id),
-            log.created_at.isoformat(),
-            log.action,
-            log.resource_type,
-            str(log.resource_id) if log.resource_id else "",
-            log.actor_type,
-            log.status,
-            log.error_message or "",
-            log.ip_address or "",
-            log.user_agent or "",
-            json.dumps(log.context) if log.context else "{}",
-        ])
+        writer.writerow(
+            [
+                str(log.id),
+                log.created_at.isoformat(),
+                log.action,
+                log.resource_type,
+                str(log.resource_id) if log.resource_id else "",
+                log.actor_type,
+                log.status,
+                log.error_message or "",
+                log.ip_address or "",
+                log.user_agent or "",
+                json.dumps(log.context) if log.context else "{}",
+            ]
+        )
 
     output.seek(0)
 
