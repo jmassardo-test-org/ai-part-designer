@@ -1,0 +1,17 @@
+{{/* Converted from k8s/base/backend/service.yaml */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels:
+    {{- include "ai-part-designer.backend.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "ai-part-designer.backend.selectorLabels" . | nindent 4 }}

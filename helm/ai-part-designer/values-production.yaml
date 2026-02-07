@@ -1,0 +1,72 @@
+# Production environment overrides
+backendImage: ghcr.io/jmassardo/ai-part-designer-backend:v0.1.0
+frontendImage: ghcr.io/jmassardo/ai-part-designer-frontend:v0.1.0
+
+# Full production resources (use defaults from values.yaml)
+backendReplicas: 3
+frontendReplicas: 2
+workerReplicas: 3
+
+# Production environment settings
+deploymentEnvironment: "production"
+debugEnabled: false
+logLevel: "INFO"
+
+# Enable ingress for production
+ingressEnabled: true
+ingressHost: "app.ai-part-designer.com"
+
+# Production CORS
+viteApiUrl: "https://app.ai-part-designer.com"
+
+# Enable all infrastructure components
+installPostgres: true
+installRedis: true
+installMinio: true
+installIngress: true
+installCerts: true
+
+# Full HA configuration
+cloudnative-pg:
+  cluster:
+    instances: 3
+    storage:
+      size: 20Gi
+    postgresql:
+      parameters:
+        max_connections: "200"
+        shared_buffers: "256MB"
+    monitoring:
+      enabled: true
+
+redis:
+  auth:
+    password: "CHANGEME_USE_SECRET_MANAGER"
+  master:
+    persistence:
+      size: 8Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+minio:
+  rootPassword: "CHANGEME_USE_SECRET_MANAGER"
+  persistence:
+    size: 50Gi
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+# Enable network policies in production
+networkPoliciesEnabled: true
+
+# Enable external secrets for production
+externalSecretsEnabled: true

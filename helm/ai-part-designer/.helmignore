@@ -1,0 +1,20 @@
+# Patterns to ignore when building packages.
+# Similar to .gitignore
+
+.git/
+.gitignore
+.DS_Store
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+
+# CI/CD
+.github/
+
+# Documentation
+README.md.backup
+
+# Development
+*.log

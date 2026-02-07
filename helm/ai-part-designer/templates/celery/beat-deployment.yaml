@@ -1,0 +1,77 @@
+{{/* Converted from k8s/base/celery/beat-deployment.yaml */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+  labels:
+    {{- include "ai-part-designer.beat.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.beatReplicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ai-part-designer.beat.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ai-part-designer.beat.selectorLabels" . | nindent 8 }}
+        {{- include "ai-part-designer.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.createServiceAccounts }}
+      serviceAccountName: celery
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: beat
+        image: {{ .Values.backendImage }}
+        imagePullPolicy: IfNotPresent
+        command: ["uv", "run", "celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info"]
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.deploymentEnvironment | quote }}
+        - name: APP_ENV
+          value: {{ .Values.deploymentEnvironment | quote }}
+        - name: REDIS_HOST
+          value: {{ .Values.redisHost | quote }}
+        - name: REDIS_PORT
+          value: {{ .Values.redisPort | quote }}
+        - name: REDIS_DB
+          value: {{ .Values.redisDb | quote }}
+        - name: POSTGRES_HOST
+          value: {{ .Values.postgresHost | quote }}
+        - name: POSTGRES_PORT
+          value: {{ .Values.postgresPort | quote }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresDb | quote }}
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-password
+        resources:
+          requests:
+            memory: {{ .Values.beatMemRequest | quote }}
+            cpu: {{ .Values.beatCpuRequest | quote }}
+          limits:
+            memory: {{ .Values.beatMemLimit | quote }}
+            cpu: {{ .Values.beatCpuLimit | quote }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1000

@@ -1,0 +1,163 @@
+{{/* Converted from k8s/base/backend/deployment.yaml */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    {{- include "ai-part-designer.backend.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backendReplicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "ai-part-designer.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ai-part-designer.backend.selectorLabels" . | nindent 8 }}
+        {{- include "ai-part-designer.labels" . | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      {{- if .Values.createServiceAccounts }}
+      serviceAccountName: backend
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: backend
+        image: {{ .Values.backendImage }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.deploymentEnvironment | quote }}
+        - name: DEBUG
+          value: {{ .Values.debugEnabled | quote }}
+        - name: POSTGRES_HOST
+          value: {{ .Values.postgresHost | quote }}
+        - name: POSTGRES_PORT
+          value: {{ .Values.postgresPort | quote }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresDb | quote }}
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-password
+        - name: REDIS_HOST
+          value: {{ .Values.redisHost | quote }}
+        - name: REDIS_PORT
+          value: {{ .Values.redisPort | quote }}
+        - name: REDIS_DB
+          value: {{ .Values.redisDb | quote }}
+        - name: STORAGE_BACKEND
+          value: {{ .Values.storageBackend | quote }}
+        - name: S3_ENDPOINT_URL
+          value: {{ .Values.minioEndpoint | quote }}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: secret-access-key
+        - name: AWS_REGION
+          value: {{ .Values.awsRegion | quote }}
+        - name: STORAGE_BUCKET_DESIGNS
+          value: {{ .Values.designsBucket | quote }}
+        - name: STORAGE_BUCKET_EXPORTS
+          value: {{ .Values.exportsBucket | quote }}
+        - name: STORAGE_BUCKET_THUMBNAILS
+          value: {{ .Values.thumbnailsBucket | quote }}
+        - name: AI_PROVIDER
+          value: {{ .Values.aiProvider | quote }}
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: anthropic-api-key
+        - name: ANTHROPIC_MODEL
+          value: {{ .Values.anthropicModel | quote }}
+        - name: AI_MAX_TOKENS
+          value: {{ .Values.aiMaxTokens | quote }}
+        - name: AI_TEMPERATURE
+          value: {{ .Values.aiTemperature | quote }}
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: secret-key
+        - name: CORS_ORIGINS
+          value: '["https://{{ .Values.ingressHost }}"]'
+        - name: FRONTEND_URL
+          value: "https://{{ .Values.ingressHost }}"
+        - name: ACCESS_TOKEN_EXPIRE_MINUTES
+          value: {{ .Values.accessTokenMinutes | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.logLevel | quote }}
+        - name: CAD_V2_ENABLED
+          value: {{ .Values.cadV2Enabled | quote }}
+        - name: CAD_V2_AS_DEFAULT
+          value: {{ .Values.cadV2AsDefault | quote }}
+        resources:
+          requests:
+            memory: {{ .Values.backendMemRequest | quote }}
+            cpu: {{ .Values.backendCpuRequest | quote }}
+          limits:
+            memory: {{ .Values.backendMemLimit | quote }}
+            cpu: {{ .Values.backendCpuLimit | quote }}
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /api/v1/health
+            port: http
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1000

@@ -1,0 +1,49 @@
+# Development environment overrides
+backendImage: ghcr.io/jmassardo/ai-part-designer-backend:dev
+frontendImage: ghcr.io/jmassardo/ai-part-designer-frontend:dev
+
+# Reduced resources for dev
+backendReplicas: 1
+backendHpaMin: 1
+backendHpaMax: 2
+backendMemRequest: "256Mi"
+backendCpuRequest: "100m"
+
+frontendReplicas: 1
+
+workerReplicas: 1
+workerHpaMin: 1
+workerHpaMax: 2
+workerMemRequest: "512Mi"
+workerCpuRequest: "250m"
+
+# Dev environment settings
+deploymentEnvironment: "development"
+debugEnabled: true
+logLevel: "DEBUG"
+
+# Local service names
+postgresHost: "postgres-service.ai-part-designer-dev.svc.cluster.local"
+redisHost: "redis-service.ai-part-designer-dev.svc.cluster.local"
+
+# Disable autoscaling in dev
+backendHpaMin: 1
+backendHpaMax: 1
+workerHpaMin: 1
+workerHpaMax: 1
+
+# Smaller storage for dev
+cloudnative-pg:
+  cluster:
+    instances: 1
+    storage:
+      size: 10Gi
+
+redis:
+  master:
+    persistence:
+      size: 2Gi
+
+minio:
+  persistence:
+    size: 10Gi

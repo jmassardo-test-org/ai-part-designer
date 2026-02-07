@@ -1,0 +1,113 @@
+{{/* Converted from k8s/base/celery/worker-deployment.yaml */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  labels:
+    {{- include "ai-part-designer.worker.selectorLabels" . | nindent 4 }}
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.workerReplicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "ai-part-designer.worker.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ai-part-designer.worker.selectorLabels" . | nindent 8 }}
+        {{- include "ai-part-designer.labels" . | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9808"
+        prometheus.io/path: "/metrics"
+    spec:
+      {{- if .Values.createServiceAccounts }}
+      serviceAccountName: celery
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: worker
+        image: {{ .Values.backendImage }}
+        imagePullPolicy: IfNotPresent
+        command: ["uv", "run", "celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency={{ .Values.workerConcurrency }}"]
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.deploymentEnvironment | quote }}
+        - name: APP_ENV
+          value: {{ .Values.deploymentEnvironment | quote }}
+        - name: POSTGRES_HOST
+          value: {{ .Values.postgresHost | quote }}
+        - name: POSTGRES_PORT
+          value: {{ .Values.postgresPort | quote }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresDb | quote }}
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-password
+        - name: REDIS_HOST
+          value: {{ .Values.redisHost | quote }}
+        - name: REDIS_PORT
+          value: {{ .Values.redisPort | quote }}
+        - name: REDIS_DB
+          value: {{ .Values.redisDb | quote }}
+        - name: STORAGE_BACKEND
+          value: {{ .Values.storageBackend | quote }}
+        - name: S3_ENDPOINT_URL
+          value: {{ .Values.minioEndpoint | quote }}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: celery-worker-secrets
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: celery-worker-secrets
+              key: secret-access-key
+        - name: AWS_REGION
+          value: {{ .Values.awsRegion | quote }}
+        - name: AI_PROVIDER
+          value: {{ .Values.aiProvider | quote }}
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: anthropic-api-key
+        - name: ANTHROPIC_MODEL
+          value: {{ .Values.anthropicModel | quote }}
+        - name: CAD_WORKER_TIMEOUT
+          value: {{ .Values.cadWorkerTimeout | quote }}
+        - name: MAX_CONCURRENT_JOBS
+          value: {{ .Values.maxConcurrentJobs | quote }}
+        resources:
+          requests:
+            memory: {{ .Values.workerMemRequest | quote }}
+            cpu: {{ .Values.workerCpuRequest | quote }}
+          limits:
+            memory: {{ .Values.workerMemLimit | quote }}
+            cpu: {{ .Values.workerCpuLimit | quote }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1000
