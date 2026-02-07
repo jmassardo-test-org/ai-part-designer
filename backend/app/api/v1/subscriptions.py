@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import audit_log
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.core.stripe import get_stripe_client
@@ -219,6 +220,14 @@ async def get_current_subscription(
 
 
 @router.post("/checkout")
+@audit_log(
+    action="subscription_checkout",
+    resource_type="subscription",
+    context_builder=lambda **kwargs: {
+        "plan_slug": kwargs["request"].plan_slug,
+        "billing_interval": kwargs["request"].billing_interval,
+    },
+)
 async def create_checkout(
     request: CheckoutRequest,
     user: User = Depends(get_current_user),
@@ -291,6 +300,13 @@ async def create_portal_session(
 
 
 @router.post("/cancel")
+@audit_log(
+    action="subscription_cancel",
+    resource_type="subscription",
+    context_builder=lambda **kwargs: {
+        "immediately": kwargs.get("immediately", False),
+    },
+)
 async def cancel_subscription(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -326,6 +342,10 @@ async def cancel_subscription(
 
 
 @router.post("/resume")
+@audit_log(
+    action="subscription_resume",
+    resource_type="subscription",
+)
 async def resume_subscription(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
