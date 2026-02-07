@@ -327,7 +327,7 @@ async def cancel_job(
             celery_app.control.revoke(
                 job.celery_task_id,
                 terminate=True,
-                signal="SIGKILL",
+                signal="SIGTERM",  # Allow graceful cleanup
             )
             logger.info(
                 "celery_task_revoked",
@@ -416,7 +416,15 @@ async def retry_job(
     job.progress = 0
     job.progress_message = None
     job.retry_count += 1
-    job.celery_task_id = None  # Clear old task ID
+
+    # Log old task ID before clearing (for debugging)
+    if job.celery_task_id:
+        logger.debug(
+            "clearing_old_task_id",
+            job_id=str(job_id),
+            old_task_id=job.celery_task_id,
+        )
+    job.celery_task_id = None
 
     await db.commit()
 
@@ -441,6 +449,7 @@ async def retry_job(
             )
     except Exception as e:
         # Roll back the retry if re-queuing fails
+        job.status = "failed"  # Revert to failed state
         job.retry_count -= 1
         job.celery_task_id = None
         await db.commit()

@@ -730,7 +730,7 @@ class TestCeleryTaskCancellation:
         mock_revoke.assert_called_once_with(
             "test-task-id-123",
             terminate=True,
-            signal="SIGKILL",
+            signal="SIGTERM",  # Allow graceful cleanup
         )
 
     @pytest.mark.asyncio
@@ -968,10 +968,11 @@ class TestCeleryTaskRetry:
         mocker,
     ):
         """Test that retrying a component extraction job re-queues the task."""
+        # Note: "full" is a valid job type for component extraction (CAD + datasheet)
         job = await job_factory.create_failed(
             db=db_session,
             user=test_user,
-            job_type="full",  # Component extraction job type
+            job_type="full",
             retry_count=0,
             max_retries=3,
             input_params={},
