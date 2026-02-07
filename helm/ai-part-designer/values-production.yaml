@@ -172,3 +172,78 @@ networkPoliciesEnabled: true
 
 # Enable external secrets for production
 externalSecretsEnabled: true
+
+# Production Ingress - Enable external access with full security
+ingressEnabled: true
+installIngress: true
+installCerts: true
+
+# Production TLS with Let's Encrypt
+ingressCertIssuer: "letsencrypt-prod"
+ingressHost: "app.ai-part-designer.com"
+ingressMultiDomain: true
+ingressFrontendHost: "app.ai-part-designer.com"
+ingressBackendHost: "api.ai-part-designer.com"
+
+# Strict rate limiting for production abuse protection
+ingressRateLimitRps: "100"
+ingressRateLimitConnections: "50"
+ingressRateLimitBurst: "5"
+
+# Production request handling for CAD file uploads
+ingressMaxBodySize: "100m"
+ingressClientBodyBufferSize: "10m"
+
+# Extended timeouts for AI CAD generation operations
+ingressProxyConnectTimeout: "300"
+ingressProxySendTimeout: "300"
+ingressProxyReadTimeout: "300"
+
+# Production HSTS with preload
+ingressHstsMaxAge: "31536000"
+ingressHstsPreload: "true"
+
+# NGINX Ingress for production traffic handling
+ingress-nginx:
+  controller:
+    replicaCount: 2
+    minAvailable: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+    config:
+      proxy-buffer-size: "16k"
+      large-client-header-buffers: "4 32k"
+      enable-opentracing: "true"
+      custom-http-errors: "404,503"
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+    service:
+      type: LoadBalancer
+    admissionWebhooks:
+      enabled: true
+      failurePolicy: Fail
+
+# Certificate automation for production
+cert-manager:
+  installCRDs: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  webhook:
+    replicaCount: 1
+  prometheus:
+    enabled: true
+    servicemonitor:
+      enabled: true

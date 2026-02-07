@@ -94,3 +94,41 @@ minio:
     enabled: true
     size: 10Gi
     storageClass: ""
+
+# Ingress configuration for dev (disabled by default, use port-forward)
+ingressEnabled: false
+installIngress: false
+installCerts: false
+
+# If ingress is needed for dev, use self-signed certs
+ingressCertIssuer: "selfsigned"
+ingressHost: "dev.ai-part-designer.local"
+ingressMultiDomain: false
+
+# Relaxed rate limiting for dev
+ingressRateLimitRps: "500"
+ingressRateLimitConnections: "200"
+
+# ingress-nginx dev config (if enabled)
+ingress-nginx:
+  controller:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+# cert-manager dev config (if enabled)
+cert-manager:
+  installCRDs: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi

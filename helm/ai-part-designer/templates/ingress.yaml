@@ -6,35 +6,73 @@ metadata:
   labels:
     {{- include "ai-part-designer.labels" . | nindent 4 }}
   annotations:
+    # cert-manager configuration
     cert-manager.io/cluster-issuer: {{ .Values.ingressCertIssuer | quote }}
+    
+    # SSL/TLS configuration
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: {{ .Values.ingressSecurityHeaders.xFrameOptions | default "DENY" }}";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Permissions-Policy: geolocation=(), microphone=(), camera=()";
+    
+    # HSTS (HTTP Strict Transport Security)
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: {{ .Values.ingressHstsMaxAge | default "31536000" | quote }}
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    nginx.ingress.kubernetes.io/hsts-preload: {{ .Values.ingressHstsPreload | default "true" | quote }}
+    
+    # Rate limiting - protects against abuse
+    nginx.ingress.kubernetes.io/limit-rps: {{ .Values.ingressRateLimitRps | default "100" | quote }}
+    nginx.ingress.kubernetes.io/limit-connections: {{ .Values.ingressRateLimitConnections | default "50" | quote }}
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: {{ .Values.ingressRateLimitBurst | default "5" | quote }}
+    
+    # Request size limits - accommodates file uploads (CAD files, STL exports)
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ .Values.ingressMaxBodySize | default "100m" | quote }}
+    nginx.ingress.kubernetes.io/client-body-buffer-size: {{ .Values.ingressClientBodyBufferSize | default "10m" | quote }}
+    
+    # Timeout settings for long-running CAD generation
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: {{ .Values.ingressProxyConnectTimeout | default "300" | quote }}
+    nginx.ingress.kubernetes.io/proxy-send-timeout: {{ .Values.ingressProxySendTimeout | default "300" | quote }}
+    nginx.ingress.kubernetes.io/proxy-read-timeout: {{ .Values.ingressProxyReadTimeout | default "300" | quote }}
+    
+    # CORS will be handled by the backend FastAPI application
+    # But we enable proxy headers for proper CORS support
+    nginx.ingress.kubernetes.io/enable-cors: "false"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    
+    # WebSocket support for real-time updates
+    nginx.ingress.kubernetes.io/websocket-services: "backend"
+    
+    # Backend protocol
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    {{- with .Values.ingressAdditionalAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   ingressClassName: nginx
   {{- if .Values.ingressTlsSecret }}
   tls:
   - secretName: {{ .Values.ingressTlsSecret }}
     hosts:
+    {{- if .Values.ingressMultiDomain }}
+    - {{ .Values.ingressFrontendHost | default .Values.ingressHost }}
+    - {{ .Values.ingressBackendHost | default (printf "api.%s" .Values.ingressHost) }}
+    {{- else }}
     - {{ .Values.ingressHost }}
+    {{- end }}
   {{- end }}
   rules:
-  - host: {{ .Values.ingressHost }}
+  {{- if .Values.ingressMultiDomain }}
+  # Frontend application on dedicated subdomain
+  - host: {{ .Values.ingressFrontendHost | default .Values.ingressHost }}
     http:
       paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: backend
-            port:
-              number: 8000
-      - path: /docs
-        pathType: Prefix
-        backend:
-          service:
-            name: backend
-            port:
-              number: 8000
       - path: /
         pathType: Prefix
         backend:
@@ -42,4 +80,45 @@ spec:
             name: frontend
             port:
               number: 80
+  # Backend API on dedicated subdomain
+  - host: {{ .Values.ingressBackendHost | default (printf "api.%s" .Values.ingressHost) }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8000
+  {{- else }}
+  # Single domain with path-based routing
+  - host: {{ .Values.ingressHost }}
+    http:
+      paths:
+      # API paths go to backend
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8000
+      # API docs go to backend
+      - path: /docs
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8000
+      # Root and all other paths go to frontend
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+  {{- end }}
 {{- end }}

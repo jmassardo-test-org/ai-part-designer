@@ -113,3 +113,55 @@ minio:
     enabled: true
     size: 25Gi
     storageClass: "standard"
+
+# Ingress configuration for staging
+ingressEnabled: true
+installIngress: true
+installCerts: true
+
+# Use Let's Encrypt staging for testing
+ingressCertIssuer: "letsencrypt-staging"
+ingressHost: "staging.ai-part-designer.example.com"
+ingressMultiDomain: false
+
+# Moderate rate limiting for staging
+ingressRateLimitRps: "200"
+ingressRateLimitConnections: "100"
+
+# Staging-specific ingress settings
+ingressMaxBodySize: "100m"
+ingressProxyReadTimeout: "300"
+
+# ingress-nginx staging config
+ingress-nginx:
+  controller:
+    replicaCount: 2
+    resources:
+      requests:
+        cpu: 150m
+        memory: 192Mi
+      limits:
+        cpu: 750m
+        memory: 384Mi
+    service:
+      type: LoadBalancer
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+# cert-manager staging config
+cert-manager:
+  installCRDs: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 40m
+      memory: 96Mi
+    limits:
+      cpu: 150m
+      memory: 192Mi
+  prometheus:
+    enabled: true
+    servicemonitor:
+      enabled: true

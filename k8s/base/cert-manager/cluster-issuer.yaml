@@ -1,0 +1,42 @@
+---
+# Let's Encrypt Staging Issuer - for testing without rate limits
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    # Let's Encrypt staging server (higher rate limits, untrusted certs)
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: devops@example.com  # Replace with your email
+    privateKeySecretRef:
+      name: letsencrypt-staging-key
+    solvers:
+    - http01:
+        ingress:
+          ingressClassName: nginx
+---
+# Let's Encrypt Production Issuer - for production certificates
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt production server (trusted certs, strict rate limits)
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: devops@example.com  # Replace with your email
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+    - http01:
+        ingress:
+          ingressClassName: nginx
+---
+# Self-Signed Issuer - for development and internal testing
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned
+spec:
+  selfSigned: {}

@@ -126,6 +126,38 @@ ingressHost: "app.example.com"
 ingressTlsSecret: "ai-part-designer-tls"
 ingressCertIssuer: "letsencrypt-prod"
 
+# Ingress routing mode
+# Set to true for multi-domain (app.example.com + api.example.com)
+# Set to false for single domain with path-based routing
+ingressMultiDomain: false
+ingressFrontendHost: "app.example.com"
+ingressBackendHost: "api.example.com"
+
+# Ingress rate limiting
+ingressRateLimitRps: "100"
+ingressRateLimitConnections: "50"
+ingressRateLimitBurst: "5"
+
+# Ingress request size limits (for file uploads)
+ingressMaxBodySize: "100m"
+ingressClientBodyBufferSize: "10m"
+
+# Ingress timeout settings (for long-running CAD generation)
+ingressProxyConnectTimeout: "300"
+ingressProxySendTimeout: "300"
+ingressProxyReadTimeout: "300"
+
+# HSTS settings
+ingressHstsMaxAge: "31536000"
+ingressHstsPreload: "true"
+
+# Security headers
+ingressSecurityHeaders:
+  xFrameOptions: "DENY"
+
+# Additional ingress annotations (optional)
+ingressAdditionalAnnotations: {}
+
 # Network policies
 networkPoliciesEnabled: true
 
@@ -314,3 +346,68 @@ openbao:
       enabled: true
       size: 5Gi
       storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
+
+# NGINX Ingress Controller configuration
+ingress-nginx:
+  controller:
+    replicaCount: 2
+    minAvailable: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+    config:
+      # Custom buffer sizes for CAD file processing
+      proxy-buffer-size: "16k"
+      large-client-header-buffers: "4 32k"
+      # Enable real-time metrics
+      enable-opentracing: "true"
+      # Custom error pages
+      custom-http-errors: "404,503"
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+    service:
+      type: LoadBalancer
+      annotations: {}
+    admissionWebhooks:
+      enabled: true
+      failurePolicy: Fail
+
+# cert-manager configuration
+cert-manager:
+  installCRDs: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  webhook:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  cainjector:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  prometheus:
+    enabled: true
+    servicemonitor:
+      enabled: true
