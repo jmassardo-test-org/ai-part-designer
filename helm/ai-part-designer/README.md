@@ -105,6 +105,16 @@ postgresPort: "5432"
 postgresDb: "assemblematic_ai"
 ```
 
+### Persistent Storage
+
+All stateful components use PVCs with environment-specific sizes. See [Storage Implementation](../STORAGE_IMPLEMENTATION.md) for complete details.
+
+| Component | Dev | Staging | Production |
+|-----------|-----|---------|------------|
+| PostgreSQL | 10Gi | 15Gi | 100Gi |
+| Redis | 2Gi | 4Gi | 10Gi |
+| MinIO | 10Gi | 25Gi | 500Gi |
+
 ### Storage Buckets
 
 The chart configures MinIO with these buckets:

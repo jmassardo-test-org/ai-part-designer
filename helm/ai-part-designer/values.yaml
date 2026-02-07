@@ -138,27 +138,50 @@ installVault: false
 installIngress: false
 installCerts: false
 
+# Storage configuration - specify StorageClass for each environment
+# Set to empty string "" to use cluster default
+persistentStorage:
+  storageClassName: ""  # Override in environment-specific values files
+  expandable: true      # Enable volume expansion across all PVCs
+
 # Subchart configs
 cloudnative-pg:
   cluster:
     instances: 3
     storage:
-      size: 20Gi
+      size: 100Gi  # Production default per US-2.6 requirements
+      storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
 
 redis:
   auth:
     password: "CHANGEME"
   master:
     persistence:
-      size: 8Gi
+      enabled: true
+      size: 10Gi  # Production default per US-2.6 requirements
+      storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
 
 minio:
   rootPassword: "CHANGEME"
   persistence:
-    size: 50Gi
+    enabled: true
+    size: 500Gi  # Production default per US-2.6 requirements
+    storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
   buckets:
     - name: designs
     - name: exports
     - name: thumbnails
     - name: uploads
     - name: temp
+
+# OpenBao storage (when enabled via installVault: true)
+openbao:
+  server:
+    dataStorage:
+      enabled: true
+      size: 10Gi
+      storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
+    auditStorage:
+      enabled: true
+      size: 5Gi
+      storageClass: ""  # Uses persistentStorage.storageClassName if not overridden
