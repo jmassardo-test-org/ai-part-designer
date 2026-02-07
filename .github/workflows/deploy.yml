@@ -1,0 +1,257 @@
+name: CD - Deploy to Environments
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: 'Image tag to deploy (e.g., main, sha-abc123, v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  update-staging:
+    name: Update Staging Image Tags
+    runs-on: ubuntu-latest
+    # Run only if CI succeeded and workflow was triggered on main branch
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+
+      - name: Set image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            # Use the SHA from the CI workflow
+            echo "tag=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update staging kustomization with new image tags
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          # Update backend image tag
+          cd k8s/overlays/staging
+          kustomize edit set image \
+            ai-part-designer-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-production:${TAG}
+
+          # Update frontend image tag
+          kustomize edit set image \
+            ai-part-designer-frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${TAG}
+
+          # Show changes
+          git diff kustomization.yaml
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add k8s/overlays/staging/kustomization.yaml
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(staging): update image tags to ${{ steps.tag.outputs.tag }}"
+            git push origin main
+            echo "✅ Staging image tags updated successfully"
+          fi
+
+      - name: Comment on commit (if from CI)
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: '${{ github.event.workflow_run.head_sha }}',
+              body: '🚀 Staging deployment triggered with images tagged `${{ steps.tag.outputs.tag }}`\n\nArgoCD will automatically sync these changes to the staging environment.'
+            })
+
+  prepare-production:
+    name: Prepare Production Image Tags (Manual)
+    runs-on: ubuntu-latest
+    # Run only for manual workflow dispatch to production
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+
+      - name: Create production deployment branch
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          BRANCH="deploy/production-${TAG}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create new branch
+          git checkout -b "${BRANCH}"
+
+          # Update production kustomization
+          cd k8s/overlays/production
+          kustomize edit set image \
+            ai-part-designer-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-production:${TAG}
+          kustomize edit set image \
+            ai-part-designer-frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${TAG}
+
+          # Commit changes
+          git add kustomization.yaml
+          git commit -m "chore(production): update image tags to ${TAG}"
+
+          # Push branch
+          git push origin "${BRANCH}"
+
+          # Output for next step
+          echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        id: branch
+
+      - name: Create Pull Request for Production Deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚀 Production Deployment: ${{ steps.branch.outputs.tag }}',
+              head: '${{ steps.branch.outputs.branch }}',
+              base: 'main',
+              body: `## Production Deployment Request
+
+            This PR updates the production image tags to \`${{ steps.branch.outputs.tag }}\`.
+
+            ### Pre-Deployment Checklist
+            - [ ] Staging deployment verified successful
+            - [ ] No critical bugs reported in staging
+            - [ ] Database migrations tested (if any)
+            - [ ] Rollback plan documented
+            - [ ] Stakeholders notified
+            - [ ] Deployment window confirmed (Mon-Fri 9am-5pm UTC)
+
+            ### Image Tags
+            - **Backend**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-production:${{ steps.branch.outputs.tag }}\`
+            - **Frontend**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ steps.branch.outputs.tag }}\`
+            - **Worker**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${{ steps.branch.outputs.tag }}\`
+            - **Beat**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-beat:${{ steps.branch.outputs.tag }}\`
+
+            ### Deployment Steps
+            1. Merge this PR
+            2. Login to ArgoCD: \`argocd login argocd.yourdomain.com\`
+            3. Sync production app: \`argocd app sync ai-part-designer-production --prune\`
+            4. Monitor deployment in ArgoCD UI
+            5. Verify health checks pass
+            6. Monitor logs and metrics for 30 minutes
+
+            ### Rollback Plan
+            If issues are detected:
+            1. In ArgoCD UI, go to History tab
+            2. Select previous successful deployment
+            3. Click "Rollback"
+            4. Or via CLI: \`argocd app rollback ai-part-designer-production\`
+
+            ---
+            **Note**: After merging, you must manually sync in ArgoCD to deploy to production.
+            `,
+              draft: false
+            });
+
+            // Add labels
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ['deployment', 'production', 'needs-review']
+            });
+
+            console.log(`Created PR #${pr.number}: ${pr.html_url}`);
+
+  verify-images:
+    name: Verify Container Images Exist
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      packages: read
+
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify images exist
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+
+          echo "Verifying images with tag: ${TAG}"
+
+          # Check if images exist
+          IMAGES=(
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-production:${TAG}"
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${TAG}"
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${TAG}"
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-beat:${TAG}"
+          )
+
+          for IMAGE in "${IMAGES[@]}"; do
+            echo "Checking ${IMAGE}..."
+            if docker manifest inspect "${IMAGE}" > /dev/null 2>&1; then
+              echo "✅ ${IMAGE} exists"
+            else
+              echo "❌ ${IMAGE} does not exist"
+              exit 1
+            fi
+          done
+
+          echo "✅ All images verified successfully"

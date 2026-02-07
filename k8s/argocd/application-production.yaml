@@ -1,0 +1,127 @@
+---
+# ArgoCD Application for Production Environment
+# This application requires manual sync for production deployments
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ai-part-designer-production
+  namespace: argocd
+  labels:
+    environment: production
+    app.kubernetes.io/name: ai-part-designer
+    app.kubernetes.io/component: application
+  # Finalizers ensure proper cleanup when deleting the application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  # Annotations for notifications
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: deployments,production-alerts
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: deployments,production-alerts
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: production-alerts
+spec:
+  # Project the application belongs to
+  project: default
+
+  # Source repository configuration
+  source:
+    repoURL: https://github.com/jmassardo/ai-part-designer
+    # Use tags for production (more stable than branch)
+    targetRevision: main
+    path: k8s/overlays/production
+
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ai-part-designer-prod
+
+  # Sync policy configuration
+  syncPolicy:
+    # Manual sync only for production
+    # automated: null  # Explicitly disabled
+
+    # Sync options
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=true
+      # Validate resources before applying
+      - Validate=true
+      # Use server-side apply (recommended for large resources)
+      - ServerSideApply=false
+      # Prune last to avoid dependency issues
+      - PruneLast=true
+      # Replace resources instead of applying (useful for immutable fields)
+      - Replace=false
+      # Respect ignore differences
+      - RespectIgnoreDifferences=true
+
+    # Retry policy for failed syncs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences in certain fields
+  ignoreDifferences:
+    # Ignore replica count differences (for HPA)
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    # Ignore differences in auto-generated fields
+    - group: "*"
+      kind: "*"
+      managedFieldsManagers:
+        - kube-controller-manager
+
+---
+# AppProject for production (optional - provides additional controls)
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ai-part-designer-production
+  namespace: argocd
+spec:
+  description: AI Part Designer Production Environment
+
+  # Source repositories
+  sourceRepos:
+    - https://github.com/jmassardo/ai-part-designer
+
+  # Allowed destinations
+  destinations:
+    - namespace: ai-part-designer-prod
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+
+  # Namespace resource whitelist (empty = allow all)
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Orphaned resources settings
+  orphanedResources:
+    warn: true
+
+  # Sync windows - restrict production syncs to specific times
+  syncWindows:
+    # Allow syncs during business hours (UTC)
+    - kind: allow
+      schedule: '0 9-17 * * 1-5'  # Mon-Fri 9am-5pm UTC
+      duration: 8h
+      applications:
+        - ai-part-designer-production
+      manualSync: true
+    # Deny syncs during weekend
+    - kind: deny
+      schedule: '0 0 * * 0,6'  # Sat-Sun
+      duration: 24h
+      applications:
+        - ai-part-designer-production

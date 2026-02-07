@@ -1,0 +1,74 @@
+---
+# ArgoCD Ingress Configuration
+# Provides secure access to the ArgoCD UI with SSL/TLS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/component: server
+  annotations:
+    # NGINX ingress controller annotations
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # cert-manager annotations for automatic SSL certificate
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+
+    # Rate limiting (optional)
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+
+spec:
+  ingressClassName: nginx
+
+  tls:
+    - hosts:
+        - argocd.yourdomain.com  # Replace with your actual domain
+      secretName: argocd-server-tls
+
+  rules:
+    - host: argocd.yourdomain.com  # Replace with your actual domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  name: https
+
+---
+# Alternative: ArgoCD Server Service with LoadBalancer
+# Use this if you prefer LoadBalancer instead of Ingress
+# Uncomment and modify as needed
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: argocd-server-lb
+#   namespace: argocd
+#   labels:
+#     app.kubernetes.io/name: argocd-server
+# spec:
+#   type: LoadBalancer
+#   ports:
+#     - name: http
+#       port: 80
+#       targetPort: 8080
+#       protocol: TCP
+#     - name: https
+#       port: 443
+#       targetPort: 8080
+#       protocol: TCP
+#   selector:
+#     app.kubernetes.io/name: argocd-server
