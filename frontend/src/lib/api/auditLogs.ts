@@ -14,7 +14,7 @@ export interface AuditLog {
   actor_type: string;
   status: string;
   error_message: string | null;
-  context: Record<string, any>;
+  context: Record<string, unknown>;
   ip_address: string | null;
   user_agent: string | null;
   created_at: string;

@@ -11,6 +11,8 @@ export interface OAuthConnection {
   provider: string;
   email?: string;
   connected_at: string;
+  provider_email?: string;
+  provider_username?: string;
 }
 
 export interface OAuthConnectionsResponse {
@@ -59,6 +61,19 @@ export const oauthApi = {
     });
     if (!response.ok) {
       throw new Error(`Failed to disconnect ${provider}`);
+    }
+  },
+
+  async unlinkProvider(provider: string): Promise<void> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/auth/oauth/unlink/${provider}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to unlink ${provider}`);
     }
   },
 };

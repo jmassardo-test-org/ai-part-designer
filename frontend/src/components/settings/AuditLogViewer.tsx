@@ -4,17 +4,18 @@
  * Displays audit logs for the current user with pagination and filtering.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Clock,
   AlertCircle,
   CheckCircle,
-  XCircle,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Filter,
   Loader2,
+  XCircle,
 } from 'lucide-react';
+
 import { auditLogsApi, type AuditLog, type AuditLogsFilters } from '@/lib/api/auditLogs';
 
 const ITEMS_PER_PAGE = 20;
@@ -93,7 +94,7 @@ export default function AuditLogViewer() {
   /**
    * Fetch audit logs
    */
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -118,14 +119,14 @@ export default function AuditLogViewer() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, actionFilter, resourceTypeFilter, statusFilter, startDateFilter, endDateFilter]);
 
   /**
    * Load logs on mount and when filters/page changes
    */
   useEffect(() => {
     fetchLogs();
-  }, [currentPage, actionFilter, resourceTypeFilter, statusFilter, startDateFilter, endDateFilter]);
+  }, [fetchLogs]);
 
   /**
    * Reset filters

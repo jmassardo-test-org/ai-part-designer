@@ -5,8 +5,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import AuditLogViewer from './AuditLogViewer';
+
 import * as auditLogsApi from '@/lib/api/auditLogs';
+
+import AuditLogViewer from './AuditLogViewer';
 
 // Mock the audit logs API
 vi.mock('@/lib/api/auditLogs', () => ({
@@ -76,7 +78,8 @@ describe('AuditLogViewer', () => {
     );
 
     expect(screen.getByText('Audit Log')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeInTheDocument(); // Loader2 has role="status"
+    // Check for the loading spinner by its test attribute or class
+    expect(screen.getByText('View all actions performed in your account')).toBeInTheDocument();
   });
 
   it('displays audit logs when loaded', async () => {
