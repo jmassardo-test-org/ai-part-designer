@@ -20,6 +20,13 @@ from app.api.v2 import api_router as api_router_v2
 from app.core.config import get_settings
 from app.core.logging import configure_structlog, get_logger
 from app.core.metrics import collect_db_pool_metrics, collect_redis_metrics, setup_metrics
+from app.core.tracing import (
+    configure_tracing,
+    instrument_fastapi,
+    instrument_httpx,
+    instrument_redis,
+    shutdown_tracing,
+)
 from app.middleware.request_context import RequestContextMiddleware
 
 if TYPE_CHECKING:
@@ -49,12 +56,32 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     # Startup
+    # Configure tracing early in startup
+    try:
+        configure_tracing()
+        # Instrument httpx for external API calls
+        instrument_httpx()
+        logger.info("tracing_initialized")
+    except Exception as e:
+        logger.warning("tracing_initialization_failed", error=str(e), exc_info=True)
+
     try:
         # Initialize database
-        from app.core.database import init_db
+        from app.core.database import init_db, engine
 
         await init_db()
         logger.info("database_initialized")
+
+        # Instrument database after initialization
+        try:
+            from app.core.tracing import instrument_database
+
+            instrument_database(engine)
+        except Exception as db_instrument_error:
+            logger.warning(
+                "database_instrumentation_failed",
+                error=str(db_instrument_error),
+            )
     except Exception as e:
         logger.warning("database_initialization_failed", error=str(e), exc_info=True)
 
@@ -65,6 +92,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         await redis_client.connect()
         await redis_client.client.ping()
         logger.info("redis_connected")
+
+        # Instrument Redis after connection
+        try:
+            instrument_redis()
+        except Exception as redis_instrument_error:
+            logger.warning(
+                "redis_instrumentation_failed",
+                error=str(redis_instrument_error),
+            )
 
         # Start WebSocket Redis subscriber
         from app.websocket.subscriber import start_redis_subscriber
@@ -106,6 +142,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Shutdown
     logger.info("application_shutting_down")
+
+    # Shutdown tracing to flush pending spans
+    try:
+        shutdown_tracing()
+    except Exception as e:
+        logger.warning("tracing_shutdown_error", error=str(e), exc_info=True)
 
     try:
         # Stop WebSocket Redis subscriber
@@ -169,6 +211,13 @@ def create_app() -> FastAPI:
 
     # Setup Prometheus metrics and expose /metrics endpoint
     setup_metrics(app)
+
+    # Setup OpenTelemetry instrumentation for FastAPI
+    # This must be done after middleware setup but before routes
+    try:
+        instrument_fastapi(app)
+    except Exception as e:
+        logger.warning("fastapi_tracing_setup_failed", error=str(e))
 
     # Include API routes
     app.include_router(api_router)
