@@ -12,7 +12,7 @@ import pytest
 from fastapi import FastAPI
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.tracing import (
     configure_tracing,
@@ -23,7 +23,6 @@ from app.core.tracing import (
     instrument_redis,
     shutdown_tracing,
 )
-
 
 # =============================================================================
 # Configuration Tests
@@ -345,8 +344,9 @@ class TestTracingIntegration:
     @pytest.mark.asyncio
     async def test_tracing_with_fastapi_request(self, monkeypatch):
         """Test that tracing works with FastAPI requests."""
-        from app.core.config import Settings
         from httpx import ASGITransport, AsyncClient
+
+        from app.core.config import Settings
 
         monkeypatch.setattr(
             "app.core.tracing.get_settings",
@@ -372,9 +372,7 @@ class TestTracingIntegration:
         instrument_fastapi(app)
 
         # Make a request
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/test")
             assert response.status_code == 200
             assert response.json() == {"message": "test"}
