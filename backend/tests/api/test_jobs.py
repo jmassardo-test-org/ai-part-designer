@@ -1073,7 +1073,7 @@ class TestCeleryTaskRetry:
         assert job.status == "failed"  # Should still be failed
 
     @pytest.mark.asyncio
-    async def test_retry_job_missing_prompt_fails(
+    async def test_retry_job_missing_prompt_fails_validation(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
@@ -1081,7 +1081,7 @@ class TestCeleryTaskRetry:
         auth_headers,
         job_factory,
     ):
-        """Test that retrying an AI generation job without prompt fails with clear error."""
+        """Test that retrying an AI generation job without prompt fails validation."""
         job = await job_factory.create_failed(
             db=db_session,
             user=test_user,
@@ -1106,7 +1106,7 @@ class TestCeleryTaskRetry:
         assert job.status == "failed"
 
     @pytest.mark.asyncio
-    async def test_retry_job_missing_schema_fails(
+    async def test_retry_job_missing_schema_fails_validation(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
@@ -1114,7 +1114,7 @@ class TestCeleryTaskRetry:
         auth_headers,
         job_factory,
     ):
-        """Test that retrying a CAD compile job without schema fails with clear error."""
+        """Test that retrying a CAD compile job without schema fails validation."""
         job = await job_factory.create_failed(
             db=db_session,
             user=test_user,
