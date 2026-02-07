@@ -35,6 +35,29 @@ cloudnative-pg:
       size: 15Gi
       storageClass: "standard"
 
+# CloudNativePG PostgreSQL Configuration (Staging)
+cloudnativePg:
+  cluster:
+    instances: 2
+    storage:
+      size: 50Gi
+      storageClass: "standard"
+    backup:
+      enabled: true
+      endpointURL: "http://minio:9000"
+      schedule: "0 3 * * *"
+      retentionPolicy: "7d"
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  pooler:
+    enabled: true
+    instances: 2
+
 redis:
   master:
     persistence:

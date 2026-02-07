@@ -1,0 +1,61 @@
+{{- if .Values.installPostgres }}
+{{- if .Values.cloudnativePg.pooler.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: postgres-pooler
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres-pooler
+    app.kubernetes.io/component: database-pooler
+spec:
+  cluster:
+    name: postgres-cluster
+  
+  instances: {{ .Values.cloudnativePg.pooler.instances | default 2 }}
+  type: {{ .Values.cloudnativePg.pooler.type | default "rw" }}
+  
+  pgbouncer:
+    poolMode: {{ .Values.cloudnativePg.pooler.pgbouncer.poolMode | default "session" }}
+    parameters:
+      max_client_conn: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.max_client_conn | default "1000" | quote }}
+      default_pool_size: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.default_pool_size | default "25" | quote }}
+      max_db_connections: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.max_db_connections | default "100" | quote }}
+      max_user_connections: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.max_user_connections | default "100" | quote }}
+      reserve_pool_size: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.reserve_pool_size | default "5" | quote }}
+      reserve_pool_timeout: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.reserve_pool_timeout | default "5" | quote }}
+      log_connections: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.log_connections | default "0" | quote }}
+      log_disconnections: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.log_disconnections | default "0" | quote }}
+      server_idle_timeout: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.server_idle_timeout | default "600" | quote }}
+      server_lifetime: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.server_lifetime | default "3600" | quote }}
+      server_connect_timeout: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.server_connect_timeout | default "15" | quote }}
+      query_timeout: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.query_timeout | default "0" | quote }}
+      stats_period: {{ .Values.cloudnativePg.pooler.pgbouncer.parameters.stats_period | default "60" | quote }}
+  
+  template:
+    metadata:
+      labels:
+        {{- include "ai-part-designer.labels" . | nindent 8 }}
+        app.kubernetes.io/name: postgres-pooler
+        app.kubernetes.io/component: database-pooler
+    spec:
+      containers:
+      - name: pgbouncer
+        resources:
+          requests:
+            cpu: {{ .Values.cloudnativePg.pooler.resources.requests.cpu | default "100m" }}
+            memory: {{ .Values.cloudnativePg.pooler.resources.requests.memory | default "128Mi" }}
+          limits:
+            cpu: {{ .Values.cloudnativePg.pooler.resources.limits.cpu | default "500m" }}
+            memory: {{ .Values.cloudnativePg.pooler.resources.limits.memory | default "512Mi" }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: postgres-pooler
+              topologyKey: kubernetes.io/hostname
+{{- end }}
+{{- end }}

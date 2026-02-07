@@ -1,0 +1,26 @@
+{{- if .Values.installPostgres }}
+{{- if .Values.cloudnativePg.cluster.backup.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-backup-daily
+  labels:
+    {{- include "ai-part-designer.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres-backup
+    app.kubernetes.io/component: database-backup
+spec:
+  schedule: {{ .Values.cloudnativePg.cluster.backup.schedule | default "0 2 * * *" | quote }}
+  backupOwnerReference: self
+  cluster:
+    name: postgres-cluster
+  
+  # Backup method - use barmanObjectStore for S3-compatible storage
+  method: barmanObjectStore
+  
+  # Immediate backup after schedule if previous was missed
+  immediate: {{ .Values.cloudnativePg.cluster.backup.immediate | default false }}
+  
+  # Suspend scheduled backups (useful for maintenance)
+  suspend: {{ .Values.cloudnativePg.cluster.backup.suspend | default false }}
+{{- end }}
+{{- end }}
