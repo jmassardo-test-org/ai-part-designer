@@ -5,10 +5,11 @@ Revises: 024_design_marketplace_fields
 Create Date: 2026-02-02 11:00:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "025_design_remix_tracking"
@@ -43,11 +44,11 @@ def _fk_exists(table_name: str, constraint_name: str) -> bool:
 
 def upgrade() -> None:
     """Add remixed_from_id column for tracking remix relationships.
-    
+
     This migration is idempotent - it checks for existing schema objects
     before attempting to create them.
     """
-    
+
     # Add remixed_from_id column (if not exists)
     if not _column_exists("designs", "remixed_from_id"):
         op.add_column(
@@ -58,7 +59,7 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-    
+
     # Add foreign key constraint for remix tracking (if not exists)
     if not _fk_exists("designs", "fk_designs_remixed_from_id"):
         op.create_foreign_key(
@@ -69,7 +70,7 @@ def upgrade() -> None:
             ["id"],
             ondelete="SET NULL",
         )
-    
+
     # Add index for remixed_from_id (if not exists)
     if not _index_exists("designs", "idx_designs_remixed_from_id"):
         op.create_index("idx_designs_remixed_from_id", "designs", ["remixed_from_id"])
@@ -77,12 +78,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove remixed_from_id column."""
-    
+
     # Drop index
     op.drop_index("idx_designs_remixed_from_id", table_name="designs")
-    
+
     # Drop foreign key
     op.drop_constraint("fk_designs_remixed_from_id", "designs", type_="foreignkey")
-    
+
     # Drop column
     op.drop_column("designs", "remixed_from_id")

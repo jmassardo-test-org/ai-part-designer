@@ -10,9 +10,10 @@ Creates tables for Organization Teams feature:
 - project_teams: Project-Team access assignments
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '020_team_models'
@@ -26,19 +27,19 @@ def upgrade() -> None:
     op.create_table(
         'teams',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('organization_id', postgresql.UUID(as_uuid=True), 
-                  sa.ForeignKey('organizations.id', ondelete='CASCADE'), 
+        sa.Column('organization_id', postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey('organizations.id', ondelete='CASCADE'),
                   nullable=False, index=True),
         sa.Column('name', sa.String(100), nullable=False),
         sa.Column('slug', sa.String(100), nullable=False),
         sa.Column('description', sa.Text, nullable=True),
         sa.Column('settings', postgresql.JSONB, nullable=False, server_default='{}'),
-        sa.Column('created_by_id', postgresql.UUID(as_uuid=True), 
+        sa.Column('created_by_id', postgresql.UUID(as_uuid=True),
                   sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('is_active', sa.Boolean, nullable=False, default=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), 
+        sa.Column('created_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), 
+        sa.Column('updated_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now(), onupdate=sa.func.now()),
         sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint('organization_id', 'slug', name='uq_team_org_slug'),
@@ -51,21 +52,21 @@ def upgrade() -> None:
     op.create_table(
         'team_members',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('team_id', postgresql.UUID(as_uuid=True), 
-                  sa.ForeignKey('teams.id', ondelete='CASCADE'), 
+        sa.Column('team_id', postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey('teams.id', ondelete='CASCADE'),
                   nullable=False, index=True),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), 
-                  sa.ForeignKey('users.id', ondelete='CASCADE'), 
+        sa.Column('user_id', postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey('users.id', ondelete='CASCADE'),
                   nullable=False, index=True),
         sa.Column('role', sa.String(20), nullable=False, default='member'),
-        sa.Column('added_by_id', postgresql.UUID(as_uuid=True), 
+        sa.Column('added_by_id', postgresql.UUID(as_uuid=True),
                   sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
-        sa.Column('joined_at', sa.DateTime(timezone=True), 
+        sa.Column('joined_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now()),
         sa.Column('is_active', sa.Boolean, nullable=False, default=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), 
+        sa.Column('created_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), 
+        sa.Column('updated_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now(), onupdate=sa.func.now()),
         sa.UniqueConstraint('team_id', 'user_id', name='uq_team_member'),
     )
@@ -76,20 +77,20 @@ def upgrade() -> None:
     op.create_table(
         'project_teams',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('project_id', postgresql.UUID(as_uuid=True), 
-                  sa.ForeignKey('projects.id', ondelete='CASCADE'), 
+        sa.Column('project_id', postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey('projects.id', ondelete='CASCADE'),
                   nullable=False, index=True),
-        sa.Column('team_id', postgresql.UUID(as_uuid=True), 
-                  sa.ForeignKey('teams.id', ondelete='CASCADE'), 
+        sa.Column('team_id', postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey('teams.id', ondelete='CASCADE'),
                   nullable=False, index=True),
         sa.Column('permission_level', sa.String(20), nullable=False, default='viewer'),
-        sa.Column('assigned_by_id', postgresql.UUID(as_uuid=True), 
+        sa.Column('assigned_by_id', postgresql.UUID(as_uuid=True),
                   sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
-        sa.Column('assigned_at', sa.DateTime(timezone=True), 
+        sa.Column('assigned_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now()),
-        sa.Column('created_at', sa.DateTime(timezone=True), 
+        sa.Column('created_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), 
+        sa.Column('updated_at', sa.DateTime(timezone=True),
                   nullable=False, server_default=sa.func.now(), onupdate=sa.func.now()),
         sa.UniqueConstraint('project_id', 'team_id', name='uq_project_team'),
     )

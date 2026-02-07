@@ -5,11 +5,10 @@ Revises: 015_credit_balances
 Create Date: 2026-01-26
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision: str = '016_usage_quotas'
@@ -35,7 +34,7 @@ def upgrade() -> None:
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
         )
     """)
-    
+
     op.execute("CREATE INDEX IF NOT EXISTS idx_usage_quotas_user_id ON usage_quotas(user_id)")
 
 

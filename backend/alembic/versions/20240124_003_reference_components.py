@@ -5,11 +5,13 @@ Revises: 002_assemblies
 Create Date: 2024-01-24
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers
 revision: str = '003_reference_components'
@@ -75,7 +77,7 @@ def upgrade() -> None:
                     ['manufacturer', 'model_number'])
     op.create_index('ix_ref_components_source_verified', 'reference_components',
                     ['source_type', 'is_verified'])
-    
+
     # Component Library table
     op.create_table(
         'component_library',
@@ -105,7 +107,7 @@ def upgrade() -> None:
                     ['popularity_score', 'usage_count'])
     op.create_index('ix_library_category_featured', 'component_library',
                     ['category', 'is_featured'])
-    
+
     # Component Extraction Jobs table
     op.create_table(
         'component_extraction_jobs',
@@ -128,7 +130,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_extraction_jobs_component_id', 'component_extraction_jobs', ['component_id'])
     op.create_index('ix_extraction_jobs_status', 'component_extraction_jobs', ['status'])
-    
+
     # User Components table
     op.create_table(
         'user_components',

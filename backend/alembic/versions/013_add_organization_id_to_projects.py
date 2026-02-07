@@ -5,12 +5,14 @@ Revises: 012_onboarding_fields
 Create Date: 2026-01-26
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
+
+import sqlalchemy as sa
+from sqlalchemy import inspect
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
-from sqlalchemy import inspect
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision: str = '013_add_org_to_projects'
@@ -49,7 +51,7 @@ def upgrade() -> None:
             deleted_at TIMESTAMP WITH TIME ZONE
         )
     """)
-    
+
     # Add organization_id column to projects (if not exists)
     if not _column_exists("projects", "organization_id"):
         op.add_column(
@@ -61,7 +63,7 @@ def upgrade() -> None:
                 nullable=True,
             )
         )
-    
+
     # Create index on organization_id (if not exists)
     if not _index_exists("projects", "idx_projects_organization"):
         op.create_index(

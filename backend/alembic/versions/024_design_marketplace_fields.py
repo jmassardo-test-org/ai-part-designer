@@ -5,10 +5,11 @@ Revises: 023_marketplace_models
 Create Date: 2026-02-02 10:00:00.000000
 """
 
-from alembic import op
-from sqlalchemy import inspect
 import sqlalchemy as sa
+from sqlalchemy import inspect
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "024_design_marketplace_fields"
@@ -43,11 +44,11 @@ def _fk_exists(table_name: str, constraint_name: str) -> bool:
 
 def upgrade() -> None:
     """Add marketplace fields to designs table.
-    
+
     This migration is idempotent - it checks for existing schema objects
     before attempting to create them.
     """
-    
+
     # Add user_id column with foreign key to users table (if not exists)
     if not _column_exists("designs", "user_id"):
         op.add_column(
@@ -58,7 +59,7 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-        
+
         # Backfill user_id from the related project
         op.execute("""
             UPDATE designs d
@@ -67,10 +68,10 @@ def upgrade() -> None:
             WHERE d.project_id = p.id
             AND d.user_id IS NULL
         """)
-        
+
         # Make user_id non-nullable after backfill
         op.alter_column("designs", "user_id", nullable=False)
-        
+
         # Add foreign key constraint
         op.create_foreign_key(
             "fk_designs_user_id",
@@ -80,11 +81,11 @@ def upgrade() -> None:
             ["id"],
             ondelete="CASCADE",
         )
-    
+
     # Add index for user_id (if not exists)
     if not _index_exists("designs", "idx_designs_user_id"):
         op.create_index("idx_designs_user_id", "designs", ["user_id"])
-    
+
     # Add is_starter boolean column (if not exists)
     if not _column_exists("designs", "is_starter"):
         op.add_column(
@@ -96,7 +97,7 @@ def upgrade() -> None:
                 nullable=False,
             ),
         )
-    
+
     # Add index for starter designs (if not exists)
     if not _index_exists("designs", "idx_designs_starter"):
         op.create_index(
@@ -105,7 +106,7 @@ def upgrade() -> None:
             ["is_starter"],
             postgresql_where=sa.text("deleted_at IS NULL AND is_starter = TRUE"),
         )
-    
+
     # Add thumbnail_url column (if not exists)
     if not _column_exists("designs", "thumbnail_url"):
         op.add_column(
@@ -116,7 +117,7 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-    
+
     # Add enclosure_spec JSONB column for CAD v2 specs (if not exists)
     if not _column_exists("designs", "enclosure_spec"):
         op.add_column(
@@ -127,7 +128,7 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-    
+
     # Add GIN index for enclosure_spec (if not exists)
     if not _index_exists("designs", "idx_designs_enclosure_spec"):
         op.create_index(
@@ -137,7 +138,7 @@ def upgrade() -> None:
             postgresql_using="gin",
             postgresql_where=sa.text("enclosure_spec IS NOT NULL"),
         )
-    
+
     # Add remixed_from_id column for tracking remix relationships (if not exists)
     if not _column_exists("designs", "remixed_from_id"):
         op.add_column(
@@ -148,7 +149,7 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-    
+
     # Add foreign key constraint for remix tracking (if not exists)
     if not _fk_exists("designs", "fk_designs_remixed_from_id"):
         op.create_foreign_key(
@@ -159,7 +160,7 @@ def upgrade() -> None:
             ["id"],
             ondelete="SET NULL",
         )
-    
+
     # Add index for remixed_from_id (if not exists)
     if not _index_exists("designs", "idx_designs_remixed_from_id"):
         op.create_index("idx_designs_remixed_from_id", "designs", ["remixed_from_id"])
@@ -167,17 +168,17 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove marketplace fields from designs table."""
-    
+
     # Drop indexes
     op.drop_index("idx_designs_remixed_from_id", table_name="designs")
     op.drop_index("idx_designs_enclosure_spec", table_name="designs")
     op.drop_index("idx_designs_starter", table_name="designs")
     op.drop_index("idx_designs_user_id", table_name="designs")
-    
+
     # Drop foreign keys
     op.drop_constraint("fk_designs_remixed_from_id", "designs", type_="foreignkey")
     op.drop_constraint("fk_designs_user_id", "designs", type_="foreignkey")
-    
+
     # Drop columns
     op.drop_column("designs", "remixed_from_id")
     op.drop_column("designs", "enclosure_spec")

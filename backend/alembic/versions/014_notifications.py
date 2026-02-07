@@ -5,11 +5,10 @@ Revises: 013_add_org_to_projects
 Create Date: 2026-01-26
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision: str = '014_notifications'
@@ -42,7 +41,7 @@ def upgrade() -> None:
             WHEN duplicate_object THEN null;
         END $$;
     """)
-    
+
     # Create notifications table if it doesn't exist
     op.execute("""
         CREATE TABLE IF NOT EXISTS notifications (
@@ -58,11 +57,11 @@ def upgrade() -> None:
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
         )
     """)
-    
+
     op.execute("CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read) WHERE is_read = false")
     op.execute("CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(notification_type)")
-    
+
     # Create notification_preferences table if it doesn't exist
     op.execute("""
         CREATE TABLE IF NOT EXISTS notification_preferences (
@@ -78,7 +77,7 @@ def upgrade() -> None:
             UNIQUE(user_id, notification_type)
         )
     """)
-    
+
     op.execute("CREATE INDEX IF NOT EXISTS idx_notification_preferences_user_id ON notification_preferences(user_id)")
 
 

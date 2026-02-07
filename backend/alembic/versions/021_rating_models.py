@@ -5,9 +5,10 @@ Revises: 020_team_models
 Create Date: 2025-01-15 12:00:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "021_rating_models"
@@ -18,7 +19,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Create rating, feedback, comment, report, and ban tables."""
-    
+
     # Template ratings table (1-5 stars)
     op.create_table(
         "template_ratings",
@@ -238,12 +239,11 @@ def upgrade() -> None:
 
     # User bans table - add missing columns to existing table from 004_abuse_protection
     # The table already exists with different schema, so we add the new columns
-    from sqlalchemy import inspect
     from sqlalchemy.engine import reflection
-    
+
     bind = op.get_bind()
     inspector = reflection.Inspector.from_engine(bind)
-    
+
     if 'user_bans' not in inspector.get_table_names():
         # Create table if it doesn't exist (shouldn't happen with proper migration order)
         op.create_table(
@@ -329,7 +329,7 @@ def downgrade() -> None:
     bind = op.get_bind()
     inspector = reflection.Inspector.from_engine(bind)
     columns = [c['name'] for c in inspector.get_columns('user_bans')]
-    
+
     if 'related_report_id' in columns:
         op.drop_column('user_bans', 'related_report_id')
     if 'unban_reason' in columns:
@@ -338,7 +338,7 @@ def downgrade() -> None:
         op.drop_column('user_bans', 'unbanned_at')
     if 'unbanned_by_id' in columns:
         op.drop_column('user_bans', 'unbanned_by_id')
-    
+
     op.drop_table("content_reports")
     op.drop_table("template_comments")
     op.drop_table("template_feedback")

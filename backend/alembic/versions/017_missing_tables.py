@@ -14,11 +14,10 @@ This migration adds all tables that exist in models but were missing from the da
 - component_placements
 - design_annotations
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision: str = '017_missing_tables'
@@ -56,7 +55,7 @@ def upgrade() -> None:
         )
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_subscription_tiers_slug ON subscription_tiers(slug)")
-    
+
     # =========================================================================
     # 2. organization_members
     # =========================================================================
@@ -77,7 +76,7 @@ def upgrade() -> None:
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id)")
-    
+
     # =========================================================================
     # 3. organization_invites
     # =========================================================================
@@ -100,7 +99,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_invites_org ON organization_invites(organization_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_invites_email ON organization_invites(email)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_invites_token ON organization_invites(token)")
-    
+
     # =========================================================================
     # 4. organization_credit_balances
     # =========================================================================
@@ -118,7 +117,7 @@ def upgrade() -> None:
         )
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_credit_balances_org ON organization_credit_balances(organization_id)")
-    
+
     # =========================================================================
     # 5. organization_audit_logs
     # =========================================================================
@@ -140,7 +139,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_audit_logs_org ON organization_audit_logs(organization_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_audit_logs_user ON organization_audit_logs(user_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_org_audit_logs_created ON organization_audit_logs(organization_id, created_at)")
-    
+
     # =========================================================================
     # 6. spatial_layouts
     # =========================================================================
@@ -162,7 +161,7 @@ def upgrade() -> None:
         )
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_spatial_layouts_project ON spatial_layouts(project_id)")
-    
+
     # =========================================================================
     # 7. component_placements
     # =========================================================================
@@ -188,7 +187,7 @@ def upgrade() -> None:
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_component_placements_layout ON component_placements(layout_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_component_placements_component ON component_placements(component_id)")
-    
+
     # =========================================================================
     # 8. design_annotations (with enum types)
     # =========================================================================
@@ -207,7 +206,7 @@ def upgrade() -> None:
             WHEN duplicate_object THEN null;
         END $$;
     """)
-    
+
     op.execute("""
         CREATE TABLE IF NOT EXISTS design_annotations (
             id UUID PRIMARY KEY,

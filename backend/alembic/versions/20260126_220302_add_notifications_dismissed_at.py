@@ -5,12 +5,13 @@ Revises: 019_project_status
 Create Date: 2026-01-26 22:03:02.913884+00:00
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
+
+import sqlalchemy as sa
+from sqlalchemy import inspect
 
 from alembic import op
-from sqlalchemy import inspect
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = '019b_notif_dismissed'

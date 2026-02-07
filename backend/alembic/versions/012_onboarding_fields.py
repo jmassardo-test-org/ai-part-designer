@@ -5,11 +5,13 @@ Revises: 011_oauth_connections
 Create Date: 2025-01-22
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
+
+import sqlalchemy as sa
+from sqlalchemy import inspect
 
 from alembic import op
-from sqlalchemy import inspect
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "012_onboarding_fields"

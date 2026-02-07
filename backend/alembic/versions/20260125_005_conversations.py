@@ -5,9 +5,10 @@ Revises: 20240124_004_abuse_protection
 Create Date: 2026-01-25
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '005_conversations'
@@ -31,11 +32,11 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
     )
-    
+
     op.create_index('ix_conversations_user_id', 'conversations', ['user_id'])
     op.create_index('ix_conversations_status', 'conversations', ['status'])
     op.create_index('ix_conversations_created_at', 'conversations', ['created_at'])
-    
+
     # Create conversation_messages table using VARCHAR for role/type
     op.create_table(
         'conversation_messages',
@@ -48,7 +49,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
     )
-    
+
     op.create_index('ix_conversation_messages_conversation_id', 'conversation_messages', ['conversation_id'])
     op.create_index('ix_conversation_messages_created_at', 'conversation_messages', ['created_at'])
 

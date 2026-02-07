@@ -5,9 +5,10 @@ Revises: 005_conversations
 Create Date: 2024-01-18 12:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '009_design_context'
@@ -31,9 +32,9 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
     )
-    
+
     op.create_index('ix_design_contexts_design_id', 'design_contexts', ['design_id'])
-    
+
     # Create design_refinement_jobs table
     op.create_table(
         'design_refinement_jobs',
@@ -51,7 +52,7 @@ def upgrade() -> None:
         sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    
+
     op.create_index('ix_design_refinement_jobs_design_id', 'design_refinement_jobs', ['design_id'])
     op.create_index('ix_design_refinement_jobs_user_id', 'design_refinement_jobs', ['user_id'])
     op.create_index('ix_design_refinement_jobs_status', 'design_refinement_jobs', ['status'])
@@ -62,6 +63,6 @@ def downgrade() -> None:
     op.drop_index('ix_design_refinement_jobs_user_id')
     op.drop_index('ix_design_refinement_jobs_design_id')
     op.drop_table('design_refinement_jobs')
-    
+
     op.drop_index('ix_design_contexts_design_id')
     op.drop_table('design_contexts')

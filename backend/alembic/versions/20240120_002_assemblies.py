@@ -7,11 +7,13 @@ Create Date: 2024-01-20
 This migration adds tables for assemblies, assembly components,
 component relationships, vendors, and bill of materials items.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "002_assemblies"
@@ -140,7 +142,7 @@ def upgrade() -> None:
     # ===========================================
     op.execute("""
         INSERT INTO vendors (id, name, display_name, website, api_type, categories, is_active, created_at, updated_at)
-        VALUES 
+        VALUES
             (gen_random_uuid(), 'mcmaster', 'McMaster-Carr', 'https://www.mcmaster.com', 'mcmaster', '["fasteners", "bearings", "linear_motion", "hardware"]', true, now(), now()),
             (gen_random_uuid(), 'misumi', 'MISUMI', 'https://us.misumi-ec.com', 'misumi', '["extrusion", "linear_motion", "fasteners", "automation"]', true, now(), now()),
             (gen_random_uuid(), 'digikey', 'DigiKey', 'https://www.digikey.com', 'digikey', '["electronics", "connectors", "sensors"]', true, now(), now()),

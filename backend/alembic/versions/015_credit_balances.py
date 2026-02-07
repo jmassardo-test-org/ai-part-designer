@@ -5,11 +5,10 @@ Revises: 014_notifications
 Create Date: 2026-01-26
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision: str = '015_credit_balances'
@@ -33,9 +32,9 @@ def upgrade() -> None:
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
         )
     """)
-    
+
     op.execute("CREATE INDEX IF NOT EXISTS idx_credit_balances_user_id ON credit_balances(user_id)")
-    
+
     # Create credit_transactions table
     op.execute("""
         CREATE TABLE IF NOT EXISTS credit_transactions (
@@ -54,7 +53,7 @@ def upgrade() -> None:
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
         )
     """)
-    
+
     op.execute("CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_created ON credit_transactions(user_id, created_at)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_credit_transactions_type ON credit_transactions(transaction_type)")
 

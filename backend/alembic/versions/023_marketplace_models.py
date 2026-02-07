@@ -7,9 +7,10 @@ Revises: 022_mfa_columns
 Create Date: 2025-02-01 10:00:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "023_marketplace_models"
@@ -20,7 +21,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Create marketplace tables and add marketplace fields to designs."""
-    
+
     # Add marketplace fields to designs table
     op.add_column(
         "designs",
@@ -42,7 +43,7 @@ def upgrade() -> None:
         "designs",
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
     )
-    
+
     # Create index for marketplace queries
     op.create_index(
         "idx_designs_published",
@@ -58,7 +59,7 @@ def upgrade() -> None:
     )
     op.create_index("idx_designs_category", "designs", ["category"])
     op.create_index("idx_designs_save_count", "designs", ["save_count"])
-    
+
     # Design lists table (user-created collections)
     op.create_table(
         "design_lists",
@@ -97,7 +98,7 @@ def upgrade() -> None:
         ["user_id"],
         postgresql_where=sa.text("deleted_at IS NULL"),
     )
-    
+
     # Design list items table (junction table)
     op.create_table(
         "design_list_items",
@@ -133,7 +134,7 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("list_id", "design_id", name="uq_list_design"),
     )
-    
+
     # Design saves table (tracking save actions)
     op.create_table(
         "design_saves",
@@ -172,18 +173,18 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove marketplace tables and fields."""
-    
+
     # Drop tables
     op.drop_table("design_saves")
     op.drop_table("design_list_items")
     op.drop_table("design_lists")
-    
+
     # Drop indexes
     op.drop_index("idx_designs_save_count", "designs")
     op.drop_index("idx_designs_category", "designs")
     op.drop_index("idx_designs_featured", "designs")
     op.drop_index("idx_designs_published", "designs")
-    
+
     # Drop columns
     op.drop_column("designs", "published_at")
     op.drop_column("designs", "featured_at")

@@ -5,10 +5,11 @@ Revises: 025_design_remix_tracking
 Create Date: 2026-02-04 19:00:00.000000
 """
 
-from alembic import op
-from sqlalchemy import inspect
 import sqlalchemy as sa
+from sqlalchemy import inspect
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "026_design_copy_tracking"
@@ -43,11 +44,11 @@ def _fk_exists(table_name: str, constraint_name: str) -> bool:
 
 def upgrade() -> None:
     """Add copied_from_id column for tracking design copies.
-    
+
     This is distinct from remixed_from_id:
     - copied_from_id: Direct copy of design (same user, within projects)
     - remixed_from_id: Remix from marketplace (different user, attribution)
-    
+
     This migration is idempotent.
     """
     # Add copied_from_id column (if not exists)
@@ -60,7 +61,7 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-    
+
     # Add foreign key constraint (if not exists)
     if not _fk_exists("designs", "fk_designs_copied_from_id"):
         op.create_foreign_key(
@@ -71,7 +72,7 @@ def upgrade() -> None:
             ["id"],
             ondelete="SET NULL",
         )
-    
+
     # Add index for copied_from_id (if not exists)
     if not _index_exists("designs", "idx_designs_copied_from_id"):
         op.create_index(
@@ -85,9 +86,9 @@ def downgrade() -> None:
     """Remove copied_from_id column."""
     # Drop index
     op.drop_index("idx_designs_copied_from_id", table_name="designs")
-    
+
     # Drop foreign key
     op.drop_constraint("fk_designs_copied_from_id", "designs", type_="foreignkey")
-    
+
     # Drop column
     op.drop_column("designs", "copied_from_id")

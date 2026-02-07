@@ -5,11 +5,13 @@ Revises: 003_reference_components
 Create Date: 2024-01-24
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers
 revision: str = '004_abuse_protection'
@@ -45,7 +47,7 @@ def upgrade() -> None:
         ['user_id', 'resource_type', 'period_type', 'period_start'],
         unique=True,
     )
-    
+
     # Concurrent Operations table
     op.create_table(
         'concurrent_operations',
@@ -61,7 +63,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_concurrent_user_type', 'concurrent_operations',
                     ['user_id', 'operation_type'])
-    
+
     # User Bans table
     op.create_table(
         'user_bans',
@@ -85,7 +87,7 @@ def upgrade() -> None:
     op.create_index('ix_user_bans_user_id', 'user_bans', ['user_id'])
     op.create_index('ix_user_bans_ip_address', 'user_bans', ['ip_address'])
     op.create_index('ix_user_bans_is_active', 'user_bans', ['is_active'])
-    
+
     # Abuse Reports table
     op.create_table(
         'abuse_reports',

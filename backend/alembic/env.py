@@ -6,17 +6,17 @@ and async database connection.
 """
 
 import asyncio
+
+# Import settings
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-
-# Import settings
-import sys
-from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -79,7 +79,7 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """
     Run migrations in 'online' mode with async engine.
-    
+
     In this scenario we need to create an Engine and associate
     a connection with the context.
     """

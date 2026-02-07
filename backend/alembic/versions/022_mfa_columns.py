@@ -6,10 +6,11 @@ Create Date: 2026-01-28
 
 """
 
-from alembic import op
-from sqlalchemy import inspect
 import sqlalchemy as sa
+from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "022_mfa_columns"
