@@ -115,6 +115,12 @@ class Settings(BaseSettings):
         description="GCP Cloud KMS crypto key name",
     )
 
+    # File Encryption at Rest
+    FILE_ENCRYPTION_ENABLED: bool = Field(
+        default=True,
+        description="Enable file-level encryption at rest for CAD files and uploads",
+    )
+
     # KMS DEK Cache Configuration
     KMS_DEK_CACHE_TTL_SECONDS: int = Field(
         default=3600,

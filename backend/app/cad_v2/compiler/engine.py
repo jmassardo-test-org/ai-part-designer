@@ -81,6 +81,8 @@ class CompilationResult:
                 exported.append(path)
             return exported
 
+        from app.cad_v2.compiler.export import _encrypt_exported_file
+
         for name, part in self.parts.items():
             if format == ExportFormat.STEP:
                 path = output_dir / f"{name}.step"
@@ -91,6 +93,8 @@ class CompilationResult:
             else:
                 raise ValueError(f"Unsupported format: {format}")
 
+            # Encrypt exported file at rest
+            _encrypt_exported_file(path)
             exported.append(path)
 
         return exported

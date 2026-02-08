@@ -30,6 +30,10 @@ patches:
   target:
     kind: Deployment
     name: celery-worker
+- path: patches/seed-job-dev.yaml
+  target:
+    kind: Job
+    name: db-seed
 
 # ConfigMap generator for environment-specific config
 configMapGenerator:

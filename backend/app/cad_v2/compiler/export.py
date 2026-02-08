@@ -74,10 +74,37 @@ def export_part(
         else:
             raise ExportError(f"Unsupported format: {format}")
 
+        # Encrypt the exported file at rest
+        _encrypt_exported_file(filepath)
+
         return filepath
 
+    except ExportError:
+        raise
     except Exception as e:
         raise ExportError(f"Failed to export {filepath}: {e}") from e
+
+
+def _encrypt_exported_file(filepath: Path) -> None:
+    """Encrypt an exported file at rest if encryption is enabled.
+
+    Args:
+        filepath: Path to the file to encrypt.
+    """
+    from app.core.file_encryption import (
+        ENCRYPTED_MARKER_SUFFIX,
+        is_encryption_enabled,
+    )
+
+    if not is_encryption_enabled():
+        return
+
+    from app.core.security import encryption_service
+
+    plaintext = filepath.read_bytes()
+    ciphertext = encryption_service.encrypt_bytes(plaintext)
+    filepath.write_bytes(ciphertext)
+    Path(str(filepath) + ENCRYPTED_MARKER_SUFFIX).write_text("1")
 
 
 def export_parts(

@@ -451,8 +451,10 @@ async def direct_generate(
         step_data = export_step(result.shape)
         stl_data = export_stl(result.shape, quality=ExportQuality.STANDARD)
 
-        step_path.write_bytes(step_data)
-        stl_path.write_bytes(stl_data)
+        from app.core.file_encryption import encrypt_and_write
+
+        await encrypt_and_write(step_path, step_data)
+        await encrypt_and_write(stl_path, stl_data)
 
         logger.info(f"Direct generation successful: job_id={job_id}")
 
@@ -646,8 +648,10 @@ async def send_message(
                     step_data = export_step(code_result.shape)
                     stl_data = export_stl(code_result.shape, quality=ExportQuality.STANDARD)
 
-                    step_path.write_bytes(step_data)
-                    stl_path.write_bytes(stl_data)
+                    from app.core.file_encryption import encrypt_and_write
+
+                    await encrypt_and_write(step_path, step_data)
+                    await encrypt_and_write(stl_path, stl_data)
 
                     # Get existing values from result_data (guaranteed non-None by assertion above)
                     existing_dims = conversation.result_data.get("dimensions", {})
@@ -705,14 +709,14 @@ async def send_message(
                     step_data = export_step(direct_result.shape)
                     stl_data = export_stl(direct_result.shape, quality=ExportQuality.STANDARD)
 
-                    step_path.write_bytes(step_data)
-                    stl_path.write_bytes(stl_data)
+                    from app.core.file_encryption import encrypt_and_write
+
+                    await encrypt_and_write(step_path, step_data)
+                    await encrypt_and_write(stl_path, stl_data)
 
                     # Capture dimensions before class definition (understanding is guaranteed non-None here)
                     assert understanding is not None
-                    captured_dimensions = {
-                        k: v.value for k, v in understanding.dimensions.items()
-                    }
+                    captured_dimensions = {k: v.value for k, v in understanding.dimensions.items()}
 
                     # Create a simple result object
                     class DirectResult:

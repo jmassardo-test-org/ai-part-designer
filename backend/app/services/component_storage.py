@@ -13,11 +13,15 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
-import aiofiles
 from fastapi import UploadFile
 from PIL import Image
 
 from app.core.config import settings
+from app.core.file_encryption import (
+    cleanup_encryption_marker,
+    decrypt_file_from_disk,
+    encrypt_and_write,
+)
 
 # =============================================================================
 # Configuration
@@ -155,12 +159,11 @@ class ComponentFileStorage:
                 f"File too large. Maximum size: {MAX_DATASHEET_SIZE // (1024 * 1024)}MB"
             )
 
-        # Compute hash
+        # Compute hash (on plaintext before encryption)
         file_hash = hashlib.sha256(content).hexdigest()
 
-        # Write to disk
-        async with aiofiles.open(file_path, "wb") as f:
-            await f.write(content)
+        # Write to disk with encryption
+        await encrypt_and_write(file_path, content)
 
         return {
             "file_id": str(file_id),
@@ -203,7 +206,7 @@ class ComponentFileStorage:
         if len(content) > MAX_CAD_SIZE:
             raise ValueError(f"File too large. Maximum size: {MAX_CAD_SIZE // (1024 * 1024)}MB")
 
-        # Compute hash
+        # Compute hash (on plaintext before encryption)
         file_hash = hashlib.sha256(content).hexdigest()
 
         # Determine content type
@@ -215,9 +218,8 @@ class ComponentFileStorage:
             ".igs": "application/iges",
         }
 
-        # Write to disk
-        async with aiofiles.open(file_path, "wb") as f:
-            await f.write(content)
+        # Write to disk with encryption
+        await encrypt_and_write(file_path, content)
 
         return {
             "file_id": str(file_id),
@@ -296,6 +298,21 @@ class ComponentFileStorage:
 
         return None
 
+    async def get_datasheet_content(self, component_id: UUID, file_id: UUID) -> bytes | None:
+        """Get decrypted content of a datasheet file.
+
+        Args:
+            component_id: Component UUID.
+            file_id: File UUID.
+
+        Returns:
+            Decrypted file bytes, or None if not found.
+        """
+        file_path = await self.get_datasheet(component_id, file_id)
+        if file_path is None:
+            return None
+        return await decrypt_file_from_disk(file_path)
+
     async def get_cad_file(self, component_id: UUID, file_id: UUID) -> Path | None:
         """Get path to a CAD file."""
         # Search for file with this ID
@@ -306,6 +323,21 @@ class ComponentFileStorage:
                 return matches[0]
 
         return None
+
+    async def get_cad_file_content(self, component_id: UUID, file_id: UUID) -> bytes | None:
+        """Get decrypted content of a CAD file.
+
+        Args:
+            component_id: Component UUID.
+            file_id: File UUID.
+
+        Returns:
+            Decrypted file bytes, or None if not found.
+        """
+        file_path = await self.get_cad_file(component_id, file_id)
+        if file_path is None:
+            return None
+        return await decrypt_file_from_disk(file_path)
 
     async def get_thumbnail(self, component_id: UUID, size: str = "medium") -> Path | None:
         """Get path to a thumbnail."""
@@ -327,6 +359,8 @@ class ComponentFileStorage:
         """
         Delete all files associated with a component.
 
+        Removes both files and their encryption markers.
+
         Returns:
             Number of files deleted
         """
@@ -334,16 +368,25 @@ class ComponentFileStorage:
 
         # Delete datasheets
         for file_path in DATASHEET_DIR.glob(f"{component_id}_*"):
+            if file_path.suffix == ".enc":
+                continue  # Markers handled alongside their files
+            cleanup_encryption_marker(file_path)
             file_path.unlink()
             deleted += 1
 
         # Delete CAD files
         for file_path in CAD_DIR.glob(f"{component_id}_*"):
+            if file_path.suffix == ".enc":
+                continue
+            cleanup_encryption_marker(file_path)
             file_path.unlink()
             deleted += 1
 
         # Delete thumbnails
         for file_path in THUMBNAIL_DIR.glob(f"{component_id}_*"):
+            if file_path.suffix == ".enc":
+                continue
+            cleanup_encryption_marker(file_path)
             file_path.unlink()
             deleted += 1
 
@@ -354,6 +397,7 @@ class ComponentFileStorage:
         path = Path(file_path)
 
         if path.exists():
+            cleanup_encryption_marker(path)
             path.unlink()
             return True
 

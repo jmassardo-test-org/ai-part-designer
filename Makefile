@@ -374,6 +374,41 @@ db-shell:
 	docker compose exec postgres psql -U postgres -d ai_part_designer
 
 # ============================================================================
+# Kubernetes Database Operations
+# ============================================================================
+
+# Namespace for K8s operations (override with: make k8s-db-seed NS=ai-part-designer-staging)
+NS ?= ai-part-designer-dev
+
+k8s-db-seed:
+	@echo "Seeding database in namespace $(NS)..."
+	kubectl delete job -n $(NS) -l app.kubernetes.io/name=db-seed --ignore-not-found
+	@echo "Applying manifests (CRD warnings for ExternalSecret/ServiceMonitor are expected)..."
+	-kubectl apply -k k8s/overlays/dev 2>&1 | grep -v "resource mapping not found\|ensure CRDs are installed first"
+	@kubectl get job -n $(NS) -l app.kubernetes.io/name=db-seed -o name > /dev/null 2>&1 || { echo "❌ Seed job not created"; exit 1; }
+	kubectl wait --for=condition=complete --timeout=300s job/db-seed-dev -n $(NS)
+	@echo "✅ Database seeded successfully"
+
+k8s-db-seed-status:
+	@echo "Seed job status in $(NS):"
+	@kubectl get job db-seed -n $(NS) -o wide 2>/dev/null || kubectl get job -n $(NS) -l app.kubernetes.io/name=db-seed -o wide
+	@echo ""
+	@echo "Pod logs:"
+	@kubectl logs -n $(NS) -l app.kubernetes.io/name=db-seed --tail=50
+
+k8s-db-seed-logs:
+	kubectl logs -n $(NS) -l app.kubernetes.io/name=db-seed -f
+
+k8s-db-seed-exec:
+	@echo "Running seeds via exec into backend deployment in $(NS)..."
+	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.tiers
+	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.templates
+	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.components_v2
+	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.users
+	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.starters
+	@echo "✅ Database seeded successfully (via exec)"
+
+# ============================================================================
 # Worker
 # ============================================================================
 

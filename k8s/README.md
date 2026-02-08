@@ -14,6 +14,7 @@ k8s/
 │   │   ├── service.yaml
 │   │   ├── serviceaccount.yaml
 │   │   ├── configmap.yaml
+│   │   ├── seed-job.yaml            # Database seed Job
 │   │   ├── hpa.yaml               # Horizontal Pod Autoscaler
 │   │   └── pdb.yaml               # Pod Disruption Budget
 │   ├── frontend/                  # Frontend (nginx serving static files)
@@ -174,6 +175,74 @@ kubectl get all -n ai-part-designer-prod
 
 # Check HPA status
 kubectl get hpa -n ai-part-designer-prod
+```
+
+## Database Seeding
+
+After deploying, seed the database with initial data (tiers, templates, components, demo users, starter designs). All seed modules are idempotent — safe to run multiple times.
+
+### Option A: Seed Job (Recommended)
+
+The `db-seed` Kubernetes Job runs all seed modules in sequence using the same backend image:
+
+```bash
+# Delete any previous run, then apply (kustomize auto-suffixes with -dev)
+kubectl delete job db-seed-dev -n ai-part-designer-dev --ignore-not-found
+kubectl apply -k k8s/overlays/dev
+
+# Watch progress
+kubectl logs -n ai-part-designer-dev -l app.kubernetes.io/name=db-seed -f
+
+# Wait for completion
+kubectl wait --for=condition=complete --timeout=300s job/db-seed-dev -n ai-part-designer-dev
+```
+
+Or use the Makefile shortcut:
+
+```bash
+make k8s-db-seed                          # dev namespace (default)
+make k8s-db-seed NS=ai-part-designer-staging  # other namespace
+make k8s-db-seed-logs                     # tail seed logs
+make k8s-db-seed-status                   # check job status
+```
+
+### Option B: Exec into Backend Pod
+
+For a quick one-off seed without creating a Job:
+
+```bash
+make k8s-db-seed-exec                     # runs all 5 seed modules via exec
+
+# Or manually:
+kubectl exec -n ai-part-designer-dev deploy/backend-dev -- python -m app.seeds.tiers
+kubectl exec -n ai-part-designer-dev deploy/backend-dev -- python -m app.seeds.templates
+kubectl exec -n ai-part-designer-dev deploy/backend-dev -- python -m app.seeds.components_v2
+kubectl exec -n ai-part-designer-dev deploy/backend-dev -- python -m app.seeds.users
+kubectl exec -n ai-part-designer-dev deploy/backend-dev -- python -m app.seeds.starters
+```
+
+### Seed Modules
+
+| Module | What It Seeds |
+|--------|---------------|
+| `tiers` | Subscription tiers (Free, Starter, Pro, Enterprise) |
+| `templates` | Design templates library |
+| `components_v2` | CAD v2 component registry |
+| `users` | Demo users (`demo@example.com` / `demo123`, admin, etc.) |
+| `starters` | Marketplace starter designs (Raspberry Pi cases, etc.) |
+
+### Troubleshooting
+
+```bash
+# Check pod events if the job is stuck
+kubectl describe job db-seed-dev -n ai-part-designer-dev
+
+# Check pod logs for errors
+kubectl logs -n ai-part-designer-dev -l app.kubernetes.io/name=db-seed --tail=100
+
+# Re-run: delete the old job first (K8s won't re-create an existing job)
+kubectl delete job db-seed-dev -n ai-part-designer-dev --ignore-not-found
+kubectl apply -k k8s/overlays/dev
 ```
 
 ## Configuration

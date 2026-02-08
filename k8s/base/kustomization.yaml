@@ -21,6 +21,7 @@ resources:
 - backend/hpa.yaml
 - backend/pdb.yaml
 - backend/external-secret.yaml
+- backend/seed-job.yaml
 # Frontend
 - frontend/configmap.yaml
 - frontend/deployment.yaml
@@ -57,6 +58,7 @@ resources:
 - network-policies/celery-worker-egress.yaml
 - network-policies/celery-beat-egress.yaml
 - minio/network-policy.yaml
+- network-policies/db-seed-egress.yaml
 # Ingress and TLS
 # Note: Comment these out if not using ingress-nginx and cert-manager
 - cert-manager/cluster-issuer.yaml

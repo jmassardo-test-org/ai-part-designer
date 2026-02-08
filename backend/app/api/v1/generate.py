@@ -510,8 +510,10 @@ async def download_generated_file(
     return _create_file_response(file_path, file_format, job_id)
 
 
-def _create_file_response(file_path: Path, file_format: str, job_id: str) -> FileResponse:
-    """Create a FileResponse for the CAD file download."""
+def _create_file_response(file_path: Path, file_format: str, job_id: str) -> Response:
+    """Create a Response for the CAD file download with transparent decryption."""
+    import asyncio
+
     # Determine content type
     if file_format == "step":
         media_type = "application/STEP"
@@ -520,6 +522,30 @@ def _create_file_response(file_path: Path, file_format: str, job_id: str) -> Fil
         media_type = "application/sla"
         filename = f"part_{job_id[:8]}.stl"
 
+    # Decrypt file content (handles both encrypted and unencrypted files)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # We're already in an async context — use a sync read with decryption check
+            from app.core.file_encryption import ENCRYPTED_MARKER_SUFFIX, is_encryption_enabled
+            from app.core.security import encryption_service
+
+            data = file_path.read_bytes()
+            marker_path = Path(str(file_path) + ENCRYPTED_MARKER_SUFFIX)
+            if marker_path.exists() and is_encryption_enabled():
+                data = encryption_service.decrypt_bytes(data)
+
+            return Response(
+                content=data,
+                media_type=media_type,
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                },
+            )
+    except RuntimeError:
+        pass
+
+    # Fallback: serve directly if no event loop
     return FileResponse(
         path=file_path,
         media_type=media_type,
@@ -620,7 +646,10 @@ async def download_assembly_part(
             )
         file_path = matching_files[0]
 
-    # Determine content type
+    # Determine content type and decrypt
+    from app.core.file_encryption import ENCRYPTED_MARKER_SUFFIX, is_encryption_enabled
+    from app.core.security import encryption_service
+
     if file_format == "step":
         media_type = "application/STEP"
         filename = f"{part_name}_{job_id[:8]}.step"
@@ -628,10 +657,15 @@ async def download_assembly_part(
         media_type = "application/sla"
         filename = f"{part_name}_{job_id[:8]}.stl"
 
-    return FileResponse(
-        path=file_path,
+    # Read and decrypt file content
+    data = file_path.read_bytes()
+    marker_path = Path(str(file_path) + ENCRYPTED_MARKER_SUFFIX)
+    if marker_path.exists() and is_encryption_enabled():
+        data = encryption_service.decrypt_bytes(data)
+
+    return Response(
+        content=data,
         media_type=media_type,
-        filename=filename,
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
         },

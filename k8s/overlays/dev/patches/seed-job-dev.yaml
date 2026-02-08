@@ -1,0 +1,23 @@
+---
+# Dev overlay patch for the database seed Job.
+# Fixes service hostnames for the dev namespace where:
+#   - Postgres is managed by CloudNativePG (RW service: postgres-cluster-dev-rw)
+#   - Redis is deployed via Helm chart (service name: redis-master)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-seed
+spec:
+  template:
+    spec:
+      containers:
+      - name: seed
+        env:
+        - name: ENVIRONMENT
+          value: "development"
+        - name: DEBUG
+          value: "true"
+        - name: POSTGRES_HOST
+          value: "postgres-cluster-dev-rw"
+        - name: REDIS_HOST
+          value: "redis-master"

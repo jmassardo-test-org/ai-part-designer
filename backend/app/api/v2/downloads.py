@@ -2,6 +2,7 @@
 Download endpoints for CAD v2 generated files.
 
 Provides file download functionality for generated STEP/STL files.
+Files are transparently decrypted on download if they were encrypted at rest.
 """
 
 from __future__ import annotations
@@ -13,9 +14,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.core.config import get_settings
+from app.core.file_encryption import decrypt_file_from_disk
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +97,18 @@ async def download_file(
     }
     media_type = media_types.get(ext, "application/octet-stream")
 
-    return FileResponse(
-        path=file_path,
-        filename=filename,
+    # Decrypt file if encrypted at rest
+    try:
+        decrypted_content = await decrypt_file_from_disk(file_path)
+    except Exception:
+        logger.exception(f"Failed to read/decrypt file: {file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to read file",
+        )
+
+    return Response(
+        content=decrypted_content,
         media_type=media_type,
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
@@ -186,10 +197,14 @@ def cleanup_old_exports(max_age_hours: int = DEFAULT_RETENTION_HOURS) -> dict[st
             # Check directory modification time
             mtime = datetime.fromtimestamp(job_dir.stat().st_mtime, tz=UTC)
             if mtime < cutoff_time:
-                # Calculate size before removal
-                dir_size = sum(f.stat().st_size for f in job_dir.rglob("*") if f.is_file())
+                # Calculate size before removal (exclude marker files from count)
+                dir_size = sum(
+                    f.stat().st_size
+                    for f in job_dir.rglob("*")
+                    if f.is_file() and f.suffix != ".enc"
+                )
 
-                # Remove directory
+                # Remove directory (includes encryption markers)
                 shutil.rmtree(job_dir)
 
                 removed_count += 1

@@ -131,7 +131,16 @@ class GeneratedPart:
         output_dir: Path,
         job_id: str,
     ) -> None:
-        """Export part to STEP and STL."""
+        """Export part to STEP and STL.
+
+        Files are encrypted at rest if FILE_ENCRYPTION_ENABLED is set.
+        """
+        from app.core.file_encryption import (
+            ENCRYPTED_MARKER_SUFFIX,
+            is_encryption_enabled,
+        )
+        from app.core.security import encryption_service
+
         base_name = f"{self.name.lower().replace(' ', '_')}_{job_id[:8]}"
 
         # Export STEP
@@ -143,6 +152,16 @@ class GeneratedPart:
         self.stl_path = output_dir / f"{base_name}.stl"
         export_stl(self.shape, str(self.stl_path))
         self.stl_data = self.stl_path.read_bytes()
+
+        # Encrypt files at rest
+        if is_encryption_enabled():
+            encrypted_step = encryption_service.encrypt_bytes(self.step_data)
+            self.step_path.write_bytes(encrypted_step)
+            Path(str(self.step_path) + ENCRYPTED_MARKER_SUFFIX).write_text("1")
+
+            encrypted_stl = encryption_service.encrypt_bytes(self.stl_data)
+            self.stl_path.write_bytes(encrypted_stl)
+            Path(str(self.stl_path) + ENCRYPTED_MARKER_SUFFIX).write_text("1")
 
 
 @dataclass
