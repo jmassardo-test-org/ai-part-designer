@@ -501,6 +501,34 @@ function SettingsTab({ org, onUpdate, onDelete, isOwner }: SettingsTabProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  
+  // Feature permissions state
+  const [features, setFeatures] = useState<{
+    enabled: string[];
+    available: string[];
+    tier: string;
+  } | null>(null);
+  const [loadingFeatures, setLoadingFeatures] = useState(true);
+  const [savingFeatures, setSavingFeatures] = useState(false);
+
+  // Load feature permissions
+  useEffect(() => {
+    const loadFeatures = async () => {
+      try {
+        const data = await organizationsApi.getFeatures(org.id);
+        setFeatures({
+          enabled: data.enabled_features,
+          available: data.available_features,
+          tier: data.subscription_tier,
+        });
+      } catch (err) {
+        console.error('Failed to load features:', err);
+      } finally {
+        setLoadingFeatures(false);
+      }
+    };
+    loadFeatures();
+  }, [org.id]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -516,8 +544,113 @@ function SettingsTab({ org, onUpdate, onDelete, isOwner }: SettingsTabProps) {
     await onDelete();
   };
 
+  const handleToggleFeature = async (feature: string) => {
+    if (!features) return;
+    
+    const newEnabled = features.enabled.includes(feature)
+      ? features.enabled.filter(f => f !== feature)
+      : [...features.enabled, feature];
+
+    setSavingFeatures(true);
+    try {
+      const updated = await organizationsApi.updateFeatures(org.id, {
+        enabled_features: newEnabled,
+      });
+      setFeatures({
+        enabled: updated.enabled_features,
+        available: updated.available_features,
+        tier: updated.subscription_tier,
+      });
+    } catch (err) {
+      console.error('Failed to update features:', err);
+    } finally {
+      setSavingFeatures(false);
+    }
+  };
+
+  // Feature labels for display
+  const featureLabels: Record<string, { name: string; description: string }> = {
+    ai_generation: {
+      name: 'AI Generation',
+      description: 'AI-powered part generation from natural language',
+    },
+    ai_chat: {
+      name: 'AI Chat',
+      description: 'Conversational AI interface for design',
+    },
+    direct_generation: {
+      name: 'Direct Generation',
+      description: 'Direct CAD generation without chat',
+    },
+    templates: {
+      name: 'Templates',
+      description: 'Access to design templates',
+    },
+    custom_templates: {
+      name: 'Custom Templates',
+      description: 'Create and manage custom templates',
+    },
+    assemblies: {
+      name: 'Assemblies',
+      description: 'Multi-part assemblies',
+    },
+    advanced_cad: {
+      name: 'Advanced CAD',
+      description: 'Advanced CAD operations',
+    },
+    design_sharing: {
+      name: 'Design Sharing',
+      description: 'Share designs with others',
+    },
+    teams: {
+      name: 'Teams',
+      description: 'Team collaboration features',
+    },
+    comments: {
+      name: 'Comments',
+      description: 'Design comments and annotations',
+    },
+    version_history: {
+      name: 'Version History',
+      description: 'Track design versions',
+    },
+    export_step: {
+      name: 'STEP Export',
+      description: 'Export designs to STEP format',
+    },
+    export_stl: {
+      name: 'STL Export',
+      description: 'Export designs to STL format',
+    },
+    export_dxf: {
+      name: 'DXF Export',
+      description: 'Export designs to DXF format',
+    },
+    export_drawings: {
+      name: 'Technical Drawings',
+      description: 'Generate technical drawings',
+    },
+    bom: {
+      name: 'Bill of Materials',
+      description: 'Generate BOMs for designs',
+    },
+    cost_estimation: {
+      name: 'Cost Estimation',
+      description: 'Estimate manufacturing costs',
+    },
+    file_uploads: {
+      name: 'File Uploads',
+      description: 'Upload reference files',
+    },
+    external_storage: {
+      name: 'External Storage',
+      description: 'Integration with cloud storage',
+    },
+  };
+
   return (
     <div className="space-y-8">
+      {/* Organization Settings */}
       <div>
         <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-white">
           Organization Settings
@@ -562,6 +695,76 @@ function SettingsTab({ org, onUpdate, onDelete, isOwner }: SettingsTabProps) {
         </div>
       </div>
 
+      {/* Feature Permissions */}
+      {isOwner && (
+        <div className="border-t pt-8 dark:border-gray-700">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              Feature Permissions
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Control which features are enabled for your organization.
+              {features && (
+                <span className="ml-1">
+                  Available on <strong>{features.tier}</strong> tier.
+                </span>
+              )}
+            </p>
+          </div>
+
+          {loadingFeatures ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            </div>
+          ) : features ? (
+            <div className="space-y-3">
+              {features.available.map((feature) => {
+                const info = featureLabels[feature] || {
+                  name: feature,
+                  description: '',
+                };
+                const isEnabled = features.enabled.includes(feature);
+
+                return (
+                  <label
+                    key={feature}
+                    className="flex items-start gap-3 rounded-lg border p-4 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isEnabled}
+                      onChange={() => handleToggleFeature(feature)}
+                      disabled={savingFeatures}
+                      className="mt-1 rounded"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {info.name}
+                      </div>
+                      {info.description && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {info.description}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+              {features.available.length === 0 && (
+                <p className="text-center text-gray-500">
+                  No features available on your current tier.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg bg-red-50 p-4 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+              Failed to load features. Please try again.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Danger Zone */}
       {isOwner && (
         <div className="border-t pt-8 dark:border-gray-700">
           <h3 className="mb-4 text-lg font-medium text-red-600">Danger Zone</h3>
