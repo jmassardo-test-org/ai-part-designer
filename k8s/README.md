@@ -177,9 +177,25 @@ kubectl get all -n ai-part-designer-prod
 kubectl get hpa -n ai-part-designer-prod
 ```
 
+## Database Migrations
+
+**Run migrations before seeding.** The `db-migrate` Job runs Alembic migrations to create or update the database schema.
+
+```bash
+# Using Makefile (recommended)
+make k8s-db-migrate                            # dev namespace (default)
+make k8s-db-migrate NS=ai-part-designer-staging  # other namespace
+make k8s-db-migrate-logs                       # tail migration logs
+
+# Or manually
+kubectl delete job db-migrate-dev -n ai-part-designer-dev --ignore-not-found
+kubectl apply -k k8s/overlays/dev
+kubectl wait --for=condition=complete --timeout=300s job/db-migrate-dev -n ai-part-designer-dev
+```
+
 ## Database Seeding
 
-After deploying, seed the database with initial data (tiers, templates, components, demo users, starter designs). All seed modules are idempotent — safe to run multiple times.
+After deploying and running migrations, seed the database with initial data (tiers, templates, components, demo users, starter designs). All seed modules are idempotent — safe to run multiple times.
 
 ### Option A: Seed Job (Recommended)
 
@@ -243,6 +259,20 @@ kubectl logs -n ai-part-designer-dev -l app.kubernetes.io/name=db-seed --tail=10
 # Re-run: delete the old job first (K8s won't re-create an existing job)
 kubectl delete job db-seed-dev -n ai-part-designer-dev --ignore-not-found
 kubectl apply -k k8s/overlays/dev
+```
+
+**Note:** The users and starters seeds are memory-intensive and may time out on resource-constrained clusters. The essential data (tiers, templates, components) typically completes successfully. If the full job times out, you can run just the essential seeds:
+
+```bash
+# Verify what's seeded
+kubectl run dbcheck --rm -i --restart=Never -n ai-part-designer-dev \
+  --image=postgres:16-alpine --env='PGPASSWORD=<password>' -- \
+  psql -h postgres-cluster-dev-rw -U app -d assemblematic_ai \
+  -c "SELECT 'tiers', COUNT(*) FROM subscription_tiers UNION ALL SELECT 'templates', COUNT(*) FROM templates;"
+
+# Run optional seeds manually if needed
+kubectl exec -n ai-part-designer-dev deploy/backend-dev -- /app/.venv/bin/python -m app.seeds.users
+kubectl exec -n ai-part-designer-dev deploy/backend-dev -- /app/.venv/bin/python -m app.seeds.starters
 ```
 
 ## Configuration

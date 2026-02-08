@@ -380,6 +380,18 @@ db-shell:
 # Namespace for K8s operations (override with: make k8s-db-seed NS=ai-part-designer-staging)
 NS ?= ai-part-designer-dev
 
+k8s-db-migrate:
+	@echo "Running database migrations in namespace $(NS)..."
+	kubectl delete job -n $(NS) -l app.kubernetes.io/name=db-migrate --ignore-not-found
+	@echo "Applying manifests (CRD warnings for ExternalSecret/ServiceMonitor are expected)..."
+	-kubectl apply -k k8s/overlays/dev 2>&1 | grep -v "resource mapping not found\|ensure CRDs are installed first"
+	@kubectl get job -n $(NS) -l app.kubernetes.io/name=db-migrate -o name > /dev/null 2>&1 || { echo "❌ Migration job not created"; exit 1; }
+	kubectl wait --for=condition=complete --timeout=300s job/db-migrate-dev -n $(NS)
+	@echo "✅ Database migrations completed successfully"
+
+k8s-db-migrate-logs:
+	kubectl logs -n $(NS) -l app.kubernetes.io/name=db-migrate -f
+
 k8s-db-seed:
 	@echo "Seeding database in namespace $(NS)..."
 	kubectl delete job -n $(NS) -l app.kubernetes.io/name=db-seed --ignore-not-found
@@ -401,11 +413,11 @@ k8s-db-seed-logs:
 
 k8s-db-seed-exec:
 	@echo "Running seeds via exec into backend deployment in $(NS)..."
-	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.tiers
-	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.templates
-	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.components_v2
-	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.users
-	kubectl exec -n $(NS) deploy/backend-dev -- .venv/bin/python -m app.seeds.starters
+	kubectl exec -n $(NS) deploy/backend-dev -- /app/.venv/bin/python -m app.seeds.tiers
+	kubectl exec -n $(NS) deploy/backend-dev -- /app/.venv/bin/python -m app.seeds.templates
+	kubectl exec -n $(NS) deploy/backend-dev -- /app/.venv/bin/python -m app.seeds.components_v2
+	kubectl exec -n $(NS) deploy/backend-dev -- /app/.venv/bin/python -m app.seeds.users
+	kubectl exec -n $(NS) deploy/backend-dev -- /app/.venv/bin/python -m app.seeds.starters
 	@echo "✅ Database seeded successfully (via exec)"
 
 # ============================================================================

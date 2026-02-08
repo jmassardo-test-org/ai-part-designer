@@ -1,0 +1,24 @@
+---
+# Dev environment patch for db-migrate job
+# Overrides database and redis hostnames for dev cluster
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+spec:
+  template:
+    spec:
+      containers:
+      - name: migrate
+        env:
+        # Override postgres host to use CNPG RW service
+        - name: POSTGRES_HOST
+          value: "postgres-cluster-dev-rw"
+        # Override redis host (Helm-deployed, no suffix)
+        - name: REDIS_HOST
+          value: "redis-master"
+        # Dev-specific settings
+        - name: ENVIRONMENT
+          value: "development"
+        - name: DEBUG
+          value: "true"

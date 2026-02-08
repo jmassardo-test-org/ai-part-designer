@@ -21,6 +21,7 @@ resources:
 - backend/hpa.yaml
 - backend/pdb.yaml
 - backend/external-secret.yaml
+- backend/migrate-job.yaml
 - backend/seed-job.yaml
 # Frontend
 - frontend/configmap.yaml
