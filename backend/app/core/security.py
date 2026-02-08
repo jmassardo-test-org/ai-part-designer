@@ -13,7 +13,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, BinaryIO
 from uuid import UUID
 
 from cryptography.fernet import Fernet
@@ -359,6 +359,182 @@ class EncryptionService:
 
         result: dict[str, Any] = json.loads(self.decrypt(encrypted_data))
         return result
+
+    def encrypt_bytes(self, data: bytes) -> bytes:
+        """
+        Encrypt raw bytes.
+
+        Args:
+            data: Raw bytes to encrypt
+
+        Returns:
+            Encrypted bytes
+        """
+        return self._fernet.encrypt(data)
+
+    def decrypt_bytes(self, encrypted_data: bytes) -> bytes:
+        """
+        Decrypt encrypted bytes.
+
+        Args:
+            encrypted_data: Encrypted bytes
+
+        Returns:
+            Decrypted raw bytes
+        """
+        return self._fernet.decrypt(encrypted_data)
+
+    async def encrypt_file(self, file_data: bytes) -> bytes:
+        """
+        Encrypt file content (bytes).
+
+        Args:
+            file_data: File content as bytes
+
+        Returns:
+            Encrypted file content as bytes
+        """
+        return self.encrypt_bytes(file_data)
+
+    async def decrypt_file(self, encrypted_data: bytes) -> bytes:
+        """
+        Decrypt file content (bytes).
+
+        Args:
+            encrypted_data: Encrypted file content as bytes
+
+        Returns:
+            Decrypted file content as bytes
+        """
+        return self.decrypt_bytes(encrypted_data)
+
+    async def encrypt_file_path(self, input_path: str, output_path: str) -> None:
+        """
+        Encrypt a file from input path to output path.
+
+        Args:
+            input_path: Path to file to encrypt
+            output_path: Path to write encrypted file
+
+        Raises:
+            FileNotFoundError: If input file doesn't exist
+            IOError: If unable to read/write files
+        """
+        from pathlib import Path
+
+        input_file = Path(input_path)
+        output_file = Path(output_path)
+
+        if not input_file.exists():
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+
+        # Read and encrypt
+        file_data = input_file.read_bytes()
+        encrypted = await self.encrypt_file(file_data)
+
+        # Write encrypted data
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(encrypted)
+
+    async def decrypt_file_path(self, input_path: str, output_path: str) -> None:
+        """
+        Decrypt a file from input path to output path.
+
+        Args:
+            input_path: Path to encrypted file
+            output_path: Path to write decrypted file
+
+        Raises:
+            FileNotFoundError: If input file doesn't exist
+            IOError: If unable to read/write files
+        """
+        from pathlib import Path
+
+        input_file = Path(input_path)
+        output_file = Path(output_path)
+
+        if not input_file.exists():
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+
+        # Read and decrypt
+        encrypted_data = input_file.read_bytes()
+        decrypted = await self.decrypt_file(encrypted_data)
+
+        # Write decrypted data
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(decrypted)
+
+    async def encrypt_stream(
+        self,
+        input_stream: bytes | BinaryIO,
+        chunk_size: int = 1024 * 1024,  # 1MB chunks
+    ) -> bytes:
+        """
+        Encrypt a large file using streaming with chunked processing.
+
+        For very large files, reads and encrypts in chunks to avoid loading
+        the entire file into memory at once.
+
+        Args:
+            input_stream: Input data as bytes or file-like object
+            chunk_size: Size of chunks to process (default 1MB)
+
+        Returns:
+            Encrypted bytes
+
+        Note:
+            Fernet encrypts the entire message at once, so we still need
+            to load the full file, but this method provides a consistent
+            API for future improvements with streaming ciphers.
+        """
+        from io import BytesIO
+
+        # If it's already bytes, encrypt directly
+        if isinstance(input_stream, bytes):
+            return self.encrypt_bytes(input_stream)
+
+        # Read from file-like object
+        if hasattr(input_stream, "read"):
+            data = input_stream.read()
+            return self.encrypt_bytes(data)
+
+        msg = "Input must be bytes or file-like object"
+        raise TypeError(msg)
+
+    async def decrypt_stream(
+        self,
+        encrypted_stream: bytes | BinaryIO,
+        chunk_size: int = 1024 * 1024,  # 1MB chunks
+    ) -> bytes:
+        """
+        Decrypt a large file using streaming with chunked processing.
+
+        For very large files, reads and decrypts in chunks to avoid loading
+        the entire file into memory at once.
+
+        Args:
+            encrypted_stream: Encrypted data as bytes or file-like object
+            chunk_size: Size of chunks to process (default 1MB)
+
+        Returns:
+            Decrypted bytes
+
+        Note:
+            Fernet decrypts the entire message at once, so we still need
+            to load the full file, but this method provides a consistent
+            API for future improvements with streaming ciphers.
+        """
+        # If it's already bytes, decrypt directly
+        if isinstance(encrypted_stream, bytes):
+            return self.decrypt_bytes(encrypted_stream)
+
+        # Read from file-like object
+        if hasattr(encrypted_stream, "read"):
+            data = encrypted_stream.read()
+            return self.decrypt_bytes(data)
+
+        msg = "Input must be bytes or file-like object"
+        raise TypeError(msg)
 
 
 # Global encryption service instance
