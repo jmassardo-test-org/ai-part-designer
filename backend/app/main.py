@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request, status
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -224,6 +224,89 @@ def create_app() -> FastAPI:
     app.include_router(api_router_v2)
 
     # Exception handlers
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(
+        request: Request,
+        exc: HTTPException,
+    ) -> JSONResponse:
+        """
+        Handle HTTP exceptions and log security events for 401/403.
+        """
+        # Log unauthorized access attempts (401/403)
+        if exc.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
+            try:
+                from app.core.database import get_db
+                from app.services.security_audit import get_security_audit_service
+
+                # Get client info
+                client_ip = request.client.host if request.client else "unknown"
+                user_agent = request.headers.get("User-Agent", "unknown")
+                request_id = getattr(request.state, "request_id", None)
+
+                # Get user_id if available from request state
+                user_id = getattr(request.state, "user_id", None)
+
+                # Create audit service
+                async for db in get_db():
+                    audit_service = get_security_audit_service(db)
+
+                    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+                        # Extract reason from detail
+                        reason = "authentication_required"
+                        if isinstance(exc.detail, str):
+                            if "token" in exc.detail.lower():
+                                reason = "invalid_token"
+                            elif "expired" in exc.detail.lower():
+                                reason = "token_expired"
+
+                        await audit_service.log_unauthorized_access(
+                            endpoint=request.url.path,
+                            method=request.method,
+                            client_ip=client_ip,
+                            user_agent=user_agent,
+                            user_id=user_id,
+                            reason=reason,
+                            request_id=request_id,
+                        )
+                    elif exc.status_code == status.HTTP_403_FORBIDDEN:
+                        # Extract reason from detail
+                        reason = "insufficient_permissions"
+                        if isinstance(exc.detail, str):
+                            if "suspended" in exc.detail.lower():
+                                reason = "account_suspended"
+                            elif "permission" in exc.detail.lower():
+                                reason = "insufficient_permissions"
+                            elif "role" in exc.detail.lower():
+                                reason = "insufficient_role"
+
+                        # For 403, user_id should be available (user is authenticated but lacks permission)
+                        # If not available, skip forbidden logging (shouldn't happen in practice)
+                        if user_id:
+                            await audit_service.log_forbidden_access(
+                                user_id=user_id,
+                                endpoint=request.url.path,
+                                method=request.method,
+                                client_ip=client_ip,
+                                user_agent=user_agent,
+                                reason=reason,
+                                request_id=request_id,
+                            )
+                    break
+            except Exception as log_error:
+                # Don't fail the request if logging fails
+                logger.warning(
+                    "security_event_logging_failed",
+                    error=str(log_error),
+                    status_code=exc.status_code,
+                )
+
+        # Return the original HTTP exception response
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers,
+        )
+
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         _request: Request,
