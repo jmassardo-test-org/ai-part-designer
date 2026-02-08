@@ -342,14 +342,15 @@ class TestEncryptedStorageClient:
             mock_get_client.return_value = mock_client_ctx
 
             # Upload
-            def store_content(**kwargs):
+            def capture_upload_call(**kwargs):
+                """Mock side effect to capture uploaded content and metadata."""
                 nonlocal stored_content
                 stored_content = kwargs["Body"]
                 stored_metadata = kwargs.get("Metadata", {})
                 # Store metadata for later retrieval
                 mock_s3_client.head_object.return_value = {"Metadata": stored_metadata}
 
-            mock_s3_client.put_object.side_effect = store_content
+            mock_s3_client.put_object.side_effect = capture_upload_call
 
             await encrypted_storage_client.upload_file(
                 bucket=StorageBucket.UPLOADS,

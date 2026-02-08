@@ -46,6 +46,10 @@ class EncryptedStorageClient(StorageClient):
 
         Returns:
             Object URL
+
+        Note:
+            If file is a file-like object, it will be read completely,
+            consuming the stream. The stream position is not reset.
         """
         # Prepare metadata
         meta = metadata or {}
@@ -57,7 +61,7 @@ class EncryptedStorageClient(StorageClient):
             if isinstance(file, bytes):
                 file = await encryption_service.encrypt_file(file)
             else:
-                # Read from file-like object, encrypt, and convert back
+                # Read from file-like object, encrypt, and convert to bytes
                 file_data = file.read()
                 file = await encryption_service.encrypt_file(file_data)
 
