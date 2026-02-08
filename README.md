@@ -102,6 +102,13 @@ OPENAI_API_KEY=sk-your-api-key
 
 ### OAuth Configuration (Google & GitHub Login)
 
+OAuth provides secure, passwordless authentication for your users.
+
+> **📘 For Production Deployment:**
+> See the comprehensive [OAuth Production Setup Guide](docs/operations/oauth-production-setup.md) for detailed configuration and the [OAuth Testing Runbook](docs/operations/oauth-testing-runbook.md) for validation procedures.
+
+#### Quick Setup (Development)
+
 To enable "Login with Google" and "Login with GitHub" in local development:
 
 #### Google OAuth Setup
