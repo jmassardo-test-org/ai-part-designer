@@ -18,6 +18,7 @@ from app.core.database import get_db
 from app.models.design import Design, DesignVersion
 from app.models.job import Job
 from app.models.project import Project
+from app.worker.celery import celery_app
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -76,6 +77,111 @@ class CancelJobResponse(BaseModel):
     id: str
     status: str
     message: str
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def _requeue_job_task(job: Job) -> str | None:
+    """
+    Re-queue a Celery task for the given job.
+
+    Args:
+        job: The job to re-queue
+
+    Returns:
+        The new Celery task ID, or None if job type doesn't have a task
+
+    Raises:
+        ValueError: If job type is not supported for re-queuing
+    """
+    from app.worker.tasks.ai import generate_from_prompt
+    from app.worker.tasks.cad_v2 import compile_enclosure_v2
+    from app.worker.tasks.export import convert_format
+    from app.worker.tasks.extraction import extract_component_task
+
+    job_id = str(job.id)
+    user_id = str(job.user_id) if job.user_id else None
+    input_params = job.input_params or {}
+
+    # Map job types to their Celery tasks
+    task_result = None
+
+    if job.job_type == "ai_generation":
+        # AI generation task
+        prompt = input_params.get("prompt")
+        if not prompt:
+            logger.error(
+                "job_requeue_missing_param",
+                job_id=job_id,
+                job_type=job.job_type,
+                missing_param="prompt",
+            )
+            raise ValueError("Missing required parameter 'prompt' for ai_generation job")
+
+        task_result = generate_from_prompt.delay(
+            job_id=job_id,
+            prompt=prompt,
+            _context=input_params.get("context"),
+            user_id=user_id,
+        )
+
+    elif job.job_type == "cad_v2_compile":
+        # CAD v2 compilation task
+        enclosure_schema = input_params.get("enclosure_schema")
+        if not enclosure_schema:
+            logger.error(
+                "job_requeue_missing_param",
+                job_id=job_id,
+                job_type=job.job_type,
+                missing_param="enclosure_schema",
+            )
+            raise ValueError("Missing required parameter 'enclosure_schema' for cad_v2_compile job")
+
+        task_result = compile_enclosure_v2.delay(
+            job_id=job_id,
+            enclosure_schema=enclosure_schema,
+            export_format=input_params.get("export_format", "step"),
+            user_id=user_id,
+        )
+
+    elif job.job_type == "format_conversion":
+        # Format conversion task
+        source_url = input_params.get("source_url")
+        if not source_url:
+            logger.error(
+                "job_requeue_missing_param",
+                job_id=job_id,
+                job_type=job.job_type,
+                missing_param="source_url",
+            )
+            raise ValueError("Missing required parameter 'source_url' for format_conversion job")
+
+        task_result = convert_format.delay(
+            job_id=job_id,
+            source_url=source_url,
+            target_format=input_params.get("target_format", "step"),
+        )
+
+    elif job.job_type in ("cad", "datasheet", "full"):
+        # Component extraction task
+        # Job types: "cad" (CAD only), "datasheet" (datasheet only), "full" (both)
+        # All three types use the same task, which determines what to extract
+        # based on the job type and available files
+        task_result = extract_component_task.delay(job_id)
+
+    else:
+        # For other job types, we don't currently support re-queuing
+        logger.warning(
+            "job_requeue_unsupported",
+            job_id=job_id,
+            job_type=job.job_type,
+        )
+        return None
+
+    return task_result.id if task_result else None
 
 
 # =============================================================================
@@ -248,10 +354,38 @@ async def cancel_job(
     job.cancel()
     await db.commit()
 
-    # TODO: Implement Celery task cancellation when background processing is integrated
-    # Will need to revoke task using: celery_app.control.revoke(task_id, terminate=True)
+    # Revoke the Celery task if it exists
+    if job.celery_task_id:
+        try:
+            celery_app.control.revoke(
+                job.celery_task_id,
+                terminate=True,
+                signal="SIGTERM",  # Allow graceful cleanup
+            )
+            logger.info(
+                "celery_task_revoked",
+                job_id=str(job_id),
+                task_id=job.celery_task_id,
+            )
+        except Exception as e:
+            # Log the error but don't fail the cancellation
+            logger.warning(
+                "celery_task_revoke_failed",
+                job_id=str(job_id),
+                task_id=job.celery_task_id,
+                error=str(e),
+            )
+    else:
+        logger.debug(
+            "job_cancelled_no_task_id",
+            job_id=str(job_id),
+        )
 
-    logger.info(f"Job {job_id} cancelled by user {current_user.id}")
+    logger.info(
+        "job_cancelled",
+        job_id=str(job_id),
+        user_id=str(current_user.id),
+    )
 
     return CancelJobResponse(
         id=str(job.id),
@@ -316,12 +450,51 @@ async def retry_job(
     job.progress_message = None
     job.retry_count += 1
 
+    # Log old task ID before clearing (for debugging)
+    if job.celery_task_id:
+        logger.debug(
+            "clearing_old_task_id",
+            job_id=str(job_id),
+            old_task_id=job.celery_task_id,
+        )
+    job.celery_task_id = None
+
     await db.commit()
 
-    # TODO: Implement Celery task re-queuing when background processing is integrated
-    # Will need to send task and store task_id on job
-
-    logger.info(f"Job {job_id} queued for retry ({job.retry_count}/{job.max_retries})")
+    # Re-queue the Celery task
+    try:
+        new_task_id = _requeue_job_task(job)
+        if new_task_id:
+            job.celery_task_id = new_task_id
+            await db.commit()
+            logger.info(
+                "job_requeued",
+                job_id=str(job_id),
+                retry_count=job.retry_count,
+                max_retries=job.max_retries,
+                new_task_id=new_task_id,
+            )
+        else:
+            logger.warning(
+                "job_requeue_no_task",
+                job_id=str(job_id),
+                job_type=job.job_type,
+            )
+    except Exception as e:
+        # Roll back the retry if re-queuing fails
+        job.status = "failed"  # Revert to failed state
+        job.retry_count -= 1
+        job.celery_task_id = None
+        await db.commit()
+        logger.error(
+            "job_requeue_failed",
+            job_id=str(job_id),
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to re-queue job: {e!s}",
+        )
 
     return JobResponse(
         id=str(job.id),
