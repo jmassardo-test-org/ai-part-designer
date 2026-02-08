@@ -1,6 +1,6 @@
 ---
 # ArgoCD Ingress Configuration
-# Provides secure access to the ArgoCD UI with SSL/TLS
+# Provides access to the ArgoCD UI
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -10,34 +10,24 @@ metadata:
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/component: server
   annotations:
-    # NGINX ingress controller annotations
-    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-
-    # cert-manager annotations for automatic SSL certificate
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Use HTTP backend for local dev (ArgoCD runs HTTP on 8080)
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 
     # Security headers
     nginx.ingress.kubernetes.io/configuration-snippet: |
       more_set_headers "X-Frame-Options: DENY";
       more_set_headers "X-Content-Type-Options: nosniff";
       more_set_headers "X-XSS-Protection: 1; mode=block";
-      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
 
-    # Rate limiting (optional)
+    # Rate limiting
     nginx.ingress.kubernetes.io/limit-rps: "10"
 
 spec:
   ingressClassName: nginx
 
-  tls:
-    - hosts:
-        - argocd.yourdomain.com  # Replace with your actual domain
-      secretName: argocd-server-tls
-
   rules:
-    - host: argocd.yourdomain.com  # Replace with your actual domain
+    - host: argocd.assemblematic.ai
       http:
         paths:
           - path: /
@@ -46,7 +36,7 @@ spec:
               service:
                 name: argocd-server
                 port:
-                  name: https
+                  name: http
 
 ---
 # Alternative: ArgoCD Server Service with LoadBalancer

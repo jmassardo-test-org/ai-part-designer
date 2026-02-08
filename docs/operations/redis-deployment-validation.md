@@ -158,9 +158,9 @@ kubectl logs -n ai-part-designer-staging deploy/backend | grep -i redis
 kubectl logs -n ai-part-designer-staging deploy/celery-worker | grep -i redis
 
 # Test API cache hit
-curl https://staging.example.com/api/v1/health
+curl https://staging.assemblematic.ai/api/v1/health
 # Second request should be faster (cached)
-curl https://staging.example.com/api/v1/health
+curl https://staging.assemblematic.ai/api/v1/health
 ```
 
 #### 4. Monitoring Test

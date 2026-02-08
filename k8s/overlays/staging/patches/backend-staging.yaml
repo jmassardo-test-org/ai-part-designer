@@ -15,9 +15,9 @@ spec:
         - name: DEBUG
           value: "false"
         - name: CORS_ORIGINS
-          value: '["https://staging.example.com"]'
+          value: '["https://staging.assemblematic.ai"]'
         - name: FRONTEND_URL
-          value: "https://staging.example.com"
+          value: "https://staging.assemblematic.ai"
         resources:
           requests:
             memory: "512Mi"

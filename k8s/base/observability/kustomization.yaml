@@ -1,0 +1,20 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: observability
+
+resources:
+  - namespace.yaml
+  - prometheus.yaml
+  - grafana.yaml
+  - elasticsearch.yaml
+  - kibana.yaml
+  - logstash.yaml
+  - jaeger.yaml
+  - ingress.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: ai-part-designer-observability

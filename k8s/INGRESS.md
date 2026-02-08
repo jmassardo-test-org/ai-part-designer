@@ -21,7 +21,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /
@@ -31,7 +31,7 @@ spec:
             name: frontend-prod
             port:
               number: 80
-  - host: api.example.com
+  - host: api.assemblematic.ai
     http:
       paths:
       - path: /
@@ -60,11 +60,11 @@ metadata:
 spec:
   tls:
   - hosts:
-    - app.example.com
-    - api.example.com
+    - app.assemblematic.ai
+    - api.assemblematic.ai
     secretName: ai-part-designer-tls
   rules:
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /
@@ -74,7 +74,7 @@ spec:
             name: frontend-prod
             port:
               number: 80
-  - host: api.example.com
+  - host: api.assemblematic.ai
     http:
       paths:
       - path: /
@@ -93,7 +93,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: your-email@example.com
+    email: devops@assemblematic.ai
     privateKeySecretRef:
       name: letsencrypt-prod-key
     solvers:
@@ -119,10 +119,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - app.example.com
+    - app.assemblematic.ai
     secretName: ai-part-designer-tls
   rules:
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /api(/|$)(.*)
@@ -159,11 +159,11 @@ metadata:
 spec:
   tls:
   - hosts:
-    - app.example.com
-    - api.example.com
+    - app.assemblematic.ai
+    - api.assemblematic.ai
     secretName: ai-part-designer-tls
   rules:
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /
@@ -173,7 +173,7 @@ spec:
             name: frontend-prod
             port:
               number: 80
-  - host: api.example.com
+  - host: api.assemblematic.ai
     http:
       paths:
       - path: /
@@ -200,11 +200,11 @@ metadata:
 spec:
   tls:
   - hosts:
-    - app.example.com
-    - api.example.com
+    - app.assemblematic.ai
+    - api.assemblematic.ai
     secretName: ai-part-designer-tls
   rules:
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /
@@ -214,7 +214,7 @@ spec:
             name: frontend-prod
             port:
               number: 80
-  - host: api.example.com
+  - host: api.assemblematic.ai
     http:
       paths:
       - path: /
@@ -247,7 +247,7 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
 spec:
   rules:
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /
@@ -257,7 +257,7 @@ spec:
             name: frontend-prod
             port:
               number: 80
-  - host: api.example.com
+  - host: api.assemblematic.ai
     http:
       paths:
       - path: /
@@ -283,7 +283,7 @@ metadata:
     networking.gke.io/managed-certificates: ai-part-designer-cert
 spec:
   rules:
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /*
@@ -293,7 +293,7 @@ spec:
             name: frontend-prod
             port:
               number: 80
-  - host: api.example.com
+  - host: api.assemblematic.ai
     http:
       paths:
       - path: /*
@@ -311,8 +311,8 @@ metadata:
   namespace: ai-part-designer-prod
 spec:
   domains:
-    - app.example.com
-    - api.example.com
+    - app.assemblematic.ai
+    - api.assemblematic.ai
 ```
 
 ## Adding to Kustomize Overlay
@@ -347,12 +347,12 @@ kubectl get ingress -n ai-part-designer-prod
 kubectl describe ingress ai-part-designer -n ai-part-designer-prod
 
 # Test with curl
-curl -H "Host: app.example.com" http://<ingress-ip>
-curl -H "Host: api.example.com" http://<ingress-ip>/api/v1/health
+curl -H "Host: app.assemblematic.ai" http://<ingress-ip>
+curl -H "Host: api.assemblematic.ai" http://<ingress-ip>/api/v1/health
 
 # Test HTTPS
-curl https://app.example.com
-curl https://api.example.com/api/v1/health
+curl https://app.assemblematic.ai
+curl https://api.assemblematic.ai/api/v1/health
 ```
 
 ## Common Issues
@@ -386,5 +386,5 @@ annotations:
 Update backend CORS_ORIGINS environment variable to include your domain:
 ```yaml
 - name: CORS_ORIGINS
-  value: '["https://app.example.com"]'
+  value: '["https://app.assemblematic.ai"]'
 ```

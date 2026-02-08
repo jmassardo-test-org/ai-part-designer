@@ -163,7 +163,7 @@ All OpenBao access is logged to `/openbao/audit/audit.log` with:
      > openbao-keys-$(date +%Y%m%d).yaml
    
    # Encrypt and store in multiple locations
-   gpg --encrypt --recipient admin@example.com openbao-keys-*.yaml
+   gpg --encrypt --recipient admin@assemblematic.ai openbao-keys-*.yaml
    ```
 
 3. **Add AI Service API Keys**

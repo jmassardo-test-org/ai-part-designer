@@ -42,12 +42,12 @@ kubectl get svc -n ai-part-designer-prod -l app.kubernetes.io/name=ingress-nginx
 # LoadBalancer   203.0.113.50     80:30080/TCP,443:30443/TCP
 
 # 3. Test HTTP→HTTPS redirect
-curl -I http://app.example.com
+curl -I http://app.assemblematic.ai
 
 # Expected: 301 or 308 redirect
 
 # 4. Test HTTPS access
-curl -I https://app.example.com
+curl -I https://app.assemblematic.ai
 
 # Expected: 200 OK
 ```
@@ -147,8 +147,8 @@ helm upgrade ai-part-designer ./helm/ai-part-designer \
 kubectl get ingress ai-part-designer-ingress -n ai-part-designer-prod -o yaml
 
 # 4. Test access
-curl -I https://app.example.com
-curl https://api.example.com/api/v1/health
+curl -I https://app.assemblematic.ai
+curl https://api.assemblematic.ai/api/v1/health
 
 # 5. Monitor for 5 minutes
 kubectl logs -n ai-part-designer-prod -l app.kubernetes.io/name=ingress-nginx -f
@@ -186,7 +186,7 @@ kubectl logs -n cert-manager -l app=cert-manager -f
 kubectl describe certificate ai-part-designer-tls -n ai-part-designer-prod
 
 # 5. Test HTTPS access
-curl -vI https://app.example.com 2>&1 | grep "subject:\|issuer:\|expire"
+curl -vI https://app.assemblematic.ai 2>&1 | grep "subject:\|issuer:\|expire"
 ```
 
 **Success Criteria:**
@@ -218,11 +218,11 @@ kubectl logs -n cert-manager -l app=cert-manager --tail=100
 
 # Issue: DNS not resolving
 # Fix: Verify DNS records are correct and propagated
-dig app.example.com +short
+dig app.assemblematic.ai +short
 
 # Issue: HTTP-01 challenge failing
 # Fix: Ensure port 80 is accessible from internet
-curl -I http://app.example.com/.well-known/acme-challenge/test
+curl -I http://app.assemblematic.ai/.well-known/acme-challenge/test
 
 # Issue: Rate limit hit
 # Fix: Switch to staging issuer temporarily
@@ -401,7 +401,7 @@ kubectl logs -n cert-manager -l app=cert-manager --tail=100
 kubectl top pods -n ai-part-designer-prod -l app.kubernetes.io/name=ingress-nginx
 
 # Check backend latency
-curl -w "@curl-format.txt" -o /dev/null -s https://api.example.com/api/v1/health
+curl -w "@curl-format.txt" -o /dev/null -s https://api.assemblematic.ai/api/v1/health
 
 # Check ingress logs for slow requests
 kubectl logs -n ai-part-designer-prod -l app.kubernetes.io/name=ingress-nginx | grep "request_time" | awk '{print $NF}' | sort -rn | head
@@ -466,10 +466,10 @@ helm upgrade ai-part-designer ./helm/ai-part-designer \
 
 # 3. Verify recovery
 kubectl get svc -n ai-part-designer-prod -l app.kubernetes.io/name=ingress-nginx
-curl -I https://app.example.com
+curl -I https://app.assemblematic.ai
 
 # 4. Check DNS still points to external IP
-dig app.example.com +short
+dig app.assemblematic.ai +short
 ```
 
 ---
@@ -484,8 +484,8 @@ dig app.example.com +short
 kubectl delete certificate --all -n ai-part-designer-prod
 
 # 2. Ensure DNS records are correct
-dig app.example.com +short
-dig api.example.com +short
+dig app.assemblematic.ai +short
+dig api.assemblematic.ai +short
 
 # 3. Recreate certificates
 kubectl apply -k k8s/overlays/production

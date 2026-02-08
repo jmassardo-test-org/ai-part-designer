@@ -1,0 +1,67 @@
+---
+# Observability Ingress - exposes monitoring UIs via host-based routing
+# All services accessible through the ingress-nginx controller on localhost
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: observability
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: observability
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: ai-part-designer-observability
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    # Grafana - dashboards and visualization
+    - host: grafana.assemblematic.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+
+    # Prometheus - metrics and alerting
+    - host: prometheus.assemblematic.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus
+                port:
+                  number: 9090
+
+    # Kibana - log search and analytics
+    - host: kibana.assemblematic.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kibana
+                port:
+                  number: 5601
+
+    # Jaeger - distributed tracing UI
+    - host: jaeger.assemblematic.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jaeger
+                port:
+                  number: 16686

@@ -17,9 +17,9 @@ spec:
         - name: FORCE_HTTPS
           value: "true"
         - name: CORS_ORIGINS
-          value: '["https://app.example.com"]'
+          value: '["https://app.assemblematic.ai"]'
         - name: FRONTEND_URL
-          value: "https://app.example.com"
+          value: "https://app.assemblematic.ai"
         resources:
           requests:
             memory: "512Mi"

@@ -58,12 +58,12 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - app.example.com
-    - api.example.com
+    - app.assemblematic.ai
+    - api.assemblematic.ai
     secretName: ai-part-designer-tls
   rules:
   # Frontend application
-  - host: app.example.com
+  - host: app.assemblematic.ai
     http:
       paths:
       - path: /
@@ -74,7 +74,7 @@ spec:
             port:
               number: 80
   # Backend API
-  - host: api.example.com
+  - host: api.assemblematic.ai
     http:
       paths:
       - path: /

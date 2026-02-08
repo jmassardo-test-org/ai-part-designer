@@ -74,13 +74,13 @@ All traffic through one domain with path prefixes:
 ```yaml
 ingressEnabled: true
 ingressMultiDomain: false
-ingressHost: "app.example.com"
+ingressHost: "app.assemblematic.ai"
 ```
 
 **Routes:**
-- `https://app.example.com/` → Frontend
-- `https://app.example.com/api` → Backend API
-- `https://app.example.com/docs` → API Documentation
+- `https://app.assemblematic.ai/` → Frontend
+- `https://app.assemblematic.ai/api` → Backend API
+- `https://app.assemblematic.ai/docs` → API Documentation
 
 **Best for:** Simpler DNS setup, single certificate
 
@@ -91,14 +91,14 @@ Separate subdomains for frontend and API:
 ```yaml
 ingressEnabled: true
 ingressMultiDomain: true
-ingressFrontendHost: "app.example.com"
-ingressBackendHost: "api.example.com"
+ingressFrontendHost: "app.assemblematic.ai"
+ingressBackendHost: "api.assemblematic.ai"
 ```
 
 **Routes:**
-- `https://app.example.com/` → Frontend
-- `https://api.example.com/` → Backend API
-- `https://api.example.com/docs` → API Documentation
+- `https://app.assemblematic.ai/` → Frontend
+- `https://api.assemblematic.ai/` → Backend API
+- `https://api.assemblematic.ai/docs` → API Documentation
 
 **Best for:** Clear API separation, independent scaling
 
@@ -186,13 +186,13 @@ See [DNS Configuration Guide](../k8s/DNS_CONFIGURATION.md) for detailed instruct
 
 **Quick setup for single domain:**
 ```
-A       app.example.com      <EXTERNAL-IP>
+A       app.assemblematic.ai      <EXTERNAL-IP>
 ```
 
 **Quick setup for multi-domain:**
 ```
-A       app.example.com      <EXTERNAL-IP>
-A       api.example.com      <EXTERNAL-IP>
+A       app.assemblematic.ai      <EXTERNAL-IP>
+A       api.assemblematic.ai      <EXTERNAL-IP>
 ```
 
 ### 3. Verify Certificate Provisioning
@@ -212,17 +212,17 @@ Certificate issuance typically takes 2-5 minutes after DNS propagates.
 
 ```bash
 # Test HTTP→HTTPS redirect
-curl -I http://app.example.com
+curl -I http://app.assemblematic.ai
 # Should return: 301 or 308 Moved Permanently
 
 # Test HTTPS access
-curl https://app.example.com
+curl https://app.assemblematic.ai
 # Should return: 200 OK with HTML
 
 # Test API health check
-curl https://api.example.com/api/v1/health
+curl https://api.assemblematic.ai/api/v1/health
 # OR for single domain:
-curl https://app.example.com/api/v1/health
+curl https://app.assemblematic.ai/api/v1/health
 # Should return: {"status": "healthy"}
 ```
 
@@ -320,11 +320,11 @@ helm upgrade ai-part-designer ./helm/ai-part-designer \
 ```bash
 # For single domain
 kubectl set env deployment/backend -n ai-part-designer-prod \
-  CORS_ORIGINS='["https://app.example.com"]'
+  CORS_ORIGINS='["https://app.assemblematic.ai"]'
 
 # For multi-domain
 kubectl set env deployment/backend -n ai-part-designer-prod \
-  CORS_ORIGINS='["https://app.example.com","https://api.example.com"]'
+  CORS_ORIGINS='["https://app.assemblematic.ai","https://api.assemblematic.ai"]'
 ```
 
 ## Upgrading Configuration

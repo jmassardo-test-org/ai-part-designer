@@ -34,26 +34,26 @@ Note the `EXTERNAL-IP` value. This will be used in your DNS records.
 
 ### Option A: Single Domain Configuration
 
-For path-based routing (e.g., `app.example.com` with `/api` for backend):
+For path-based routing (e.g., `app.assemblematic.ai` with `/api` for backend):
 
 **DNS Records:**
 ```
-A       app.example.com      203.0.113.50
+A       app.assemblematic.ai      203.0.113.50
 ```
 
 **Helm Values:**
 ```yaml
 ingressEnabled: true
-ingressHost: "app.example.com"
+ingressHost: "app.assemblematic.ai"
 ingressMultiDomain: false
 ingressTlsSecret: "ai-part-designer-tls"
 ingressCertIssuer: "letsencrypt-prod"
 ```
 
 **Access URLs:**
-- Frontend: `https://app.example.com`
-- API: `https://app.example.com/api`
-- API Docs: `https://app.example.com/docs`
+- Frontend: `https://app.assemblematic.ai`
+- API: `https://app.assemblematic.ai/api`
+- API Docs: `https://app.assemblematic.ai/docs`
 
 ### Option B: Multi-Domain Configuration
 
@@ -61,24 +61,24 @@ For subdomain-based routing (separate domains for frontend and API):
 
 **DNS Records:**
 ```
-A       app.example.com      203.0.113.50
-A       api.example.com      203.0.113.50
+A       app.assemblematic.ai      203.0.113.50
+A       api.assemblematic.ai      203.0.113.50
 ```
 
 **Helm Values:**
 ```yaml
 ingressEnabled: true
 ingressMultiDomain: true
-ingressFrontendHost: "app.example.com"
-ingressBackendHost: "api.example.com"
+ingressFrontendHost: "app.assemblematic.ai"
+ingressBackendHost: "api.assemblematic.ai"
 ingressTlsSecret: "ai-part-designer-tls"
 ingressCertIssuer: "letsencrypt-prod"
 ```
 
 **Access URLs:**
-- Frontend: `https://app.example.com`
-- API: `https://api.example.com`
-- API Docs: `https://api.example.com/docs`
+- Frontend: `https://app.assemblematic.ai`
+- API: `https://api.assemblematic.ai`
+- API Docs: `https://api.assemblematic.ai/docs`
 
 ## Step 3: Verify DNS Propagation
 
@@ -86,11 +86,11 @@ Wait for DNS propagation (typically 5-60 minutes):
 
 ```bash
 # Check DNS resolution
-dig app.example.com +short
-nslookup app.example.com
+dig app.assemblematic.ai +short
+nslookup app.assemblematic.ai
 
 # For multi-domain setup, also check:
-dig api.example.com +short
+dig api.assemblematic.ai +short
 ```
 
 ## Step 4: Verify TLS Certificate Provisioning
@@ -118,17 +118,17 @@ ai-part-designer-tls    True    ai-part-designer-tls    5m
 
 ```bash
 # Test HTTPS redirect
-curl -I http://app.example.com
+curl -I http://app.assemblematic.ai
 # Should return 301 or 308 redirect to HTTPS
 
 # Test HTTPS access
-curl -I https://app.example.com
+curl -I https://app.assemblematic.ai
 # Should return 200 OK
 
 # Test API health endpoint
-curl https://api.example.com/api/v1/health
+curl https://api.assemblematic.ai/api/v1/health
 # OR for single domain:
-curl https://app.example.com/api/v1/health
+curl https://app.assemblematic.ai/api/v1/health
 ```
 
 ## Environment-Specific Configurations
@@ -167,13 +167,13 @@ Staging uses Let's Encrypt staging server for testing:
 ingressEnabled: true
 installIngress: true
 installCerts: true
-ingressHost: "staging.ai-part-designer.example.com"
+ingressHost: "staging.ai-part-designer.assemblematic.ai"
 ingressCertIssuer: "letsencrypt-staging"
 ```
 
 **DNS Records:**
 ```
-A       staging.ai-part-designer.example.com      203.0.113.51
+A       staging.ai-part-designer.assemblematic.ai      203.0.113.51
 ```
 
 **Note:** Let's Encrypt staging certificates are not trusted by browsers. This is intentional for testing without hitting rate limits.
@@ -212,8 +212,8 @@ kubectl get svc -n ai-part-designer -l app.kubernetes.io/name=ingress-nginx
 
 Use CNAME records:
 ```
-CNAME   app.example.com      a1b2c3d4e5f6.us-west-2.elb.amazonaws.com
-CNAME   api.example.com      a1b2c3d4e5f6.us-west-2.elb.amazonaws.com
+CNAME   app.assemblematic.ai      a1b2c3d4e5f6.us-west-2.elb.amazonaws.com
+CNAME   api.assemblematic.ai      a1b2c3d4e5f6.us-west-2.elb.amazonaws.com
 ```
 
 ### GCP (GKE)
@@ -273,12 +273,12 @@ Update backend CORS configuration to include your domain:
 
 ```yaml
 # In backend configmap or environment
-corsOrigins: '["https://app.example.com"]'
+corsOrigins: '["https://app.assemblematic.ai"]'
 ```
 
 For multi-domain setup:
 ```yaml
-corsOrigins: '["https://app.example.com", "https://api.example.com"]'
+corsOrigins: '["https://app.assemblematic.ai", "https://api.assemblematic.ai"]'
 ```
 
 ### Rate Limiting Too Strict

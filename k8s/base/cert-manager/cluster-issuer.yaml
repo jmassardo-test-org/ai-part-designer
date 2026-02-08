@@ -8,7 +8,7 @@ spec:
   acme:
     # Let's Encrypt staging server (higher rate limits, untrusted certs)
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: devops@example.com  # Replace with your email
+    email: devops@assemblematic.ai
     privateKeySecretRef:
       name: letsencrypt-staging-key
     solvers:
@@ -25,7 +25,7 @@ spec:
   acme:
     # Let's Encrypt production server (trusted certs, strict rate limits)
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: devops@example.com  # Replace with your email
+    email: devops@assemblematic.ai
     privateKeySecretRef:
       name: letsencrypt-prod-key
     solvers:

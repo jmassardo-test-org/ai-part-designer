@@ -99,13 +99,13 @@ server:
     # Enable and configure if you want external access to OpenBao UI
     # ingressClassName: nginx
     # hosts:
-    #   - host: openbao.example.com
+    #   - host: openbao.assemblematic.ai
     #     paths:
     #       - /
     # tls:
     #   - secretName: openbao-tls
     #     hosts:
-    #       - openbao.example.com
+    #       - openbao.assemblematic.ai
 
   # Standalone mode (disable for HA)
   standalone:

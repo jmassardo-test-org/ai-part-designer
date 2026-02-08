@@ -1,0 +1,75 @@
+---
+# Kibana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: kibana
+    app.kubernetes.io/component: logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kibana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kibana
+        app.kubernetes.io/component: logging
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.11.0
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch.observability.svc.cluster.local:9200"
+            - name: SERVER_NAME
+              value: "ai-part-designer-kibana"
+            - name: xpack.security.enabled
+              value: "false"
+            - name: TELEMETRY_ENABLED
+              value: "false"
+          ports:
+            - containerPort: 5601
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+---
+# Kibana Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: kibana
+    app.kubernetes.io/component: logging
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5601
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: kibana

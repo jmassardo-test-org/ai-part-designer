@@ -14,10 +14,10 @@ logLevel: "INFO"
 
 # Enable ingress for staging
 ingressEnabled: true
-ingressHost: "staging.ai-part-designer.example.com"
+ingressHost: "staging.ai-part-designer.assemblematic.ai"
 
 # Staging-specific CORS
-viteApiUrl: "https://staging.ai-part-designer.example.com"
+viteApiUrl: "https://staging.ai-part-designer.assemblematic.ai"
 
 # Staging storage configuration
 # Use standard SSD storage class for staging
@@ -121,7 +121,7 @@ installCerts: true
 
 # Use Let's Encrypt staging for testing
 ingressCertIssuer: "letsencrypt-staging"
-ingressHost: "staging.ai-part-designer.example.com"
+ingressHost: "staging.ai-part-designer.assemblematic.ai"
 ingressMultiDomain: false
 
 # Moderate rate limiting for staging

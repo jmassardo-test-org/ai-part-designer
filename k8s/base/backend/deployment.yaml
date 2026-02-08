@@ -161,9 +161,9 @@ spec:
               name: backend-secrets
               key: secret-key
         - name: CORS_ORIGINS
-          value: '["https://app.example.com"]'
+          value: '["https://app.assemblematic.ai"]'
         - name: FRONTEND_URL
-          value: "https://app.example.com"
+          value: "https://app.assemblematic.ai"
         # Other settings from ConfigMap
         - name: ACCESS_TOKEN_EXPIRE_MINUTES
           valueFrom:

@@ -34,7 +34,10 @@ spec:
       - name: beat
         image: ai-part-designer-backend:latest
         imagePullPolicy: IfNotPresent
-        command: [".venv/bin/celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info"]
+        command: [".venv/bin/celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat/celerybeat-schedule"]
+        volumeMounts:
+        - name: beat-schedule
+          mountPath: /tmp/celerybeat
         env:
         # Environment (overridden per overlay)
         - name: ENVIRONMENT
@@ -79,10 +82,10 @@ spec:
               key: postgres-password
         resources:
           requests:
-            memory: "128Mi"
+            memory: "256Mi"
             cpu: "50m"
           limits:
-            memory: "512Mi"
+            memory: "768Mi"
             cpu: "200m"
         securityContext:
           allowPrivilegeEscalation: false
@@ -92,3 +95,6 @@ spec:
           readOnlyRootFilesystem: false
           runAsNonRoot: true
           runAsUser: 1000
+      volumes:
+      - name: beat-schedule
+        emptyDir: {}

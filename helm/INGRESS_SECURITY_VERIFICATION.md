@@ -14,7 +14,7 @@ nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 
 **Verification:**
 ```bash
-curl -I http://app.example.com
+curl -I http://app.assemblematic.ai
 # Expected: 301 or 308 redirect to https://
 ```
 
@@ -36,7 +36,7 @@ nginx.ingress.kubernetes.io/hsts-preload: "true"
 
 **Verification:**
 ```bash
-curl -I https://app.example.com | grep -i strict-transport
+curl -I https://app.assemblematic.ai | grep -i strict-transport
 # Expected: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 ```
 
@@ -59,7 +59,7 @@ Permissions-Policy: geolocation=(), microphone=(), camera=()
 
 **Verification:**
 ```bash
-curl -I https://app.example.com | grep -E "X-Frame-Options|X-Content-Type|X-XSS"
+curl -I https://app.assemblematic.ai | grep -E "X-Frame-Options|X-Content-Type|X-XSS"
 ```
 
 **Status:** ✅ Implemented and verified
@@ -102,7 +102,7 @@ nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
 kubectl get certificate -n ai-part-designer-prod
 # Expected: READY=True, valid notAfter date
 
-openssl s_client -connect app.example.com:443 -servername app.example.com < /dev/null 2>/dev/null | openssl x509 -noout -dates
+openssl s_client -connect app.assemblematic.ai:443 -servername app.assemblematic.ai < /dev/null 2>/dev/null | openssl x509 -noout -dates
 # Expected: Valid dates, not expired
 ```
 
@@ -171,7 +171,7 @@ nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
 
 **Verification:** Backend environment must include:
 ```yaml
-CORS_ORIGINS: '["https://app.example.com"]'
+CORS_ORIGINS: '["https://app.assemblematic.ai"]'
 ```
 
 **Status:** ✅ Implemented (application-level control)
@@ -212,31 +212,31 @@ nginx.ingress.kubernetes.io/websocket-services: "backend"
 
 ```bash
 # 1. Verify TLS is working
-curl -I https://app.example.com
+curl -I https://app.assemblematic.ai
 # Expected: 200 OK with valid certificate
 
 # 2. Verify HTTP redirects to HTTPS
-curl -I http://app.example.com
+curl -I http://app.assemblematic.ai
 # Expected: 301/308 redirect
 
 # 3. Verify security headers present
-curl -I https://app.example.com | grep -i "x-frame\|x-content\|strict-transport"
+curl -I https://app.assemblematic.ai | grep -i "x-frame\|x-content\|strict-transport"
 # Expected: All headers present
 
 # 4. Verify rate limiting is active
-for i in {1..200}; do curl -s -o /dev/null -w "%{http_code}\n" https://app.example.com; done
+for i in {1..200}; do curl -s -o /dev/null -w "%{http_code}\n" https://app.assemblematic.ai; done
 # Expected: Eventually see 503 responses
 
 # 5. Verify certificate is valid and from Let's Encrypt
-echo | openssl s_client -connect app.example.com:443 -servername app.example.com 2>/dev/null | openssl x509 -noout -issuer -dates
+echo | openssl s_client -connect app.assemblematic.ai:443 -servername app.assemblematic.ai 2>/dev/null | openssl x509 -noout -issuer -dates
 # Expected: Issuer contains "Let's Encrypt", valid dates
 
 # 6. Test oversized request is rejected
-dd if=/dev/zero bs=1M count=150 | curl -X POST -H "Content-Type: application/octet-stream" --data-binary @- https://api.example.com/api/v1/test
+dd if=/dev/zero bs=1M count=150 | curl -X POST -H "Content-Type: application/octet-stream" --data-binary @- https://api.assemblematic.ai/api/v1/test
 # Expected: 413 Request Entity Too Large
 
 # 7. Verify CORS is handled by backend (not ingress)
-curl -I -H "Origin: https://evil.com" https://api.example.com/api/v1/health
+curl -I -H "Origin: https://evil.com" https://api.assemblematic.ai/api/v1/health
 # Expected: No Access-Control-Allow-Origin from ingress (backend handles it)
 ```
 

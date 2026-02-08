@@ -85,7 +85,7 @@ helm install ai-part-designer ./helm/ai-part-designer \
 | `frontendReplicas` | Number of frontend pods | `2` |
 | `workerReplicas` | Number of Celery worker pods | `3` |
 | `ingressEnabled` | Enable ingress | `false` |
-| `ingressHost` | Hostname for ingress | `app.example.com` |
+| `ingressHost` | Hostname for ingress | `app.assemblematic.ai` |
 
 ### Resource Configuration
 
@@ -201,9 +201,9 @@ installMinio: false
 Then configure connection strings to your existing services:
 
 ```yaml
-postgresHost: "my-existing-postgres.example.com"
-redisHost: "my-existing-redis.example.com"
-minioEndpoint: "https://my-existing-s3.example.com"
+postgresHost: "my-existing-postgres.assemblematic.ai"
+redisHost: "my-existing-redis.assemblematic.ai"
+minioEndpoint: "https://my-existing-s3.assemblematic.ai"
 ```
 
 ## Environment-Specific Deployments

@@ -10,5 +10,5 @@ metadata:
     app.kubernetes.io/part-of: ai-part-designer
 data:
   # API URL - overridden per environment
-  VITE_API_URL: "https://api.example.com/api/v1"
-  VITE_WS_URL: "wss://api.example.com/ws"
+  VITE_API_URL: "https://api.assemblematic.ai/api/v1"
+  VITE_WS_URL: "wss://api.assemblematic.ai/ws"

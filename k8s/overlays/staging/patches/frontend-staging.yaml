@@ -11,9 +11,9 @@ spec:
       - name: frontend
         env:
         - name: VITE_API_URL
-          value: "https://api-staging.example.com/api/v1"
+          value: "https://api-staging.assemblematic.ai/api/v1"
         - name: VITE_WS_URL
-          value: "wss://api-staging.example.com/ws"
+          value: "wss://api-staging.assemblematic.ai/ws"
         resources:
           requests:
             memory: "64Mi"

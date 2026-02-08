@@ -122,16 +122,16 @@ viteWsUrl: "ws://backend:8000"
 
 # Ingress settings
 ingressEnabled: false
-ingressHost: "app.example.com"
+ingressHost: "app.assemblematic.ai"
 ingressTlsSecret: "ai-part-designer-tls"
 ingressCertIssuer: "letsencrypt-prod"
 
 # Ingress routing mode
-# Set to true for multi-domain (app.example.com + api.example.com)
+# Set to true for multi-domain (app.assemblematic.ai + api.assemblematic.ai)
 # Set to false for single domain with path-based routing
 ingressMultiDomain: false
-ingressFrontendHost: "app.example.com"
-ingressBackendHost: "api.example.com"
+ingressFrontendHost: "app.assemblematic.ai"
+ingressBackendHost: "api.assemblematic.ai"
 
 # Ingress rate limiting
 ingressRateLimitRps: "100"

@@ -155,7 +155,7 @@ This ensures teams familiar with current manifests can easily understand the Hel
 Toggle dependencies on/off:
 ```yaml
 installPostgres: false  # Use existing PostgreSQL
-postgresHost: "my-postgres.example.com"
+postgresHost: "my-postgres.assemblematic.ai"
 ```
 
 Supports:
@@ -224,9 +224,9 @@ helm install ai-part-designer ./helm/ai-part-designer \
   --set installPostgres=false \
   --set installRedis=false \
   --set installMinio=false \
-  --set postgresHost=my-db.example.com \
-  --set redisHost=my-redis.example.com \
-  --set minioEndpoint=https://my-s3.example.com
+  --set postgresHost=my-db.assemblematic.ai \
+  --set redisHost=my-redis.assemblematic.ai \
+  --set minioEndpoint=https://my-s3.assemblematic.ai
 ```
 
 ## Benefits Over Manual kubectl Apply

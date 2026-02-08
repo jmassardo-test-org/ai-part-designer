@@ -1,0 +1,207 @@
+---
+# Prometheus ConfigMap - scrape config and alert rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 20s
+      evaluation_interval: 25s
+      external_labels:
+        environment: development
+        application: ai-part-designer
+
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    scrape_configs:
+      - job_name: part-designer-api
+        scrape_interval: 15s
+        scrape_timeout: 10s
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+              - backend-dev.ai-part-designer-dev.svc.cluster.local:8000
+            labels:
+              tier: backend
+              component: api-server
+
+      - job_name: prometheus-self
+        scrape_interval: 30s
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+              - localhost:9090
+            labels:
+              tier: monitoring
+              component: prometheus
+
+      - job_name: openbao
+        scrape_interval: 30s
+        metrics_path: /v1/sys/metrics
+        params:
+          format: ['prometheus']
+        static_configs:
+          - targets:
+              - openbao.openbao.svc.cluster.local:8200
+            labels:
+              tier: security
+              component: openbao
+
+  alerts.yml: |
+    groups:
+      - name: api_health_monitoring
+        interval: 30s
+        rules:
+          - alert: HighServerErrorRate
+            expr: >
+              (sum(rate(http_requests_total{status=~"5..",job="part-designer-api"}[5m]))
+              / sum(rate(http_requests_total{job="part-designer-api"}[5m]))) > 0.025
+            for: 4m
+            labels:
+              severity: warning
+              component: api-gateway
+            annotations:
+              summary: "API server error rate elevated above 2.5%"
+              description: "The API is experiencing {{ $value | humanizePercentage }} server errors."
+
+          - alert: SlowAPILatency
+            expr: >
+              histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="part-designer-api"}[8m])) by (le)) > 1.5
+            for: 6m
+            labels:
+              severity: warning
+              component: api-gateway
+            annotations:
+              summary: "API response time degraded (P95 > 1.5s)"
+
+      - name: infrastructure_monitoring
+        interval: 30s
+        rules:
+          - alert: DatabasePoolHighUtilization
+            expr: (db_pool_checked_out_connections / db_pool_size) > 0.80
+            for: 5m
+            labels:
+              severity: warning
+              component: database
+            annotations:
+              summary: "Database connection pool at high capacity"
+
+          - alert: RedisDisconnected
+            expr: redis_connected != 1
+            for: 90s
+            labels:
+              severity: critical
+              component: cache
+            annotations:
+              summary: "Redis cache is not connected"
+
+      - name: cad_generation_monitoring
+        interval: 30s
+        rules:
+          - alert: CADGenerationFailureRate
+            expr: >
+              (sum(rate(cad_generations_total{status="error"}[15m]))
+              / sum(rate(cad_generations_total[15m]))) > 0.12
+            for: 10m
+            labels:
+              severity: critical
+              component: cad-engine
+            annotations:
+              summary: "CAD generation failure rate exceeds 12%"
+---
+# Prometheus Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus
+        app.kubernetes.io/component: monitoring
+    spec:
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.48.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=7d"
+            - "--web.enable-lifecycle"
+            - "--web.enable-admin-api"
+          ports:
+            - containerPort: 9090
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+            - name: config
+              mountPath: /etc/prometheus/rules/alerts.yml
+              subPath: alerts.yml
+            - name: data
+              mountPath: /prometheus
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: data
+          emptyDir:
+            sizeLimit: 2Gi
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: prometheus

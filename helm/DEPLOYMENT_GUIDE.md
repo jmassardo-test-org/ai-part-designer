@@ -131,11 +131,11 @@ installRedis: false
 installMinio: false
 
 # Point to existing services
-postgresHost: "my-postgres.example.com"
+postgresHost: "my-postgres.assemblematic.ai"
 postgresPort: "5432"
-redisHost: "my-redis.example.com"
+redisHost: "my-redis.assemblematic.ai"
 redisPort: "6379"
-minioEndpoint: "https://my-s3.example.com"
+minioEndpoint: "https://my-s3.assemblematic.ai"
 
 # Use defaults for everything else
 CUSTOM
