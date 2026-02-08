@@ -467,28 +467,29 @@ class EncryptionService:
     async def encrypt_stream(
         self,
         input_stream: bytes | BinaryIO,
-        chunk_size: int = 1024 * 1024,  # 1MB chunks
+        chunk_size: int = 1024 * 1024,  # Reserved for future streaming ciphers
     ) -> bytes:
         """
-        Encrypt a large file using streaming with chunked processing.
+        Encrypt file data with a streaming-compatible API.
 
-        For very large files, reads and encrypts in chunks to avoid loading
-        the entire file into memory at once.
+        Provides a consistent API for file encryption that can work with
+        both bytes and file-like objects. Currently uses Fernet which loads
+        the entire file into memory.
 
         Args:
             input_stream: Input data as bytes or file-like object
-            chunk_size: Size of chunks to process (default 1MB)
+            chunk_size: Reserved for future streaming cipher implementations
 
         Returns:
             Encrypted bytes
 
         Note:
-            Fernet encrypts the entire message at once, so we still need
-            to load the full file, but this method provides a consistent
-            API for future improvements with streaming ciphers.
+            Fernet encrypts the entire message at once, so the full file
+            is loaded into memory. The chunk_size parameter is reserved
+            for future implementations using streaming ciphers. For very
+            large files (>100MB), consider using file_path methods or
+            implementing a streaming cipher.
         """
-        from io import BytesIO
-
         # If it's already bytes, encrypt directly
         if isinstance(input_stream, bytes):
             return self.encrypt_bytes(input_stream)
@@ -504,25 +505,28 @@ class EncryptionService:
     async def decrypt_stream(
         self,
         encrypted_stream: bytes | BinaryIO,
-        chunk_size: int = 1024 * 1024,  # 1MB chunks
+        chunk_size: int = 1024 * 1024,  # Reserved for future streaming ciphers
     ) -> bytes:
         """
-        Decrypt a large file using streaming with chunked processing.
+        Decrypt file data with a streaming-compatible API.
 
-        For very large files, reads and decrypts in chunks to avoid loading
-        the entire file into memory at once.
+        Provides a consistent API for file decryption that can work with
+        both bytes and file-like objects. Currently uses Fernet which loads
+        the entire file into memory.
 
         Args:
             encrypted_stream: Encrypted data as bytes or file-like object
-            chunk_size: Size of chunks to process (default 1MB)
+            chunk_size: Reserved for future streaming cipher implementations
 
         Returns:
             Decrypted bytes
 
         Note:
-            Fernet decrypts the entire message at once, so we still need
-            to load the full file, but this method provides a consistent
-            API for future improvements with streaming ciphers.
+            Fernet decrypts the entire message at once, so the full file
+            is loaded into memory. The chunk_size parameter is reserved
+            for future implementations using streaming ciphers. For very
+            large files (>100MB), consider using file_path methods or
+            implementing a streaming cipher.
         """
         # If it's already bytes, decrypt directly
         if isinstance(encrypted_stream, bytes):
