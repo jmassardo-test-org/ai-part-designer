@@ -366,6 +366,199 @@ encryption_service = EncryptionService()
 
 
 # =============================================================================
+# KMS-Based Envelope Encryption
+# =============================================================================
+
+
+class KMSEncryptionService:
+    """
+    KMS-based envelope encryption service.
+
+    Uses envelope encryption pattern:
+    1. Generate a Data Encryption Key (DEK) for each operation
+    2. Encrypt data with DEK
+    3. Encrypt DEK with KMS master key
+    4. Return encrypted data + encrypted DEK
+    5. Cache decrypted DEKs for performance
+
+    Suitable for encrypting files and large data at rest.
+    """
+
+    def __init__(self):
+        """Initialize KMS encryption service."""
+        from app.core.kms import get_dek_cache, get_kms_provider
+
+        self._kms_provider = get_kms_provider()
+        self._dek_cache = get_dek_cache()
+
+    def encrypt(self, data: str) -> dict[str, str]:
+        """
+        Encrypt a string using envelope encryption.
+
+        Args:
+            data: Plain text string to encrypt
+
+        Returns:
+            Dict containing encrypted data and encrypted DEK:
+            {
+                "ciphertext": "base64_encrypted_data",
+                "encrypted_dek": {...}  # KMS-encrypted DEK metadata
+            }
+        """
+        import json
+
+        # Generate a fresh DEK
+        plaintext_dek = self._kms_provider.generate_dek()
+
+        # Encrypt the data with the DEK
+        from cryptography.fernet import Fernet
+
+        fernet_key = base64.urlsafe_b64encode(plaintext_dek)
+        fernet = Fernet(fernet_key)
+        ciphertext = fernet.encrypt(data.encode())
+
+        # Encrypt the DEK with KMS
+        encrypted_dek = self._kms_provider.encrypt_dek(plaintext_dek)
+
+        return {
+            "ciphertext": base64.b64encode(ciphertext).decode("utf-8"),
+            "encrypted_dek": encrypted_dek,
+        }
+
+    def decrypt(self, encrypted_data: dict[str, Any]) -> str:
+        """
+        Decrypt envelope-encrypted data.
+
+        Args:
+            encrypted_data: Dict containing ciphertext and encrypted_dek
+
+        Returns:
+            Decrypted plain text string
+        """
+        import hashlib
+
+        encrypted_dek = encrypted_data["encrypted_dek"]
+
+        # Generate cache key from encrypted DEK
+        cache_key = hashlib.sha256(str(encrypted_dek).encode()).hexdigest()
+
+        # Try to get DEK from cache
+        plaintext_dek = self._dek_cache.get(cache_key)
+
+        if plaintext_dek is None:
+            # Decrypt DEK with KMS
+            plaintext_dek = self._kms_provider.decrypt_dek(encrypted_dek)
+            # Cache the decrypted DEK
+            self._dek_cache.set(cache_key, plaintext_dek)
+
+        # Decrypt data with DEK
+        from cryptography.fernet import Fernet
+
+        fernet_key = base64.urlsafe_b64encode(plaintext_dek)
+        fernet = Fernet(fernet_key)
+        ciphertext = base64.b64decode(encrypted_data["ciphertext"])
+        plaintext = fernet.decrypt(ciphertext)
+
+        return plaintext.decode()
+
+    def encrypt_dict(self, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Encrypt a dictionary as JSON using envelope encryption.
+
+        Args:
+            data: Dictionary to encrypt
+
+        Returns:
+            Dict containing encrypted data and encrypted DEK
+        """
+        import json
+
+        return self.encrypt(json.dumps(data))
+
+    def decrypt_dict(self, encrypted_data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Decrypt envelope-encrypted dictionary.
+
+        Args:
+            encrypted_data: Dict containing ciphertext and encrypted_dek
+
+        Returns:
+            Decrypted dictionary
+        """
+        import json
+
+        plaintext = self.decrypt(encrypted_data)
+        result: dict[str, Any] = json.loads(plaintext)
+        return result
+
+    def encrypt_bytes(self, data: bytes) -> dict[str, Any]:
+        """
+        Encrypt bytes using envelope encryption.
+
+        Args:
+            data: Bytes to encrypt
+
+        Returns:
+            Dict containing encrypted data and encrypted DEK
+        """
+        # Generate a fresh DEK
+        plaintext_dek = self._kms_provider.generate_dek()
+
+        # Encrypt the data with the DEK
+        from cryptography.fernet import Fernet
+
+        fernet_key = base64.urlsafe_b64encode(plaintext_dek)
+        fernet = Fernet(fernet_key)
+        ciphertext = fernet.encrypt(data)
+
+        # Encrypt the DEK with KMS
+        encrypted_dek = self._kms_provider.encrypt_dek(plaintext_dek)
+
+        return {
+            "ciphertext": base64.b64encode(ciphertext).decode("utf-8"),
+            "encrypted_dek": encrypted_dek,
+        }
+
+    def decrypt_bytes(self, encrypted_data: dict[str, Any]) -> bytes:
+        """
+        Decrypt envelope-encrypted bytes.
+
+        Args:
+            encrypted_data: Dict containing ciphertext and encrypted_dek
+
+        Returns:
+            Decrypted bytes
+        """
+        import hashlib
+
+        encrypted_dek = encrypted_data["encrypted_dek"]
+
+        # Generate cache key from encrypted DEK
+        cache_key = hashlib.sha256(str(encrypted_dek).encode()).hexdigest()
+
+        # Try to get DEK from cache
+        plaintext_dek = self._dek_cache.get(cache_key)
+
+        if plaintext_dek is None:
+            # Decrypt DEK with KMS
+            plaintext_dek = self._kms_provider.decrypt_dek(encrypted_dek)
+            # Cache the decrypted DEK
+            self._dek_cache.set(cache_key, plaintext_dek)
+
+        # Decrypt data with DEK
+        from cryptography.fernet import Fernet
+
+        fernet_key = base64.urlsafe_b64encode(plaintext_dek)
+        fernet = Fernet(fernet_key)
+        ciphertext = base64.b64decode(encrypted_data["ciphertext"])
+        return fernet.decrypt(ciphertext)
+
+
+# Global KMS encryption service instance
+kms_encryption_service = KMSEncryptionService()
+
+
+# =============================================================================
 # Secure Random Generation
 # =============================================================================
 
