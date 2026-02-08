@@ -303,19 +303,17 @@ class DEKCache:
     Thread-safe for concurrent access.
     """
 
-    def __init__(
-        self, ttl_seconds: int = settings.KMS_DEK_CACHE_TTL_SECONDS, max_size: int = settings.KMS_DEK_CACHE_MAX_SIZE
-    ):
+    def __init__(self, ttl_seconds: int | None = None, max_size: int | None = None):
         """
         Initialize DEK cache.
 
         Args:
-            ttl_seconds: Time-to-live for cached DEKs
-            max_size: Maximum number of DEKs to cache
+            ttl_seconds: Time-to-live for cached DEKs (defaults to KMS_DEK_CACHE_TTL_SECONDS)
+            max_size: Maximum number of DEKs to cache (defaults to KMS_DEK_CACHE_MAX_SIZE)
         """
         self._cache: dict[str, tuple[bytes, datetime]] = {}
-        self._ttl = timedelta(seconds=ttl_seconds)
-        self._max_size = max_size
+        self._ttl = timedelta(seconds=ttl_seconds or settings.KMS_DEK_CACHE_TTL_SECONDS)
+        self._max_size = max_size or settings.KMS_DEK_CACHE_MAX_SIZE
 
     def get(self, key: str) -> bytes | None:
         """

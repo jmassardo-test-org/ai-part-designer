@@ -323,15 +323,18 @@ class TestDEKCache:
 
     def test_cache_expiry(self):
         """Test that cached DEKs expire after TTL."""
-        cache = DEKCache(ttl_seconds=0)  # Expire immediately
+        cache = DEKCache(ttl_seconds=1)  # 1 second TTL
         dek = b"test_dek_data"
 
         cache.set("test_key", dek)
 
-        # Should be expired by now
+        # Verify it's cached initially
+        assert cache.get("test_key") == dek
+
+        # Wait for expiration
         import time
 
-        time.sleep(0.1)
+        time.sleep(1.1)  # Wait slightly more than TTL
         retrieved = cache.get("test_key")
 
         assert retrieved is None
