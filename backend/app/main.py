@@ -279,15 +279,18 @@ def create_app() -> FastAPI:
                             elif "role" in exc.detail.lower():
                                 reason = "insufficient_role"
 
-                        await audit_service.log_forbidden_access(
-                            user_id=user_id,
-                            endpoint=request.url.path,
-                            method=request.method,
-                            client_ip=client_ip,
-                            user_agent=user_agent,
-                            reason=reason,
-                            request_id=request_id,
-                        )
+                        # For 403, user_id should be available (user is authenticated but lacks permission)
+                        # If not available, skip forbidden logging (shouldn't happen in practice)
+                        if user_id:
+                            await audit_service.log_forbidden_access(
+                                user_id=user_id,
+                                endpoint=request.url.path,
+                                method=request.method,
+                                client_ip=client_ip,
+                                user_agent=user_agent,
+                                reason=reason,
+                                request_id=request_id,
+                            )
                     break
             except Exception as log_error:
                 # Don't fail the request if logging fails
