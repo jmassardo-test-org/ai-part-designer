@@ -264,6 +264,7 @@ __all__ = [
     "require_credits",
     "require_feature",
     "require_job_slot",
+    "require_org_feature",
     "require_role",
     "require_storage",
 ]
