@@ -78,6 +78,53 @@ class Settings(BaseSettings):
         description="Force HTTPS in production",
     )
 
+    # ===========================================
+    # Key Management Service (KMS)
+    # ===========================================
+    # KMS provider: "local" (dev), "aws" (AWS KMS), "gcp" (GCP Cloud KMS)
+    KMS_PROVIDER: Literal["local", "aws", "gcp"] = Field(
+        default="local",
+        description="Key management provider. Use 'local' for dev, 'aws' or 'gcp' for production",
+    )
+
+    # AWS KMS Configuration
+    AWS_KMS_KEY_ID: str | None = Field(
+        default=None,
+        description="AWS KMS key ID or ARN for envelope encryption",
+    )
+    AWS_KMS_REGION: str | None = Field(
+        default=None,
+        description="AWS region for KMS service. If not set, uses AWS_REGION",
+    )
+
+    # GCP Cloud KMS Configuration
+    GCP_KMS_PROJECT_ID: str | None = Field(
+        default=None,
+        description="GCP project ID for Cloud KMS",
+    )
+    GCP_KMS_LOCATION: str | None = Field(
+        default=None,
+        description="GCP location for Cloud KMS (e.g., 'us-east1', 'global')",
+    )
+    GCP_KMS_KEY_RING: str | None = Field(
+        default=None,
+        description="GCP Cloud KMS key ring name",
+    )
+    GCP_KMS_KEY_NAME: str | None = Field(
+        default=None,
+        description="GCP Cloud KMS crypto key name",
+    )
+
+    # KMS DEK Cache Configuration
+    KMS_DEK_CACHE_TTL_SECONDS: int = Field(
+        default=3600,
+        description="Time-to-live for cached data encryption keys in seconds",
+    )
+    KMS_DEK_CACHE_MAX_SIZE: int = Field(
+        default=100,
+        description="Maximum number of DEKs to cache in memory",
+    )
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def ALLOWED_ORIGINS(self) -> list[str]:
