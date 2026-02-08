@@ -4,6 +4,8 @@
 
 AI Part Designer uses OpenBao (open-source Vault fork) for secure secrets management. This guide covers operational procedures for managing secrets in production.
 
+**For encryption key management:** This guide covers OpenBao setup for general secrets (API keys, credentials, etc.). For data encryption keys, we recommend using Cloud KMS (AWS KMS or GCP Cloud KMS) instead. See [KMS Integration Guide](./kms-integration.md) for details.
+
 ## Table of Contents
 
 - [Initial Setup](#initial-setup)
@@ -12,6 +14,15 @@ AI Part Designer uses OpenBao (open-source Vault fork) for secure secrets manage
 - [Troubleshooting](#troubleshooting)
 - [Emergency Procedures](#emergency-procedures)
 - [Audit and Compliance](#audit-and-compliance)
+- [Related Documentation](#related-documentation)
+
+---
+
+## Related Documentation
+
+- **[KMS Integration Guide](./kms-integration.md)** - Cloud KMS setup for encryption keys (AWS/GCP)
+- **[ADR-015: Security Architecture](../adrs/adr-015-security-architecture.md)** - Overall security design
+- **[Deployment Guide](./deployment.md)** - Production deployment procedures
 
 ---
 
@@ -192,10 +203,20 @@ openbao kv put secret/ai-part-designer/auth/session-secrets \
   cookie_secret="$(openssl rand -hex 32)"
 
 # Encryption keys for sensitive data
+# NOTE: For production, use Cloud KMS instead of storing keys in OpenBao
+# See docs/operations/kms-integration.md for KMS setup
 openbao kv put secret/ai-part-designer/encryption/data-keys \
   master_key="$(openssl rand -base64 32)" \
   field_encryption_key="$(openssl rand -base64 32)"
+
+# KMS Configuration (AWS KMS example)
+openbao kv put secret/ai-part-designer/encryption/kms-config \
+  kms_provider="aws" \
+  aws_kms_key_id="arn:aws:kms:us-west-2:123456789012:key/..." \
+  aws_kms_region="us-west-2"
 ```
+
+**⚠️ Recommended:** Use AWS KMS or GCP Cloud KMS for production encryption key management instead of storing keys in OpenBao. See [KMS Integration Guide](./kms-integration.md) for setup instructions.
 
 #### Storage Credentials
 

@@ -17,8 +17,8 @@ from app.core.security import KMSEncryptionService
 class TestKMSEncryptionService:
     """Tests for KMS-based encryption service."""
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_kms_encryption_service_initialization(self, mock_get_cache, mock_get_provider):
         """Test that KMS encryption service initializes correctly."""
         mock_provider = MagicMock()
@@ -31,8 +31,8 @@ class TestKMSEncryptionService:
         assert service._kms_provider == mock_provider
         assert service._dek_cache == mock_cache
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_encrypt_string_returns_valid_structure(self, mock_get_cache, mock_get_provider):
         """Test that string encryption returns expected structure."""
         # Mock KMS provider
@@ -59,8 +59,8 @@ class TestKMSEncryptionService:
         assert "encrypted_dek" in result
         assert isinstance(result["encrypted_dek"], dict)
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_encrypt_decrypt_round_trip(self, mock_get_cache, mock_get_provider):
         """Test full encryption/decryption round trip."""
         # Mock KMS provider
@@ -91,8 +91,8 @@ class TestKMSEncryptionService:
 
         assert decrypted == original
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_decrypt_uses_cache(self, mock_get_cache, mock_get_provider):
         """Test that decryption uses cached DEKs."""
         # Mock KMS provider
@@ -125,8 +125,8 @@ class TestKMSEncryptionService:
         # Verify KMS provider decrypt was NOT called (used cache instead)
         mock_provider.decrypt_dek.assert_not_called()
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_decrypt_calls_kms_on_cache_miss(self, mock_get_cache, mock_get_provider):
         """Test that decryption calls KMS on cache miss."""
         # Mock KMS provider
@@ -159,8 +159,8 @@ class TestKMSEncryptionService:
         # Verify result was cached
         mock_cache.set.assert_called()
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_encrypt_dict_round_trip(self, mock_get_cache, mock_get_provider):
         """Test dictionary encryption/decryption."""
         # Mock KMS provider
@@ -191,8 +191,8 @@ class TestKMSEncryptionService:
 
         assert decrypted == original_dict
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_encrypt_bytes_round_trip(self, mock_get_cache, mock_get_provider):
         """Test bytes encryption/decryption."""
         # Mock KMS provider
@@ -223,8 +223,8 @@ class TestKMSEncryptionService:
 
         assert decrypted == original_bytes
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_encrypted_data_is_different_from_plaintext(self, mock_get_cache, mock_get_provider):
         """Test that encrypted data is different from plaintext."""
         # Mock KMS provider
@@ -250,8 +250,8 @@ class TestKMSEncryptionService:
         # Encrypted ciphertext should not contain plaintext
         assert plaintext not in encrypted["ciphertext"]
 
-    @patch("app.core.security.get_kms_provider")
-    @patch("app.core.security.get_dek_cache")
+    @patch("app.core.kms.get_kms_provider")
+    @patch("app.core.kms.get_dek_cache")
     def test_each_encryption_generates_new_dek(self, mock_get_cache, mock_get_provider):
         """Test that each encryption operation generates a new DEK."""
         # Mock KMS provider

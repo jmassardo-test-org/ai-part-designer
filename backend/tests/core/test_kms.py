@@ -105,8 +105,8 @@ class TestAWSKMSProvider:
             with pytest.raises(KMSError, match="AWS_KMS_KEY_ID must be set"):
                 AWSKMSProvider()
 
-    @patch("app.core.kms.boto3")
-    def test_aws_kms_provider_initialization(self, mock_boto3):
+    @patch("boto3.client")
+    def test_aws_kms_provider_initialization(self, mock_boto3_client):
         """Test that AWS KMS provider initializes with correct settings."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.AWS_KMS_KEY_ID = "test-key-id"
@@ -116,11 +116,11 @@ class TestAWSKMSProvider:
             provider = AWSKMSProvider()
 
             # Verify boto3 client was created with correct region
-            mock_boto3.client.assert_called_once_with("kms", region_name="us-west-2")
+            mock_boto3_client.assert_called_once_with("kms", region_name="us-west-2")
             assert provider._key_id == "test-key-id"
 
-    @patch("app.core.kms.boto3")
-    def test_aws_kms_encrypt_dek(self, mock_boto3):
+    @patch("boto3.client")
+    def test_aws_kms_encrypt_dek(self, mock_boto3_client):
         """Test AWS KMS DEK encryption."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.AWS_KMS_KEY_ID = "test-key-id"
@@ -129,7 +129,7 @@ class TestAWSKMSProvider:
 
             # Mock KMS client response
             mock_kms_client = MagicMock()
-            mock_boto3.client.return_value = mock_kms_client
+            mock_boto3_client.return_value = mock_kms_client
             mock_kms_client.encrypt.return_value = {
                 "CiphertextBlob": b"encrypted_dek_data",
                 "KeyId": "arn:aws:kms:us-west-2:123456789012:key/test-key-id",
@@ -149,8 +149,8 @@ class TestAWSKMSProvider:
             # Verify KMS client was called
             mock_kms_client.encrypt.assert_called_once_with(KeyId="test-key-id", Plaintext=plaintext_dek)
 
-    @patch("app.core.kms.boto3")
-    def test_aws_kms_decrypt_dek(self, mock_boto3):
+    @patch("boto3.client")
+    def test_aws_kms_decrypt_dek(self, mock_boto3_client):
         """Test AWS KMS DEK decryption."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.AWS_KMS_KEY_ID = "test-key-id"
@@ -159,7 +159,7 @@ class TestAWSKMSProvider:
 
             # Mock KMS client response
             mock_kms_client = MagicMock()
-            mock_boto3.client.return_value = mock_kms_client
+            mock_boto3_client.return_value = mock_kms_client
             expected_plaintext = b"0" * 32
             mock_kms_client.decrypt.return_value = {"Plaintext": expected_plaintext}
 
@@ -175,8 +175,8 @@ class TestAWSKMSProvider:
             assert decrypted == expected_plaintext
             mock_kms_client.decrypt.assert_called_once()
 
-    @patch("app.core.kms.boto3")
-    def test_aws_kms_encrypt_failure_raises_error(self, mock_boto3):
+    @patch("boto3.client")
+    def test_aws_kms_encrypt_failure_raises_error(self, mock_boto3_client):
         """Test that AWS KMS encryption failure raises error."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.AWS_KMS_KEY_ID = "test-key-id"
@@ -185,7 +185,7 @@ class TestAWSKMSProvider:
 
             # Mock KMS client to raise exception
             mock_kms_client = MagicMock()
-            mock_boto3.client.return_value = mock_kms_client
+            mock_boto3_client.return_value = mock_kms_client
             mock_kms_client.encrypt.side_effect = Exception("KMS error")
 
             provider = AWSKMSProvider()
@@ -209,8 +209,8 @@ class TestGCPKMSProvider:
             with pytest.raises(KMSError, match="must all be set"):
                 GCPKMSProvider()
 
-    @patch("app.core.kms.kms")
-    def test_gcp_kms_provider_initialization(self, mock_kms):
+    @patch("google.cloud.kms.KeyManagementServiceClient")
+    def test_gcp_kms_provider_initialization(self, mock_kms_client_class):
         """Test that GCP KMS provider initializes with correct settings."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.GCP_KMS_PROJECT_ID = "test-project"
@@ -220,7 +220,7 @@ class TestGCPKMSProvider:
 
             # Mock KMS client
             mock_kms_client = MagicMock()
-            mock_kms.KeyManagementServiceClient.return_value = mock_kms_client
+            mock_kms_client_class.return_value = mock_kms_client
             mock_kms_client.crypto_key_path.return_value = (
                 "projects/test-project/locations/us-east1/keyRings/test-ring/cryptoKeys/test-key"
             )
@@ -228,13 +228,13 @@ class TestGCPKMSProvider:
             provider = GCPKMSProvider()
 
             # Verify client was initialized
-            mock_kms.KeyManagementServiceClient.assert_called_once()
+            mock_kms_client_class.assert_called_once()
             assert provider._key_name == (
                 "projects/test-project/locations/us-east1/keyRings/test-ring/cryptoKeys/test-key"
             )
 
-    @patch("app.core.kms.kms")
-    def test_gcp_kms_encrypt_dek(self, mock_kms):
+    @patch("google.cloud.kms.KeyManagementServiceClient")
+    def test_gcp_kms_encrypt_dek(self, mock_kms_client_class):
         """Test GCP KMS DEK encryption."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.GCP_KMS_PROJECT_ID = "test-project"
@@ -244,7 +244,7 @@ class TestGCPKMSProvider:
 
             # Mock KMS client
             mock_kms_client = MagicMock()
-            mock_kms.KeyManagementServiceClient.return_value = mock_kms_client
+            mock_kms_client_class.return_value = mock_kms_client
             mock_kms_client.crypto_key_path.return_value = "test-key-path"
 
             # Mock encrypt response
@@ -264,8 +264,8 @@ class TestGCPKMSProvider:
             assert encrypted["algorithm"] == "GCP_KMS"
             mock_kms_client.encrypt.assert_called_once()
 
-    @patch("app.core.kms.kms")
-    def test_gcp_kms_decrypt_dek(self, mock_kms):
+    @patch("google.cloud.kms.KeyManagementServiceClient")
+    def test_gcp_kms_decrypt_dek(self, mock_kms_client_class):
         """Test GCP KMS DEK decryption."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.GCP_KMS_PROJECT_ID = "test-project"
@@ -275,7 +275,7 @@ class TestGCPKMSProvider:
 
             # Mock KMS client
             mock_kms_client = MagicMock()
-            mock_kms.KeyManagementServiceClient.return_value = mock_kms_client
+            mock_kms_client_class.return_value = mock_kms_client
             mock_kms_client.crypto_key_path.return_value = "test-key-path"
 
             # Mock decrypt response
@@ -368,13 +368,14 @@ class TestGetKMSProvider:
         """Test that local provider is returned by default."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.KMS_PROVIDER = "local"
+            mock_settings.SECRET_KEY = "test-secret-key"
 
             provider = get_kms_provider()
 
             assert isinstance(provider, LocalKMSProvider)
 
-    @patch("app.core.kms.boto3")
-    def test_get_kms_provider_returns_aws(self, mock_boto3):
+    @patch("boto3.client")
+    def test_get_kms_provider_returns_aws(self, mock_boto3_client):
         """Test that AWS provider is returned when configured."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.KMS_PROVIDER = "aws"
@@ -386,8 +387,8 @@ class TestGetKMSProvider:
 
             assert isinstance(provider, AWSKMSProvider)
 
-    @patch("app.core.kms.kms")
-    def test_get_kms_provider_returns_gcp(self, mock_kms):
+    @patch("google.cloud.kms.KeyManagementServiceClient")
+    def test_get_kms_provider_returns_gcp(self, mock_kms_client_class):
         """Test that GCP provider is returned when configured."""
         with patch("app.core.kms.settings") as mock_settings:
             mock_settings.KMS_PROVIDER = "gcp"
@@ -398,7 +399,7 @@ class TestGetKMSProvider:
 
             # Mock KMS client
             mock_kms_client = MagicMock()
-            mock_kms.KeyManagementServiceClient.return_value = mock_kms_client
+            mock_kms_client_class.return_value = mock_kms_client
             mock_kms_client.crypto_key_path.return_value = "test-key-path"
 
             provider = get_kms_provider()
