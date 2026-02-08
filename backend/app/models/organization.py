@@ -98,6 +98,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
             "default_project_visibility": "private",
             "require_2fa": False,
             "allowed_domains": [],
+            "enabled_features": [],  # Will be populated from tier defaults
         },
     )
 
@@ -143,6 +144,22 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
         """Get max projects from settings."""
         result: int = self.settings.get("max_projects", 10)
         return result
+
+    @property
+    def enabled_features(self) -> list[str]:
+        """Get list of enabled features."""
+        from app.core.features import get_default_features
+
+        features = self.settings.get("enabled_features")
+        # If not set, use tier defaults
+        if features is None or features == []:
+            tier = self.subscription_tier
+            return get_default_features(tier)
+        return features
+
+    def has_feature(self, feature: str) -> bool:
+        """Check if a feature is enabled for this organization."""
+        return feature in self.enabled_features
 
     # Stripe customer ID - stored in settings JSONB since column doesn't exist
     @property
