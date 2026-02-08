@@ -47,6 +47,8 @@ class SecurityEventType(StrEnum):
     ACCESS_DENIED = "authz.access_denied"
     PERMISSION_ESCALATION = "authz.permission_escalation"
     RESOURCE_ACCESS = "authz.resource_access"
+    UNAUTHORIZED_ACCESS_ATTEMPT = "authz.unauthorized_access_attempt"
+    FORBIDDEN_ACCESS_ATTEMPT = "authz.forbidden_access_attempt"
 
     # API key events
     API_KEY_CREATED = "apikey.created"
@@ -97,6 +99,8 @@ EVENT_SEVERITY: dict[SecurityEventType, SecuritySeverity] = {
     SecurityEventType.LOGIN_FAILED: SecuritySeverity.LOW,
     SecurityEventType.LOGOUT: SecuritySeverity.INFO,
     SecurityEventType.ACCESS_DENIED: SecuritySeverity.MEDIUM,
+    SecurityEventType.UNAUTHORIZED_ACCESS_ATTEMPT: SecuritySeverity.MEDIUM,
+    SecurityEventType.FORBIDDEN_ACCESS_ATTEMPT: SecuritySeverity.MEDIUM,
     SecurityEventType.RATE_LIMIT_EXCEEDED: SecuritySeverity.MEDIUM,
     SecurityEventType.BRUTE_FORCE_DETECTED: SecuritySeverity.HIGH,
     SecurityEventType.INJECTION_ATTEMPT: SecuritySeverity.HIGH,
@@ -355,6 +359,155 @@ class SecurityAuditService:
             client_ip=client_ip,
             details={"required_permission": required_permission},
         )
+
+    async def log_unauthorized_access(
+        self,
+        endpoint: str,
+        method: str,
+        client_ip: str,
+        user_agent: str,
+        user_id: UUID | None = None,
+        reason: str = "authentication_required",
+        request_id: str | None = None,
+    ) -> None:
+        """
+        Log 401 unauthorized access attempt.
+
+        Args:
+            endpoint: API endpoint that was accessed
+            method: HTTP method (GET, POST, etc.)
+            client_ip: Client IP address
+            user_agent: Client user agent
+            user_id: User ID if token was present but invalid
+            reason: Reason for denial (e.g., 'token_expired', 'token_invalid')
+            request_id: Request correlation ID
+        """
+        await self.log_event(
+            SecurityEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
+            user_id=user_id,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            request_id=request_id,
+            details={
+                "endpoint": endpoint,
+                "method": method,
+                "reason": reason,
+            },
+        )
+
+        # Track unauthorized attempts for pattern detection
+        if client_ip:
+            await self._track_unauthorized_attempt(client_ip, endpoint)
+
+    async def log_forbidden_access(
+        self,
+        user_id: UUID,
+        endpoint: str,
+        method: str,
+        client_ip: str,
+        user_agent: str,
+        reason: str = "insufficient_permissions",
+        resource_type: str | None = None,
+        resource_id: UUID | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        """
+        Log 403 forbidden access attempt.
+
+        Args:
+            user_id: User who attempted access
+            endpoint: API endpoint that was accessed
+            method: HTTP method (GET, POST, etc.)
+            client_ip: Client IP address
+            user_agent: Client user agent
+            reason: Reason for denial (e.g., 'insufficient_permissions', 'account_suspended')
+            resource_type: Type of resource attempted to access
+            resource_id: ID of resource attempted to access
+            request_id: Request correlation ID
+        """
+        await self.log_event(
+            SecurityEventType.FORBIDDEN_ACCESS_ATTEMPT,
+            user_id=user_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            request_id=request_id,
+            details={
+                "endpoint": endpoint,
+                "method": method,
+                "reason": reason,
+            },
+        )
+
+        # Track forbidden attempts for pattern detection
+        if client_ip:
+            await self._track_forbidden_attempt(client_ip, user_id, endpoint)
+
+    async def _track_unauthorized_attempt(self, client_ip: str, endpoint: str) -> None:
+        """Track unauthorized access attempts for pattern detection."""
+        key = f"security:unauthorized_attempts:{client_ip}"
+        count = await redis_client.increment_counter(key, window_seconds=900)  # type: ignore[attr-defined]
+
+        # Alert on suspicious patterns (5+ attempts in 15 minutes)
+        if count >= 5:
+            await self.log_event(
+                SecurityEventType.SUSPICIOUS_REQUEST,
+                client_ip=client_ip,
+                details={
+                    "pattern": "repeated_unauthorized_attempts",
+                    "count": count,
+                    "endpoint": endpoint,
+                    "window_minutes": 15,
+                },
+            )
+
+            # Consider auto-blocking after more severe threshold
+            if count >= 20:
+                await self._auto_block_ip(client_ip, "excessive_unauthorized_attempts")
+
+    async def _track_forbidden_attempt(
+        self,
+        client_ip: str,
+        user_id: UUID,
+        endpoint: str,
+    ) -> None:
+        """Track forbidden access attempts for pattern detection."""
+        # Track per IP
+        ip_key = f"security:forbidden_attempts:{client_ip}"
+        ip_count = await redis_client.increment_counter(ip_key, window_seconds=900)  # type: ignore[attr-defined]
+
+        # Track per user
+        user_key = f"security:forbidden_attempts:user:{user_id}"
+        user_count = await redis_client.increment_counter(user_key, window_seconds=900)  # type: ignore[attr-defined]
+
+        # Alert on suspicious patterns
+        if ip_count >= 10 or user_count >= 10:
+            await self.log_event(
+                SecurityEventType.SUSPICIOUS_REQUEST,
+                user_id=user_id,
+                client_ip=client_ip,
+                details={
+                    "pattern": "repeated_forbidden_attempts",
+                    "ip_count": ip_count,
+                    "user_count": user_count,
+                    "endpoint": endpoint,
+                    "window_minutes": 15,
+                },
+            )
+
+            # Potential privilege escalation attempt
+            if user_count >= 15:
+                await self.log_event(
+                    SecurityEventType.PERMISSION_ESCALATION,
+                    user_id=user_id,
+                    client_ip=client_ip,
+                    details={
+                        "attempts": user_count,
+                        "endpoint": endpoint,
+                        "alert": "possible_privilege_escalation_attempt",
+                    },
+                )
 
     # =========================================================================
     # Threat Detection Helpers

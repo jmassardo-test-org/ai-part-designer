@@ -36,6 +36,8 @@ class TestSecurityEventType:
         assert SecurityEventType.ACCESS_DENIED == "authz.access_denied"
         assert SecurityEventType.PERMISSION_ESCALATION == "authz.permission_escalation"
         assert SecurityEventType.RESOURCE_ACCESS == "authz.resource_access"
+        assert SecurityEventType.UNAUTHORIZED_ACCESS_ATTEMPT == "authz.unauthorized_access_attempt"
+        assert SecurityEventType.FORBIDDEN_ACCESS_ATTEMPT == "authz.forbidden_access_attempt"
 
     def test_api_key_events(self):
         """Test API key event types."""
@@ -137,6 +139,14 @@ class TestEventSeverityMapping:
     def test_access_denied_is_medium(self):
         """Test access denied is medium level."""
         assert EVENT_SEVERITY[SecurityEventType.ACCESS_DENIED] == SecuritySeverity.MEDIUM
+
+    def test_unauthorized_access_attempt_is_medium(self):
+        """Test unauthorized access attempt is medium level."""
+        assert EVENT_SEVERITY[SecurityEventType.UNAUTHORIZED_ACCESS_ATTEMPT] == SecuritySeverity.MEDIUM
+
+    def test_forbidden_access_attempt_is_medium(self):
+        """Test forbidden access attempt is medium level."""
+        assert EVENT_SEVERITY[SecurityEventType.FORBIDDEN_ACCESS_ATTEMPT] == SecuritySeverity.MEDIUM
 
     def test_rate_limit_exceeded_is_medium(self):
         """Test rate limit exceeded is medium level."""
