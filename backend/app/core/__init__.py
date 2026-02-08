@@ -25,6 +25,7 @@ from app.core.backup import DatabaseBackup, DataExporter, data_exporter, db_back
 from app.core.cache import RedisClient, get_redis, redis_client
 from app.core.config import get_settings, settings
 from app.core.database import async_session_maker, close_db, get_db, init_db
+from app.core.encrypted_storage import EncryptedStorageClient, encrypted_storage_client
 from app.core.events import EventCategory, EventTracker, event_tracker, get_event_tracker
 from app.core.security import (
     EncryptionService,
@@ -58,6 +59,7 @@ __all__ = [
     "DataValidator",
     "DatabaseBackup",
     # Security - Encryption
+    "EncryptedStorageClient",
     "EncryptionService",
     "EventCategory",
     "EventTracker",
@@ -88,6 +90,8 @@ __all__ = [
     # Backup
     "db_backup",
     "decode_token",
+    # Encrypted Storage
+    "encrypted_storage_client",
     # Events
     "event_tracker",
     "generate_api_key",
