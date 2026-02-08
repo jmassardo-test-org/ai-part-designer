@@ -590,8 +590,10 @@ async def update_organization_features(
             },
         )
 
-    # Update settings
-    org.settings = {**org.settings, "enabled_features": request.enabled_features}
+    # Update settings - preserve existing settings while updating enabled_features
+    new_settings = dict(org.settings)
+    new_settings["enabled_features"] = request.enabled_features
+    org.settings = new_settings
 
     await log_org_action(
         db,

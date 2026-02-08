@@ -569,6 +569,8 @@ function SettingsTab({ org, onUpdate, onDelete, isOwner }: SettingsTabProps) {
   };
 
   // Feature labels for display
+  // TODO: Consider creating a backend endpoint to return feature metadata
+  // to avoid duplication and maintain single source of truth
   const featureLabels: Record<string, { name: string; description: string }> = {
     ai_generation: {
       name: 'AI Generation',

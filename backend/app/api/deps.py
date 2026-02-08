@@ -5,6 +5,7 @@ Re-exports common dependencies from core modules for API routes.
 """
 
 from collections.abc import Callable
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
@@ -212,17 +213,15 @@ def require_org_feature(feature_name: str) -> Callable[..., None]:
     """
 
     async def dependency(
-        org_id: str,
+        org_id: UUID,
         db: AsyncSession = Depends(get_db),
         _user: User = Depends(get_current_user),
     ) -> None:
-        from uuid import UUID
-
         from app.models.organization import Organization
 
         # Get organization
         result = await db.execute(
-            select(Organization).where(Organization.id == UUID(org_id))
+            select(Organization).where(Organization.id == org_id)
         )
         org = result.scalar_one_or_none()
 
