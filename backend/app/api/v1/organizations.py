@@ -499,6 +499,124 @@ async def delete_organization(
 
 
 # =============================================================================
+# Feature Permissions
+# =============================================================================
+
+
+class UpdateFeaturesRequest(BaseModel):
+    """Request to update enabled features."""
+
+    enabled_features: list[str] = Field(
+        description="List of feature identifiers to enable for this organization"
+    )
+
+    @field_validator("enabled_features")
+    @classmethod
+    def validate_features(cls, v: list[str]) -> list[str]:
+        from app.core.features import get_all_features
+
+        all_features = get_all_features()
+        invalid = [f for f in v if f not in all_features]
+        if invalid:
+            raise ValueError(f"Invalid features: {', '.join(invalid)}")
+        return v
+
+
+class FeaturesResponse(BaseModel):
+    """Response with organization features."""
+
+    enabled_features: list[str]
+    available_features: list[str]
+    subscription_tier: str
+
+
+@router.get("/organizations/{org_id}/features", response_model=FeaturesResponse)
+async def get_organization_features(
+    org_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FeaturesResponse:
+    """
+    Get enabled and available features for an organization.
+    
+    Returns the list of currently enabled features and all features
+    available for the organization's subscription tier.
+    """
+    from app.core.features import get_all_features, get_default_features
+
+    org = await get_org_or_404(db, org_id)
+    await require_org_role(db, org_id, current_user.id, OrganizationRole.VIEWER)
+
+    # Get available features for the tier
+    available_features = get_default_features(org.subscription_tier)
+
+    return FeaturesResponse(
+        enabled_features=org.enabled_features,
+        available_features=available_features,
+        subscription_tier=org.subscription_tier,
+    )
+
+
+@router.put("/organizations/{org_id}/features", response_model=FeaturesResponse)
+async def update_organization_features(
+    org_id: UUID,
+    request: UpdateFeaturesRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FeaturesResponse:
+    """
+    Update enabled features for an organization.
+    
+    Requires admin role. Can only enable features that are included
+    in the organization's subscription tier.
+    """
+    from app.core.features import get_default_features
+
+    org = await get_org_or_404(db, org_id)
+    await require_org_role(db, org_id, current_user.id, OrganizationRole.ADMIN)
+
+    # Get features available for this tier
+    available_features = get_default_features(org.subscription_tier)
+
+    # Validate requested features are available for tier
+    invalid_features = [f for f in request.enabled_features if f not in available_features]
+    if invalid_features:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "invalid_features",
+                "message": f"Features not available on {org.subscription_tier} tier: {', '.join(invalid_features)}",
+                "invalid_features": invalid_features,
+            },
+        )
+
+    # Update settings - preserve existing settings while updating enabled_features
+    new_settings = dict(org.settings)
+    new_settings["enabled_features"] = request.enabled_features
+    org.settings = new_settings
+
+    await log_org_action(
+        db,
+        org_id,
+        current_user.id,
+        "features_updated",
+        resource_type="settings",
+        details={
+            "enabled_features": request.enabled_features,
+        },
+    )
+
+    await db.commit()
+    await db.refresh(org)
+
+    return FeaturesResponse(
+        enabled_features=org.enabled_features,
+        available_features=available_features,
+        subscription_tier=org.subscription_tier,
+    )
+
+
+# =============================================================================
 # Member Management
 # =============================================================================
 

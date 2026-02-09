@@ -263,3 +263,135 @@ class TestOrganizationMembers:
         assert isinstance(data, list)
         # At least the owner
         assert len(data) >= 1
+
+
+# =============================================================================
+# Organization Features Tests
+# =============================================================================
+
+
+class TestOrganizationFeatures:
+    """Tests for organization feature permissions endpoints."""
+
+    async def test_get_features_success(
+        self, client: AsyncClient, auth_headers: dict, test_organization
+    ):
+        """Should return enabled and available features."""
+        response = await client.get(
+            f"/api/v1/organizations/{test_organization.id}/features", headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "enabled_features" in data
+        assert "available_features" in data
+        assert "subscription_tier" in data
+        assert isinstance(data["enabled_features"], list)
+        assert isinstance(data["available_features"], list)
+
+    async def test_get_features_unauthenticated(self, client: AsyncClient, test_organization):
+        """Should return 401 without authentication."""
+        response = await client.get(f"/api/v1/organizations/{test_organization.id}/features")
+        assert response.status_code == 401
+
+    async def test_get_features_not_found(self, client: AsyncClient, auth_headers: dict):
+        """Should return 404 for non-existent organization."""
+        response = await client.get(
+            "/api/v1/organizations/00000000-0000-0000-0000-000000000000/features",
+            headers=auth_headers,
+        )
+        assert response.status_code == 404
+
+    async def test_update_features_success(
+        self, client: AsyncClient, auth_headers: dict, test_organization
+    ):
+        """Should update enabled features."""
+        response = await client.put(
+            f"/api/v1/organizations/{test_organization.id}/features",
+            headers=auth_headers,
+            json={"enabled_features": ["ai_generation", "templates"]},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "ai_generation" in data["enabled_features"]
+        assert "templates" in data["enabled_features"]
+
+    async def test_update_features_invalid_feature(
+        self, client: AsyncClient, auth_headers: dict, test_organization
+    ):
+        """Should reject invalid feature names."""
+        response = await client.put(
+            f"/api/v1/organizations/{test_organization.id}/features",
+            headers=auth_headers,
+            json={"enabled_features": ["invalid_feature_xyz"]},
+        )
+
+        assert response.status_code == 422
+
+    async def test_update_features_unavailable_for_tier(
+        self, client: AsyncClient, auth_headers: dict, test_organization
+    ):
+        """Should reject features not available on the org's tier."""
+        # Try to enable enterprise features on free tier
+        response = await client.put(
+            f"/api/v1/organizations/{test_organization.id}/features",
+            headers=auth_headers,
+            json={"enabled_features": ["advanced_cad", "external_storage"]},
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "error" in data["detail"]
+        assert data["detail"]["error"] == "invalid_features"
+
+    async def test_has_feature_method(self, db_session: AsyncSession, test_user):
+        """Test Organization.has_feature() method."""
+        org = Organization(
+            id=uuid4(),
+            name="Test Org",
+            slug=f"test-{uuid4().hex[:8]}",
+            owner_id=test_user.id,
+            settings={
+                "enabled_features": ["ai_generation", "templates"],
+                "subscription_tier": "free",
+            },
+        )
+        db_session.add(org)
+        await db_session.commit()
+
+        assert org.has_feature("ai_generation") is True
+        assert org.has_feature("templates") is True
+        assert org.has_feature("advanced_cad") is False
+
+        # Cleanup
+        await db_session.delete(org)
+        await db_session.commit()
+
+    async def test_enabled_features_defaults_to_tier(
+        self, db_session: AsyncSession, test_user
+    ):
+        """Test that enabled_features defaults to tier's features."""
+        org = Organization(
+            id=uuid4(),
+            name="Test Org Pro",
+            slug=f"test-pro-{uuid4().hex[:8]}",
+            owner_id=test_user.id,
+            settings={
+                "subscription_tier": "pro",
+                # No enabled_features specified
+            },
+        )
+        db_session.add(org)
+        await db_session.commit()
+
+        # Should default to pro tier features
+        features = org.enabled_features
+        assert "ai_generation" in features
+        assert "direct_generation" in features
+        assert "custom_templates" in features
+
+        # Cleanup
+        await db_session.delete(org)
+        await db_session.commit()
+

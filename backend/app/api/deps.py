@@ -5,6 +5,7 @@ Re-exports common dependencies from core modules for API routes.
 """
 
 from collections.abc import Callable
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
@@ -194,6 +195,56 @@ def require_feature(feature_name: str) -> Callable[..., None]:
     return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
 
 
+def require_org_feature(feature_name: str) -> Callable[..., None]:
+    """
+    Dependency to require an organization to have a specific feature enabled.
+
+    Args:
+        feature_name: Name of the feature to require
+    
+    Usage:
+        @router.post("/designs")
+        async def create_design(
+            _feature: None = Depends(require_org_feature("ai_generation")),
+            org_id: UUID,
+            ...
+        ):
+            ...
+    """
+
+    async def dependency(
+        org_id: UUID,
+        db: AsyncSession = Depends(get_db),
+        _user: User = Depends(get_current_user),
+    ) -> None:
+        from app.models.organization import Organization
+
+        # Get organization
+        result = await db.execute(
+            select(Organization).where(Organization.id == org_id)
+        )
+        org = result.scalar_one_or_none()
+
+        if not org:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found",
+            )
+
+        # Check if feature is enabled
+        if not org.has_feature(feature_name):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "feature_disabled",
+                    "message": f"Feature '{feature_name}' is not enabled for this organization",
+                    "feature": feature_name,
+                },
+            )
+
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
+
+
 # Alias for convenience
 get_optional_user = get_current_user_optional
 
@@ -212,6 +263,7 @@ __all__ = [
     "require_credits",
     "require_feature",
     "require_job_slot",
+    "require_org_feature",
     "require_role",
     "require_storage",
 ]
