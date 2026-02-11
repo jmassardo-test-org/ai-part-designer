@@ -141,9 +141,7 @@ jobs:
         working-directory: backend
         run: |
           pip install pip-audit
-          # Known issues:
-          # - ecdsa 0.19.1 CVE-2024-23342: No fix available yet (Minerva timing attack on P-256)
-          pip-audit -r requirements.txt --ignore-vuln CVE-2024-23342
+          pip-audit -r requirements.txt
 
   # ============================================================
   # STAGE 2: Tests (only run if lint passes)

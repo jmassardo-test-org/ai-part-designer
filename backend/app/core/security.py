@@ -19,7 +19,8 @@ from uuid import UUID
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -264,7 +265,7 @@ def decode_token(token: str) -> dict[str, Any] | None:
             algorithms=[settings.ALGORITHM],
         )
         return payload
-    except JWTError:
+    except InvalidTokenError:
         return None
 
 
