@@ -110,6 +110,15 @@ def _understanding_to_intent(understanding: PartUnderstanding) -> PartIntent:
 # =============================================================================
 
 
+class CreateConversationRequest(BaseModel):
+    """Request to create a new conversation."""
+
+    design_id: UUID | None = Field(
+        default=None,
+        description="Optional design ID to attach context from existing model",
+    )
+
+
 class MessageRequest(BaseModel):
     """Request to send a message in a conversation."""
 
@@ -317,30 +326,69 @@ async def _get_conversation(
 
 @router.post("/", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
 async def create_conversation(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    request: CreateConversationRequest | None = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user: Annotated[User, Depends(get_current_user)] = None,
 ) -> ConversationResponse:
     """
     Start a new conversation for CAD generation.
+    
+    Optionally attach context from an existing design for Q&A.
     """
+    assert db is not None
+    assert current_user is not None
+    
+    design_id = request.design_id if request else None
+    
+    # If design_id provided, verify access and extract context
+    model_context_dict = None
+    if design_id:
+        from app.services.model_context import extract_model_context, get_design_by_id
+
+        design = await get_design_by_id(design_id, current_user.id, db)
+        if not design:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Design {design_id} not found or not accessible",
+            )
+        
+        # Extract model context
+        model_context = extract_model_context(design)
+        model_context_dict = model_context.to_dict()
+    
     conversation = Conversation(
         user_id=current_user.id,
+        design_id=design_id,
         status=ConversationStatus.ACTIVE.value,
     )
 
-    # Add welcome message
+    # Customize welcome message based on whether we have model context
+    if model_context_dict:
+        welcome_content = (
+            f"Hi! I can help you with questions about your model '{model_context_dict['name']}'. "
+            "Ask me about its dimensions, features, or how to modify it."
+        )
+    else:
+        welcome_content = (
+            "Hi! I'm here to help you design a CAD part. "
+            "Describe what you'd like to create, including dimensions, features, and any specific requirements. "
+            "I'll ask clarifying questions if I need more information."
+        )
+
     welcome_msg = ConversationMessage(
         conversation_id=conversation.id,
         role=MessageRole.ASSISTANT.value,
         message_type=MessageType.TEXT.value,
-        content=(
-            "Hi! I'm here to help you design a CAD part. "
-            "Describe what you'd like to create, including dimensions, features, and any specific requirements. "
-            "I'll ask clarifying questions if I need more information."
-        ),
+        content=welcome_content,
     )
 
     conversation.messages.append(welcome_msg)
+
+    # Set initial understanding with model context if provided
+    if model_context_dict:
+        understanding = PartUnderstanding()
+        understanding.model_context = model_context_dict
+        conversation.intent_data = understanding.to_dict()
 
     db.add(conversation)
     await db.commit()
@@ -359,7 +407,7 @@ async def create_conversation(
         status=refreshed_conversation.status,
         title=refreshed_conversation.title,
         messages=[_message_to_response(m) for m in refreshed_conversation.messages],
-        understanding=None,
+        understanding=refreshed_conversation.intent_data,
         result=None,
         created_at=refreshed_conversation.created_at,
         updated_at=refreshed_conversation.updated_at,

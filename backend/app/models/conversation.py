@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.design import Design
     from app.models.user import User
 
 
@@ -68,6 +69,12 @@ class Conversation(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
+    design_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("designs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Conversation metadata
     title: Mapped[str | None] = mapped_column(
@@ -106,6 +113,7 @@ class Conversation(Base, TimestampMixin):
 
     # Relationships
     user: Mapped[User] = relationship(back_populates="conversations")
+    design: Mapped[Design | None] = relationship("Design")
     messages: Mapped[list[ConversationMessage]] = relationship(
         back_populates="conversation",
         order_by="ConversationMessage.created_at",

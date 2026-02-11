@@ -106,6 +106,9 @@ class PartUnderstanding:
     # Raw input accumulation
     user_messages: list[str] = field(default_factory=list)
 
+    # Model context (optional - for questions about existing models)
+    model_context: dict[str, Any] | None = None
+
     # Classification
     classification: PartClassification | None = None
 
@@ -131,6 +134,7 @@ class PartUnderstanding:
         """Convert to dictionary for JSON serialization."""
         return {
             "user_messages": self.user_messages,
+            "model_context": self.model_context,
             "classification": asdict(self.classification) if self.classification else None,
             "dimensions": {k: asdict(v) for k, v in self.dimensions.items()},
             "features": [asdict(f) for f in self.features],
@@ -149,6 +153,7 @@ class PartUnderstanding:
         """Create from dictionary."""
         understanding = cls()
         understanding.user_messages = data.get("user_messages", [])
+        understanding.model_context = data.get("model_context")
 
         if data.get("classification"):
             try:
@@ -229,6 +234,7 @@ EXTRACT_PROMPT = """You are a mechanical engineer extracting dimensions from a p
 Part type: {part_type}
 User request: {user_input}
 Previous context: {previous_context}
+{model_context_section}
 
 For {part_type}, the typical dimension names are:
 {dimension_hints}
@@ -559,18 +565,47 @@ async def extract_dimensions(
     user_input: str,
     part_type: str,
     previous_context: str = "",
+    model_context: dict[str, Any] | None = None,
 ) -> tuple[dict[str, ExtractedDimension], list[ExtractedFeature], list[dict[str, Any]], list[str]]:
     """
     Pass 2: Extract dimensions and features from user input.
+    
+    Args:
+        user_input: The user's message
+        part_type: Type of part being created
+        previous_context: Previously extracted dimensions
+        model_context: Optional context about an existing model being discussed
     """
     client = get_ai_client()
 
     hints = DIMENSION_HINTS.get(part_type, DIMENSION_HINTS["custom"])
+    
+    # Format model context if provided
+    model_context_section = ""
+    if model_context:
+        model_context_section = "\n\nCURRENT MODEL BEING DISCUSSED:\n"
+        if "name" in model_context:
+            model_context_section += f"Model Name: {model_context['name']}\n"
+        if "description" in model_context:
+            model_context_section += f"Description: {model_context['description']}\n"
+        if "dimensions" in model_context:
+            dims = model_context["dimensions"]
+            if dims:
+                dim_str = ", ".join(f"{k}: {v}" for k, v in dims.items() if k != "unit")
+                model_context_section += f"Dimensions: {dim_str}\n"
+        if "features" in model_context:
+            features = model_context["features"]
+            if features and len(features) > 0:
+                feature_list = ", ".join(f.get("type", "unknown") for f in features[:5])
+                model_context_section += f"Features: {feature_list}\n"
+        model_context_section += "\nThe user is asking about or referring to this existing model.\n"
+    
     prompt = EXTRACT_PROMPT.format(
         part_type=part_type,
         user_input=user_input,
         previous_context=previous_context or "None",
         dimension_hints=hints,
+        model_context_section=model_context_section,
     )
     messages = [{"role": "system", "content": prompt}]
 
@@ -878,7 +913,7 @@ async def process_user_message(
         prev_context = json.dumps({k: f"{v.value}mm" for k, v in understanding.dimensions.items()})
 
         dims, features, hardware, constraints = await extract_dimensions(
-            all_input, part_type, prev_context
+            all_input, part_type, prev_context, understanding.model_context
         )
 
         # Merge with existing (new values override)
