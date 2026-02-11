@@ -183,6 +183,28 @@ async def simple_client() -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
 
+@pytest_asyncio.fixture(scope="function")
+async def async_client(client: AsyncClient) -> AsyncClient:
+    """Alias for client fixture to match test naming conventions."""
+    return client
+
+
+@pytest.fixture
+def mock_current_user():
+    """Create a mock user for testing."""
+    from uuid import uuid4
+
+    from app.models.user import User
+
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.email = "test@example.com"
+    user.username = "testuser"
+    user.is_active = True
+    user.is_superuser = False
+    return user
+
+
 # =============================================================================
 # Authentication Fixtures
 # =============================================================================
