@@ -34,6 +34,8 @@ interface Project {
   design_count: number;
   created_at: string;
   updated_at: string;
+  team_id?: string | null;
+  team_name?: string | null;
 }
 
 interface Design {
@@ -42,6 +44,12 @@ interface Design {
   thumbnail_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  organization_id: string;
 }
 
 // =============================================================================
@@ -61,6 +69,10 @@ export function ProjectsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Teams state
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -97,6 +109,29 @@ export function ProjectsPage() {
     }
   }, [token]);
 
+  // Fetch available teams
+  const fetchAvailableTeams = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/projects/available-teams`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        // If endpoint fails, just continue without teams
+        console.warn('Failed to fetch teams, continuing without team selector');
+        return;
+      }
+
+      const teams = await response.json();
+      setAvailableTeams(teams || []);
+    } catch (err) {
+      console.warn('Error fetching teams:', err);
+      // Continue without teams
+    }
+  }, [token]);
+
   // Fetch designs for selected project
   const fetchProjectDesigns = useCallback(async (projectId: string) => {
     try {
@@ -118,7 +153,8 @@ export function ProjectsPage() {
   // Load projects on mount
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects]);
+    fetchAvailableTeams();
+  }, [fetchProjects, fetchAvailableTeams]);
 
   // Load project details if projectId in URL
   useEffect(() => {
@@ -172,16 +208,23 @@ export function ProjectsPage() {
 
     try {
       setIsSubmitting(true);
+      const body: any = {
+        name: newProjectName,
+        description: newProjectDescription || null,
+      };
+
+      // Include team_id if a team is selected
+      if (selectedTeamId) {
+        body.team_id = selectedTeamId;
+      }
+
       const response = await fetch(`${API_BASE}/projects/${projectToEdit.id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: newProjectName,
-          description: newProjectDescription || null,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) throw new Error('Failed to update project');
@@ -192,6 +235,7 @@ export function ProjectsPage() {
       setProjectToEdit(null);
       setNewProjectName('');
       setNewProjectDescription('');
+      setSelectedTeamId('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update project');
     } finally {
@@ -234,6 +278,7 @@ export function ProjectsPage() {
     setProjectToEdit(project);
     setNewProjectName(project.name);
     setNewProjectDescription(project.description || '');
+    setSelectedTeamId(project.team_id || '');
     setShowEditModal(true);
   };
 
@@ -489,6 +534,12 @@ export function ProjectsPage() {
                   <span>{project.design_count} designs</span>
                   <span>•</span>
                   <span>{formatDate(project.updated_at)}</span>
+                  {project.team_name && (
+                    <>
+                      <span>•</span>
+                      <span className="text-primary-600 dark:text-primary-400">{project.team_name}</span>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -509,6 +560,11 @@ export function ProjectsPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {project.description || 'No description'}
                   </p>
+                  {project.team_name && (
+                    <p className="text-xs text-primary-600 dark:text-primary-400 mt-1">
+                      Team: {project.team_name}
+                    </p>
+                  )}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   {project.design_count} designs
@@ -621,6 +677,25 @@ export function ProjectsPage() {
                   rows={3}
                 />
               </div>
+              {availableTeams.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Team (optional)
+                  </label>
+                  <select
+                    value={selectedTeamId}
+                    onChange={(e) => setSelectedTeamId(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="">No team</option>
+                    {availableTeams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button

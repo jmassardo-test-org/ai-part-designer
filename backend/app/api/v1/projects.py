@@ -17,7 +17,9 @@ from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.design import Design
 from app.models.project import Project
+from app.models.team import ProjectTeam, Team
 from app.models.user import User
+from app.services.team_service import TeamService
 
 router = APIRouter()
 
@@ -39,6 +41,7 @@ class ProjectUpdate(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
+    team_id: UUID | None = Field(None, description="Team to assign project to")
 
 
 class ProjectResponse(BaseModel):
@@ -51,6 +54,8 @@ class ProjectResponse(BaseModel):
     thumbnail_url: str | None
     created_at: str
     updated_at: str
+    team_id: UUID | None = None
+    team_name: str | None = None
 
     class Config:
         from_attributes = True
@@ -126,6 +131,8 @@ async def create_project(
         thumbnail_url=None,
         created_at=project.created_at.isoformat(),
         updated_at=project.updated_at.isoformat(),
+        team_id=None,
+        team_name=None,
     )
 
 
@@ -191,6 +198,24 @@ async def list_projects(
         if first_design and first_design.extra_data:
             thumbnail_url = first_design.extra_data.get("thumbnail_url")
 
+        # Get current team assignment
+        team_id = None
+        team_name = None
+        team_query = (
+            select(ProjectTeam)
+            .where(ProjectTeam.project_id == project.id)
+            .limit(1)
+        )
+        team_result = await db.execute(team_query)
+        team_assignment = team_result.scalar_one_or_none()
+        if team_assignment:
+            team_id = team_assignment.team_id
+            team_obj_query = select(Team).where(Team.id == team_id)
+            team_obj_result = await db.execute(team_obj_query)
+            team_obj = team_obj_result.scalar_one_or_none()
+            if team_obj:
+                team_name = team_obj.name
+
         project_responses.append(
             ProjectResponse(
                 id=project.id,
@@ -200,6 +225,8 @@ async def list_projects(
                 thumbnail_url=thumbnail_url,
                 created_at=project.created_at.isoformat(),
                 updated_at=project.updated_at.isoformat(),
+                team_id=team_id,
+                team_name=team_name,
             )
         )
 
@@ -417,6 +444,7 @@ async def update_project(
     Update a project.
 
     Only the project owner can update it.
+    Can optionally assign the project to a team.
     """
     # Get project
     query = select(Project).where(Project.id == project_id).where(Project.deleted_at.is_(None))
@@ -442,6 +470,49 @@ async def update_project(
     if request.description is not None:
         project.description = request.description
 
+    # Handle team assignment
+    team_service = TeamService(db)
+    if request.team_id is not None:
+        # Validate team exists and user has access
+        team = await team_service.get_team_by_id(request.team_id)
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Team not found",
+            )
+        
+        # Check if user is a member of the team or org admin
+        has_permission = await team_service.check_team_permission(
+            request.team_id, current_user, None  # Check any membership
+        )
+        if not has_permission:
+            # Check if user is org admin
+            has_org_permission = await team_service.check_org_team_permission(
+                team.organization_id, current_user
+            )
+            if not has_org_permission:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to assign this team",
+                )
+        
+        # Clear existing team assignments and add new one
+        # Remove all existing team assignments for this project
+        delete_query = select(ProjectTeam).where(ProjectTeam.project_id == project_id)
+        delete_result = await db.execute(delete_query)
+        existing_assignments = delete_result.scalars().all()
+        for assignment in existing_assignments:
+            await db.delete(assignment)
+        
+        # Create new team assignment with editor permission by default
+        from app.schemas.team import ProjectTeamAssign
+        
+        assignment_data = ProjectTeamAssign(
+            team_id=request.team_id,
+            permission_level="editor"
+        )
+        await team_service.assign_team_to_project(assignment_data, project_id, current_user)
+
     await db.commit()
     await db.refresh(project)
 
@@ -454,6 +525,24 @@ async def update_project(
     design_count_result = await db.execute(design_count_query)
     design_count = design_count_result.scalar() or 0
 
+    # Get current team assignment
+    team_id = None
+    team_name = None
+    team_query = (
+        select(ProjectTeam)
+        .where(ProjectTeam.project_id == project_id)
+        .limit(1)
+    )
+    team_result = await db.execute(team_query)
+    team_assignment = team_result.scalar_one_or_none()
+    if team_assignment:
+        team_id = team_assignment.team_id
+        team_obj_query = select(Team).where(Team.id == team_id)
+        team_obj_result = await db.execute(team_obj_query)
+        team_obj = team_obj_result.scalar_one_or_none()
+        if team_obj:
+            team_name = team_obj.name
+
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -462,6 +551,8 @@ async def update_project(
         thumbnail_url=None,
         created_at=project.created_at.isoformat(),
         updated_at=project.updated_at.isoformat(),
+        team_id=team_id,
+        team_name=team_name,
     )
 
 
@@ -673,7 +764,44 @@ async def get_or_create_default_project(
         thumbnail_url=None,
         created_at=project.created_at.isoformat(),
         updated_at=project.updated_at.isoformat(),
+        team_id=None,
+        team_name=None,
     )
+
+
+@router.get("/projects/available-teams", response_model=list[dict[str, Any]])
+async def get_available_teams(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    """
+    Get list of teams available to assign to projects.
+
+    Returns teams where the current user is a member.
+    """
+    from app.models.team import TeamMember
+    
+    # Get teams where user is a member
+    query = (
+        select(Team)
+        .join(TeamMember, Team.id == TeamMember.team_id)
+        .where(TeamMember.user_id == current_user.id)
+        .where(TeamMember.is_active.is_(True))
+        .where(Team.deleted_at.is_(None))
+        .where(Team.is_active.is_(True))
+    )
+    
+    result = await db.execute(query)
+    teams = result.scalars().all()
+    
+    return [
+        {
+            "id": str(team.id),
+            "name": team.name,
+            "organization_id": str(team.organization_id),
+        }
+        for team in teams
+    ]
 
 
 # ============================================================================

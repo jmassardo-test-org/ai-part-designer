@@ -521,3 +521,181 @@ class TestGetProjectDesigns:
         )
 
         assert response.status_code in [403, 404]
+
+
+# =============================================================================
+# Team Assignment Tests
+# =============================================================================
+
+
+@pytest.fixture
+async def sample_team(db_session: AsyncSession, test_user):
+    """Create a sample team and organization for testing."""
+    from app.models.organization import Organization, OrganizationMember, OrganizationRole
+    from app.models.team import Team, TeamMember, TeamRole
+
+    # Create organization
+    org = Organization(
+        id=uuid4(),
+        name="Test Organization",
+        slug="test-org",
+    )
+    db_session.add(org)
+    await db_session.flush()
+
+    # Add user as organization member
+    org_member = OrganizationMember(
+        organization_id=org.id,
+        user_id=test_user.id,
+        role=OrganizationRole.ADMIN,
+    )
+    db_session.add(org_member)
+    await db_session.flush()
+
+    # Create team
+    team = Team(
+        id=uuid4(),
+        organization_id=org.id,
+        name="Test Team",
+        slug="test-team",
+        created_by_id=test_user.id,
+    )
+    db_session.add(team)
+    await db_session.flush()
+
+    # Add user as team member
+    team_member = TeamMember(
+        team_id=team.id,
+        user_id=test_user.id,
+        role=TeamRole.ADMIN,
+        added_by_id=test_user.id,
+    )
+    db_session.add(team_member)
+
+    await db_session.commit()
+    await db_session.refresh(team)
+    return team
+
+
+class TestProjectTeamAssignment:
+    """Tests for project team assignment functionality."""
+
+    async def test_update_project_with_team_assignment(
+        self, client: AsyncClient, auth_headers: dict, sample_project, sample_team
+    ):
+        """Should successfully assign a team to a project."""
+        response = await client.put(
+            f"/api/v1/projects/{sample_project.id}",
+            headers=auth_headers,
+            json={
+                "name": sample_project.name,
+                "team_id": str(sample_team.id),
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["team_id"] == str(sample_team.id)
+        assert data["team_name"] == sample_team.name
+
+    async def test_update_project_with_invalid_team(
+        self, client: AsyncClient, auth_headers: dict, sample_project
+    ):
+        """Should return 404 when assigning non-existent team."""
+        fake_team_id = "00000000-0000-0000-0000-000000000000"
+        response = await client.put(
+            f"/api/v1/projects/{sample_project.id}",
+            headers=auth_headers,
+            json={
+                "name": sample_project.name,
+                "team_id": fake_team_id,
+            },
+        )
+
+        assert response.status_code == 404
+        assert "Team not found" in response.json()["detail"]
+
+    async def test_list_projects_includes_team_info(
+        self, client: AsyncClient, auth_headers: dict, sample_project, sample_team, db_session
+    ):
+        """Should include team information in project list."""
+        from app.models.team import ProjectTeam
+
+        # Assign team to project
+        assignment = ProjectTeam(
+            project_id=sample_project.id,
+            team_id=sample_team.id,
+            permission_level="editor",
+        )
+        db_session.add(assignment)
+        await db_session.commit()
+
+        response = await client.get("/api/v1/projects", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        items = get_items_from_response(data)
+
+        # Find our project in the list
+        project_data = next((p for p in items if p["id"] == str(sample_project.id)), None)
+        assert project_data is not None
+        assert project_data["team_id"] == str(sample_team.id)
+        assert project_data["team_name"] == sample_team.name
+
+    async def test_get_available_teams(
+        self, client: AsyncClient, auth_headers: dict, sample_team
+    ):
+        """Should return list of teams user can assign."""
+        response = await client.get("/api/v1/projects/available-teams", headers=auth_headers)
+
+        assert response.status_code == 200
+        teams = response.json()
+        assert len(teams) > 0
+        
+        # Find our test team
+        test_team = next((t for t in teams if t["id"] == str(sample_team.id)), None)
+        assert test_team is not None
+        assert test_team["name"] == sample_team.name
+
+    async def test_get_available_teams_multiple(
+        self, client: AsyncClient, auth_headers: dict, sample_team, test_user, db_session
+    ):
+        """Should return all teams where user is a member."""
+        from app.models.team import Team, TeamMember, TeamRole
+
+        # Create a second team with the same organization
+        team2 = Team(
+            id=uuid4(),
+            organization_id=sample_team.organization_id,
+            name="Second Test Team",
+            slug="second-test-team",
+            created_by_id=test_user.id,
+        )
+        db_session.add(team2)
+        await db_session.flush()
+
+        # Add user as member of second team
+        team_member = TeamMember(
+            team_id=team2.id,
+            user_id=test_user.id,
+            role=TeamRole.MEMBER,
+            added_by_id=test_user.id,
+        )
+        db_session.add(team_member)
+        await db_session.commit()
+
+        response = await client.get("/api/v1/projects/available-teams", headers=auth_headers)
+
+        assert response.status_code == 200
+        teams = response.json()
+        assert len(teams) >= 2
+
+        # Verify both teams are in the response
+        team_ids = [t["id"] for t in teams]
+        assert str(sample_team.id) in team_ids
+        assert str(team2.id) in team_ids
+
+    async def test_get_available_teams_unauthenticated(self, client: AsyncClient):
+        """Should return 401 without authentication."""
+        response = await client.get("/api/v1/projects/available-teams")
+        assert response.status_code == 401
