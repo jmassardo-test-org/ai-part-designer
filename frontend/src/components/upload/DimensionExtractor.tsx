@@ -24,8 +24,8 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
-import { extractionApi, DimensionResponse, MountingHole, Cutout, Connector } from '@/lib/api/extraction';
 import { cn } from '@/lib/utils';
+import { extractionApi, DimensionResponse, MountingHole, Cutout, Connector } from '@/lib/api/extraction';
 
 // =============================================================================
 // Types

@@ -4,7 +4,6 @@
  * Displays audit logs for the current user with pagination and filtering.
  */
 
-import { useCallback, useEffect, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle,
@@ -15,7 +14,7 @@ import {
   Loader2,
   XCircle,
 } from 'lucide-react';
-
+import { useCallback, useEffect, useState } from 'react';
 import { auditLogsApi, type AuditLog, type AuditLogsFilters } from '@/lib/api/auditLogs';
 
 const ITEMS_PER_PAGE = 20;

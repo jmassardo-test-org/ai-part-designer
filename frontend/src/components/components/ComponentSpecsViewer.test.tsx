@@ -5,8 +5,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { componentsApi } from '@/lib/api/components';
 import { ComponentSpecsViewer } from './ComponentSpecsViewer';
+import { componentsApi } from '@/lib/api/components';
 
 // Mock the components API
 vi.mock('@/lib/api/components', () => ({

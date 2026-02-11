@@ -8,6 +8,9 @@ import { ModelViewer } from '@/components/viewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useSlashCommands, CommandHandlerContext, CommandResult } from '@/hooks/useSlashCommands';
+import { ChatInput } from './ChatInput';
+import { ChatMessage } from './ChatMessage';
+import { UnderstandingSidebar } from './UnderstandingSidebar';
 import {
   createConversation,
   getConversation,
@@ -21,9 +24,6 @@ import {
 } from '@/lib/conversations';
 import { saveDesignFromJob, listProjects, type Project } from '@/lib/designs';
 import { downloadGeneratedFile, getPreviewData } from '@/lib/generate';
-import { ChatInput } from './ChatInput';
-import { ChatMessage } from './ChatMessage';
-import { UnderstandingSidebar } from './UnderstandingSidebar';
 
 interface ChatPanelProps {
   className?: string;

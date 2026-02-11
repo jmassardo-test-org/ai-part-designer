@@ -6,15 +6,6 @@
 
 import { useMutation, useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  compileEnclosure,
-  downloadFile,
-  generateAsync,
-  generateFromDescriptionV2,
-  getJobStatus,
-  listJobFiles,
-  previewSchema,
-} from '@/lib/generate-v2';
 import type {
   CompileRequest,
   CompileResponse,
@@ -24,6 +15,15 @@ import type {
   JobStatusResponse,
   SchemaPreviewResponse,
 } from '@/types/cad-v2';
+import {
+  compileEnclosure,
+  downloadFile,
+  generateAsync,
+  generateFromDescriptionV2,
+  getJobStatus,
+  listJobFiles,
+  previewSchema,
+} from '@/lib/generate-v2';
 
 // =============================================================================
 // Query Keys

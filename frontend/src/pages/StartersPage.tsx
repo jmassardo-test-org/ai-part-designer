@@ -18,8 +18,8 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import * as api from '@/lib/marketplace';
 import type { StarterDesign } from '@/types/marketplace';
+import * as api from '@/lib/marketplace';
 
 // =============================================================================
 // Custom Hooks

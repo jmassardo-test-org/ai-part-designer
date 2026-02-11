@@ -19,6 +19,7 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TeamsTab } from '@/components/teams/TeamsTab';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   organizationsApi,
   Organization,
@@ -27,7 +28,6 @@ import {
   OrganizationRole,
 } from '@/lib/api/organizations';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
 
 // =============================================================================
 // Types

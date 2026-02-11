@@ -10,8 +10,8 @@ import { Link } from 'react-router-dom';
 import { LogoLight, LogoIcon } from '@/components/brand';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
-import { subscriptionsApi, SubscriptionPlan } from '@/lib/api/subscriptions';
 import { cn } from '@/lib/utils';
+import { subscriptionsApi, SubscriptionPlan } from '@/lib/api/subscriptions';
 
 // =============================
 // Types

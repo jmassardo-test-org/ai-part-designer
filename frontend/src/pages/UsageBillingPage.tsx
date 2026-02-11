@@ -24,6 +24,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 import { subscriptionsApi, SubscriptionStatus } from '@/lib/api/subscriptions';
 import {
   usageApi,
@@ -31,7 +32,6 @@ import {
   SubscriptionTier,
   CreditTransaction,
 } from '@/lib/api/usage';
-import { cn } from '@/lib/utils';
 
 // =============================================================================
 // Helper Functions
