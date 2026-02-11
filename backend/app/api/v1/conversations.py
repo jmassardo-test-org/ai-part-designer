@@ -326,19 +326,16 @@ async def _get_conversation(
 
 @router.post("/", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
 async def create_conversation(
-    request: CreateConversationRequest | None = None,
-    db: Annotated[AsyncSession, Depends(get_db)] = None,
-    current_user: Annotated[User, Depends(get_current_user)] = None,
+    request: CreateConversationRequest = CreateConversationRequest(),
+    db: Annotated[AsyncSession, Depends(get_db)] = ...,
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
 ) -> ConversationResponse:
     """
     Start a new conversation for CAD generation.
     
     Optionally attach context from an existing design for Q&A.
     """
-    assert db is not None
-    assert current_user is not None
-    
-    design_id = request.design_id if request else None
+    design_id = request.design_id
     
     # If design_id provided, verify access and extract context
     model_context_dict = None

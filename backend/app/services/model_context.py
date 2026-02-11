@@ -30,7 +30,7 @@ class ModelContext:
         design_id: UUID,
         name: str,
         description: str | None,
-        dimensions: dict[str, float],
+        dimensions: dict[str, float | str],
         features: list[dict[str, Any]],
         parameters: dict[str, Any],
         metadata: dict[str, Any],
