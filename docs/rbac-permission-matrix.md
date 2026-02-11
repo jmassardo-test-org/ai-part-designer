@@ -167,7 +167,7 @@ Organizations allow users to collaborate on projects with role-based access cont
 | Delete all projects | ❌ | ❌ | ✅ | ✅ |
 | **Feature Management** |
 | View enabled features | ✅ | ✅ | ✅ | ✅ |
-| Manage features | ❌ | ❌ | ❌ | ✅ |
+| Manage features | ❌ | ❌ | ✅ | ✅ |
 | **Audit & Security** |
 | View audit logs | ❌ | ❌ | ✅ | ✅ |
 
@@ -192,7 +192,7 @@ Organizations allow users to collaborate on projects with role-based access cont
 | `/organizations/invites/accept` | POST | Authenticated | Accept invitation |
 | `/users/me/invites` | GET | Authenticated | View pending invitations |
 | `/organizations/{org_id}/features` | GET | Viewer | Get enabled features |
-| `/organizations/{org_id}/features` | PUT | Owner | Update features |
+| `/organizations/{org_id}/features` | PUT | Admin | Update features |
 
 ### Special Rules
 
