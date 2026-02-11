@@ -3,8 +3,8 @@
  */
 
 import { render } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as THREE from 'three';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PartTransformControls } from './PartTransformControls';
 
 // Mock Three.js and react-three-fiber

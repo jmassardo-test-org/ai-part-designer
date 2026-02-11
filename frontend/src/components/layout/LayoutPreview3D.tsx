@@ -14,8 +14,8 @@ import {
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import * as THREE from 'three';
-import { cn } from '@/lib/utils';
 import type { ComponentPlacement, LayoutDimensions } from './types';
+import { cn } from '@/lib/utils';
 
 interface LayoutPreview3DProps {
   dimensions: LayoutDimensions;

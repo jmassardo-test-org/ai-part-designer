@@ -8,8 +8,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { adminApi } from '@/lib/api/admin';
 import { AdminDashboard } from './AdminDashboard';
+import { adminApi } from '@/lib/api/admin';
 
 // Mock the ThemeContext
 vi.mock('@/contexts/ThemeContext', () => ({

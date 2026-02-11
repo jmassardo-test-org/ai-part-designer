@@ -6,12 +6,12 @@
  */
 
 import { useRef, useState, useCallback, useMemo } from 'react';
-import { cn } from '@/lib/utils';
 import type { 
   ComponentPlacement, 
   LayoutDimensions, 
   CanvasState,
 } from './types';
+import { cn } from '@/lib/utils';
 
 interface LayoutCanvasProps {
   dimensions: LayoutDimensions;

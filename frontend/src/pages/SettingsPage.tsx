@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
-
 import AuditLogViewer from '@/components/settings/AuditLogViewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';

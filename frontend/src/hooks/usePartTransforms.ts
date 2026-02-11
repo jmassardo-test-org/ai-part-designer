@@ -5,8 +5,8 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { useDesignHistory, type DesignState } from './useDesignHistory';
 import type { PartTransform } from '../components/viewer/PartTransformControls';
+import { useDesignHistory, type DesignState } from './useDesignHistory';
 
 // =============================================================================
 // Types

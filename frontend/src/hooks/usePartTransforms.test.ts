@@ -4,8 +4,8 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { usePartTransforms } from './usePartTransforms';
 import type { PartTransform } from '../components/viewer/PartTransformControls';
+import { usePartTransforms } from './usePartTransforms';
 
 describe('usePartTransforms', () => {
   const mockTransform: PartTransform = {

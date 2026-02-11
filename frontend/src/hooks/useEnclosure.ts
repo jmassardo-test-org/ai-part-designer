@@ -7,8 +7,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import React from 'react';
 import type { EnclosureGenerationOptions } from '@/components/enclosure';
-import api from '@/lib/api';
 import { layoutKeys } from './useLayout';
+import api from '@/lib/api';
 
 // Types
 interface GenerateEnclosureParams {

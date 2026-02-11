@@ -10,12 +10,12 @@ vi.mock('@/lib/api', () => ({
     get: vi.fn(),
   },
 }));
-import api from '@/lib/api';
 import {
   useGenerateEnclosure,
   useCheckJobStatus,
   useDownloadEnclosure,
 } from './useEnclosure';
+import api from '@/lib/api';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({

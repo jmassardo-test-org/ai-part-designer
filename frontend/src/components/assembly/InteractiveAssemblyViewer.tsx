@@ -23,8 +23,8 @@ import {
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { STLLoader, OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { PartTransformControls, type TransformMode, type PartTransform } from '../viewer/PartTransformControls';
 import { usePartTransforms } from '../../hooks/usePartTransforms';
+import { PartTransformControls, type TransformMode, type PartTransform } from '../viewer/PartTransformControls';
 
 // =============================================================================
 // Types
