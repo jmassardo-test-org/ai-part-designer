@@ -67,8 +67,8 @@ class TestTracingConfiguration:
         provider = configure_tracing()
         assert provider is None
 
-    def test_configure_tracing_production_uses_jaeger(self, monkeypatch):
-        """Test that production environment attempts to use Jaeger exporter."""
+    def test_configure_tracing_production_uses_otlp(self, monkeypatch):
+        """Test that production environment uses OTLP exporter."""
         from app.core.config import Settings
 
         monkeypatch.setattr(
@@ -78,19 +78,17 @@ class TestTracingConfiguration:
                 APP_NAME="test-app",
                 APP_VERSION="1.0.0",
                 TRACING_ENABLED=True,
-                JAEGER_HOST="jaeger.example.com",
-                JAEGER_PORT=6831,
+                OTLP_ENDPOINT="http://otel-collector:4317",
             ),
         )
 
-        with patch("app.core.tracing.JaegerExporter") as mock_jaeger:
-            mock_jaeger.return_value = MagicMock()
+        with patch("app.core.tracing.OTLPSpanExporter") as mock_otlp:
+            mock_otlp.return_value = MagicMock()
             provider = configure_tracing()
 
             assert provider is not None
-            mock_jaeger.assert_called_once_with(
-                agent_host_name="jaeger.example.com",
-                agent_port=6831,
+            mock_otlp.assert_called_once_with(
+                endpoint="http://otel-collector:4317",
             )
 
     def test_configure_tracing_test_environment(self, monkeypatch):
@@ -388,11 +386,12 @@ class TestTracingIntegration:
                 APP_NAME="test-service",
                 APP_VERSION="2.0.0",
                 TRACING_ENABLED=True,
+                OTLP_ENDPOINT="http://otel-collector:4317",
             ),
         )
 
-        with patch("app.core.tracing.JaegerExporter") as mock_jaeger:
-            mock_jaeger.return_value = MagicMock()
+        with patch("app.core.tracing.OTLPSpanExporter") as mock_otlp:
+            mock_otlp.return_value = MagicMock()
             provider = configure_tracing()
 
             # Check resource attributes

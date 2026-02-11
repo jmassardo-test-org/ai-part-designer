@@ -29,22 +29,8 @@ This document tracks known security issues and their mitigation status.
 
 ## Known Issues (Not Fixed)
 
-### 1. protobuf CVE-2026-0994
-**Issue**: protobuf 4.25.8 has a known vulnerability (CVE-2026-0994).
-
-**Why Not Fixed**: Cannot upgrade to protobuf 5.x due to dependency conflicts:
-- `google-cloud-kms>=2.19.0` requires `protobuf<5.0.0`
-- `opentelemetry-exporter-jaeger>=1.21.0` requires `protobuf<5.0.0`
-
-**Mitigation**: 
-- Vulnerability is ignored in pip-audit with `--ignore-vuln CVE-2026-0994`
-- Documented in CI/CD workflow
-- Monitor for updated versions of dependencies that support protobuf 5.x
-
-**Action Required**: Update dependencies when compatible versions are available.
-
-### 2. ecdsa CVE-2024-23342
-**Issue**: ecdsa 0.19.1 has a known vulnerability (CVE-2024-23342).
+### 1. ecdsa CVE-2024-23342 (UNFIXABLE)
+**Issue**: ecdsa 0.19.1 has a known vulnerability (CVE-2024-23342) - Minerva timing attack on P-256.
 
 **Why Not Fixed**: No fix version available yet.
 
@@ -54,6 +40,16 @@ This document tracks known security issues and their mitigation status.
 - Monitor for security updates
 
 **Action Required**: Update ecdsa when a fix is released.
+
+### 2. protobuf CVE-2026-0994 (FIXED - 2026-02-11)
+**Issue**: protobuf 4.25.8 had a JSON recursion depth bypass vulnerability.
+
+**Fix**: 
+- Upgraded `google-cloud-kms` from 2.19.0 to 3.x (supports protobuf 5.x)
+- Removed deprecated `opentelemetry-exporter-jaeger` (replaced with OTLP exporter)
+- Upgraded `protobuf` to 5.29.6
+
+**Result**: Vulnerability fixed.
 
 ### 3. exec() Usage (3 instances - Medium Severity)
 **Issue**: Bandit warns about use of `exec()` in:
@@ -99,9 +95,10 @@ This document tracks known security issues and their mitigation status.
 # Backend security checks
 cd backend
 uv run bandit -r app -ll -ii  # Show medium/high issues
-pip-audit -r requirements.txt --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2024-23342
+pip-audit -r requirements.txt --ignore-vuln CVE-2024-23342
 ```
 
 ## Last Updated
 
 2026-02-11 - Initial security audit and fixes
+2026-02-11 - Fixed protobuf vulnerability by upgrading dependencies
