@@ -17,7 +17,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, desc, func, select
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_feature
 from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.core.storage import StorageBucket, storage_client
@@ -186,6 +186,7 @@ async def upload_file(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    _feature: None = Depends(require_feature("file_uploads")),
 ) -> FileResponse:
     """
     Upload a file.

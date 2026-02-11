@@ -25,7 +25,7 @@ from app.ai.iterative_reasoning import (
     process_user_message,
 )
 from app.ai.reasoning import PartIntent
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, require_feature
 from app.models.conversation import (
     Conversation,
     ConversationMessage,
@@ -329,14 +329,15 @@ async def create_conversation(
     request: CreateConversationRequest = CreateConversationRequest(),
     db: Annotated[AsyncSession, Depends(get_db)] = ...,
     current_user: Annotated[User, Depends(get_current_user)] = ...,
+    _feature: None = Depends(require_feature("ai_chat")),
 ) -> ConversationResponse:
     """
     Start a new conversation for CAD generation.
-    
+
     Optionally attach context from an existing design for Q&A.
     """
     design_id = request.design_id
-    
+
     # If design_id provided, verify access and extract context
     model_context_dict = None
     if design_id:
@@ -348,11 +349,11 @@ async def create_conversation(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Design {design_id} not found or not accessible",
             )
-        
+
         # Extract model context
         model_context = extract_model_context(design)
         model_context_dict = model_context.to_dict()
-    
+
     conversation = Conversation(
         user_id=current_user.id,
         design_id=design_id,
@@ -449,6 +450,7 @@ async def direct_generate(
     request: DirectGenerateRequest,
     _db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: Annotated[User, Depends(get_current_user)],
+    _feature: None = Depends(require_feature("ai_generation")),
 ) -> DirectGenerateResponse:
     """
     Generate a CAD part directly from natural language description.
@@ -553,6 +555,7 @@ async def send_message(
     request: MessageRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
+    _feature: None = Depends(require_feature("ai_chat")),
 ) -> SendMessageResponse:
     """
     Send a message in a conversation and get AI response.
@@ -904,6 +907,7 @@ async def trigger_generation(
     conversation_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
+    _feature: None = Depends(require_feature("ai_generation")),
 ) -> SendMessageResponse:
     """
     Manually trigger generation if the conversation is ready.

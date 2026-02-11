@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_feature, require_org_feature_for_assembly
 from app.core.database import get_db
 from app.models.assembly import (
     Assembly,
@@ -176,6 +176,8 @@ async def get_bom(
     category: str | None = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _tier_feature: None = Depends(require_feature("bom")),
+    _org_feature: None = Depends(require_org_feature_for_assembly("bom")),
 ) -> BOMResponse:
     """Get the Bill of Materials for an assembly."""
     # Verify assembly ownership
@@ -283,6 +285,8 @@ async def add_bom_item(
     request: BOMItemCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _tier_feature: None = Depends(require_feature("bom")),
+    _org_feature: None = Depends(require_org_feature_for_assembly("bom")),
 ) -> BOMItemResponse:
     """Add a BOM item for a component."""
     # Verify assembly ownership

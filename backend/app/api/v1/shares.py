@@ -24,6 +24,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_org_feature_for_design
 from app.core.audit import audit_log
 from app.core.auth import get_current_user
 from app.core.database import get_db
@@ -158,6 +159,7 @@ async def share_design(
     request: ShareRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _feature: None = Depends(require_org_feature_for_design("design_sharing")),
 ) -> ShareResponse:
     """
     Share a design with another user by email.
@@ -539,6 +541,7 @@ async def create_share_link(
     request: ShareLinkRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _feature: None = Depends(require_org_feature_for_design("design_sharing")),
 ) -> ShareLinkResponse:
     """
     Create a shareable link for a design.
