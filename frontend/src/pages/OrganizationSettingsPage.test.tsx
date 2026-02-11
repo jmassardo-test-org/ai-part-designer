@@ -55,7 +55,7 @@ const mockViewerMember: OrganizationMember = {
 };
 
 // Mock AuthContext
-const mockUser = {
+let mockUser = {
   id: 'user-1',
   email: 'admin@example.com',
   display_name: 'Admin User',
@@ -119,6 +119,11 @@ const renderOrganizationSettingsPage = (orgId = 'org-1') => {
 describe('OrganizationSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mockUser to default admin
+    mockUser.id = 'user-1';
+    mockUser.email = 'admin@example.com';
+    mockUser.display_name = 'Admin User';
+    
     mockGet.mockResolvedValue(mockOrganization);
     mockListMembers.mockResolvedValue([mockAdminMember, mockRegularMember, mockViewerMember]);
     mockListInvites.mockResolvedValue([]);

@@ -840,12 +840,12 @@ export function OrganizationSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('general');
 
-  const currentUserId = user?.id || '';
+  const currentUserId = user?.id;
   const isAdmin = membership?.role === 'admin' || membership?.role === 'owner';
   const isOwner = org?.owner_id === currentUserId;
 
   const loadOrg = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId || !currentUserId) return;
     setIsLoading(true);
     try {
       const [orgData, membershipData] = await Promise.all([
@@ -859,7 +859,7 @@ export function OrganizationSettingsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, currentUserId]);
 
   useEffect(() => {
     loadOrg();
