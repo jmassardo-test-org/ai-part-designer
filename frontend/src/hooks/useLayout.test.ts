@@ -11,7 +11,6 @@ vi.mock('@/lib/api', () => ({
     delete: vi.fn(),
   },
 }));
-import api from '@/lib/api';
 import {
   useLayout,
   useProjectLayouts,
@@ -25,6 +24,7 @@ import {
   useAutoLayout,
   layoutKeys,
 } from './useLayout';
+import api from '@/lib/api';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
