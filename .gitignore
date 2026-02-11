@@ -32,6 +32,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Exclude frontend lib from Python lib ignore
+!frontend/src/lib/
+
 # Virtual environments
 .venv/
 venv/
