@@ -240,12 +240,12 @@ Teams are sub-groups within organizations that provide granular access control f
 | Endpoint | Method | Required Permission | Purpose |
 |----------|--------|-------------------|---------|
 | `/organizations/{org_id}/teams` | POST | Org Admin | Create team |
-| `/organizations/{org_id}/teams` | GET | Org Member | List teams |
-| `/organizations/{org_id}/teams/{team_id}` | GET | Team Member | View team details |
+| `/organizations/{org_id}/teams` | GET | Org Viewer | List teams |
+| `/organizations/{org_id}/teams/{team_id}` | GET | Org Viewer | View team details |
 | `/organizations/{org_id}/teams/{team_id}` | PATCH | Team Lead | Update team |
 | `/organizations/{org_id}/teams/{team_id}` | DELETE | Org Admin | Delete team |
 | `/organizations/{org_id}/teams/{team_id}/members` | POST | Team Lead | Add member |
-| `/organizations/{org_id}/teams/{team_id}/members` | GET | Team Member | List members |
+| `/organizations/{org_id}/teams/{team_id}/members` | GET | Org Viewer | List members |
 | `/organizations/{org_id}/teams/{team_id}/members/{member_id}` | PATCH | Team Lead | Update member role |
 | `/organizations/{org_id}/teams/{team_id}/members/{member_id}` | DELETE | Team Lead | Remove member |
 
@@ -446,7 +446,7 @@ async def get_design(design_id: UUID, user_id: UUID, db: AsyncSession):
 RBAC tests are located in:
 - **System Permissions**: `backend/tests/security/test_authorization.py`
 - **Organization RBAC**: `backend/tests/api/test_organizations_rbac.py` (45+ tests)
-- **Team RBAC**: `backend/tests/api/test_teams.py`
+- **Team RBAC**: `backend/tests/api/test_teams.py`, `backend/tests/api/test_teams_rbac.py`
 - **E2E Tests**: `frontend/e2e/organization-rbac.spec.ts`
 
 Run tests:
@@ -525,6 +525,7 @@ async def endpoint(current_user: User):
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-02-11 | 1.1 | Updated Teams endpoints to require Org Viewer (IDOR fix) |
 | 2026-02-11 | 1.0 | Initial permission matrix documentation |
 
 ---
