@@ -223,6 +223,11 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         if response.status_code == 401:
             await self._track_failed_auth(client_ip)
 
+        # Track failed authorization attempts (403 Forbidden)
+        if response.status_code == 403:
+            user_id = getattr(request.state, "user_id", None)
+            await self._track_failed_authorization(client_ip, user_id)
+
     def _detect_suspicious_request(
         self,
         request: Request,
@@ -265,6 +270,60 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
 
             logger = logging.getLogger("security")
             logger.warning(f"Multiple failed auth attempts from {client_ip}: {count} in last hour")
+
+    async def _track_failed_authorization(self, client_ip: str, user_id: str | None = None) -> None:
+        """
+        Track failed authorization attempts (403 Forbidden).
+
+        Tracks both by IP address and by user_id (if authenticated) to detect
+        enumeration attempts or unauthorized access probing.
+
+        Args:
+            client_ip: Client IP address
+            user_id: User ID if the request was authenticated
+        """
+        import logging
+
+        logger = logging.getLogger("security")
+
+        # Track by IP
+        ip_key = f"security:failed_authz:ip:{client_ip}"
+        ip_count = await redis_client.increment_counter(ip_key, window_seconds=3600)  # type: ignore[attr-defined]
+
+        # Log warnings at different thresholds
+        if ip_count == 10:
+            logger.warning(
+                f"Multiple forbidden access attempts from {client_ip}: {ip_count} in last hour"
+            )
+        elif ip_count == 20:
+            logger.error(
+                f"High volume of forbidden access attempts from {client_ip}: {ip_count} in last hour - "
+                "possible enumeration attack"
+            )
+        elif ip_count > 20 and ip_count % 10 == 0:
+            # Continue logging every 10 attempts after 20
+            logger.error(
+                f"Ongoing forbidden access attempts from {client_ip}: {ip_count} in last hour"
+            )
+
+        # Track by user_id for authenticated requests
+        if user_id:
+            user_key = f"security:failed_authz:user:{user_id}"
+            user_count = await redis_client.increment_counter(user_key, window_seconds=3600)  # type: ignore[attr-defined]
+
+            if user_count == 10:
+                logger.warning(
+                    f"Multiple forbidden access attempts from user {user_id}: {user_count} in last hour"
+                )
+            elif user_count == 20:
+                logger.error(
+                    f"High volume of forbidden access attempts from user {user_id}: {user_count} in last hour - "
+                    "possible privilege escalation attempt"
+                )
+            elif user_count > 20 and user_count % 10 == 0:
+                logger.error(
+                    f"Ongoing forbidden access attempts from user {user_id}: {user_count} in last hour"
+                )
 
 
 # =============================================================================

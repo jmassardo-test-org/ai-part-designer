@@ -155,7 +155,9 @@ class RedisClient:
                     key_parts = [str(a) for a in args] + [
                         f"{k}={v}" for k, v in sorted(kwargs.items())
                     ]
-                    key_hash = hashlib.md5(":".join(key_parts).encode(), usedforsecurity=False).hexdigest()[:12]
+                    key_hash = hashlib.md5(
+                        ":".join(key_parts).encode(), usedforsecurity=False
+                    ).hexdigest()[:12]
                     cache_key = f"{key_prefix}:{key_hash}"
 
                 # Try cache
@@ -295,6 +297,31 @@ class RedisClient:
         """Decrement a counter."""
         result = await self.client.decrby(key, amount)
         return int(result)
+
+    async def increment_counter(self, key: str, window_seconds: int) -> int:
+        """
+        Increment a counter and set TTL if not already set.
+
+        Args:
+            key: Redis key for the counter
+            window_seconds: TTL window in seconds
+
+        Returns:
+            Current count after increment
+        """
+        pipe = self.client.pipeline()
+        pipe.incr(key)
+        pipe.ttl(key)
+
+        results = await pipe.execute()
+        current_count = results[0]
+        current_ttl = results[1]
+
+        # Set TTL if this is a new key (TTL returns -1 for keys without expiry)
+        if current_ttl == -1:
+            await self.expire(key, window_seconds)
+
+        return int(current_count)
 
     # =========================================================================
     # Hash Operations
