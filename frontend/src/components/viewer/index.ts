@@ -1,5 +1,10 @@
 export { ModelViewer, default } from './ModelViewer';
 export { AdvancedCADViewer } from './AdvancedCADViewer';
+export {
+  PartTransformControls,
+  type TransformMode,
+  type PartTransform,
+} from './PartTransformControls';
 
 // Advanced CAD Viewer Tools
 export {
