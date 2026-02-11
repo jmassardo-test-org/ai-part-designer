@@ -205,7 +205,7 @@ def require_org_feature(feature_name: str) -> Callable[..., None]:
 
     Args:
         feature_name: Name of the feature to require
-    
+
     Usage:
         # For endpoints with organization_id in path
         @router.post("/organizations/{organization_id}/teams")
@@ -215,8 +215,8 @@ def require_org_feature(feature_name: str) -> Callable[..., None]:
             ...
         ):
             ...
-        
-        # For endpoints with org_id in path  
+
+        # For endpoints with org_id in path
         @router.post("/orgs/{org_id}/something")
         async def do_something(
             _feature: None = Depends(require_org_feature("some_feature")),
@@ -236,7 +236,7 @@ def require_org_feature(feature_name: str) -> Callable[..., None]:
 
         # Try to get org_id from either parameter name
         actual_org_id = organization_id or org_id
-        
+
         # If no org_id provided, this is a personal resource - skip check
         if not actual_org_id:
             return
@@ -276,7 +276,7 @@ def require_org_feature_for_project(feature_name: str) -> Callable[..., None]:
 
     Args:
         feature_name: Name of the feature to require
-    
+
     Usage:
         @router.post("/projects/{project_id}/designs")
         async def create_design(
@@ -347,7 +347,7 @@ def require_org_feature_for_design(feature_name: str) -> Callable[..., None]:
 
     Args:
         feature_name: Name of the feature to require
-    
+
     Usage:
         @router.post("/designs/{design_id}/share")
         async def share_design(
@@ -431,7 +431,7 @@ def require_org_feature_for_assembly(feature_name: str) -> Callable[..., None]:
 
     Args:
         feature_name: Name of the feature to require
-    
+
     Usage:
         @router.get("/assemblies/{assembly_id}/bom")
         async def get_bom(

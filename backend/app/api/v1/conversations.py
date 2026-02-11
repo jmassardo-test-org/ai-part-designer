@@ -333,11 +333,11 @@ async def create_conversation(
 ) -> ConversationResponse:
     """
     Start a new conversation for CAD generation.
-    
+
     Optionally attach context from an existing design for Q&A.
     """
     design_id = request.design_id
-    
+
     # If design_id provided, verify access and extract context
     model_context_dict = None
     if design_id:
@@ -349,11 +349,11 @@ async def create_conversation(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Design {design_id} not found or not accessible",
             )
-        
+
         # Extract model context
         model_context = extract_model_context(design)
         model_context_dict = model_context.to_dict()
-    
+
     conversation = Conversation(
         user_id=current_user.id,
         design_id=design_id,
