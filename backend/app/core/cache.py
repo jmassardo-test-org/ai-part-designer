@@ -155,7 +155,7 @@ class RedisClient:
                     key_parts = [str(a) for a in args] + [
                         f"{k}={v}" for k, v in sorted(kwargs.items())
                     ]
-                    key_hash = hashlib.md5(":".join(key_parts).encode()).hexdigest()[:12]
+                    key_hash = hashlib.md5(":".join(key_parts).encode(), usedforsecurity=False).hexdigest()[:12]
                     cache_key = f"{key_prefix}:{key_hash}"
 
                 # Try cache

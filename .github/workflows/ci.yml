@@ -135,15 +135,16 @@ jobs:
 
       - name: Run Bandit security linter
         working-directory: backend
-        continue-on-error: true
         run: uv run bandit -r app -ll -ii
 
       - name: Run pip-audit
         working-directory: backend
-        continue-on-error: true
         run: |
           pip install pip-audit
-          pip-audit -r requirements.txt
+          # Known issues:
+          # - protobuf 4.25.8 CVE-2026-0994: Cannot upgrade to 5.x due to google-cloud-kms and opentelemetry-exporter-jaeger compatibility
+          # - ecdsa 0.19.1 CVE-2024-23342: No fix available yet
+          pip-audit -r requirements.txt --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2024-23342
 
   # ============================================================
   # STAGE 2: Tests (only run if lint passes)

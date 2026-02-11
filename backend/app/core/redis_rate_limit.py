@@ -163,7 +163,7 @@ class RedisRateLimiter(RateLimiter):
         pipe.zcard(redis_key)
 
         # Add new entry (will execute only if under limit)
-        request_id = f"{now}:{hashlib.md5(str(now).encode()).hexdigest()[:8]}"
+        request_id = f"{now}:{hashlib.md5(str(now).encode(), usedforsecurity=False).hexdigest()[:8]}"
 
         results = await pipe.execute()
         current_count = results[1]
