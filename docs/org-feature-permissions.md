@@ -2,6 +2,8 @@
 
 This document describes how to implement and use organization-level feature permissions in the AI Part Designer platform.
 
+> **Note:** For comprehensive role-based access control (RBAC) documentation including organization roles and permissions, see the [RBAC Permission Matrix](./rbac-permission-matrix.md).
+
 ## Overview
 
 Organization-level feature permissions allow organization admins to control which features are enabled for their organization. This provides fine-grained control over functionality based on subscription tiers and organizational needs.
