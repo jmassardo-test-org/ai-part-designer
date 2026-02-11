@@ -598,3 +598,167 @@ class TestProjectTeams:
             response = await async_client.delete(f"/api/v1/projects/{project_id}/teams/{team_id}")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    @pytest.mark.asyncio
+    async def test_assign_team_unauthorized_returns_403(
+        self,
+        async_client: AsyncClient,
+        mock_current_user,
+    ) -> None:
+        """Test that unauthorized users cannot assign teams to projects."""
+        from fastapi import HTTPException
+
+        project_id = uuid4()
+        team_id = uuid4()
+
+        # Mock check_project_permission to raise 403
+        with patch(
+            "app.api.v1.teams.check_project_permission",
+            side_effect=HTTPException(status_code=403, detail="Not authorized"),
+        ):
+            response = await async_client.post(
+                f"/api/v1/projects/{project_id}/teams",
+                json={"team_id": str(team_id), "permission_level": "editor"},
+            )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.asyncio
+    async def test_update_assignment_unauthorized_returns_403(
+        self,
+        async_client: AsyncClient,
+        mock_current_user,
+    ) -> None:
+        """Test that unauthorized users cannot update project team assignments."""
+        from fastapi import HTTPException
+
+        project_id = uuid4()
+        team_id = uuid4()
+
+        # Mock check_project_permission to raise 403
+        with patch(
+            "app.api.v1.teams.check_project_permission",
+            side_effect=HTTPException(status_code=403, detail="Not authorized"),
+        ):
+            response = await async_client.patch(
+                f"/api/v1/projects/{project_id}/teams/{team_id}",
+                json={"permission_level": "viewer"},
+            )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.asyncio
+    async def test_remove_assignment_unauthorized_returns_403(
+        self,
+        async_client: AsyncClient,
+        mock_current_user,
+    ) -> None:
+        """Test that unauthorized users cannot remove team assignments."""
+        from fastapi import HTTPException
+
+        project_id = uuid4()
+        team_id = uuid4()
+
+        # Mock check_project_permission to raise 403
+        with patch(
+            "app.api.v1.teams.check_project_permission",
+            side_effect=HTTPException(status_code=403, detail="Not authorized"),
+        ):
+            response = await async_client.delete(f"/api/v1/projects/{project_id}/teams/{team_id}")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.asyncio
+    async def test_assign_team_project_owner_returns_201(
+        self,
+        async_client: AsyncClient,
+        mock_current_user,
+    ) -> None:
+        """Test that project owners can assign teams."""
+        from app.models.project import Project
+
+        project_id = uuid4()
+        team_id = uuid4()
+
+        # Mock project with user as owner
+        mock_project = MagicMock(spec=Project)
+        mock_project.id = project_id
+        mock_project.user_id = mock_current_user.id
+        mock_project.organization_id = None
+
+        mock_assignment = MagicMock()
+        mock_assignment.id = uuid4()
+        mock_assignment.project_id = project_id
+        mock_assignment.team_id = team_id
+        mock_assignment.permission_level = "editor"
+        mock_assignment.assigned_by_id = mock_current_user.id
+        mock_assignment.assigned_at = datetime.now(tz=UTC)
+        mock_assignment.created_at = datetime.now(tz=UTC)
+        mock_assignment.updated_at = datetime.now(tz=UTC)
+
+        with (
+            patch(
+                "app.api.v1.teams.check_project_permission",
+                return_value=mock_project,
+            ),
+            patch.object(
+                TeamService, "assign_team_to_project", return_value=mock_assignment
+            ),
+        ):
+            response = await async_client.post(
+                f"/api/v1/projects/{project_id}/teams",
+                json={"team_id": str(team_id), "permission_level": "editor"},
+            )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        assert data["team_id"] == str(team_id)
+        assert data["permission_level"] == "editor"
+
+    @pytest.mark.asyncio
+    async def test_assign_team_org_admin_returns_201(
+        self,
+        async_client: AsyncClient,
+        mock_current_user,
+    ) -> None:
+        """Test that org admins can assign teams to org projects."""
+        from app.models.project import Project
+
+        project_id = uuid4()
+        team_id = uuid4()
+        org_id = uuid4()
+
+        # Mock project belonging to org
+        mock_project = MagicMock(spec=Project)
+        mock_project.id = project_id
+        mock_project.user_id = uuid4()  # Different user
+        mock_project.organization_id = org_id
+
+        mock_assignment = MagicMock()
+        mock_assignment.id = uuid4()
+        mock_assignment.project_id = project_id
+        mock_assignment.team_id = team_id
+        mock_assignment.permission_level = "editor"
+        mock_assignment.assigned_by_id = mock_current_user.id
+        mock_assignment.assigned_at = datetime.now(tz=UTC)
+        mock_assignment.created_at = datetime.now(tz=UTC)
+        mock_assignment.updated_at = datetime.now(tz=UTC)
+
+        with (
+            patch(
+                "app.api.v1.teams.check_project_permission",
+                return_value=mock_project,
+            ),
+            patch.object(
+                TeamService, "assign_team_to_project", return_value=mock_assignment
+            ),
+        ):
+            response = await async_client.post(
+                f"/api/v1/projects/{project_id}/teams",
+                json={"team_id": str(team_id), "permission_level": "editor"},
+            )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        assert data["team_id"] == str(team_id)
+        assert data["permission_level"] == "editor"
