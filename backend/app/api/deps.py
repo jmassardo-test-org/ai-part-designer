@@ -199,13 +199,27 @@ def require_org_feature(feature_name: str) -> Callable[..., None]:
     """
     Dependency to require an organization to have a specific feature enabled.
 
+    This dependency checks if the organization has the specified feature enabled.
+    It tries to get org_id from path parameters (org_id or organization_id).
+    If the resource is personal (not org-scoped), the check is skipped.
+
     Args:
         feature_name: Name of the feature to require
     
     Usage:
-        @router.post("/designs")
-        async def create_design(
-            _feature: None = Depends(require_org_feature("ai_generation")),
+        # For endpoints with organization_id in path
+        @router.post("/organizations/{organization_id}/teams")
+        async def create_team(
+            _feature: None = Depends(require_org_feature("teams")),
+            organization_id: UUID,
+            ...
+        ):
+            ...
+        
+        # For endpoints with org_id in path  
+        @router.post("/orgs/{org_id}/something")
+        async def do_something(
+            _feature: None = Depends(require_org_feature("some_feature")),
             org_id: UUID,
             ...
         ):
@@ -213,19 +227,266 @@ def require_org_feature(feature_name: str) -> Callable[..., None]:
     """
 
     async def dependency(
-        org_id: UUID,
+        organization_id: UUID | None = None,
+        org_id: UUID | None = None,
         db: AsyncSession = Depends(get_db),
         _user: User = Depends(get_current_user),
     ) -> None:
         from app.models.organization import Organization
 
+        # Try to get org_id from either parameter name
+        actual_org_id = organization_id or org_id
+        
+        # If no org_id provided, this is a personal resource - skip check
+        if not actual_org_id:
+            return
+
         # Get organization
         result = await db.execute(
-            select(Organization).where(Organization.id == org_id)
+            select(Organization).where(Organization.id == actual_org_id)
         )
         org = result.scalar_one_or_none()
 
         if not org:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found",
+            )
+
+        # Check if feature is enabled
+        if not org.has_feature(feature_name):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "feature_disabled",
+                    "message": f"Feature '{feature_name}' is not enabled for this organization",
+                    "feature": feature_name,
+                },
+            )
+
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
+
+
+def require_org_feature_for_project(feature_name: str) -> Callable[..., None]:
+    """
+    Dependency to require an organization feature for project-scoped operations.
+
+    This checks if a project belongs to an organization and if so,
+    verifies the feature is enabled. Personal projects (no org) skip the check.
+
+    Args:
+        feature_name: Name of the feature to require
+    
+    Usage:
+        @router.post("/projects/{project_id}/designs")
+        async def create_design(
+            _feature: None = Depends(require_org_feature_for_project("ai_generation")),
+            project_id: UUID,
+            ...
+        ):
+            ...
+    """
+
+    async def dependency(
+        project_id: UUID,
+        db: AsyncSession = Depends(get_db),
+        _user: User = Depends(get_current_user),
+    ) -> None:
+        from app.models.organization import Organization
+        from app.models.project import Project
+
+        # Get project
+        result = await db.execute(
+            select(Project).where(Project.id == project_id)
+        )
+        project = result.scalar_one_or_none()
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
+        # If no organization, this is a personal project - skip check
+        if not project.organization_id:
+            return
+
+        # Get organization
+        result = await db.execute(
+            select(Organization).where(Organization.id == project.organization_id)
+        )
+        org = result.scalar_one_or_none()
+
+        if not org:
+            # Organization was deleted but project still references it
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found",
+            )
+
+        # Check if feature is enabled
+        if not org.has_feature(feature_name):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "feature_disabled",
+                    "message": f"Feature '{feature_name}' is not enabled for this organization",
+                    "feature": feature_name,
+                },
+            )
+
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
+
+
+def require_org_feature_for_design(feature_name: str) -> Callable[..., None]:
+    """
+    Dependency to require an organization feature for design-scoped operations.
+
+    This checks if a design's project belongs to an organization and if so,
+    verifies the feature is enabled. Personal designs (no org) skip the check.
+
+    Args:
+        feature_name: Name of the feature to require
+    
+    Usage:
+        @router.post("/designs/{design_id}/share")
+        async def share_design(
+            _feature: None = Depends(require_org_feature_for_design("design_sharing")),
+            design_id: UUID,
+            ...
+        ):
+            ...
+    """
+
+    async def dependency(
+        design_id: UUID,
+        db: AsyncSession = Depends(get_db),
+        _user: User = Depends(get_current_user),
+    ) -> None:
+        from app.models.design import Design
+        from app.models.organization import Organization
+        from app.models.project import Project
+
+        # Get design
+        result = await db.execute(
+            select(Design).where(Design.id == design_id)
+        )
+        design = result.scalar_one_or_none()
+
+        if not design:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Design not found",
+            )
+
+        # Get project
+        result = await db.execute(
+            select(Project).where(Project.id == design.project_id)
+        )
+        project = result.scalar_one_or_none()
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
+        # If no organization, this is a personal design - skip check
+        if not project.organization_id:
+            return
+
+        # Get organization
+        result = await db.execute(
+            select(Organization).where(Organization.id == project.organization_id)
+        )
+        org = result.scalar_one_or_none()
+
+        if not org:
+            # Organization was deleted but project still references it
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found",
+            )
+
+        # Check if feature is enabled
+        if not org.has_feature(feature_name):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "feature_disabled",
+                    "message": f"Feature '{feature_name}' is not enabled for this organization",
+                    "feature": feature_name,
+                },
+            )
+
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
+
+
+def require_org_feature_for_assembly(feature_name: str) -> Callable[..., None]:
+    """
+    Dependency to require an organization feature for assembly-scoped operations.
+
+    This checks if an assembly's project belongs to an organization and if so,
+    verifies the feature is enabled. Personal assemblies (no org) skip the check.
+
+    Args:
+        feature_name: Name of the feature to require
+    
+    Usage:
+        @router.get("/assemblies/{assembly_id}/bom")
+        async def get_bom(
+            _feature: None = Depends(require_org_feature_for_assembly("bom")),
+            assembly_id: UUID,
+            ...
+        ):
+            ...
+    """
+
+    async def dependency(
+        assembly_id: UUID,
+        db: AsyncSession = Depends(get_db),
+        _user: User = Depends(get_current_user),
+    ) -> None:
+        from app.models.assembly import Assembly
+        from app.models.organization import Organization
+        from app.models.project import Project
+
+        # Get assembly
+        result = await db.execute(
+            select(Assembly).where(Assembly.id == assembly_id)
+        )
+        assembly = result.scalar_one_or_none()
+
+        if not assembly:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assembly not found",
+            )
+
+        # Get project
+        result = await db.execute(
+            select(Project).where(Project.id == assembly.project_id)
+        )
+        project = result.scalar_one_or_none()
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
+        # If no organization, this is a personal assembly - skip check
+        if not project.organization_id:
+            return
+
+        # Get organization
+        result = await db.execute(
+            select(Organization).where(Organization.id == project.organization_id)
+        )
+        org = result.scalar_one_or_none()
+
+        if not org:
+            # Organization was deleted but project still references it
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Organization not found",
@@ -264,6 +525,9 @@ __all__ = [
     "require_feature",
     "require_job_slot",
     "require_org_feature",
+    "require_org_feature_for_assembly",
+    "require_org_feature_for_design",
+    "require_org_feature_for_project",
     "require_role",
     "require_storage",
 ]

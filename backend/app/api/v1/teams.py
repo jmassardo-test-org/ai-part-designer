@@ -11,6 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_org_feature
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models.team import TeamRole
@@ -67,6 +68,7 @@ async def create_team(
     data: TeamCreate,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    _feature: None = Depends(require_org_feature("teams")),
 ) -> TeamResponse:
     """Create a new team in an organization.
 
@@ -367,6 +369,7 @@ async def add_team_member(
     data: TeamMemberAdd,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    _feature: None = Depends(require_org_feature("teams")),
 ) -> TeamMemberResponse:
     """Add a member to a team.
 
@@ -433,6 +436,7 @@ async def bulk_add_team_members(
     data: TeamMemberBulkAdd,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    _feature: None = Depends(require_org_feature("teams")),
 ) -> list[TeamMemberResponse]:
     """Bulk add members to a team.
 
