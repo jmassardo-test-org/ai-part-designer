@@ -290,6 +290,7 @@ No security issues were identified during this audit. The codebase demonstrates 
 
 ## References
 
+- **RBAC Permission Matrix:** [../rbac-permission-matrix.md](../rbac-permission-matrix.md) - Complete permission documentation
 - **Source Code:** `backend/app/api/v1/organizations.py`
 - **Models:** `backend/app/models/organization.py`
 - **Unit Tests:** `backend/tests/api/test_organizations_rbac.py`

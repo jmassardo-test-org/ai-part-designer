@@ -95,7 +95,8 @@ These tests verify that:
 
 ## Related Documentation
 
-- [Organization RBAC Audit Report](../../../docs/security/org-rbac-audit.md)
+- [RBAC Permission Matrix](../../../docs/rbac-permission-matrix.md) - Complete permission documentation
+- [Organization RBAC Audit Report](../../../docs/security/org-rbac-audit.md) - Security audit report
 - [Organization E2E Tests](../../../frontend/e2e/organization-rbac.spec.ts)
 - [Organization API Source](../../app/api/v1/organizations.py)
 - [Organization Models](../../app/models/organization.py)
