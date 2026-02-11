@@ -67,7 +67,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
-import { adminApi } from '@/lib/api/admin';
 import type {
   AnalyticsOverview,
   AdminUser,
@@ -90,6 +89,7 @@ import type {
   TimeSeriesAnalytics,
   RecipientType,
 } from '@/types/admin';
+import { adminApi } from '@/lib/api/admin';
 
 // =============================================================================
 // Valid tab types

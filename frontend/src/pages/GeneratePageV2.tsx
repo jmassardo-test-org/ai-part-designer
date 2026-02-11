@@ -31,17 +31,17 @@ import {
   useCompileEnclosure,
   useSaveDesignV2,
 } from '@/hooks/useGenerateV2';
+import type {
+  EnclosureSpec,
+  GenerateV2Response,
+  CompileResponse,
+} from '@/types/cad-v2';
 import {
   createEnclosureSpec,
   addVentilation,
   addLid,
   getDownloadUrl,
 } from '@/lib/generate-v2';
-import type {
-  EnclosureSpec,
-  GenerateV2Response,
-  CompileResponse,
-} from '@/types/cad-v2';
 
 // Example prompts for v2 enclosure generation
 const EXAMPLE_PROMPTS = [

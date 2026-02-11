@@ -57,8 +57,8 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { componentsApi } from '@/lib/api/components';
 import { ComponentSpecsViewer } from './ComponentSpecsViewer';
+import { componentsApi } from '@/lib/api/components';
 
 interface ProjectComponent {
   id: string;

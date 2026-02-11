@@ -4,8 +4,8 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import * as designsApi from '@/lib/designs';
 import { useDesignManagement } from './useDesignManagement';
+import * as designsApi from '@/lib/designs';
 
 // Mock the designs API
 vi.mock('@/lib/designs', () => ({

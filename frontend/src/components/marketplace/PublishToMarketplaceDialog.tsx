@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCategories, publishDesign, unpublishDesign } from '@/lib/marketplace';
 import type { CategoryResponse } from '@/types/marketplace';
+import { getCategories, publishDesign, unpublishDesign } from '@/lib/marketplace';
 
 interface PublishToMarketplaceDialogProps {
   isOpen: boolean;

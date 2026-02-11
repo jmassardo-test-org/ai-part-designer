@@ -2,12 +2,10 @@
  * Tests for Audit Log Viewer Component
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as auditLogsApi from '@/lib/api/auditLogs';
-
 import AuditLogViewer from './AuditLogViewer';
 
 // Mock the audit logs API

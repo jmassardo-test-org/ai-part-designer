@@ -19,6 +19,7 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TeamsTab } from '@/components/teams/TeamsTab';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   organizationsApi,
   Organization,
@@ -832,28 +833,33 @@ function SettingsTab({ org, onUpdate, onDelete, isOwner }: SettingsTabProps) {
 export function OrganizationSettingsPage() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [org, setOrg] = useState<Organization | null>(null);
+  const [membership, setMembership] = useState<OrganizationMember | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('general');
 
-  // Mock current user ID - in real app, get from auth context
-  const currentUserId = 'current-user-id';
-  const isAdmin = true; // TODO: Check from membership
+  const currentUserId = user?.id;
+  const isAdmin = membership?.role === 'admin' || membership?.role === 'owner';
   const isOwner = org?.owner_id === currentUserId;
 
   const loadOrg = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId || !currentUserId) return;
     setIsLoading(true);
     try {
-      const data = await organizationsApi.get(orgId);
-      setOrg(data);
+      const [orgData, membershipData] = await Promise.all([
+        organizationsApi.get(orgId),
+        organizationsApi.getCurrentUserMembership(orgId),
+      ]);
+      setOrg(orgData);
+      setMembership(membershipData);
     } catch {
       setError('Failed to load organization');
     } finally {
       setIsLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, currentUserId]);
 
   useEffect(() => {
     loadOrg();
