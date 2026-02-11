@@ -11,10 +11,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.api.deps import require_org_feature
+from app.api.v1.organizations import require_org_role
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models.organization import OrganizationMember, OrganizationRole
+from app.models.project import Project
 from app.models.team import TeamRole
 from app.models.user import User
 from app.schemas.team import (
@@ -104,6 +106,65 @@ async def get_team_service(
     return TeamService(db)
 
 
+async def check_project_permission(
+    db: AsyncSession,
+    project_id: UUID,
+    user: User,
+) -> Project:
+    """Check if user has permission to manage project team assignments.
+
+    User has permission if they are:
+    - The project owner (user_id matches)
+    - An ADMIN or OWNER in the project's organization (if project has one)
+
+    Args:
+        db: Database session.
+        project_id: Project UUID.
+        user: Current authenticated user.
+
+    Returns:
+        Project instance if user has permission.
+
+    Raises:
+        HTTPException 404: If project not found.
+        HTTPException 403: If user lacks permission.
+    """
+    # Fetch project
+    query = select(Project).where(Project.id == project_id).where(Project.deleted_at.is_(None))
+    result = await db.execute(query)
+    project = result.scalar_one_or_none()
+
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    # Check if user is project owner
+    if project.user_id == user.id:
+        return project
+
+    # Check if project has organization and user is admin
+    if project.organization_id:
+        try:
+            await require_org_role(
+                db,
+                project.organization_id,
+                user.id,
+                OrganizationRole.ADMIN,
+            )
+            return project
+        except HTTPException:
+            # User is not an admin in the organization
+            pass
+
+    # User has no permission
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Not authorized to manage team assignments for this project",
+    )
+
+
 # Team CRUD endpoints
 
 
@@ -119,6 +180,7 @@ async def create_team(
     data: TeamCreate,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    _feature: None = Depends(require_org_feature("teams")),
 ) -> TeamResponse:
     """Create a new team in an organization.
 
@@ -441,6 +503,7 @@ async def add_team_member(
     data: TeamMemberAdd,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    _feature: None = Depends(require_org_feature("teams")),
 ) -> TeamMemberResponse:
     """Add a member to a team.
 
@@ -507,6 +570,7 @@ async def bulk_add_team_members(
     data: TeamMemberBulkAdd,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    _feature: None = Depends(require_org_feature("teams")),
 ) -> list[TeamMemberResponse]:
     """Bulk add members to a team.
 
@@ -775,6 +839,7 @@ async def assign_team_to_project(
     data: ProjectTeamAssign,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ProjectTeamResponse:
     """Assign a team to a project.
 
@@ -783,11 +848,12 @@ async def assign_team_to_project(
         data: Assignment data.
         current_user: Authenticated user.
         service: Team service.
+        db: Database session.
 
     Returns:
         Created assignment.
     """
-    # TODO: Add project permission check
+    await check_project_permission(db, project_id, current_user)
     assignment = await service.assign_team_to_project(data, project_id, current_user)
 
     return ProjectTeamResponse(
@@ -812,8 +878,9 @@ async def update_project_team(
     project_id: UUID,
     team_id: UUID,
     data: ProjectTeamUpdate,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ProjectTeamResponse:
     """Update a project-team assignment.
 
@@ -823,6 +890,7 @@ async def update_project_team(
         data: Update data.
         current_user: Authenticated user.
         service: Team service.
+        db: Database session.
 
     Returns:
         Updated assignment.
@@ -830,6 +898,7 @@ async def update_project_team(
     Raises:
         HTTPException 404: If assignment not found.
     """
+    await check_project_permission(db, project_id, current_user)
     try:
         assignment = await service.update_project_team(project_id, team_id, data)
         return ProjectTeamResponse(
@@ -858,8 +927,9 @@ async def update_project_team(
 async def remove_team_from_project(
     project_id: UUID,
     team_id: UUID,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     """Remove a team from a project.
 
@@ -868,6 +938,7 @@ async def remove_team_from_project(
         team_id: Team UUID.
         current_user: Authenticated user.
         service: Team service.
+        db: Database session.
     """
-    # TODO: Add project permission check
+    await check_project_permission(db, project_id, current_user)
     await service.remove_team_from_project(project_id, team_id)
