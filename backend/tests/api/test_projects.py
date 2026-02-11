@@ -657,6 +657,44 @@ class TestProjectTeamAssignment:
         assert test_team is not None
         assert test_team["name"] == sample_team.name
 
+    async def test_get_available_teams_multiple(
+        self, client: AsyncClient, auth_headers: dict, sample_team, test_user, db_session
+    ):
+        """Should return all teams where user is a member."""
+        from app.models.team import Team, TeamMember, TeamRole
+
+        # Create a second team with the same organization
+        team2 = Team(
+            id=uuid4(),
+            organization_id=sample_team.organization_id,
+            name="Second Test Team",
+            slug="second-test-team",
+            created_by_id=test_user.id,
+        )
+        db_session.add(team2)
+        await db_session.flush()
+
+        # Add user as member of second team
+        team_member = TeamMember(
+            team_id=team2.id,
+            user_id=test_user.id,
+            role=TeamRole.MEMBER,
+            added_by_id=test_user.id,
+        )
+        db_session.add(team_member)
+        await db_session.commit()
+
+        response = await client.get("/api/v1/projects/available-teams", headers=auth_headers)
+
+        assert response.status_code == 200
+        teams = response.json()
+        assert len(teams) >= 2
+
+        # Verify both teams are in the response
+        team_ids = [t["id"] for t in teams]
+        assert str(sample_team.id) in team_ids
+        assert str(team2.id) in team_ids
+
     async def test_get_available_teams_unauthenticated(self, client: AsyncClient):
         """Should return 401 without authentication."""
         response = await client.get("/api/v1/projects/available-teams")
