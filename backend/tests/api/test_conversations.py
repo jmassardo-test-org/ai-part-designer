@@ -485,3 +485,156 @@ class TestSendMessageResponseSchema:
         assert len(response.additional_messages) == 1
         assert response.additional_messages[0].message_type == "confirmation"
         assert "Here's what I understand" in response.additional_messages[0].content
+
+
+# =============================================================================
+# Model Context Tests
+# =============================================================================
+
+
+class TestModelContext:
+    """Tests for model context integration in conversations."""
+
+    async def test_create_conversation_with_design_context(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session: AsyncSession,
+        test_user,
+        test_project,
+    ):
+        """Should create conversation with design context attached."""
+        from app.models.design import Design
+
+        # Create a design
+        design = Design(
+            id=uuid4(),
+            user_id=test_user.id,
+            project_id=test_project.id,
+            name="Test Model",
+            description="A test model for Q&A",
+            source_type="ai_generated",
+            status="ready",
+            extra_data={
+                "dimensions": {"x": 100, "y": 50, "z": 30, "unit": "mm"},
+                "features": [
+                    {
+                        "type": "hole",
+                        "description": "mounting hole",
+                        "parameters": {"diameter": 5},
+                    }
+                ],
+            },
+        )
+        db_session.add(design)
+        await db_session.commit()
+        await db_session.refresh(design)
+
+        # Create conversation with design context
+        response = await client.post(
+            "/api/v1/conversations/",
+            headers=auth_headers,
+            json={"design_id": str(design.id)},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert "id" in data
+        assert data["status"] == "active"
+
+        # Should have understanding with model_context
+        assert data.get("understanding") is not None
+        understanding = data["understanding"]
+        assert "model_context" in understanding
+        assert understanding["model_context"]["name"] == "Test Model"
+        assert "dimensions" in understanding["model_context"]
+
+        # Welcome message should reference the model
+        assert len(data["messages"]) > 0
+        welcome_msg = data["messages"][0]
+        assert "Test Model" in welcome_msg["content"]
+
+        # Cleanup
+        await client.delete(f"/api/v1/conversations/{data['id']}", headers=auth_headers)
+        await db_session.delete(design)
+        await db_session.commit()
+
+    async def test_create_conversation_with_invalid_design_id(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """Should return 404 for invalid design ID."""
+        fake_design_id = str(uuid4())
+        response = await client.post(
+            "/api/v1/conversations/",
+            headers=auth_headers,
+            json={"design_id": fake_design_id},
+        )
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    async def test_create_conversation_with_other_users_design(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        auth_headers_2: dict,
+        db_session: AsyncSession,
+        test_user,
+        test_user_2,
+        test_project,
+    ):
+        """Should return 404 when trying to use another user's design."""
+        from app.models.design import Design
+
+        # Create a design owned by test_user
+        design = Design(
+            id=uuid4(),
+            user_id=test_user.id,
+            project_id=test_project.id,
+            name="Private Design",
+            source_type="ai_generated",
+            status="ready",
+            extra_data={},
+        )
+        db_session.add(design)
+        await db_session.commit()
+
+        # Try to create conversation with test_user_2's auth
+        response = await client.post(
+            "/api/v1/conversations/",
+            headers=auth_headers_2,
+            json={"design_id": str(design.id)},
+        )
+
+        assert response.status_code == 404
+
+        # Cleanup
+        await db_session.delete(design)
+        await db_session.commit()
+
+    async def test_create_conversation_without_design_id(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """Should create conversation without model context when design_id not provided."""
+        response = await client.post(
+            "/api/v1/conversations/",
+            headers=auth_headers,
+            json={},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert "id" in data
+
+        # Should not have model_context in understanding
+        if data.get("understanding"):
+            assert data["understanding"].get("model_context") is None
+
+        # Welcome message should be generic
+        assert len(data["messages"]) > 0
+        welcome_msg = data["messages"][0]
+        assert "design a CAD part" in welcome_msg["content"]
+
+        # Cleanup
+        await client.delete(f"/api/v1/conversations/{data['id']}", headers=auth_headers)
+
