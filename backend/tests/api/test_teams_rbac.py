@@ -287,9 +287,7 @@ class TestGetTeamRBAC:
         test_team: Team,
     ):
         """Unauthenticated user should not be able to get team."""
-        response = await client.get(
-            f"/api/v1/organizations/{test_org.id}/teams/{test_team.id}"
-        )
+        response = await client.get(f"/api/v1/organizations/{test_org.id}/teams/{test_team.id}")
         assert response.status_code == 401
 
 
