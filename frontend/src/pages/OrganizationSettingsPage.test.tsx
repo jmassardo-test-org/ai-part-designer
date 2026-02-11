@@ -3,7 +3,7 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrganizationSettingsPage } from './OrganizationSettingsPage';
 import type { Organization, OrganizationMember } from '@/lib/api/organizations';
@@ -108,14 +108,11 @@ vi.mock('@/components/teams/TeamsTab', () => ({
 
 const renderOrganizationSettingsPage = (orgId = 'org-1') => {
   return render(
-    <BrowserRouter>
+    <MemoryRouter initialEntries={[`/organizations/${orgId}/settings`]}>
       <Routes>
         <Route path="/organizations/:orgId/settings" element={<OrganizationSettingsPage />} />
       </Routes>
-    </BrowserRouter>,
-    {
-      initialEntries: [`/organizations/${orgId}/settings`],
-    } as never
+    </MemoryRouter>
   );
 };
 
@@ -137,7 +134,7 @@ describe('OrganizationSettingsPage', () => {
       });
 
       // Switch to members tab
-      const membersTab = screen.getByText('Members');
+      const membersTab = screen.getAllByText('Members')[0];
       membersTab.click();
 
       await waitFor(() => {
@@ -160,7 +157,7 @@ describe('OrganizationSettingsPage', () => {
       });
 
       // Switch to members tab
-      const membersTab = screen.getByText('Members');
+      const membersTab = screen.getAllByText('Members')[0];
       membersTab.click();
 
       await waitFor(() => {
@@ -184,7 +181,7 @@ describe('OrganizationSettingsPage', () => {
       });
 
       // Switch to members tab
-      const membersTab = screen.getByText('Members');
+      const membersTab = screen.getAllByText('Members')[0];
       membersTab.click();
 
       await waitFor(() => {
@@ -210,7 +207,7 @@ describe('OrganizationSettingsPage', () => {
       });
 
       // Switch to members tab
-      const membersTab = screen.getByText('Members');
+      const membersTab = screen.getAllByText('Members')[0];
       membersTab.click();
 
       await waitFor(() => {
@@ -287,7 +284,7 @@ describe('OrganizationSettingsPage', () => {
       });
 
       // Non-member should not have admin access
-      const membersTab = screen.getByText('Members');
+      const membersTab = screen.getAllByText('Members')[0];
       membersTab.click();
 
       await waitFor(() => {
@@ -318,7 +315,7 @@ describe('OrganizationSettingsPage', () => {
         expect(screen.getByText('Test Organization')).toBeInTheDocument();
       });
 
-      const membersTab = screen.getByText('Members');
+      const membersTab = screen.getAllByText('Members')[0];
       membersTab.click();
 
       await waitFor(() => {
@@ -334,7 +331,7 @@ describe('OrganizationSettingsPage', () => {
         expect(screen.getByText('Test Organization')).toBeInTheDocument();
       });
 
-      const invitesTab = screen.getByText('Invites');
+      const invitesTab = screen.getAllByText('Invites')[0];
       invitesTab.click();
 
       await waitFor(() => {
