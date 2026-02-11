@@ -9,10 +9,12 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.models.organization import OrganizationMember, OrganizationRole
 from app.models.team import TeamRole
 from app.models.user import User
 from app.schemas.team import (
@@ -42,6 +44,56 @@ from app.services.team_service import (
 )
 
 router = APIRouter(tags=["teams"])
+
+
+# =============================================================================
+# RBAC Helper Functions
+# =============================================================================
+
+
+async def get_membership(
+    db: AsyncSession,
+    org_id: UUID,
+    user_id: UUID,
+) -> OrganizationMember | None:
+    """Get user's membership in an organization."""
+    result = await db.execute(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == org_id,
+            OrganizationMember.user_id == user_id,
+            OrganizationMember.is_active,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def require_org_role(
+    db: AsyncSession,
+    org_id: UUID,
+    user_id: UUID,
+    min_role: OrganizationRole,
+) -> OrganizationMember:
+    """Require user has at least the specified role in the organization."""
+    membership = await get_membership(db, org_id, user_id)
+
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this organization",
+        )
+
+    if not membership.has_permission(min_role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires {min_role.value} role or higher",
+        )
+
+    return membership
+
+
+# =============================================================================
+# Dependencies
+# =============================================================================
 
 
 # Dependency for getting team service
@@ -109,7 +161,8 @@ async def create_team(
 )
 async def list_teams(
     organization_id: UUID,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     service: Annotated[TeamService, Depends(get_team_service)],
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -120,6 +173,7 @@ async def list_teams(
     Args:
         organization_id: Organization UUID.
         current_user: Authenticated user.
+        db: Database session.
         service: Team service.
         page: Page number.
         page_size: Items per page.
@@ -127,7 +181,13 @@ async def list_teams(
 
     Returns:
         Paginated team list.
+
+    Raises:
+        HTTPException 403: If user is not a member of the organization.
     """
+    # Require at least VIEWER role in the organization
+    await require_org_role(db, organization_id, current_user.id, OrganizationRole.VIEWER)
+
     teams, total = await service.list_teams(
         organization_id,
         page=page,
@@ -153,7 +213,8 @@ async def list_teams(
 async def get_team(
     organization_id: UUID,
     team_id: UUID,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     service: Annotated[TeamService, Depends(get_team_service)],
 ) -> TeamDetailResponse:
     """Get team details with members.
@@ -162,14 +223,19 @@ async def get_team(
         organization_id: Organization UUID.
         team_id: Team UUID.
         current_user: Authenticated user.
+        db: Database session.
         service: Team service.
 
     Returns:
         Team details with member list.
 
     Raises:
+        HTTPException 403: If user is not a member of the organization.
         HTTPException 404: If team not found.
     """
+    # Require at least VIEWER role in the organization
+    await require_org_role(db, organization_id, current_user.id, OrganizationRole.VIEWER)
+
     team = await service.get_team_by_id(team_id, include_members=True)
     if not team or team.organization_id != organization_id:
         raise HTTPException(
@@ -299,9 +365,10 @@ async def delete_team(
     description="List all members of a team.",
 )
 async def list_team_members(
-    _organization_id: UUID,
+    organization_id: UUID,
     team_id: UUID,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     service: Annotated[TeamService, Depends(get_team_service)],
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
@@ -313,6 +380,7 @@ async def list_team_members(
         organization_id: Organization UUID.
         team_id: Team UUID.
         current_user: Authenticated user.
+        db: Database session.
         service: Team service.
         page: Page number.
         page_size: Items per page.
@@ -320,7 +388,13 @@ async def list_team_members(
 
     Returns:
         Paginated member list.
+
+    Raises:
+        HTTPException 403: If user is not a member of the organization.
     """
+    # Require at least VIEWER role in the organization
+    await require_org_role(db, organization_id, current_user.id, OrganizationRole.VIEWER)
+
     members, total = await service.list_team_members(
         team_id,
         page=page,
