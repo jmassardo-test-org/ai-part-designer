@@ -412,7 +412,7 @@ class StorageClient:
     @staticmethod
     def calculate_checksum(data: bytes) -> str:
         """Calculate MD5 checksum of data."""
-        return hashlib.md5(data).hexdigest()
+        return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
 
 # Global storage client instance

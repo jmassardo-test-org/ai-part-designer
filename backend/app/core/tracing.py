@@ -2,8 +2,8 @@
 OpenTelemetry distributed tracing configuration.
 
 Provides distributed tracing for debugging cross-service issues with full
-request path visibility and timing for each operation. Integrates with
-Jaeger for trace visualization and analysis.
+request path visibility and timing for each operation. Uses OTLP (OpenTelemetry
+Protocol) for trace export, compatible with Jaeger, Tempo, and other backends.
 """
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
@@ -33,12 +32,15 @@ logger = get_logger(__name__)
 
 def configure_tracing() -> TracerProvider | None:
     """
-    Configure OpenTelemetry tracing with appropriate exporters.
+    Configure OpenTelemetry tracing with OTLP exporter.
 
     Sets up tracing based on environment configuration:
-    - Production: Exports to Jaeger or OTLP collector
-    - Development: Exports to console and Jaeger (if configured)
+    - Production: Exports to OTLP collector (supports Jaeger, Tempo, etc.)
+    - Development: Exports to console and OTLP (if configured)
     - Test: Uses in-memory exporter
+
+    Note: As of OpenTelemetry v1.35+, Jaeger supports OTLP natively.
+    The deprecated Jaeger exporter has been removed in favor of OTLP.
 
     Returns:
         Configured TracerProvider instance, or None if tracing is disabled.
@@ -71,49 +73,25 @@ def configure_tracing() -> TracerProvider | None:
         provider.add_span_processor(processor)
         logger.info("tracing_configured", exporter="console", mode="test")
     else:
-        # Check if Jaeger is configured
-        jaeger_host = settings.JAEGER_HOST
-        jaeger_port = settings.JAEGER_PORT
-
+        # Use OTLP exporter (supports Jaeger via OTLP since v1.35+)
         try:
-            # Try Jaeger exporter first
-            jaeger_exporter = JaegerExporter(
-                agent_host_name=jaeger_host,
-                agent_port=jaeger_port,
-            )
-            provider.add_span_processor(BatchSpanProcessor(jaeger_exporter))
+            otlp_endpoint = settings.OTLP_ENDPOINT
+            otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+            provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
             logger.info(
                 "tracing_configured",
-                exporter="jaeger",
-                host=jaeger_host,
-                port=jaeger_port,
+                exporter="otlp",
+                endpoint=otlp_endpoint,
             )
         except Exception as e:
             logger.warning(
-                "jaeger_exporter_failed",
+                "otlp_exporter_failed",
                 error=str(e),
-                fallback="otlp",
+                fallback="console",
             )
-
-            # Fallback to OTLP if Jaeger fails
-            try:
-                otlp_endpoint = settings.OTLP_ENDPOINT
-                otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
-                provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-                logger.info(
-                    "tracing_configured",
-                    exporter="otlp",
-                    endpoint=otlp_endpoint,
-                )
-            except Exception as otlp_error:
-                logger.warning(
-                    "otlp_exporter_failed",
-                    error=str(otlp_error),
-                    fallback="console",
-                )
-                # Last resort: console exporter
-                provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
-                logger.info("tracing_configured", exporter="console", mode="fallback")
+            # Fallback to console exporter
+            provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+            logger.info("tracing_configured", exporter="console", mode="fallback")
 
         # In development, also add console exporter for debugging
         if settings.DEBUG:
