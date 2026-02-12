@@ -1,0 +1,265 @@
+---
+# Database Seed Job
+# Runs all seed modules (tiers, templates, components_v2, users, starters)
+# against the deployed database.
+#
+# Usage:
+#   kubectl apply -f k8s/base/backend/seed-job.yaml
+#   kubectl delete job db-seed -n ai-part-designer --ignore-not-found  # re-run
+#
+# Each seed module is idempotent — safe to run multiple times.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-seed
+  namespace: ai-part-designer
+  labels:
+    app.kubernetes.io/name: db-seed
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ai-part-designer
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: db-seed
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: ai-part-designer
+    spec:
+      serviceAccountName: backend
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      # Wait for the database to accept connections before seeding
+      - name: wait-for-db
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for PostgreSQL to be ready..."
+          until nc -z -w5 ${POSTGRES_HOST} 5432; do
+            echo "PostgreSQL not ready, sleeping 5s..."
+            sleep 5
+          done
+          echo "PostgreSQL is ready!"
+        env:
+        - name: POSTGRES_HOST
+          value: "postgres-service"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+      containers:
+      - name: seed
+        image: ai-part-designer-backend:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+
+          echo "=========================================="
+          echo "  Database Seeding - Starting"
+          echo "=========================================="
+
+          echo ""
+          echo "[1/5] Seeding subscription tiers..."
+          python -m app.seeds.tiers
+          echo "  ✓ Tiers seeded"
+
+          echo ""
+          echo "[2/5] Seeding design templates..."
+          python -m app.seeds.templates
+          echo "  ✓ Templates seeded"
+
+          echo ""
+          echo "[3/5] Syncing CAD v2 components..."
+          python -m app.seeds.components_v2
+          echo "  ✓ Components synced"
+
+          echo ""
+          echo "[4/5] Seeding demo users..."
+          python -m app.seeds.users
+          echo "  ✓ Users seeded"
+
+          echo ""
+          echo "[5/5] Seeding starter designs..."
+          python -m app.seeds.starters
+          echo "  ✓ Starters seeded"
+
+          echo ""
+          echo "=========================================="
+          echo "  Database Seeding - Complete"
+          echo "=========================================="
+        env:
+        # Database Configuration
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DEBUG
+          value: "false"
+        - name: POSTGRES_HOST
+          value: "postgres-service"
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: postgres-password
+        # Redis Configuration (required by app startup)
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: REDIS_PORT
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: REDIS_DB
+        # Storage Configuration (required by app startup)
+        - name: STORAGE_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: STORAGE_BACKEND
+        - name: S3_ENDPOINT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: S3_ENDPOINT_URL
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: secret-access-key
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: AWS_REGION
+        - name: STORAGE_BUCKET_DESIGNS
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: STORAGE_BUCKET_DESIGNS
+        - name: STORAGE_BUCKET_EXPORTS
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: STORAGE_BUCKET_EXPORTS
+        - name: STORAGE_BUCKET_THUMBNAILS
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: STORAGE_BUCKET_THUMBNAILS
+        # AI Provider (required by app startup)
+        - name: AI_PROVIDER
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: AI_PROVIDER
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: anthropic-api-key
+        - name: ANTHROPIC_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: ANTHROPIC_MODEL
+        - name: AI_MAX_TOKENS
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: AI_MAX_TOKENS
+        - name: AI_TEMPERATURE
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: AI_TEMPERATURE
+        # Security
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: secret-key
+        - name: CORS_ORIGINS
+          value: '["https://app.assemblematic.ai"]'
+        - name: FRONTEND_URL
+          value: "https://app.assemblematic.ai"
+        - name: ACCESS_TOKEN_EXPIRE_MINUTES
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: ACCESS_TOKEN_EXPIRE_MINUTES
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: LOG_LEVEL
+        - name: CAD_V2_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: CAD_V2_ENABLED
+        - name: CAD_V2_AS_DEFAULT
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: CAD_V2_AS_DEFAULT
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL

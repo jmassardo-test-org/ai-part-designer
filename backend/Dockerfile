@@ -65,7 +65,8 @@ RUN useradd --create-home --shell /bin/bash appuser
 COPY pyproject.toml README.md ./
 
 # Install production dependencies with uv
-RUN uv sync --no-dev
+# Also install setuptools<82 for pkg_resources (needed by opentelemetry instrumentation)
+RUN uv sync --no-dev && uv pip install "setuptools<82"
 
 # Set ownership of venv to appuser so uv run works correctly
 RUN chown -R appuser:appuser .venv

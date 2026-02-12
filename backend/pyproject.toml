@@ -37,6 +37,7 @@ dependencies = [
     # Authentication & Security
     "PyJWT[crypto]>=2.8.0",  # Replaced python-jose to avoid ecdsa vulnerability
     "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0.0,<4.1.0",  # Pin bcrypt < 4.1 for passlib compatibility
     "cryptography>=42.0.0",
     "pyotp>=2.9.0",
     
