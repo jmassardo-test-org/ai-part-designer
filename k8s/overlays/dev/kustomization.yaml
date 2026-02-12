@@ -30,6 +30,10 @@ patches:
   target:
     kind: Deployment
     name: celery-worker
+- path: patches/celery-beat-dev.yaml
+  target:
+    kind: Deployment
+    name: celery-beat
 - path: patches/migrate-job-dev.yaml
   target:
     kind: Job

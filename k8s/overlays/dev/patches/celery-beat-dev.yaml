@@ -1,0 +1,18 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+spec:
+  template:
+    spec:
+      containers:
+      - name: beat
+        env:
+        - name: ENVIRONMENT
+          value: "development"
+        # Override hostnames for dev environment
+        - name: POSTGRES_HOST
+          value: "postgres-cluster-dev-rw"
+        - name: REDIS_HOST
+          value: "redis-master"

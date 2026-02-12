@@ -15,6 +15,11 @@ spec:
           value: "development"
         - name: APP_ENV
           value: "development"
+        # Override hostnames for dev environment
+        - name: POSTGRES_HOST
+          value: "postgres-cluster-dev-rw"
+        - name: REDIS_HOST
+          value: "redis-master"
         resources:
           requests:
             memory: "512Mi"

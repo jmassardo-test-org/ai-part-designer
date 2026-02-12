@@ -14,6 +14,11 @@ spec:
           value: "development"
         - name: DEBUG
           value: "true"
+        # Override hostnames for dev environment
+        - name: POSTGRES_HOST
+          value: "postgres-cluster-dev-rw"
+        - name: REDIS_HOST
+          value: "redis-master"
         - name: CORS_ORIGINS
           value: '["http://localhost:5173","http://localhost:3000","https://dev.assemblematic.ai"]'
         - name: FRONTEND_URL
