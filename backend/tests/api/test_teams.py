@@ -544,7 +544,10 @@ class TestProjectTeams:
         mock_assignment.team = MagicMock()
         mock_assignment.team.name = "Engineering"
 
-        with patch.object(TeamService, "list_project_teams", return_value=[mock_assignment]):
+        with (
+            patch.object(TeamService, "list_project_teams", return_value=[mock_assignment]),
+            patch("app.api.v1.teams.check_project_permission", return_value=MagicMock()),
+        ):
             response = await async_client.get(f"/api/v1/projects/{project_id}/teams")
 
         assert response.status_code == status.HTTP_200_OK
@@ -552,6 +555,26 @@ class TestProjectTeams:
         assert len(data) == 1
         assert data[0]["team_name"] == "Engineering"
         assert data[0]["permission_level"] == "editor"
+
+    @pytest.mark.asyncio
+    async def test_list_project_teams_unauthorized_returns_403(
+        self,
+        async_client: AsyncClient,
+        mock_current_user,
+    ) -> None:
+        """Test that unauthorized users cannot list project team assignments."""
+        from fastapi import HTTPException
+
+        project_id = uuid4()
+
+        # Mock check_project_permission to raise 403
+        with patch(
+            "app.api.v1.teams.check_project_permission",
+            side_effect=HTTPException(status_code=403, detail="Not authorized"),
+        ):
+            response = await async_client.get(f"/api/v1/projects/{project_id}/teams")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
     @pytest.mark.asyncio
     async def test_assign_team_to_project_success(
