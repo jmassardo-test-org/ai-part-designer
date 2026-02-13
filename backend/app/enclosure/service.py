@@ -419,7 +419,7 @@ class EnclosureGenerationService:
 
         try:
             # Execute the generated code
-            exec(code, namespace)
+            exec(code, namespace)  # nosec B102 - intentional exec for AI-generated enclosure code in sandboxed namespace
 
             # Call the generate_enclosure function
             if "generate_enclosure" not in namespace:

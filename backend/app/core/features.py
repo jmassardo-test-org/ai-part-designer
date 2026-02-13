@@ -14,29 +14,29 @@ class OrgFeature(StrEnum):
     AI_GENERATION = "ai_generation"  # AI-powered part generation
     AI_CHAT = "ai_chat"  # Conversational AI interface
     DIRECT_GENERATION = "direct_generation"  # Direct CAD generation without chat
-    
+
     # Design features
     TEMPLATES = "templates"  # Access to design templates
     CUSTOM_TEMPLATES = "custom_templates"  # Create and manage custom templates
     ASSEMBLIES = "assemblies"  # Multi-part assemblies
     ADVANCED_CAD = "advanced_cad"  # Advanced CAD operations
-    
+
     # Collaboration features
     DESIGN_SHARING = "design_sharing"  # Share designs with others
     TEAMS = "teams"  # Team collaboration features
     COMMENTS = "comments"  # Design comments and annotations
     VERSION_HISTORY = "version_history"  # Track design versions
-    
+
     # Export features
     EXPORT_STEP = "export_step"  # Export to STEP format
     EXPORT_STL = "export_stl"  # Export to STL format
     EXPORT_DXF = "export_dxf"  # Export to DXF format
     EXPORT_DRAWINGS = "export_drawings"  # Generate technical drawings
-    
+
     # Analysis features
     BOM = "bom"  # Bill of materials
     COST_ESTIMATION = "cost_estimation"  # Cost estimation
-    
+
     # Storage features
     FILE_UPLOADS = "file_uploads"  # Upload reference files
     EXTERNAL_STORAGE = "external_storage"  # Integration with cloud storage

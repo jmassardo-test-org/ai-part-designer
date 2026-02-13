@@ -51,8 +51,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useTrash } from '@/hooks/useTrash';
-import { cn } from '@/lib/utils';
 import { TrashedItem } from '@/lib/api/trash';
+import { cn } from '@/lib/utils';
 
 function formatBytes(bytes: number | null): string {
   if (bytes === null || bytes === 0) return '—';

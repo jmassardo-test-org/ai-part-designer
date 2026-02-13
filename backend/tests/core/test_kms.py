@@ -7,7 +7,6 @@ Tests the KMS abstraction layer and individual provider implementations.
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,9 +21,6 @@ from app.core.kms import (
     LocalKMSProvider,
     get_kms_provider,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 class TestLocalKMSProvider:

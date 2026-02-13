@@ -25,7 +25,6 @@ import {
 import { useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three-stdlib';
-import { cn } from '@/lib/utils';
 import {
   alignmentApi,
   AlignmentMode,
@@ -33,6 +32,7 @@ import {
   ALIGNMENT_PRESETS,
   TransformationInfo,
 } from '@/lib/api/alignment';
+import { cn } from '@/lib/utils';
 
 // =============================================================================
 // Types

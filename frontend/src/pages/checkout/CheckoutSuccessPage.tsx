@@ -9,8 +9,8 @@ import confetti from 'canvas-confetti';
 import { CheckCircle, Sparkles, Zap, ArrowRight, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { subscriptionsApi, SubscriptionStatus } from '@/lib/api/subscriptions';
+import { cn } from '@/lib/utils';
 
 // =============================
 // Types

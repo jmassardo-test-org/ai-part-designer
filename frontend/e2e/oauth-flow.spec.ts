@@ -287,7 +287,7 @@ test.describe('OAuth Authentication', () => {
       await waitForLoading(page);
 
       // Get base URL from current environment
-      const baseUrl = page.url().split('/')[2]; // Extract domain from URL
+      const _baseUrl = page.url().split('/')[2]; // Extract domain from URL
       
       // OAuth should use same base URL for consistency
       // This is verified by checking that buttons exist and are not broken

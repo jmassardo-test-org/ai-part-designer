@@ -4,7 +4,7 @@ Tests for model context service.
 Tests extraction of model metadata for AI conversations.
 """
 
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,6 @@ from app.services.model_context import (
     extract_model_context,
     get_design_by_id,
 )
-
 
 # =============================================================================
 # Fixtures

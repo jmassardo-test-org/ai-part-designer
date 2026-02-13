@@ -15,7 +15,6 @@ from app.core.audit import _extract_resource_id, audit_failure, audit_log
 from app.models.audit import AuditActions, AuditLog
 from app.models.user import User
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================

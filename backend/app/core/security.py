@@ -16,10 +16,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, BinaryIO
 from uuid import UUID
 
+import jwt
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import jwt
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
 
@@ -468,7 +468,7 @@ class EncryptionService:
     async def encrypt_stream(
         self,
         input_stream: bytes | BinaryIO,
-        chunk_size: int = 1024 * 1024,  # Reserved for future streaming ciphers
+        _chunk_size: int = 1024 * 1024,  # Reserved for future streaming ciphers
     ) -> bytes:
         """
         Encrypt file data with a streaming-compatible API.
@@ -506,7 +506,7 @@ class EncryptionService:
     async def decrypt_stream(
         self,
         encrypted_stream: bytes | BinaryIO,
-        chunk_size: int = 1024 * 1024,  # Reserved for future streaming ciphers
+        _chunk_size: int = 1024 * 1024,  # Reserved for future streaming ciphers
     ) -> bytes:
         """
         Decrypt file data with a streaming-compatible API.
@@ -586,7 +586,6 @@ class KMSEncryptionService:
                 "encrypted_dek": {...}  # KMS-encrypted DEK metadata
             }
         """
-        import json
 
         # Generate a fresh DEK
         plaintext_dek = self._kms_provider.generate_dek()

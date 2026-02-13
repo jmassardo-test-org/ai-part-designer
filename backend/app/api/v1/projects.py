@@ -480,7 +480,7 @@ async def update_project(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Team not found",
             )
-        
+
         # Check if user is a member of the team or org admin
         has_permission = await team_service.check_team_permission(
             request.team_id, current_user, None  # Check any membership
@@ -495,7 +495,7 @@ async def update_project(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="You don't have permission to assign this team",
                 )
-        
+
         # Clear existing team assignments and add new one
         # Remove all existing team assignments for this project
         delete_query = select(ProjectTeam).where(ProjectTeam.project_id == project_id)
@@ -503,10 +503,10 @@ async def update_project(
         existing_assignments = delete_result.scalars().all()
         for assignment in existing_assignments:
             await db.delete(assignment)
-        
+
         # Create new team assignment with editor permission by default
         from app.schemas.team import ProjectTeamAssign
-        
+
         assignment_data = ProjectTeamAssign(
             team_id=request.team_id,
             permission_level="editor"
@@ -780,7 +780,7 @@ async def get_available_teams(
     Returns teams where the current user is a member.
     """
     from app.models.team import TeamMember
-    
+
     # Get teams where user is a member
     query = (
         select(Team)
@@ -790,10 +790,10 @@ async def get_available_teams(
         .where(Team.deleted_at.is_(None))
         .where(Team.is_active.is_(True))
     )
-    
+
     result = await db.execute(query)
     teams = result.scalars().all()
-    
+
     return [
         {
             "id": str(team.id),
