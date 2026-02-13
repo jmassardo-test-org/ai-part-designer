@@ -147,9 +147,7 @@ class TestDecryptFileFromDisk:
             await decrypt_file_from_disk(file_path)
 
     @pytest.mark.asyncio
-    async def test_encrypt_decrypt_roundtrip_preserves_binary_data(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_encrypt_decrypt_roundtrip_preserves_binary_data(self, tmp_path: Path) -> None:
         """Test full roundtrip with binary data preserves content."""
         file_path = tmp_path / "binary.stl"
         # Use binary data with all byte values

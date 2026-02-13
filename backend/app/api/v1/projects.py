@@ -201,11 +201,7 @@ async def list_projects(
         # Get current team assignment
         team_id = None
         team_name = None
-        team_query = (
-            select(ProjectTeam)
-            .where(ProjectTeam.project_id == project.id)
-            .limit(1)
-        )
+        team_query = select(ProjectTeam).where(ProjectTeam.project_id == project.id).limit(1)
         team_result = await db.execute(team_query)
         team_assignment = team_result.scalar_one_or_none()
         if team_assignment:
@@ -483,7 +479,9 @@ async def update_project(
 
         # Check if user is a member of the team or org admin
         has_permission = await team_service.check_team_permission(
-            request.team_id, current_user, None  # Check any membership
+            request.team_id,
+            current_user,
+            None,  # type: ignore[arg-type]  # Check any membership
         )
         if not has_permission:
             # Check if user is org admin
@@ -507,10 +505,7 @@ async def update_project(
         # Create new team assignment with editor permission by default
         from app.schemas.team import ProjectTeamAssign
 
-        assignment_data = ProjectTeamAssign(
-            team_id=request.team_id,
-            permission_level="editor"
-        )
+        assignment_data = ProjectTeamAssign(team_id=request.team_id, permission_level="editor")
         await team_service.assign_team_to_project(assignment_data, project_id, current_user)
 
     await db.commit()
@@ -528,11 +523,7 @@ async def update_project(
     # Get current team assignment
     team_id = None
     team_name = None
-    team_query = (
-        select(ProjectTeam)
-        .where(ProjectTeam.project_id == project_id)
-        .limit(1)
-    )
+    team_query = select(ProjectTeam).where(ProjectTeam.project_id == project_id).limit(1)
     team_result = await db.execute(team_query)
     team_assignment = team_result.scalar_one_or_none()
     if team_assignment:
@@ -828,14 +819,14 @@ async def list_example_projects(
     List all example projects available for users to explore or copy.
     """
     # Query projects marked as examples
-    query = select(Project).where(Project.deleted_at.is_(None)).where(Project.is_public.is_(True)) # type: ignore[attr-defined]
+    query = select(Project).where(Project.deleted_at.is_(None)).where(Project.is_public.is_(True))  # type: ignore[attr-defined]
     result = await db.execute(query)
     projects = result.scalars().all()
 
     examples = []
     for project in projects:
         # Check if marked as example
-        if not project.extra_data.get("is_example"): # type: ignore[attr-defined]
+        if not project.extra_data.get("is_example"):  # type: ignore[attr-defined]
             continue
 
         # Get design count
@@ -853,7 +844,7 @@ async def list_example_projects(
                 name=project.name,
                 description=project.description,
                 design_count=design_count,
-                tags=project.extra_data.get("tags", []), # type: ignore[attr-defined]
+                tags=project.extra_data.get("tags", []),  # type: ignore[attr-defined]
                 thumbnail_url=None,
             )
         )
@@ -887,7 +878,7 @@ async def copy_example_project(
         )
 
     # Verify it's an example project
-    if not example.extra_data.get("is_example"): # type: ignore[attr-defined]
+    if not example.extra_data.get("is_example"):  # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This is not an example project",
@@ -902,7 +893,7 @@ async def copy_example_project(
         extra_data={
             "copied_from": str(project_id),
             "copied_at": datetime.now(tz=UTC).isoformat(),
-            "tags": example.extra_data.get("tags", []), # type: ignore[attr-defined]
+            "tags": example.extra_data.get("tags", []),  # type: ignore[attr-defined]
         },
     )
     db.add(new_project)
@@ -919,7 +910,7 @@ async def copy_example_project(
             project_id=new_project.id,
             name=design.name,
             description=design.description,
-            prompt=design.prompt, # type: ignore[attr-defined]
+            prompt=design.prompt,  # type: ignore[attr-defined]
             parameters=design.parameters,
             status="draft",
             is_public=False,

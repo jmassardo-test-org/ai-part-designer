@@ -565,7 +565,7 @@ class KMSEncryptionService:
     Suitable for encrypting files and large data at rest.
     """
 
-    def __init__(self):
+    def __init__(self):  # type: ignore[no-untyped-def]
         """Initialize KMS encryption service."""
         from app.core.kms import get_dek_cache, get_kms_provider
 
@@ -602,7 +602,7 @@ class KMSEncryptionService:
 
         return {
             "ciphertext": base64.b64encode(ciphertext).decode("utf-8"),
-            "encrypted_dek": encrypted_dek,
+            "encrypted_dek": encrypted_dek,  # type: ignore[dict-item]
         }
 
     def decrypt(self, encrypted_data: dict[str, Any]) -> str:

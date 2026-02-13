@@ -862,19 +862,19 @@ def archive_old_audit_logs() -> dict[str, Any]:
                     action, resource_type, status, count = stat
 
                     # Count by action
-                    if action not in summary_stats["by_action"]:
-                        summary_stats["by_action"][action] = 0
-                    summary_stats["by_action"][action] += count
+                    if action not in summary_stats["by_action"]:  # type: ignore[operator]
+                        summary_stats["by_action"][action] = 0  # type: ignore[index]
+                    summary_stats["by_action"][action] += count  # type: ignore[index]
 
                     # Count by resource type
-                    if resource_type not in summary_stats["by_resource_type"]:
-                        summary_stats["by_resource_type"][resource_type] = 0
-                    summary_stats["by_resource_type"][resource_type] += count
+                    if resource_type not in summary_stats["by_resource_type"]:  # type: ignore[operator]
+                        summary_stats["by_resource_type"][resource_type] = 0  # type: ignore[index]
+                    summary_stats["by_resource_type"][resource_type] += count  # type: ignore[index]
 
                     # Count by status
-                    if status not in summary_stats["by_status"]:
-                        summary_stats["by_status"][status] = 0
-                    summary_stats["by_status"][status] += count
+                    if status not in summary_stats["by_status"]:  # type: ignore[operator]
+                        summary_stats["by_status"][status] = 0  # type: ignore[index]
+                    summary_stats["by_status"][status] += count  # type: ignore[index]
 
                 archive_summary["summary_stats"] = summary_stats
             except Exception as e:
@@ -968,7 +968,7 @@ def archive_old_audit_logs() -> dict[str, Any]:
                 result = await session.execute(
                     delete(AuditLog).where(AuditLog.created_at < cutoff_date)
                 )
-                archive_summary["logs_deleted"] = result.rowcount or 0
+                archive_summary["logs_deleted"] = result.rowcount or 0  # type: ignore[attr-defined]
                 await session.commit()
 
                 logger.info(f"Deleted {archive_summary['logs_deleted']} archived audit logs")

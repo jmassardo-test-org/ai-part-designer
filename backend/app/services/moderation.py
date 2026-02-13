@@ -258,7 +258,7 @@ class ContentModerator:
 
         # Check metadata
         # Note: The File model uses geometry_info for CAD metadata
-        if hasattr(file_record, 'geometry_info') and file_record.geometry_info:
+        if hasattr(file_record, "geometry_info") and file_record.geometry_info:
             metadata_flags = self.check_metadata(file_record.geometry_info)
             all_flags.extend(metadata_flags)
 
@@ -457,7 +457,7 @@ class ContentModerator:
             # Check for small holes (potential pin holes) - simplified for Build123d
             try:
                 # In Build123d, checking for circular edges is different
-                circular_edges = [e for e in edges if hasattr(e, "radius") and e.radius() < 5.0]
+                circular_edges = [e for e in edges if hasattr(e, "radius") and e.radius() < 5.0]  # type: ignore[operator]
                 features["has_pin_holes"] = len(circular_edges) >= 2
             except Exception:
                 features["has_pin_holes"] = False

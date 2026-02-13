@@ -236,7 +236,7 @@ def generate_dovetail_tail_board(
                     mode=Mode.SUBTRACT,
                 ).locate(Location((socket_center, 0, 0)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 @register_template("dovetail-pin-board")  # type: ignore[untyped-decorator]
@@ -290,7 +290,7 @@ def generate_dovetail_pin_board(
                 mode=Mode.SUBTRACT,
             ).locate(Location((center, 0, 0)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -355,7 +355,7 @@ def generate_sliding_dovetail_slot(
             mode=Mode.SUBTRACT,
         ).locate(Location((slot_position - base_width / 2, 0, base_thickness / 2)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 @register_template("sliding-dovetail-key")  # type: ignore[untyped-decorator]
@@ -393,7 +393,7 @@ def generate_sliding_dovetail_key(
         # A proper implementation would create a trapezoidal profile
         Box(base_width, key_length, key_height, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -445,7 +445,7 @@ def generate_box_joint_board_a(
                     mode=Mode.SUBTRACT,
                 ).locate(Location((slot_start - tolerance / 2, -0.5, -0.5)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 @register_template("box-joint-board-b")  # type: ignore[untyped-decorator]
@@ -491,7 +491,7 @@ def generate_box_joint_board_b(
                     mode=Mode.SUBTRACT,
                 ).locate(Location((slot_start - tolerance / 2, -0.5, -0.5)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================

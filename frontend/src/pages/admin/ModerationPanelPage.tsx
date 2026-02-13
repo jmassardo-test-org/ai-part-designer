@@ -219,7 +219,7 @@ function ReportsQueue() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {reports.map((report) => (
+            {reports.map((report: any) => (
               <TableRow key={report.id}>
                 <TableCell>
                   <Badge variant="outline">
@@ -413,7 +413,7 @@ function ActiveBans() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bans.map((ban) => (
+            {bans.map((ban: any) => (
               <TableRow key={ban.id}>
                 <TableCell>
                   <div>

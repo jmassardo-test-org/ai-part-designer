@@ -358,7 +358,7 @@ class ContentModerationService:
 
             self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         else:
-            self.client = None
+            self.client = None  # type: ignore[assignment]
         self._compile_patterns()
 
     def _compile_patterns(self) -> None:
@@ -652,7 +652,7 @@ class ContentModerationService:
                 temperature=0,  # Deterministic
             )
 
-            content = response.content[0].text
+            content = response.content[0].text  # type: ignore[union-attr]
 
             # Parse JSON from response
             import json

@@ -327,7 +327,7 @@ class AlignmentService:
 
         result = parts[0]
         for part in parts[1:]:
-            result = result.fuse(part)
+            result = result.fuse(part)  # type: ignore[assignment]
         return result
 
     def stack_shapes(
@@ -584,11 +584,11 @@ class AlignmentService:
 
         for shape in shapes[1:]:
             if operation == "union":
-                result = result.fuse(shape)
+                result = result.fuse(shape)  # type: ignore[assignment]
             elif operation == "intersect":
-                result = result.intersect(shape)
+                result = result.intersect(shape)  # type: ignore[assignment]
             elif operation == "cut":
-                result = result.cut(shape)
+                result = result.cut(shape)  # type: ignore[assignment]
             else:
                 raise ValidationError(f"Unknown operation: {operation}")
 

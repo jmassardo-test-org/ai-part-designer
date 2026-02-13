@@ -324,9 +324,7 @@ class TestOAuthCallback:
         # This test simulates state mismatch which should fail
         with patch("app.api.v1.oauth.oauth") as mock_oauth:
             mock_client = MagicMock()
-            mock_client.authorize_access_token = AsyncMock(
-                side_effect=Exception("State mismatch")
-            )
+            mock_client.authorize_access_token = AsyncMock(side_effect=Exception("State mismatch"))
             mock_oauth.create_client.return_value = mock_client
 
             with patch("app.api.v1.oauth.get_settings") as mock_settings:
@@ -462,9 +460,7 @@ class TestOAuthConnectionManagement:
         # Should prevent unlinking
         if response.status_code == 400:
             data = response.json()
-            assert (
-                "cannot unlink" in data["detail"].lower() or "last" in data["detail"].lower()
-            )
+            assert "cannot unlink" in data["detail"].lower() or "last" in data["detail"].lower()
 
 
 # =============================================================================

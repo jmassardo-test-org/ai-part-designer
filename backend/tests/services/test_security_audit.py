@@ -142,7 +142,9 @@ class TestEventSeverityMapping:
 
     def test_unauthorized_access_attempt_is_medium(self):
         """Test unauthorized access attempt is medium level."""
-        assert EVENT_SEVERITY[SecurityEventType.UNAUTHORIZED_ACCESS_ATTEMPT] == SecuritySeverity.MEDIUM
+        assert (
+            EVENT_SEVERITY[SecurityEventType.UNAUTHORIZED_ACCESS_ATTEMPT] == SecuritySeverity.MEDIUM
+        )
 
     def test_forbidden_access_attempt_is_medium(self):
         """Test forbidden access attempt is medium level."""

@@ -177,9 +177,7 @@ class CustomPattern(BaseModel):
 
     type: Literal["custom"] = "custom"
     positions: list[Point2D] = Field(min_length=1, description="List of positions")
-    labels: list[str] = Field(
-        default_factory=list, description="Optional labels for each position"
-    )
+    labels: list[str] = Field(default_factory=list, description="Optional labels for each position")
 
     @model_validator(mode="after")
     def validate_labels(self) -> CustomPattern:

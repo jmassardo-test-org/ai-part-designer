@@ -389,7 +389,7 @@ class CommandHandler:
         prev_version = sorted_versions[1]
         await design_repo.update(
             design.id,
-            cadquery_script=getattr(prev_version, 'cadquery_script', None),
+            cadquery_script=getattr(prev_version, "cadquery_script", None),
             parameters=prev_version.parameters,
         )
         await db.commit()
@@ -488,7 +488,9 @@ class CommandHandler:
         from app.repositories import DesignRepository
 
         _version_repo = DesignRepository(db)  # Using DesignRepository instead of VersionRepository
-        version = None  # Placeholder: await repo.get_by_design_and_number(design.id, version_number)
+        version = (
+            None  # Placeholder: await repo.get_by_design_and_number(design.id, version_number)
+        )
 
         if not version:
             return CommandResult(

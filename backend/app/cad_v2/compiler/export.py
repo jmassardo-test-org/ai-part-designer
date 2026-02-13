@@ -14,7 +14,7 @@ try:
     BUILD123D_AVAILABLE = True
 except ImportError:
     BUILD123D_AVAILABLE = False
-    Part = Any
+    Part = Any  # type: ignore[assignment, misc]
 
 
 class ExportFormat(StrEnum):

@@ -496,7 +496,7 @@ async def remove_from_list(
         )
     )
 
-    if result.rowcount == 0: # type: ignore[attr-defined]
+    if result.rowcount == 0:  # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Design not found in list",

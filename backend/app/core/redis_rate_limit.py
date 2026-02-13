@@ -110,7 +110,7 @@ class RedisRateLimiter(RateLimiter):
             try:
                 import redis.asyncio as redis
 
-                self._redis = redis.from_url(  # type: ignore[no-untyped-call]
+                self._redis = redis.from_url(  # type: ignore[assignment]
                     self.redis_url,
                     encoding="utf-8",
                     decode_responses=True,
@@ -163,7 +163,9 @@ class RedisRateLimiter(RateLimiter):
         pipe.zcard(redis_key)
 
         # Add new entry (will execute only if under limit)
-        request_id = f"{now}:{hashlib.md5(str(now).encode(), usedforsecurity=False).hexdigest()[:8]}"
+        request_id = (
+            f"{now}:{hashlib.md5(str(now).encode(), usedforsecurity=False).hexdigest()[:8]}"
+        )
 
         results = await pipe.execute()
         current_count = results[1]
@@ -358,7 +360,7 @@ class TokenBucketRateLimiter(RateLimiter):
             try:
                 import redis.asyncio as redis
 
-                self._redis = redis.from_url(  # type: ignore[no-untyped-call]
+                self._redis = redis.from_url(  # type: ignore[assignment]
                     self.redis_url,
                     encoding="utf-8",
                     decode_responses=True,

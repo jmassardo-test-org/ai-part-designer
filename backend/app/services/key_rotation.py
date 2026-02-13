@@ -197,7 +197,7 @@ class KeyRotationService:
             KeyRotationError: If decryption fails.
             FileNotFoundError: If the file does not exist.
         """
-        import aiofiles
+        import aiofiles  # type: ignore[import-untyped]
 
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")

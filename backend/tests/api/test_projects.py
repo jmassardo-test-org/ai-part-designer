@@ -642,9 +642,7 @@ class TestProjectTeamAssignment:
         assert project_data["team_id"] == str(sample_team.id)
         assert project_data["team_name"] == sample_team.name
 
-    async def test_get_available_teams(
-        self, client: AsyncClient, auth_headers: dict, sample_team
-    ):
+    async def test_get_available_teams(self, client: AsyncClient, auth_headers: dict, sample_team):
         """Should return list of teams user can assign."""
         response = await client.get("/api/v1/projects/available-teams", headers=auth_headers)
 

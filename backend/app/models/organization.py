@@ -155,7 +155,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
         if features is None or features == []:
             tier = self.subscription_tier
             return get_default_features(tier)
-        return features
+        return features  # type: ignore[no-any-return]
 
     def has_feature(self, feature: str) -> bool:
         """Check if a feature is enabled for this organization."""

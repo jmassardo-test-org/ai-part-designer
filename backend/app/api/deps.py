@@ -321,7 +321,7 @@ def require_org_feature_for_project(feature_name: str) -> Callable[..., None]:
             )
 
         # Check if feature is enabled
-        if not org.has_feature(feature_name):
+        if not org.has_feature(feature_name):  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
@@ -384,12 +384,12 @@ def require_org_feature_for_design(feature_name: str) -> Callable[..., None]:
             )
 
         # If no organization, this is a personal design - skip check
-        if not project.organization_id:
+        if not project.organization_id:  # type: ignore[attr-defined]
             return
 
         # Get organization
         result = await db.execute(
-            select(Organization).where(Organization.id == project.organization_id)
+            select(Organization).where(Organization.id == project.organization_id)  # type: ignore[arg-type, attr-defined]
         )
         org = result.scalar_one_or_none()
 
@@ -401,7 +401,7 @@ def require_org_feature_for_design(feature_name: str) -> Callable[..., None]:
             )
 
         # Check if feature is enabled
-        if not org.has_feature(feature_name):
+        if not org.has_feature(feature_name):  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
@@ -464,12 +464,12 @@ def require_org_feature_for_assembly(feature_name: str) -> Callable[..., None]:
             )
 
         # If no organization, this is a personal assembly - skip check
-        if not project.organization_id:
+        if not project.organization_id:  # type: ignore[attr-defined]
             return
 
         # Get organization
         result = await db.execute(
-            select(Organization).where(Organization.id == project.organization_id)
+            select(Organization).where(Organization.id == project.organization_id)  # type: ignore[arg-type, attr-defined]
         )
         org = result.scalar_one_or_none()
 
@@ -481,7 +481,7 @@ def require_org_feature_for_assembly(feature_name: str) -> Callable[..., None]:
             )
 
         # Check if feature is enabled
-        if not org.has_feature(feature_name):
+        if not org.has_feature(feature_name):  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
@@ -552,7 +552,7 @@ def require_org_feature_for_conversation(feature_name: str) -> Callable[..., Non
             return
 
         # Get project
-        result = await db.execute(select(Project).where(Project.id == design.project_id))
+        result = await db.execute(select(Project).where(Project.id == design.project_id))  # type: ignore[arg-type, attr-defined]
         project = result.scalar_one_or_none()
 
         if not project:
@@ -560,12 +560,12 @@ def require_org_feature_for_conversation(feature_name: str) -> Callable[..., Non
             return
 
         # If no organization, this is a personal project - skip check
-        if not project.organization_id:
+        if not project.organization_id:  # type: ignore[attr-defined]
             return
 
         # Get organization
         result = await db.execute(
-            select(Organization).where(Organization.id == project.organization_id)
+            select(Organization).where(Organization.id == project.organization_id)  # type: ignore[arg-type, attr-defined]
         )
         org = result.scalar_one_or_none()
 
@@ -577,7 +577,7 @@ def require_org_feature_for_conversation(feature_name: str) -> Callable[..., Non
             )
 
         # Check if feature is enabled
-        if not org.has_feature(feature_name):
+        if not org.has_feature(feature_name):  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
@@ -628,13 +628,13 @@ async def check_org_feature_for_design(
     result = await db.execute(select(Project).where(Project.id == design.project_id))
     project = result.scalar_one_or_none()
 
-    if not project or not project.organization_id:
+    if not project or not project.organization_id:  # type: ignore[attr-defined]
         # Personal project - skip check
         return
 
     # Get organization
     result = await db.execute(
-        select(Organization).where(Organization.id == project.organization_id)
+        select(Organization).where(Organization.id == project.organization_id)  # type: ignore[arg-type, attr-defined]
     )
     org = result.scalar_one_or_none()
 
@@ -646,7 +646,7 @@ async def check_org_feature_for_design(
         )
 
     # Check if feature is enabled
-    if not org.has_feature(feature_name):
+    if not org.has_feature(feature_name):  # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

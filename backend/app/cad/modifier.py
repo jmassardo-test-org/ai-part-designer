@@ -162,12 +162,12 @@ class ModifyResult:
         # Get bounding box
         try:
             bbox = shape.bounding_box()
-            geometry_info["bounding_box"] = {
+            geometry_info["bounding_box"] = {  # type: ignore[assignment]
                 "x": round(bbox.max.X - bbox.min.X, 3),
                 "y": round(bbox.max.Y - bbox.min.Y, 3),
                 "z": round(bbox.max.Z - bbox.min.Z, 3),
             }
-            geometry_info["center"] = {
+            geometry_info["center"] = {  # type: ignore[assignment]
                 "x": round((bbox.min.X + bbox.max.X) / 2, 3),
                 "y": round((bbox.min.Y + bbox.max.Y) / 2, 3),
                 "z": round((bbox.min.Z + bbox.max.Z) / 2, 3),
@@ -389,7 +389,7 @@ class CADModifier:
             params.get("center_z", 0),
         )
 
-        return rotate(shape, angle, axis=axis, center=center)
+        return rotate(shape, angle, axis=axis, center=center)  # type: ignore[arg-type]
 
     def _apply_scale(self, shape: Part, params: dict[str, Any]) -> Part:
         """Apply uniform scaling."""

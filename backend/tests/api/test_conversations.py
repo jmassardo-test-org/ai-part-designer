@@ -637,4 +637,3 @@ class TestModelContext:
 
         # Cleanup
         await client.delete(f"/api/v1/conversations/{data['id']}", headers=auth_headers)
-

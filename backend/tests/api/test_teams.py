@@ -724,9 +724,7 @@ class TestProjectTeams:
                 "app.api.v1.teams.check_project_permission",
                 return_value=mock_project,
             ),
-            patch.object(
-                TeamService, "assign_team_to_project", return_value=mock_assignment
-            ),
+            patch.object(TeamService, "assign_team_to_project", return_value=mock_assignment),
         ):
             response = await async_client.post(
                 f"/api/v1/projects/{project_id}/teams",
@@ -772,9 +770,7 @@ class TestProjectTeams:
                 "app.api.v1.teams.check_project_permission",
                 return_value=mock_project,
             ),
-            patch.object(
-                TeamService, "assign_team_to_project", return_value=mock_assignment
-            ),
+            patch.object(TeamService, "assign_team_to_project", return_value=mock_assignment),
         ):
             response = await async_client.post(
                 f"/api/v1/projects/{project_id}/teams",

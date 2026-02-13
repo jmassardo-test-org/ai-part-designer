@@ -113,7 +113,7 @@ def _requeue_job_task(job: Job) -> str | None:
         # AI generation task
         prompt = input_params.get("prompt")
         if not prompt:
-            logger.error(
+            logger.error(  # type: ignore[call-arg]
                 "job_requeue_missing_param",
                 job_id=job_id,
                 job_type=job.job_type,
@@ -132,7 +132,7 @@ def _requeue_job_task(job: Job) -> str | None:
         # CAD v2 compilation task
         enclosure_schema = input_params.get("enclosure_schema")
         if not enclosure_schema:
-            logger.error(
+            logger.error(  # type: ignore[call-arg]
                 "job_requeue_missing_param",
                 job_id=job_id,
                 job_type=job.job_type,
@@ -151,7 +151,7 @@ def _requeue_job_task(job: Job) -> str | None:
         # Format conversion task
         source_url = input_params.get("source_url")
         if not source_url:
-            logger.error(
+            logger.error(  # type: ignore[call-arg]
                 "job_requeue_missing_param",
                 job_id=job_id,
                 job_type=job.job_type,
@@ -174,7 +174,7 @@ def _requeue_job_task(job: Job) -> str | None:
 
     else:
         # For other job types, we don't currently support re-queuing
-        logger.warning(
+        logger.warning(  # type: ignore[call-arg]
             "job_requeue_unsupported",
             job_id=job_id,
             job_type=job.job_type,
@@ -362,26 +362,26 @@ async def cancel_job(
                 terminate=True,
                 signal="SIGTERM",  # Allow graceful cleanup
             )
-            logger.info(
+            logger.info(  # type: ignore[call-arg]
                 "celery_task_revoked",
                 job_id=str(job_id),
                 task_id=job.celery_task_id,
             )
         except Exception as e:
             # Log the error but don't fail the cancellation
-            logger.warning(
+            logger.warning(  # type: ignore[call-arg]
                 "celery_task_revoke_failed",
                 job_id=str(job_id),
                 task_id=job.celery_task_id,
                 error=str(e),
             )
     else:
-        logger.debug(
+        logger.debug(  # type: ignore[call-arg]
             "job_cancelled_no_task_id",
             job_id=str(job_id),
         )
 
-    logger.info(
+    logger.info(  # type: ignore[call-arg]
         "job_cancelled",
         job_id=str(job_id),
         user_id=str(current_user.id),
@@ -452,7 +452,7 @@ async def retry_job(
 
     # Log old task ID before clearing (for debugging)
     if job.celery_task_id:
-        logger.debug(
+        logger.debug(  # type: ignore[call-arg]
             "clearing_old_task_id",
             job_id=str(job_id),
             old_task_id=job.celery_task_id,
@@ -467,7 +467,7 @@ async def retry_job(
         if new_task_id:
             job.celery_task_id = new_task_id
             await db.commit()
-            logger.info(
+            logger.info(  # type: ignore[call-arg]
                 "job_requeued",
                 job_id=str(job_id),
                 retry_count=job.retry_count,
@@ -475,7 +475,7 @@ async def retry_job(
                 new_task_id=new_task_id,
             )
         else:
-            logger.warning(
+            logger.warning(  # type: ignore[call-arg]
                 "job_requeue_no_task",
                 job_id=str(job_id),
                 job_type=job.job_type,
@@ -486,7 +486,7 @@ async def retry_job(
         job.retry_count -= 1
         job.celery_task_id = None
         await db.commit()
-        logger.error(
+        logger.error(  # type: ignore[call-arg]
             "job_requeue_failed",
             job_id=str(job_id),
             error=str(e),

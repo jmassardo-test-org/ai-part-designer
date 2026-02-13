@@ -7,10 +7,45 @@ const DESIGN_API = '/api/v1/designs';
 const PROJECT_API = '/api/v1/projects';
 
 export interface Project {
+  [key: string]: any;
   id: string;
   name: string;
-  description?: string;
+  description?: string | null;
+  thumbnail_url?: string | null;
+  design_count?: number;
   created_at: string;
+  updated_at?: string;
+}
+
+/** A design entity returned by the API. */
+export interface Design {
+  [key: string]: any;
+  id: string;
+  name: string;
+  description: string;
+  project_id: string;
+  project_name: string;
+  source_type: string;
+  status: string;
+  thumbnail_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Response from copying a design. */
+export interface CopyResponse {
+  [key: string]: any;
+  design_id: string;
+  name: string;
+  id?: string;
+  description?: string;
+  project_id?: string;
+  project_name?: string;
+  source_type?: string;
+  status?: string;
+  thumbnail_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DesignSaveParams {
@@ -24,21 +59,27 @@ export interface DesignSaveParams {
  * Save a generated design from a job result.
  */
 export async function saveDesignFromJob(
-  params: DesignSaveParams,
-  authToken: string
+  paramsOrJobId: DesignSaveParams | string,
+  authTokenOrName?: string,
+  options?: Record<string, any>,
+  authToken?: string
 ): Promise<{ design_id: string }> {
+  const token = authToken || (typeof paramsOrJobId === 'string' ? '' : authTokenOrName) || '';
+  const body = typeof paramsOrJobId === 'string'
+    ? { job_id: paramsOrJobId, name: authTokenOrName, ...options }
+    : {
+        name: paramsOrJobId.name,
+        description: paramsOrJobId.description,
+        project_id: paramsOrJobId.projectId,
+        job_id: paramsOrJobId.jobId,
+      };
   const resp = await fetch(`${DESIGN_API}/from-job`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${authToken}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({
-      name: params.name,
-      description: params.description,
-      project_id: params.projectId,
-      job_id: params.jobId,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!resp.ok) {
@@ -50,8 +91,148 @@ export async function saveDesignFromJob(
 }
 
 /**
- * List all projects for the authenticated user.
+ * Get a single design by ID.
  */
+export async function getDesign(designId: string, authToken: string): Promise<Design> {
+  const resp = await fetch(`${DESIGN_API}/${designId}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch design: ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
+/**
+ * Update a design's metadata.
+ */
+export async function updateDesign(
+  designId: string,
+  data: Record<string, any>,
+  authToken: string
+): Promise<Design> {
+  const resp = await fetch(`${DESIGN_API}/${designId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Failed to update design: ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
+/**
+ * Copy a design to a project.
+ */
+export async function copyDesign(
+  designId: string,
+  nameOrTargetProjectId: string,
+  optionsOrAuthToken?: any,
+  authToken?: string
+): Promise<any> {
+  const token = authToken || (typeof optionsOrAuthToken === 'string' ? optionsOrAuthToken : '');
+  const resp = await fetch(`${DESIGN_API}/${designId}/copy`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(
+      typeof optionsOrAuthToken === 'object'
+        ? { name: nameOrTargetProjectId, ...optionsOrAuthToken }
+        : { project_id: nameOrTargetProjectId }
+    ),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Failed to copy design: ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
+/**
+ * Soft-delete a design with undo capability.
+ */
+export async function deleteDesignWithUndo(
+  designId: string,
+  authToken: string
+): Promise<any> {
+  const resp = await fetch(`${DESIGN_API}/${designId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Failed to delete design: ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
+/**
+ * Undo a design deletion using the undo token.
+ */
+export async function undoDeleteDesign(
+  undoToken: string,
+  authToken: string
+): Promise<any> {
+  const resp = await fetch(`${DESIGN_API}/undo-delete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify({ undo_token: undoToken }),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Failed to undo delete: ${resp.status}`);
+  }
+}
+
+/**
+ * Save a design from a conversation.
+ */
+export async function saveDesignFromConversation(
+  conversationId: string,
+  nameOrData: string | { name: string; description: string; project_id: string },
+  dataOrAuthToken?: any,
+  authToken?: string
+): Promise<{ design_id: string }> {
+  const token = authToken || (typeof dataOrAuthToken === 'string' ? dataOrAuthToken : '');
+  const body = typeof nameOrData === 'string'
+    ? { conversation_id: conversationId, name: nameOrData, ...(typeof dataOrAuthToken === 'object' ? dataOrAuthToken : {}) }
+    : { conversation_id: conversationId, ...nameOrData };
+  const resp = await fetch(`${DESIGN_API}/from-conversation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Failed to save design from conversation: ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
 export async function listProjects(authToken: string): Promise<Project[]> {
   const resp = await fetch(PROJECT_API, {
     method: 'GET',

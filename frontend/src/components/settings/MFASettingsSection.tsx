@@ -65,7 +65,7 @@ export function MFASettingsSection() {
   // Setup mutation
   const setupMutation = useMutation({
     mutationFn: () => mfaApi.setup(),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setSetupData(data);
       setShowSetupDialog(true);
     },
@@ -105,7 +105,7 @@ export function MFASettingsSection() {
   // Regenerate backup codes mutation
   const regenerateMutation = useMutation({
     mutationFn: () => mfaApi.regenerateBackupCodes(),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setSetupData((prev) => prev ? { ...prev, backup_codes: data.backup_codes } : null);
     },
     onError: (err: Error & { response?: { data?: { detail?: string } } }) => {

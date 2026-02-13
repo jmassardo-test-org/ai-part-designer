@@ -76,7 +76,7 @@ export function UnderstandingSidebar({ understanding }: UnderstandingSidebarProp
               Dimensions
             </h4>
             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-gray-600 dark:text-gray-300">
-              {dimensions.slice(0, 6).map(([key, dim]) => (
+              {dimensions.slice(0, 6).map(([key, dim]: [string, any]) => (
                 <div key={key} className="flex justify-between truncate">
                   <span className="truncate">{dim.name.replace(/_/g, ' ')}</span>
                   <span className="font-mono ml-1">
@@ -98,9 +98,9 @@ export function UnderstandingSidebar({ understanding }: UnderstandingSidebarProp
                 Features
               </h4>
               <div className="text-gray-600 dark:text-gray-300 space-y-0.5">
-                {features.slice(0, 3).map((feature, index) => (
+                {features.slice(0, 3).map((feature: any, index: number) => (
                   <div key={index} className="truncate">
-                    {feature.feature_type}{feature.count > 1 && ` ×${feature.count}`}
+                    {feature.feature_type}{(feature.count as number) > 1 && ` ×${feature.count}`}
                   </div>
                 ))}
               </div>

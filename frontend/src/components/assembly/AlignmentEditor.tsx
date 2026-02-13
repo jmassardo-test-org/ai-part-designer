@@ -194,7 +194,7 @@ function AlignmentPreview3D({
   const transformationMap = useMemo(() => {
     const map = new Map<string, TransformationInfo>();
     transformations.forEach((t) => {
-      map.set(t.file_path, t);
+      map.set(t.file_path!, t);
     });
     return map;
   }, [transformations]);
@@ -389,7 +389,7 @@ export function AlignmentEditor({
               Alignment Mode
             </h3>
             <div className="grid grid-cols-2 gap-2">
-              {ALIGNMENT_PRESETS.map((preset) => {
+              {ALIGNMENT_PRESETS.map((preset: any) => {
                 const Icon = iconMap[preset.icon] || Target;
                 return (
                   <button
