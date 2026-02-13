@@ -771,7 +771,9 @@ class CopyDesignResponse(BaseModel):
     resource_id_param="design_id",
     context_builder=lambda **kwargs: {
         "new_name": kwargs["copy_request"].name,
-        "target_project_id": str(kwargs["copy_request"].target_project_id) if kwargs["copy_request"].target_project_id else None,
+        "target_project_id": str(kwargs["copy_request"].target_project_id)
+        if kwargs["copy_request"].target_project_id
+        else None,
         "include_versions": kwargs["copy_request"].include_versions,
     },
 )

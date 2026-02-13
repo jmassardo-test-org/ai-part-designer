@@ -75,9 +75,9 @@ class AnthropicProvider(AIProvider):
                 self._client = AsyncAnthropic(api_key=self.api_key, timeout=60.0)
             except ImportError:
                 logger.warning("anthropic package not installed - run: pip install anthropic")
-                self._client = None
+                self._client = None  # type: ignore[assignment]
         else:
-            self._client = None
+            self._client = None  # type: ignore[assignment]
 
     @property
     def name(self) -> str:
@@ -144,10 +144,10 @@ class AnthropicProvider(AIProvider):
                 model=self.model,
                 max_tokens=max_tokens or self.max_tokens,
                 system=system_message,
-                messages=chat_messages,
+                messages=chat_messages,  # type: ignore[arg-type]
                 temperature=temperature,
             )
-            content: str = response.content[0].text
+            content: str = response.content[0].text  # type: ignore[union-attr]
             return content
         except Exception as e:
             raise AIError(
@@ -198,10 +198,10 @@ class AnthropicProvider(AIProvider):
                 model=self.model,
                 max_tokens=max_tokens or self.max_tokens,
                 system=system_message,
-                messages=chat_messages,
+                messages=chat_messages,  # type: ignore[arg-type]
                 temperature=temperature,
             )
-            content: str = response.content[0].text
+            content: str = response.content[0].text  # type: ignore[union-attr]
             return content
         except Exception as e:
             raise AIError(

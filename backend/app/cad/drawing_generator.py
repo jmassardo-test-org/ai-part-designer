@@ -151,7 +151,7 @@ class DrawingGenerator:
         try:
             import build123d as b3d
 
-            self._b3d = b3d
+            self._b3d = b3d  # type: ignore[assignment]
             self._ocp_available = True
         except ImportError:
             pass

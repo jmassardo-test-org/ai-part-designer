@@ -382,8 +382,12 @@ class PaymentService:
         if user.subscription:
             user.subscription.tier = plan_slug
             user.subscription.status = "active"
-            user.subscription.stripe_subscription_id = str(session.subscription) if session.subscription else None
-            user.subscription.stripe_customer_id = str(session.customer) if session.customer else None
+            user.subscription.stripe_subscription_id = (
+                str(session.subscription) if session.subscription else None
+            )
+            user.subscription.stripe_customer_id = (
+                str(session.customer) if session.customer else None
+            )
             user.subscription.current_period_start = datetime.fromtimestamp(
                 stripe_sub.current_period_start, tz=UTC
             )

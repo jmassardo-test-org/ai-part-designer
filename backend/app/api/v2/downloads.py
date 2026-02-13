@@ -107,7 +107,7 @@ async def download_file(
             detail="Failed to read file",
         )
 
-    return Response(
+    return Response(  # type: ignore[return-value]
         content=decrypted_content,
         media_type=media_type,
         headers={

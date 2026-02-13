@@ -335,11 +335,11 @@ def create_l_bracket(
 
     with BuildPart() as part:
         # Create horizontal flange (on XY plane, extends in +X direction)
-        with Location((leg_length / 2, 0, thickness / 2)):
+        with Location((leg_length / 2, 0, thickness / 2)):  # type: ignore[attr-defined]
             Box(leg_length, width, thickness)
 
         # Create vertical flange (perpendicular, extends in +Z direction)
-        with Location((thickness / 2, 0, leg_length / 2)):
+        with Location((thickness / 2, 0, leg_length / 2)):  # type: ignore[attr-defined]
             Box(thickness, width, leg_length)
 
         # Add holes if requested
@@ -360,7 +360,7 @@ def create_l_bracket(
             if h_hole_x and h_hole_y:
                 for x in h_hole_x:
                     for y in h_hole_y:
-                        with Location((x, y, thickness)):
+                        with Location((x, y, thickness)):  # type: ignore[attr-defined]
                             Hole(hole_diameter / 2, thickness + 1)
 
             # Holes on vertical flange
@@ -386,4 +386,4 @@ def create_l_bracket(
             except Exception:
                 pass  # Skip fillet if it fails
 
-    return part.part
+    return part.part  # type: ignore[no-any-return]

@@ -86,7 +86,7 @@ class RedisSubscriber:
 
             settings = get_settings()
             redis_url = settings.REDIS_URL
-            self._redis = await aioredis.from_url(redis_url)  # type: ignore[no-untyped-call]
+            self._redis = await aioredis.from_url(redis_url)  # type: ignore[assignment]
             self._pubsub = self._redis.pubsub()  # type: ignore[attr-defined]
 
             # Subscribe to patterns for user and room messages

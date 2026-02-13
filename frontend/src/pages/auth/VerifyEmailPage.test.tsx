@@ -7,8 +7,8 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { VerifyEmailPage } from './VerifyEmailPage';
 import { authApi } from '@/lib/auth';
+import { VerifyEmailPage } from './VerifyEmailPage';
 
 // Mock auth API
 vi.mock('@/lib/auth', () => ({

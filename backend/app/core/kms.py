@@ -99,7 +99,7 @@ class LocalKMSProvider(KMSKeyProvider):
     NOT SUITABLE FOR PRODUCTION - keys stored in environment variables.
     """
 
-    def __init__(self):
+    def __init__(self):  # type: ignore[no-untyped-def]
         """Initialize local KMS provider."""
         from cryptography.fernet import Fernet
         from cryptography.hazmat.primitives import hashes
@@ -152,7 +152,7 @@ class AWSKMSProvider(KMSKeyProvider):
     Requires AWS credentials with kms:Encrypt and kms:Decrypt permissions.
     """
 
-    def __init__(self):
+    def __init__(self):  # type: ignore[no-untyped-def]
         """Initialize AWS KMS provider."""
         if not settings.AWS_KMS_KEY_ID:
             raise KMSError("AWS_KMS_KEY_ID must be set when using AWS KMS provider")
@@ -193,7 +193,7 @@ class AWSKMSProvider(KMSKeyProvider):
                 KeyId=encrypted_dek_data.get("key_id"),
             )
 
-            return response["Plaintext"]
+            return response["Plaintext"]  # type: ignore[no-any-return]
         except Exception as e:
             logger.error("aws_kms_decrypt_failed", error=str(e))
             raise KMSDecryptionError(f"AWS KMS decryption failed: {e}") from e
@@ -209,7 +209,7 @@ class AWSKMSProvider(KMSKeyProvider):
                 KeyId=self._key_id,
                 KeySpec="AES_256",
             )
-            return response["Plaintext"]
+            return response["Plaintext"]  # type: ignore[no-any-return]
         except Exception as e:
             logger.error("aws_kms_generate_dek_failed", error=str(e))
             # Fallback to local generation if KMS fails
@@ -225,7 +225,7 @@ class GCPKMSProvider(KMSKeyProvider):
     and cloudkms.cryptoKeyVersions.useToDecrypt permissions.
     """
 
-    def __init__(self):
+    def __init__(self):  # type: ignore[no-untyped-def]
         """Initialize GCP Cloud KMS provider."""
         if not all(
             [
@@ -244,10 +244,10 @@ class GCPKMSProvider(KMSKeyProvider):
 
         self._kms_client = kms.KeyManagementServiceClient()
         self._key_name = self._kms_client.crypto_key_path(
-            settings.GCP_KMS_PROJECT_ID,
-            settings.GCP_KMS_LOCATION,
-            settings.GCP_KMS_KEY_RING,
-            settings.GCP_KMS_KEY_NAME,
+            settings.GCP_KMS_PROJECT_ID,  # type: ignore[arg-type]
+            settings.GCP_KMS_LOCATION,  # type: ignore[arg-type]
+            settings.GCP_KMS_KEY_RING,  # type: ignore[arg-type]
+            settings.GCP_KMS_KEY_NAME,  # type: ignore[arg-type]
         )
 
         logger.info(

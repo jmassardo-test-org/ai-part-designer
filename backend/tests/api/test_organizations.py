@@ -368,9 +368,7 @@ class TestOrganizationFeatures:
         await db_session.delete(org)
         await db_session.commit()
 
-    async def test_enabled_features_defaults_to_tier(
-        self, db_session: AsyncSession, test_user
-    ):
+    async def test_enabled_features_defaults_to_tier(self, db_session: AsyncSession, test_user):
         """Test that enabled_features defaults to tier's features."""
         org = Organization(
             id=uuid4(),
@@ -394,4 +392,3 @@ class TestOrganizationFeatures:
         # Cleanup
         await db_session.delete(org)
         await db_session.commit()
-

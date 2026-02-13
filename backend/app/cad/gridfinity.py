@@ -152,7 +152,7 @@ def _create_base_profile(width: float, depth: float) -> Part:
         align=(Align.CENTER, Align.CENTER, Align.MIN),
     ).moved(Location((0, 0, BASE_HEIGHT)))
 
-    result = result.fuse(rim)
+    result = result.fuse(rim)  # type: ignore[assignment]
 
     # Fillet rim edges
     rim_edges = result.edges().filter_by(Axis.Z).filter_by(lambda e: e.center().Z > BASE_HEIGHT)
@@ -228,7 +228,7 @@ def generate_gridfinity_baseplate(
                 receptacle_depth,
                 align=(Align.CENTER, Align.CENTER, Align.MAX),
             ).moved(Location((cx, cy, base_thickness)))
-            result = result.cut(pocket)
+            result = result.cut(pocket)  # type: ignore[assignment]
 
             # Add magnet holes if requested
             if magnet_holes:
@@ -241,7 +241,7 @@ def generate_gridfinity_baseplate(
                         magnet_depth,
                         align=(Align.CENTER, Align.CENTER, Align.MAX),
                     ).moved(Location((magnet_x, magnet_y, base_thickness)))
-                    result = result.cut(magnet_hole)
+                    result = result.cut(magnet_hole)  # type: ignore[assignment]
 
             # Add screw holes if requested
             if screw_holes:
@@ -250,7 +250,7 @@ def generate_gridfinity_baseplate(
                     base_thickness,
                     align=(Align.CENTER, Align.CENTER, Align.MIN),
                 ).moved(Location((cx, cy, 0)))
-                result = result.cut(screw_hole)
+                result = result.cut(screw_hole)  # type: ignore[assignment]
 
     return result
 
@@ -320,13 +320,13 @@ def generate_gridfinity_bin(
     interior = Box(
         inner_x, inner_y, inner_height, align=(Align.CENTER, Align.CENTER, Align.MIN)
     ).moved(Location((0, 0, floor_thickness)))
-    result = result.cut(interior)
+    result = result.cut(interior)  # type: ignore[assignment]
 
     # Add base profile (the part that fits into the baseplate)
     base_profile = Box(
         outer_x - 0.5, outer_y - 0.5, BASE_HEIGHT, align=(Align.CENTER, Align.CENTER, Align.MAX)
     ).moved(Location((0, 0, 0)))
-    result = result.fuse(base_profile)
+    result = result.fuse(base_profile)  # type: ignore[assignment]
 
     # Fillet base profile edges
     base_fillet = min(BASE_INNER_RADIUS, (outer_x - 0.5) / 10)
@@ -341,7 +341,7 @@ def generate_gridfinity_bin(
     step = Box(
         outer_x - 1.5, outer_y - 1.5, step_height, align=(Align.CENTER, Align.CENTER, Align.MAX)
     ).moved(Location((0, 0, -BASE_HEIGHT + 1.8 + step_height)))
-    result = result.fuse(step)
+    result = result.fuse(step)  # type: ignore[assignment]
 
     # Add dividers if requested
     if dividers_x > 0 or dividers_y > 0:
@@ -359,7 +359,7 @@ def generate_gridfinity_bin(
                     divider_height,
                     align=(Align.CENTER, Align.CENTER, Align.MIN),
                 ).moved(Location((0, div_y, floor_thickness)))
-                result = result.fuse(divider)
+                result = result.fuse(divider)  # type: ignore[assignment]
 
         # Y dividers (walls running in Y direction, dividing X)
         if dividers_x > 0:
@@ -372,7 +372,7 @@ def generate_gridfinity_bin(
                     divider_height,
                     align=(Align.CENTER, Align.CENTER, Align.MIN),
                 ).moved(Location((div_x, 0, floor_thickness)))
-                result = result.fuse(divider)
+                result = result.fuse(divider)  # type: ignore[assignment]
 
     # Add stacking lip if requested
     if stacking_lip:
@@ -392,7 +392,7 @@ def generate_gridfinity_bin(
         ).moved(Location((0, 0, outer_height)))
 
         lip = lip_outer.cut(lip_inner)
-        result = result.fuse(lip)
+        result = result.fuse(lip)  # type: ignore[arg-type, assignment]
 
         # Fillet top edges
         top_edges = result.edges().filter_by(
@@ -413,7 +413,7 @@ def generate_gridfinity_bin(
         tab = Box(
             tab_width, tab_depth, tab_height, align=(Align.CENTER, Align.MAX, Align.CENTER)
         ).moved(Location((0, -outer_y / 2 + tab_depth / 2, outer_height / 2 + tab_height / 2)))
-        result = result.fuse(tab)
+        result = result.fuse(tab)  # type: ignore[assignment]
 
     # Add finger scoop if requested
     if scoop:
@@ -424,7 +424,7 @@ def generate_gridfinity_bin(
             .moved(Location((0, 0, floor_thickness + scoop_radius / 2)))
             .rotate(Axis.X, 90)
         )
-        result = result.cut(scoop_cyl)
+        result = result.cut(scoop_cyl)  # type: ignore[assignment]
 
     return result
 
@@ -463,7 +463,7 @@ def generate_gridfinity_divider(
         Build123d Part with the divider
     """
     # Start with a base bin that has the appropriate dividers
-    return generate_gridfinity_bin(
+    return generate_gridfinity_bin(  # type: ignore[no-any-return]
         grid_x=grid_x,
         grid_y=grid_y,
         height_units=height_units,

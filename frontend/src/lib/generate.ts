@@ -5,6 +5,63 @@
 
 const GENERATE_API = '/api/v1/generate';
 
+/** Response from a generation request. */
+export interface GenerateResponse {
+  job_id: string;
+  status: string;
+  preview_url?: string;
+  stl_url?: string;
+  error?: string;
+  shape: string;
+  confidence: number;
+  dimensions: Record<string, number>;
+  is_assembly?: boolean;
+  parts?: Array<{
+    name: string;
+    description: string;
+    downloads: { step: string; stl: string };
+  }>;
+  bom?: Array<{
+    name: string;
+    quantity: number;
+    material: string;
+    supplier_url?: string;
+    mcmaster_pn?: string;
+  }>;
+  warnings: string[];
+  timing: { parse_ms: number; generate_ms: number; export_ms: number; total_ms: number };
+  downloads: { step?: string; stl?: string };
+  [key: string]: unknown;
+}
+
+/**
+ * Generate a CAD model from a natural language description.
+ */
+export async function generateFromDescription(
+  descriptionOrRequest: string | Record<string, unknown>,
+  authToken?: string,
+  options?: { format?: string; quality?: string }
+): Promise<GenerateResponse> {
+  const body = typeof descriptionOrRequest === 'string'
+    ? { description: descriptionOrRequest, ...options }
+    : descriptionOrRequest;
+  const token = authToken || '';
+  const resp = await fetch(`${GENERATE_API}/from-description`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Generation failed: ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
 /**
  * Download a generated CAD file.
  */

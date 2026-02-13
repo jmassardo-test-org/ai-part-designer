@@ -115,7 +115,7 @@ export function GeneratePage() {
       // Load preview if STL was generated
       if (response.downloads.stl) {
         try {
-          const preview = await getPreviewData(response.job_id, token || undefined);
+          const preview = await getPreviewData(response.job_id, (token || undefined)!);
           setPreviewData(preview);
         } catch (previewError) {
           console.error('Failed to load preview:', previewError);
@@ -135,7 +135,7 @@ export function GeneratePage() {
 
     setDownloading(format);
     try {
-      const blob = await downloadGeneratedFile(result.job_id, format, token || undefined);
+      const blob = await downloadGeneratedFile(result.job_id, format, (token || undefined)!);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -436,7 +436,7 @@ export function GeneratePage() {
                       key={key}
                       className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm text-gray-700 dark:text-gray-300"
                     >
-                      {formatDimension(key, value)}
+                      {formatDimension(key, value as number)}
                     </span>
                   ))}
                 </div>
@@ -450,7 +450,7 @@ export function GeneratePage() {
                     <h4 className="font-medium text-blue-900 dark:text-blue-300">Assembly Parts ({result.parts.length})</h4>
                   </div>
                   <div className="space-y-3">
-                    {result.parts.map((part, index) => (
+                    {result.parts.map((part: { name: string; description: string; downloads: { step: string; stl: string } }, index: number) => (
                       <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-blue-100 dark:border-blue-800">
                         <div className="flex items-center justify-between">
                           <div>
@@ -498,7 +498,7 @@ export function GeneratePage() {
                         </tr>
                       </thead>
                       <tbody className="text-gray-700 dark:text-gray-300">
-                        {result.bom.map((item, index) => (
+                        {result.bom.map((item: { name: string; quantity: number; material: string; supplier_url?: string; mcmaster_pn?: string }, index: number) => (
                           <tr key={index} className="border-t border-green-100 dark:border-green-800">
                             <td className="py-2">{item.name}</td>
                             <td className="py-2">{item.quantity}</td>
@@ -531,7 +531,7 @@ export function GeneratePage() {
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Warnings</p>
                   <ul className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
-                    {result.warnings.map((warning, index) => (
+                    {result.warnings.map((warning: string, index: number) => (
                       <li key={index}>• {warning}</li>
                     ))}
                   </ul>

@@ -282,7 +282,7 @@ function MembersTab({ orgId, currentUserId, isAdmin }: MembersTabProps) {
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                {member.display_name.charAt(0).toUpperCase()}
+                {(member.display_name || '').charAt(0).toUpperCase()}
               </div>
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">
@@ -958,7 +958,7 @@ export function OrganizationSettingsPage() {
         {activeTab === 'members' && (
           <MembersTab
             orgId={org.id}
-            currentUserId={currentUserId}
+            currentUserId={currentUserId!}
             isAdmin={isAdmin}
           />
         )}

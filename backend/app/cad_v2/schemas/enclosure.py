@@ -275,9 +275,7 @@ class EnclosureSpec(BaseModel):
     )
 
     # Features (cutouts, ports, vents) - will use proper type when features.py is created
-    features: list[Any] = Field(
-        default_factory=list, description="Features on enclosure walls"
-    )
+    features: list[Any] = Field(default_factory=list, description="Features on enclosure walls")
 
     # Ventilation
     ventilation: VentilationSpec = Field(

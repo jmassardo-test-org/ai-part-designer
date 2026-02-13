@@ -5,9 +5,9 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as api from '@/lib/marketplace';
 import type { ListCreate } from '@/types/marketplace';
 import { ListsPage } from './ListsPage';
-import * as api from '@/lib/marketplace';
 
 // Mock the ThemeContext
 vi.mock('@/contexts/ThemeContext', () => ({

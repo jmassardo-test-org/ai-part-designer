@@ -327,8 +327,8 @@ async def _get_conversation(
 @router.post("/", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
 async def create_conversation(
     request: CreateConversationRequest = CreateConversationRequest(),
-    db: Annotated[AsyncSession, Depends(get_db)] = ...,
-    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    db: Annotated[AsyncSession, Depends(get_db)] = ...,  # type: ignore[assignment]
+    current_user: Annotated[User, Depends(get_current_user)] = ...,  # type: ignore[assignment]
     _feature: None = Depends(require_feature("ai_chat")),
 ) -> ConversationResponse:
     """

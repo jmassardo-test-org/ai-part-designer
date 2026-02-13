@@ -113,7 +113,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
 
             self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         else:
-            self.client = None
+            self.client = None  # type: ignore[assignment]
         self.model = settings.ANTHROPIC_MODEL
 
     async def extract_dimensions(
@@ -183,7 +183,7 @@ Positions should be relative to bottom-left corner unless otherwise specified.""
             )
 
             # Parse response
-            content = response.content[0].text
+            content = response.content[0].text  # type: ignore[union-attr]
             return self._parse_response(content)
 
         except Exception as e:

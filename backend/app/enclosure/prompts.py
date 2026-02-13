@@ -569,7 +569,9 @@ class EnclosurePromptBuilder:
         # Check if any component needs ventilation
         needs_vent = False
         for comp in self.components:
-            if comp.thermal_properties and getattr(comp.thermal_properties, "requires_venting", False):
+            if comp.thermal_properties and getattr(
+                comp.thermal_properties, "requires_venting", False
+            ):
                 needs_vent = True
                 break
             for zone in comp.clearance_zones:

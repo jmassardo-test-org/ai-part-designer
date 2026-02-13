@@ -196,7 +196,7 @@ class ClaudeClient:
                     model=model,
                     max_tokens=max_tokens,
                     system=system_message,
-                    messages=chat_messages,
+                    messages=chat_messages,  # type: ignore[arg-type]
                     temperature=temperature,
                 )
 
@@ -225,7 +225,7 @@ class ClaudeClient:
                 )
 
                 # Extract content
-                content: str | None = response.content[0].text
+                content: str | None = response.content[0].text  # type: ignore[union-attr]
                 if content is None:
                     raise AIError("Empty response from Claude")
 
@@ -347,7 +347,7 @@ class ClaudeClient:
                 model=model,
                 max_tokens=max_tokens,
                 system=system_message,
-                messages=chat_messages,
+                messages=chat_messages,  # type: ignore[arg-type]
                 temperature=temperature,
             )
 
@@ -356,7 +356,7 @@ class ClaudeClient:
                 self._total_input_tokens += response.usage.input_tokens
                 self._total_output_tokens += response.usage.output_tokens
 
-            content: str = response.content[0].text
+            content: str = response.content[0].text  # type: ignore[union-attr]
             return content
 
         except Exception as e:

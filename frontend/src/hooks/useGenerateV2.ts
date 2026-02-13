@@ -6,15 +6,6 @@
 
 import { useMutation, useQuery, useQueryClient, type Query } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import type {
-  CompileRequest,
-  CompileResponse,
-  EnclosureSpec,
-  GenerateV2Request,
-  GenerateV2Response,
-  JobStatusResponse,
-  SchemaPreviewResponse,
-} from '@/types/cad-v2';
 import {
   compileEnclosure,
   downloadFile,
@@ -24,6 +15,15 @@ import {
   listJobFiles,
   previewSchema,
 } from '@/lib/generate-v2';
+import type {
+  CompileRequest,
+  CompileResponse,
+  EnclosureSpec,
+  GenerateV2Request,
+  GenerateV2Response,
+  JobStatusResponse,
+  SchemaPreviewResponse,
+} from '@/types/cad-v2';
 
 // =============================================================================
 // Query Keys
@@ -107,7 +107,7 @@ export function useCompileEnclosure() {
 export function useGenerateAsync() {
   const { token } = useAuth();
 
-  return useMutation<{ job_id: string; status: string }, Error, GenerateV2Request>({
+  return useMutation<GenerateV2Response, Error, GenerateV2Request>({
     mutationFn: (request) => generateAsync(request, token ?? undefined),
   });
 }
@@ -159,7 +159,7 @@ export function useJobStatus(
 export function useJobFiles(jobId: string | null) {
   const { token } = useAuth();
 
-  return useQuery<{ files: string[] }, Error>({
+  return useQuery<string[], Error>({
     queryKey: generateV2Keys.files(jobId ?? ''),
     queryFn: () => listJobFiles(jobId!, token ?? undefined),
     enabled: !!jobId,

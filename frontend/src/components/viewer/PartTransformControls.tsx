@@ -192,7 +192,7 @@ export function PartTransformControls({
 
     controls.addEventListener('change', handleChange);
     controls.addEventListener('dragging-changed', (event) => {
-      const isDragging = (event as { value: boolean }).value;
+      const isDragging = (event as unknown as { value: boolean }).value;
       if (isDragging) {
         handleDragStart();
       } else {
@@ -211,32 +211,38 @@ export function PartTransformControls({
     if (!controls) return;
 
     const handleDraggingChanged = (event: Event) => {
-      const isDragging = (event as { value: boolean }).value;
+      const isDragging = (event as unknown as { value: boolean }).value;
       // Find orbit controls in the scene
       gl.domElement.style.cursor = isDragging ? 'move' : 'default';
     };
 
+    // @ts-expect-error - three.js event type compatibility
     controls.addEventListener('dragging-changed', handleDraggingChanged);
 
     return () => {
+      // @ts-expect-error - three.js event type compatibility
       controls.removeEventListener('dragging-changed', handleDraggingChanged);
     };
   }, [gl.domElement]);
 
   if (!object) return null;
 
+  const transformProps = {
+    ref: controlsRef,
+    object,
+    mode,
+    camera,
+    gl,
+    showX: true,
+    showY: true,
+    showZ: true,
+    size: 0.8,
+    space: 'world' as const,
+  };
+
   return (
     <TransformControls
-      ref={controlsRef}
-      object={object}
-      mode={mode}
-      camera={camera}
-      gl={gl}
-      showX
-      showY
-      showZ
-      size={0.8}
-      space="world"
+      {...transformProps}
     />
   );
 }

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import aiofiles
+import aiofiles  # type: ignore[import-untyped]
 
 from app.core.config import settings
 from app.core.security import encryption_service
@@ -104,7 +104,7 @@ async def decrypt_file_from_disk(file_path: Path) -> bytes:
         data = await encryption_service.decrypt_file(data)
         logger.debug(f"Decrypted file from disk: {file_path}")
 
-    return data
+    return data  # type: ignore[no-any-return]
 
 
 async def encrypt_bytes_for_storage(data: bytes) -> bytes:

@@ -5,8 +5,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrganizationSettingsPage } from './OrganizationSettingsPage';
 import type { Organization, OrganizationMember } from '@/lib/api/organizations';
+import { OrganizationSettingsPage } from './OrganizationSettingsPage';
 
 // Mock data
 const mockOrganization: Organization = {
@@ -14,7 +14,7 @@ const mockOrganization: Organization = {
   name: 'Test Organization',
   slug: 'test-org',
   description: 'A test organization',
-  logo_url: null,
+  logo_url: undefined,
   owner_id: 'user-1',
   subscription_tier: 'pro',
   max_members: 10,
@@ -22,6 +22,7 @@ const mockOrganization: Organization = {
   member_count: 3,
   settings: {},
   created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 };
 
 const mockAdminMember: OrganizationMember = {

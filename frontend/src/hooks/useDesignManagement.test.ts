@@ -169,7 +169,7 @@ describe('useDesignManagement', () => {
   describe('copyDesignTo', () => {
     it('calls copyDesign with options', async () => {
       const copiedDesign = { ...mockDesign, id: 'copy-1', name: 'Copy' };
-      vi.mocked(designsApi.copyDesign).mockResolvedValue(copiedDesign as designsApi.CopyResponse);
+      vi.mocked(designsApi.copyDesign).mockResolvedValue(copiedDesign as designsApi.Design);
 
       const { result } = renderHook(() =>
         useDesignManagement({ token })
@@ -197,7 +197,7 @@ describe('useDesignManagement', () => {
 
     it('shows success toast on copy', async () => {
       const copiedDesign = { ...mockDesign, id: 'copy-1', name: 'Copy' };
-      vi.mocked(designsApi.copyDesign).mockResolvedValue(copiedDesign as designsApi.CopyResponse);
+      vi.mocked(designsApi.copyDesign).mockResolvedValue(copiedDesign as designsApi.Design);
 
       const { result } = renderHook(() =>
         useDesignManagement({ token })

@@ -39,7 +39,7 @@ try:
     BUILD123D_AVAILABLE = True
 except ImportError:
     BUILD123D_AVAILABLE = False
-    Part = Any
+    Part = Any  # type: ignore[assignment, misc]
 
 
 class MountCompiler:
@@ -117,7 +117,7 @@ class MountCompiler:
                             align=(Align.CENTER, Align.CENTER, Align.MIN),
                         )
 
-        return result.part
+        return result.part  # type: ignore[no-any-return]
 
     def add_lid_screw_holes(self, lid: Part) -> Part:
         """Add countersunk screw holes to the lid.
@@ -181,7 +181,7 @@ class MountCompiler:
                             align=(Align.CENTER, Align.CENTER, Align.MIN),
                         )
 
-        return result.part
+        return result.part  # type: ignore[no-any-return]
 
     def add_standoffs(
         self,
@@ -253,7 +253,7 @@ class MountCompiler:
                             align=(Align.CENTER, Align.CENTER, Align.MIN),
                         )
 
-        return result.part
+        return result.part  # type: ignore[no-any-return]
 
     def add_component_standoffs(
         self,

@@ -306,7 +306,7 @@ async def upload_component(
             f.write(content)
 
     # Store file metadata
-    component.files_metadata = { # type: ignore[attr-defined]
+    component.files_metadata = {  # type: ignore[attr-defined]
         f"{file_type}_file": {
             "filename": filename,
             "storage_key": storage_key,
@@ -599,9 +599,9 @@ async def update_component_files(
         )
 
         # Update component metadata
-        if not component.files_metadata: # type: ignore[attr-defined]
-            component.files_metadata = {} # type: ignore[attr-defined]
-        component.files_metadata["cad_file"] = { # type: ignore[attr-defined]
+        if not component.files_metadata:  # type: ignore[attr-defined]
+            component.files_metadata = {}  # type: ignore[attr-defined]
+        component.files_metadata["cad_file"] = {  # type: ignore[attr-defined]
             "filename": cad_file.filename,
             "storage_key": storage_key,
             "path": stored_path,
@@ -626,9 +626,9 @@ async def update_component_files(
         local_path = Path(settings.UPLOAD_DIR) / "components" / str(component_id) / "datasheet.pdf"
         stored_path = await upload_to_storage(storage_key, content, "application/pdf", local_path)
 
-        if not component.files_metadata: # type: ignore[attr-defined]
-            component.files_metadata = {} # type: ignore[attr-defined]
-        component.files_metadata["datasheet"] = { # type: ignore[attr-defined]
+        if not component.files_metadata:  # type: ignore[attr-defined]
+            component.files_metadata = {}  # type: ignore[attr-defined]
+        component.files_metadata["datasheet"] = {  # type: ignore[attr-defined]
             "filename": datasheet.filename,
             "storage_key": storage_key,
             "path": stored_path,
@@ -1093,7 +1093,7 @@ async def seed_library(
             model_number=component_data["model_number"],
             popularity_score=100,
             is_featured=component_data["category"] in ["sbc", "mcu"],
-            tags=[component_data["category"], component_data["manufacturer"].lower()], # type: ignore[attr-defined]
+            tags=[component_data["category"], component_data["manufacturer"].lower()],  # type: ignore[attr-defined]
         )
         db.add(library_entry)
         count += 1

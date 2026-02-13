@@ -15,16 +15,27 @@ export interface Message {
   created_at: string;
 }
 
+export interface ConversationResult {
+  job_id: string;
+  downloads?: {
+    stl?: string;
+    step?: string;
+  };
+  [key: string]: unknown;
+}
+
 export interface PartUnderstanding {
-  user_messages: string[];
+  [key: string]: unknown;
+  user_messages?: string[];
   model_context?: ModelContextData;
   classification?: {
     category: string;
     subcategory?: string;
     confidence: number;
   };
-  dimensions: Record<string, unknown>;
-  features: Array<Record<string, unknown>>;
+  missing_critical?: string[];
+  dimensions: Record<string, { name: string; value: number | string; unit: string; source?: string; [key: string]: unknown }>;
+  features: Array<{ feature_type: string; count: number; [key: string]: unknown }>;
   state: string;
   completeness_score: number;
 }
@@ -45,7 +56,7 @@ export interface Conversation {
   title?: string;
   messages: Message[];
   understanding?: PartUnderstanding;
-  result?: Record<string, unknown>;
+  result?: ConversationResult;
   created_at: string;
   updated_at: string;
 }
@@ -66,7 +77,7 @@ export interface SendMessageResult {
   conversation_status: string;
   understanding?: PartUnderstanding;
   ready_to_generate: boolean;
-  result?: Record<string, unknown>;
+  result?: ConversationResult;
 }
 
 /**

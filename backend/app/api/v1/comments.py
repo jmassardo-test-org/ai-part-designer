@@ -146,7 +146,7 @@ async def check_design_access(
             detail="You don't have access to this design",
         )
 
-    if require_comment_permission and share.permission == "view": # type: ignore[attr-defined]
+    if require_comment_permission and share.permission == "view":  # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to comment on this design",

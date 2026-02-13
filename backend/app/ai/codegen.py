@@ -423,7 +423,7 @@ def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
         except Exception as e:
             raise AIValidationError(f"Result has no valid geometry: {e}")
 
-        return result
+        return result  # type: ignore[no-any-return]
 
     except SyntaxError as e:
         logger.error(f"Syntax error in generated code: {e}")
@@ -473,10 +473,10 @@ def _apply_fillet_with_fallback(
     last_error = None
     for radius in radii_to_try:
         try:
-            edges = shape.edges(edge_selector)
+            edges = shape.edges(edge_selector)  # type: ignore[call-arg]
 
             # Log how many edges we're trying to fillet
-            edge_count = edges.size()
+            edge_count = edges.size()  # type: ignore[attr-defined]
             logger.info(
                 f"Attempting {operation}({radius}) on {edge_count} edges matching {edge_selector}"
             )
@@ -496,7 +496,7 @@ def _apply_fillet_with_fallback(
                 logger.info("Skipping small fillet on complex geometry")
                 continue
 
-            result = edges.fillet(radius) if operation == "fillet" else edges.chamfer(radius)
+            result = edges.fillet(radius) if operation == "fillet" else edges.chamfer(radius)  # type: ignore[attr-defined]
 
             # Validate the result
             val = result.val()
