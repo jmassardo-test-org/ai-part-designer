@@ -796,8 +796,9 @@ async def leave_team(
 )
 async def list_project_teams(
     project_id: UUID,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_team_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[ProjectTeamResponse]:
     """List teams assigned to a project.
 
@@ -805,10 +806,16 @@ async def list_project_teams(
         project_id: Project UUID.
         current_user: Authenticated user.
         service: Team service.
+        db: Database session.
 
     Returns:
         List of project-team assignments.
+
+    Raises:
+        HTTPException 404: If project not found.
+        HTTPException 403: If user lacks permission.
     """
+    await check_project_permission(db, project_id, current_user)
     assignments = await service.list_project_teams(project_id)
 
     return [
