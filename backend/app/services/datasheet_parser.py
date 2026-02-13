@@ -270,7 +270,7 @@ class DatasheetParserService:
 
             self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         else:
-            self.client = None
+            self.client = None  # type: ignore[assignment]
 
     async def parse_datasheet(
         self,
@@ -359,7 +359,7 @@ class DatasheetParserService:
                 temperature=0.1,
             )
 
-            content = response.content[0].text
+            content = response.content[0].text  # type: ignore[union-attr]
 
             # Parse JSON from response
             json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
@@ -400,7 +400,7 @@ class DatasheetParserService:
                 temperature=0.1,
             )
 
-            content = response.content[0].text
+            content = response.content[0].text  # type: ignore[union-attr]
 
             # Parse JSON from response
             json_match = re.search(r"\{.*\}", content, re.DOTALL)

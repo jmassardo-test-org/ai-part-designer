@@ -336,7 +336,9 @@ class DataExporter:
                     "tier": user.tier,
                     "created_at": user.created_at.isoformat(),
                     "settings": {
-                        "default_units": user.settings.preferences.get("defaultUnits") if user.settings else None,
+                        "default_units": user.settings.preferences.get("defaultUnits")
+                        if user.settings
+                        else None,
                         "theme": user.settings.preferences.get("theme") if user.settings else None,
                     }
                     if user.settings

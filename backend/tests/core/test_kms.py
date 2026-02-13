@@ -143,7 +143,9 @@ class TestAWSKMSProvider:
             assert encrypted["algorithm"] == "AWS_KMS"
 
             # Verify KMS client was called
-            mock_kms_client.encrypt.assert_called_once_with(KeyId="test-key-id", Plaintext=plaintext_dek)
+            mock_kms_client.encrypt.assert_called_once_with(
+                KeyId="test-key-id", Plaintext=plaintext_dek
+            )
 
     @patch("boto3.client")
     def test_aws_kms_decrypt_dek(self, mock_boto3_client):

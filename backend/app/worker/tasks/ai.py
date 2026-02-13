@@ -363,7 +363,10 @@ Only output the JSON. No markdown."""
             try:
                 response = await ai_client.complete(
                     messages=[
-                        {"role": "system", "content": "You are a CAD design assistant that suggests parameter modifications."},
+                        {
+                            "role": "system",
+                            "content": "You are a CAD design assistant that suggests parameter modifications.",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.3,

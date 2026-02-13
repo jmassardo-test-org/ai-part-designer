@@ -3013,7 +3013,7 @@ async def upload_template_preview_image(
     """Upload preview image for a template."""
     from pathlib import Path
 
-    import aiofiles
+    import aiofiles  # type: ignore[import-untyped]
 
     from app.core.config import get_settings
 
@@ -3951,7 +3951,9 @@ async def list_components(
         filters.append(
             or_(
                 ReferenceComponent.name.ilike(f"%{search}%"),
-                ReferenceComponent.model_number.ilike(f"%{search}%"),  # Use model_number instead of part_number
+                ReferenceComponent.model_number.ilike(
+                    f"%{search}%"
+                ),  # Use model_number instead of part_number
                 ReferenceComponent.manufacturer.ilike(f"%{search}%"),
             )
         )
@@ -4188,7 +4190,8 @@ async def list_notifications_admin(
                 id=n.id,
                 user_id=n.user_id,
                 user_email=n.user.email if n.user else None,
-                notification_type=getattr(n, "notification_type", None) or getattr(n, "type", "unknown"),
+                notification_type=getattr(n, "notification_type", None)
+                or getattr(n, "type", "unknown"),
                 title=n.title,
                 message=n.message,
                 is_read=n.is_read,
@@ -4236,9 +4239,7 @@ async def create_announcement(
         }
 
     # Build user query based on recipient_type
-    user_query = select(User).where(
-        and_(User.status == "active", User.deleted_at.is_(None))
-    )
+    user_query = select(User).where(and_(User.status == "active", User.deleted_at.is_(None)))
 
     if request.recipient_type == RecipientType.TIER:
         if not request.target_tier:
@@ -5227,7 +5228,9 @@ async def list_cad_v2_components(
     # Get database records for these components
     slugs = [c.id for c in components]
     db_components = await db.execute(
-        select(ReferenceComponent).where(ReferenceComponent.name.in_(slugs))  # Using name instead of slug
+        select(ReferenceComponent).where(
+            ReferenceComponent.name.in_(slugs)
+        )  # Using name instead of slug
     )
     db_comp_map: dict[str, ReferenceComponent] = {
         str(c.name): c for c in db_components.scalars().all()
@@ -5247,7 +5250,7 @@ async def list_cad_v2_components(
                 id=comp.id,
                 name=comp.name,
                 category=comp.category.value,
-                description=comp.description, # type: ignore[attr-defined]
+                description=comp.description,  # type: ignore[attr-defined]
                 dimensions_mm=comp.dimensions.to_tuple_mm(),
                 aliases=list(comp.aliases) if comp.aliases else [],
                 mounting_hole_count=len(comp.mounting_holes) if comp.mounting_holes else 0,
@@ -5313,7 +5316,9 @@ async def get_cad_v2_component(
                 {
                     "name": p.name,
                     "type": getattr(p, "port_type", "unknown"),
-                    "wall": getattr(p.wall, "value", str(p.wall)) if hasattr(p, "wall") else "front",
+                    "wall": getattr(p.wall, "value", str(p.wall))
+                    if hasattr(p, "wall")
+                    else "front",
                     "width": p.width,
                     "height": p.height,
                 }

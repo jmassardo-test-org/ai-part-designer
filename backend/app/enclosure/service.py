@@ -425,7 +425,7 @@ class EnclosureGenerationService:
             if "generate_enclosure" not in namespace:
                 raise CADError("Generated code must define 'generate_enclosure()' function")
 
-            result = namespace["generate_enclosure"]()
+            result = namespace["generate_enclosure"]()  # type: ignore[operator]
 
             # Handle different return types
             if isinstance(result, tuple) and len(result) == 2:

@@ -102,14 +102,14 @@ function TrashItemRow({
   isRestoring: boolean;
   isDeleting: boolean;
 }) {
-  const isExpiringSoon = item.days_until_deletion <= 7;
-  const isExpiringSoonCritical = item.days_until_deletion <= 3;
+  const isExpiringSoon = (item.days_until_deletion ?? 0) <= 7;
+  const isExpiringSoonCritical = (item.days_until_deletion ?? 0) <= 3;
 
   return (
     <TableRow className={cn(isExpiringSoonCritical && 'bg-red-50 dark:bg-red-950/20')}>
       <TableCell>
         <div className="flex items-center gap-2">
-          {getItemIcon(item.item_type)}
+          {getItemIcon(item.item_type!)}
           <span className="font-medium">{item.name}</span>
         </div>
       </TableCell>
@@ -131,12 +131,12 @@ function TrashItemRow({
             'text-sm',
             isExpiringSoonCritical ? 'text-red-600 font-medium' : isExpiringSoon ? 'text-amber-600' : 'text-muted-foreground'
           )}>
-            {item.days_until_deletion} day{item.days_until_deletion !== 1 ? 's' : ''}
+            {(item.days_until_deletion ?? 0)} day{(item.days_until_deletion ?? 0) !== 1 ? 's' : ''}
           </span>
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground text-sm">
-        {formatBytes(item.size_bytes)}
+        {formatBytes(item.size_bytes!)}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">

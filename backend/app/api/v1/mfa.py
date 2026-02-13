@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import pyotp
-import qrcode
+import qrcode  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -389,7 +389,12 @@ async def verify_mfa(
     code = request.code.strip()
 
     # Try TOTP verification first (6 digits)
-    if len(code) == 6 and code.isdigit() and current_user.mfa_secret and verify_totp_code(current_user.mfa_secret, code):
+    if (
+        len(code) == 6
+        and code.isdigit()
+        and current_user.mfa_secret
+        and verify_totp_code(current_user.mfa_secret, code)
+    ):
         return MFAVerifyResponse(
             verified=True,
             message="Code verified successfully.",

@@ -264,7 +264,7 @@ class CutoutGenerator:
                     align=(Align.CENTER, Align.CENTER, Align.CENTER),
                 ).locate(Location((cutout.center_x, 0, cutout.center_y)))
 
-        return builder.part
+        return builder.part  # type: ignore[no-any-return]
 
     def generate_all_cutouts(
         self,
@@ -292,7 +292,7 @@ class CutoutGenerator:
         # Fuse with remaining cutouts
         for cutout in cutouts[1:]:
             new_cutout = self.generate_cutout_geometry(cutout, enclosure_dims, wall_thickness)
-            result = result.fuse(new_cutout)
+            result = result.fuse(new_cutout)  # type: ignore[assignment]
 
         return result
 

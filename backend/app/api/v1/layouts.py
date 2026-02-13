@@ -860,9 +860,9 @@ async def auto_layout(
     for component in components:
         # Get dimensions
         dims = component.dimensions if component.dimensions else {}
-        width = dims.get("length") or dims.get("width") or 50 # type: ignore[attr-defined]
-        depth = dims.get("width") or dims.get("depth") or 50 # type: ignore[attr-defined]
-        height = dims.get("height") or 20 # type: ignore[attr-defined]
+        width = dims.get("length") or dims.get("width") or 50  # type: ignore[attr-defined]
+        depth = dims.get("width") or dims.get("depth") or 50  # type: ignore[attr-defined]
+        height = dims.get("height") or 20  # type: ignore[attr-defined]
 
         # Check if fits in current row
         if current_x + width + layout.min_spacing_x > layout.enclosure_length:

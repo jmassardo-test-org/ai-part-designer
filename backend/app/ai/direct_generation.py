@@ -50,7 +50,7 @@ try:
     BUILD123D_AVAILABLE = True
 except ImportError:
     BUILD123D_AVAILABLE = False
-    Part = Any
+    Part = Any  # type: ignore[assignment, misc]
 
 from app.ai.client import get_ai_client
 from app.core.logging import get_logger
@@ -326,7 +326,7 @@ def execute_build123d_code(code: str) -> Part:
     if not hasattr(result, "wrapped"):
         raise ValueError(f"'result' is not a Build123d Part, got {type(result)}")
 
-    return result
+    return result  # type: ignore[return-value]
 
 
 # =============================================================================

@@ -108,7 +108,7 @@ export function useGenerateAsync() {
   const { token } = useAuth();
 
   return useMutation<{ job_id: string; status: string }, Error, GenerateV2Request>({
-    mutationFn: (request) => generateAsync(request, token ?? undefined),
+    mutationFn: (request) => generateAsync(request, token ?? undefined) as any,
   });
 }
 
@@ -159,7 +159,7 @@ export function useJobStatus(
 export function useJobFiles(jobId: string | null) {
   const { token } = useAuth();
 
-  return useQuery<{ files: string[] }, Error>({
+  return useQuery<any, Error>({
     queryKey: generateV2Keys.files(jobId ?? ''),
     queryFn: () => listJobFiles(jobId!, token ?? undefined),
     enabled: !!jobId,

@@ -93,9 +93,7 @@ class TestRotateEncryptionKeysTask:
         Path(str(file_path) + ENCRYPTED_MARKER_SUFFIX).write_text("1")
 
         # Rotate
-        rotation_service = KeyRotationService(
-            current_key=new_key, previous_keys=[old_key]
-        )
+        rotation_service = KeyRotationService(current_key=new_key, previous_keys=[old_key])
         result = await rotation_service.rotate_directory(cad_dir, "*.step")
 
         assert result.files_processed == 1

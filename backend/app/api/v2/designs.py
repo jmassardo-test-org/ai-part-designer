@@ -358,33 +358,33 @@ async def list_designs_v2(
     designs = result.scalars().all()
 
     # Get project names
-    project_ids = {d.project_id for d in designs} # type: ignore[attr-defined]
+    project_ids = {d.project_id for d in designs}  # type: ignore[attr-defined]
     if project_ids:
         projects_query = select(Project).where(Project.id.in_(project_ids))
         result = await db.execute(projects_query)
-        projects = {p.id: p for p in result.scalars().all()} # type: ignore[attr-defined]
+        projects = {p.id: p for p in result.scalars().all()}  # type: ignore[attr-defined]
     else:
         projects = {}
 
     # Build response
     design_responses = []
     for design in designs:
-        project = projects.get(design.project_id) # type: ignore[attr-defined]
-        extra_data = design.extra_data or {} # type: ignore[attr-defined]
+        project = projects.get(design.project_id)  # type: ignore[attr-defined]
+        extra_data = design.extra_data or {}  # type: ignore[attr-defined]
 
         design_responses.append(
             SaveDesignV2Response(
-                id=design.id, # type: ignore[attr-defined]
-                name=design.name, # type: ignore[attr-defined]
-                description=design.description, # type: ignore[attr-defined]
-                project_id=design.project_id, # type: ignore[attr-defined]
-                project_name=project.name if project else "Unknown", # type: ignore[attr-defined]
-                source_type=design.source_type, # type: ignore[attr-defined]
-                status=design.status, # type: ignore[attr-defined]
+                id=design.id,  # type: ignore[attr-defined]
+                name=design.name,  # type: ignore[attr-defined]
+                description=design.description,  # type: ignore[attr-defined]
+                project_id=design.project_id,  # type: ignore[attr-defined]
+                project_name=project.name if project else "Unknown",  # type: ignore[attr-defined]
+                source_type=design.source_type,  # type: ignore[attr-defined]
+                status=design.status,  # type: ignore[attr-defined]
                 job_id=extra_data.get("job_id", ""),
                 enclosure_spec=extra_data.get("enclosure_spec"),
                 downloads=extra_data.get("downloads", {}),
-                created_at=design.created_at.isoformat(), # type: ignore[attr-defined]
+                created_at=design.created_at.isoformat(),  # type: ignore[attr-defined]
             )
         )
 

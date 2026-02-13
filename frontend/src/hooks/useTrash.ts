@@ -50,7 +50,7 @@ export function useTrash(options: UseTrashOptions = {}) {
   const restoreMutation = useMutation({
     mutationFn: ({ itemId, itemType }: { itemId: string; itemType: string }) =>
       trashApi.restoreItem(itemId, itemType),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: 'Item restored',
         description: data.message,
@@ -91,7 +91,7 @@ export function useTrash(options: UseTrashOptions = {}) {
   // Empty trash mutation
   const emptyTrashMutation = useMutation({
     mutationFn: () => trashApi.emptyTrash(),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: 'Trash emptied',
         description: `${data.deleted_count} items permanently deleted.`,
@@ -131,14 +131,14 @@ export function useTrash(options: UseTrashOptions = {}) {
   // Actions
   const restoreItem = useCallback(
     (item: TrashedItem) => {
-      restoreMutation.mutate({ itemId: item.id, itemType: item.item_type });
+      restoreMutation.mutate({ itemId: item.id, itemType: item.item_type! });
     },
     [restoreMutation]
   );
 
   const deleteItem = useCallback(
     (item: TrashedItem) => {
-      deleteMutation.mutate({ itemId: item.id, itemType: item.item_type });
+      deleteMutation.mutate({ itemId: item.id, itemType: item.item_type! });
     },
     [deleteMutation]
   );

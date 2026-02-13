@@ -478,7 +478,7 @@ async def download_generated_file(
                 stored_path = Path(job.result[file_key])
                 if stored_path.exists():
                     logger.info(f"Serving file from job result: {stored_path}")
-                    return _create_file_response(stored_path, file_format, job_id)
+                    return _create_file_response(stored_path, file_format, job_id)  # type: ignore[return-value]
 
     # Fallback: Find the file in the temp export directory
     output_path = Path(tempfile.gettempdir()) / "cad_exports"
@@ -507,7 +507,7 @@ async def download_generated_file(
         )
 
     file_path = matching_files[0]
-    return _create_file_response(file_path, file_format, job_id)
+    return _create_file_response(file_path, file_format, job_id)  # type: ignore[return-value]
 
 
 def _create_file_response(file_path: Path, file_format: str, job_id: str) -> Response:
@@ -663,7 +663,7 @@ async def download_assembly_part(
     if marker_path.exists() and is_encryption_enabled():
         data = encryption_service.decrypt_bytes(data)
 
-    return Response(
+    return Response(  # type: ignore[return-value]
         content=data,
         media_type=media_type,
         headers={

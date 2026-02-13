@@ -178,7 +178,7 @@ export function StartersPage() {
     async function loadCategories() {
       try {
         const cats = await api.getStarterCategories();
-        setCategories(cats);
+        setCategories(cats as any);
       } catch (err) {
         console.error('Failed to load categories:', err);
       }

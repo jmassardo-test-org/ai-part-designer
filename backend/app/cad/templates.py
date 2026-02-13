@@ -275,7 +275,7 @@ def generate_project_box(
                     mode=Mode.SUBTRACT,
                 ).locate(Location((x, y, base_height)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -412,7 +412,7 @@ def generate_mounting_bracket(
                     mode=Mode.SUBTRACT,
                 ).locate(Location((depth * 1.5 - thickness, y, height - thickness)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -469,7 +469,7 @@ def generate_simple_box(
             mode=Mode.SUBTRACT,
         ).locate(Location((0, 0, wall_thickness)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -511,7 +511,7 @@ def generate_standoff(
             mode=Mode.SUBTRACT,
         )
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -574,7 +574,7 @@ def generate_cable_clip(
                 mode=Mode.SUBTRACT,
             ).locate(Location((x, 0, 0)))
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -654,7 +654,7 @@ def generate_hinge(
             mode=Mode.SUBTRACT,
         ).locate(Location((0, 0, knuckle_radius))).rotate(Axis.X, 90)
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]
 
 
 # =============================================================================
@@ -676,7 +676,7 @@ def generate_enclosure(
 
     This is a simplified enclosure for backwards compatibility.
     """
-    return generate_project_box(
+    return generate_project_box(  # type: ignore[no-any-return]
         length=length,
         width=width,
         height=height,
@@ -815,4 +815,4 @@ def generate_pipe_connector(
                 mode=Mode.SUBTRACT,
             ).rotate(Axis.Y, 90)
 
-    return builder.part
+    return builder.part  # type: ignore[no-any-return]

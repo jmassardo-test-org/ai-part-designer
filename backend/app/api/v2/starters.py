@@ -200,7 +200,8 @@ async def get_starter_categories(
     rows = result.all()
 
     category_counts: dict[str, int] = {
-        str(row[0]): int(row[1]) for row in rows  # category, count
+        str(row[0]): int(row[1])
+        for row in rows  # category, count
     }
 
     return [

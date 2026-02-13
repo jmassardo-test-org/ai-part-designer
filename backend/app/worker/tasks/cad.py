@@ -420,9 +420,15 @@ def generate_from_description_task(
                 # Build result
                 output = {
                     "job_id": job_id,
-                    "shape": result.parameters.shape.value if hasattr(result, "parameters") and result.parameters else "unknown",
-                    "dimensions": result.parameters.dimensions if hasattr(result, "parameters") and result.parameters else {},
-                    "confidence": result.parameters.confidence if hasattr(result, "parameters") and result.parameters else 0.0,
+                    "shape": result.parameters.shape.value
+                    if hasattr(result, "parameters") and result.parameters
+                    else "unknown",
+                    "dimensions": result.parameters.dimensions
+                    if hasattr(result, "parameters") and result.parameters
+                    else {},
+                    "confidence": result.parameters.confidence
+                    if hasattr(result, "parameters") and result.parameters
+                    else 0.0,
                     "files": file_urls,
                     "timing": {
                         "parse_ms": result.parse_time_ms,
@@ -445,7 +451,7 @@ def generate_from_description_task(
                 await session.commit()
 
                 logger.info(
-                    f"AI generation complete for job {job_id}: {result.parameters.shape.value}" # type: ignore[attr-defined]
+                    f"AI generation complete for job {job_id}: {result.parameters.shape.value}"  # type: ignore[attr-defined]
                 )
                 return output
 

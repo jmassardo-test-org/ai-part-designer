@@ -61,7 +61,7 @@ def union(*shapes: Part) -> Part:
 
     result = shapes[0]
     for shape in shapes[1:]:
-        result = result.fuse(shape)
+        result = result.fuse(shape)  # type: ignore[assignment]
 
     return result
 
@@ -91,7 +91,7 @@ def difference(base: Part, *tools: Part) -> Part:
 
     result = base
     for tool in tools:
-        result = result.cut(tool)
+        result = result.cut(tool)  # type: ignore[assignment]
 
     # Validate result
     try:
@@ -133,7 +133,7 @@ def intersection(*shapes: Part) -> Part:
 
     result = shapes[0]
     for shape in shapes[1:]:
-        result = result.intersect(shape)
+        result = result.intersect(shape)  # type: ignore[assignment]
 
     # Validate result
     try:
@@ -473,7 +473,7 @@ def add_hole(
         # Default to top face
         hole = hole.move(Location((position[0], position[1], bb.max.Z - depth)))
 
-    return shape.cut(hole)
+    return shape.cut(hole)  # type: ignore[return-value]
 
 
 # =============================================================================

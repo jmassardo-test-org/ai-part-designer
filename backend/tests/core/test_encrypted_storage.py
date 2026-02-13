@@ -96,9 +96,7 @@ class TestEncryptedStorageClient:
             assert uploaded_content == file_content
 
     @pytest.mark.asyncio
-    async def test_upload_file_with_custom_metadata(
-        self, encrypted_storage_client, mock_s3_client
-    ):
+    async def test_upload_file_with_custom_metadata(self, encrypted_storage_client, mock_s3_client):
         """Test uploading file with custom metadata preserved."""
         file_content = b"test file content"
         custom_metadata = {"author": "test", "version": "1.0"}

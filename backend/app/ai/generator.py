@@ -98,20 +98,20 @@ class CADGenerator:
         if shape_type == ShapeType.BOX:
             with BuildPart() as part:
                 Box(dims["length"], dims["width"], dims["height"])
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         if shape_type == ShapeType.CYLINDER:
             radius = dims.get("radius") or dims.get("diameter", 50) / 2
             height = dims["height"]
             with BuildPart() as part:
                 Cylinder(radius, height)
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         if shape_type == ShapeType.SPHERE:
             radius = dims.get("radius") or dims.get("diameter", 50) / 2
             with BuildPart() as part:
                 Sphere(radius)
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         if shape_type == ShapeType.CONE:
             radius1 = dims.get("radius1") or dims.get("radius") or dims.get("diameter", 50) / 2
@@ -119,14 +119,14 @@ class CADGenerator:
             height = dims["height"]
             with BuildPart() as part:
                 Cone(radius1, radius2, height)
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         if shape_type == ShapeType.TORUS:
             major_radius = dims["major_radius"]
             minor_radius = dims["minor_radius"]
             with BuildPart() as part:
                 Torus(major_radius, minor_radius)
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         if shape_type == ShapeType.WEDGE:
             length = dims["length"]
@@ -141,13 +141,13 @@ class CADGenerator:
                 with BuildSketch(Plane.XY.offset(height)):
                     Rectangle(length, 0.01)  # Very thin at top
                 loft()
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         if shape_type == ShapeType.ENCLOSURE:
             # Treat enclosure as a box for the base shape
             with BuildPart() as part:
                 Box(dims["length"], dims["width"], dims["height"])
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         # Default to box
         logger.warning(f"Unknown shape type {shape_type}, defaulting to box")
@@ -157,7 +157,7 @@ class CADGenerator:
                 dims.get("width", 100),
                 dims.get("height", 100),
             )
-        return part.part
+        return part.part  # type: ignore[no-any-return]
 
     def _apply_features(self, shape: Part, params: CADParameters) -> Part:
         """Apply features (holes, fillets, chamfers) to the shape using Build123d."""
@@ -175,7 +175,7 @@ class CADGenerator:
                 with BuildPart() as part:
                     add(shape)
                     fillet(part.edges(), radius)
-                return part.part
+                return part.part  # type: ignore[no-any-return]
             except Exception:
                 logger.warning("Full fillet failed, skipping")
                 return shape
@@ -186,7 +186,7 @@ class CADGenerator:
                 with BuildPart() as part:
                     add(shape)
                     chamfer(part.edges(), size)
-                return part.part
+                return part.part  # type: ignore[no-any-return]
             except Exception:
                 logger.warning("Chamfer failed, skipping")
                 return shape
@@ -201,7 +201,7 @@ class CADGenerator:
                 # Get the top face and add hole at center
                 with BuildPart(mode=Mode.SUBTRACT):
                     Cylinder(radius, depth if depth else 1000)  # Through-all if no depth
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         elif feature.type == FeatureType.SLOT:
             length = feature_params.get("length", 20)
@@ -212,7 +212,7 @@ class CADGenerator:
                 add(shape)
                 with BuildPart(mode=Mode.SUBTRACT):
                     Box(length, width, depth)
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         elif feature.type == FeatureType.POCKET:
             length = feature_params.get("length", 20)
@@ -222,7 +222,7 @@ class CADGenerator:
                 add(shape)
                 with BuildPart(mode=Mode.SUBTRACT):
                     Box(length, width, depth)
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         elif feature.type == FeatureType.BOSS:
             diameter = feature_params.get("diameter", 10)
@@ -235,7 +235,7 @@ class CADGenerator:
                 add(shape)
                 with Locations([Location((0, 0, top_z))]):
                     Cylinder(radius, height, align=(Align.CENTER, Align.CENTER, Align.MIN))
-            return part.part
+            return part.part  # type: ignore[no-any-return]
 
         else:
             logger.warning(f"Unknown feature type: {feature.type}")

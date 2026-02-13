@@ -16,13 +16,15 @@ export interface Message {
 }
 
 export interface PartUnderstanding {
-  user_messages: string[];
+  [key: string]: any;
+  user_messages?: string[];
   model_context?: ModelContextData;
   classification?: {
     category: string;
     subcategory?: string;
     confidence: number;
   };
+  missing_critical?: string[];
   dimensions: Record<string, unknown>;
   features: Array<Record<string, unknown>>;
   state: string;
@@ -45,7 +47,7 @@ export interface Conversation {
   title?: string;
   messages: Message[];
   understanding?: PartUnderstanding;
-  result?: Record<string, unknown>;
+  result?: any;
   created_at: string;
   updated_at: string;
 }
@@ -66,7 +68,7 @@ export interface SendMessageResult {
   conversation_status: string;
   understanding?: PartUnderstanding;
   ready_to_generate: boolean;
-  result?: Record<string, unknown>;
+  result?: any;
 }
 
 /**

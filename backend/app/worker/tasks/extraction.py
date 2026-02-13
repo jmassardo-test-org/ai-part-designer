@@ -192,7 +192,9 @@ async def _extract_from_datasheet(component: ReferenceComponent) -> dict[str, An
     """
     from app.core.config import settings
 
-    datasheet_url = getattr(component, "datasheet_url", None) or getattr(component, "datasheet_file", None)
+    datasheet_url = getattr(component, "datasheet_url", None) or getattr(
+        component, "datasheet_file", None
+    )
     if not datasheet_url:
         logger.info(f"No datasheet URL for component {component.id}")
         return None

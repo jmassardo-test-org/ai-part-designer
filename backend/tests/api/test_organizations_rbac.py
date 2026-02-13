@@ -198,7 +198,9 @@ def make_auth_headers(user: User) -> dict[str, str]:
 class TestGetOrganizationRBAC:
     """Test RBAC for GET /organizations/{org_id}."""
 
-    async def test_owner_can_view(self, client: AsyncClient, test_org: Organization, org_owner: User):
+    async def test_owner_can_view(
+        self, client: AsyncClient, test_org: Organization, org_owner: User
+    ):
         """Owner should be able to view organization."""
         response = await client.get(
             f"/api/v1/organizations/{test_org.id}",
@@ -206,7 +208,9 @@ class TestGetOrganizationRBAC:
         )
         assert response.status_code == 200
 
-    async def test_admin_can_view(self, client: AsyncClient, test_org: Organization, org_admin: User):
+    async def test_admin_can_view(
+        self, client: AsyncClient, test_org: Organization, org_admin: User
+    ):
         """Admin should be able to view organization."""
         response = await client.get(
             f"/api/v1/organizations/{test_org.id}",
@@ -214,7 +218,9 @@ class TestGetOrganizationRBAC:
         )
         assert response.status_code == 200
 
-    async def test_member_can_view(self, client: AsyncClient, test_org: Organization, org_member: User):
+    async def test_member_can_view(
+        self, client: AsyncClient, test_org: Organization, org_member: User
+    ):
         """Member should be able to view organization."""
         response = await client.get(
             f"/api/v1/organizations/{test_org.id}",
@@ -222,7 +228,9 @@ class TestGetOrganizationRBAC:
         )
         assert response.status_code == 200
 
-    async def test_viewer_can_view(self, client: AsyncClient, test_org: Organization, org_viewer: User):
+    async def test_viewer_can_view(
+        self, client: AsyncClient, test_org: Organization, org_viewer: User
+    ):
         """Viewer should be able to view organization."""
         response = await client.get(
             f"/api/v1/organizations/{test_org.id}",
@@ -230,7 +238,9 @@ class TestGetOrganizationRBAC:
         )
         assert response.status_code == 200
 
-    async def test_outsider_cannot_view(self, client: AsyncClient, test_org: Organization, outsider: User):
+    async def test_outsider_cannot_view(
+        self, client: AsyncClient, test_org: Organization, outsider: User
+    ):
         """Non-member should not be able to view organization."""
         response = await client.get(
             f"/api/v1/organizations/{test_org.id}",
@@ -253,7 +263,9 @@ class TestGetOrganizationRBAC:
 class TestUpdateOrganizationRBAC:
     """Test RBAC for PATCH /organizations/{org_id}."""
 
-    async def test_owner_can_update(self, client: AsyncClient, test_org: Organization, org_owner: User):
+    async def test_owner_can_update(
+        self, client: AsyncClient, test_org: Organization, org_owner: User
+    ):
         """Owner should be able to update organization."""
         response = await client.patch(
             f"/api/v1/organizations/{test_org.id}",
@@ -262,7 +274,9 @@ class TestUpdateOrganizationRBAC:
         )
         assert response.status_code == 200
 
-    async def test_admin_can_update(self, client: AsyncClient, test_org: Organization, org_admin: User):
+    async def test_admin_can_update(
+        self, client: AsyncClient, test_org: Organization, org_admin: User
+    ):
         """Admin should be able to update organization."""
         response = await client.patch(
             f"/api/v1/organizations/{test_org.id}",
@@ -271,7 +285,9 @@ class TestUpdateOrganizationRBAC:
         )
         assert response.status_code == 200
 
-    async def test_member_cannot_update(self, client: AsyncClient, test_org: Organization, org_member: User):
+    async def test_member_cannot_update(
+        self, client: AsyncClient, test_org: Organization, org_member: User
+    ):
         """Member should not be able to update organization."""
         response = await client.patch(
             f"/api/v1/organizations/{test_org.id}",
@@ -281,7 +297,9 @@ class TestUpdateOrganizationRBAC:
         assert response.status_code == 403
         assert "admin" in response.json()["detail"].lower()
 
-    async def test_viewer_cannot_update(self, client: AsyncClient, test_org: Organization, org_viewer: User):
+    async def test_viewer_cannot_update(
+        self, client: AsyncClient, test_org: Organization, org_viewer: User
+    ):
         """Viewer should not be able to update organization."""
         response = await client.patch(
             f"/api/v1/organizations/{test_org.id}",
@@ -291,7 +309,9 @@ class TestUpdateOrganizationRBAC:
         assert response.status_code == 403
         assert "admin" in response.json()["detail"].lower()
 
-    async def test_outsider_cannot_update(self, client: AsyncClient, test_org: Organization, outsider: User):
+    async def test_outsider_cannot_update(
+        self, client: AsyncClient, test_org: Organization, outsider: User
+    ):
         """Non-member should not be able to update organization."""
         response = await client.patch(
             f"/api/v1/organizations/{test_org.id}",
@@ -341,7 +361,9 @@ class TestDeleteOrganizationRBAC:
         )
         assert response.status_code == 204
 
-    async def test_admin_cannot_delete(self, client: AsyncClient, test_org: Organization, org_admin: User):
+    async def test_admin_cannot_delete(
+        self, client: AsyncClient, test_org: Organization, org_admin: User
+    ):
         """Admin should not be able to delete organization."""
         response = await client.delete(
             f"/api/v1/organizations/{test_org.id}",
@@ -350,7 +372,9 @@ class TestDeleteOrganizationRBAC:
         assert response.status_code == 403
         assert "owner" in response.json()["detail"].lower()
 
-    async def test_member_cannot_delete(self, client: AsyncClient, test_org: Organization, org_member: User):
+    async def test_member_cannot_delete(
+        self, client: AsyncClient, test_org: Organization, org_member: User
+    ):
         """Member should not be able to delete organization."""
         response = await client.delete(
             f"/api/v1/organizations/{test_org.id}",
@@ -358,7 +382,9 @@ class TestDeleteOrganizationRBAC:
         )
         assert response.status_code == 403
 
-    async def test_viewer_cannot_delete(self, client: AsyncClient, test_org: Organization, org_viewer: User):
+    async def test_viewer_cannot_delete(
+        self, client: AsyncClient, test_org: Organization, org_viewer: User
+    ):
         """Viewer should not be able to delete organization."""
         response = await client.delete(
             f"/api/v1/organizations/{test_org.id}",

@@ -272,9 +272,7 @@ class TestRotateDirectory:
         rotation_service: KeyRotationService,
     ) -> None:
         """Test rotation handles missing directories gracefully."""
-        result = await rotation_service.rotate_directory(
-            tmp_path / "nonexistent", "*.step"
-        )
+        result = await rotation_service.rotate_directory(tmp_path / "nonexistent", "*.step")
 
         assert result.files_processed == 0
 

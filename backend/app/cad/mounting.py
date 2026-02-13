@@ -289,7 +289,7 @@ class SnapFitGenerator:
         beam = Box(
             cfg.length, cfg.width, beam_height, align=(Align.MIN, Align.CENTER, Align.CENTER)
         ).moved(Location((cfg.thickness, 0, cfg.thickness)))
-        result = result.fuse(beam)
+        result = result.fuse(beam)  # type: ignore[assignment]
 
         # Hook at end - simplified as block with angle
         hook = Box(
@@ -298,7 +298,7 @@ class SnapFitGenerator:
             cfg.hook_height,
             align=(Align.CENTER, Align.CENTER, Align.MIN),
         ).moved(Location((cfg.length + cfg.thickness, 0, cfg.thickness + beam_height / 2)))
-        result = result.fuse(hook)
+        result = result.fuse(hook)  # type: ignore[assignment]
 
         # Add hook undercut by cutting
         undercut = Box(
@@ -307,7 +307,7 @@ class SnapFitGenerator:
             cfg.hook_height * 0.7,
             align=(Align.MAX, Align.CENTER, Align.MIN),
         ).moved(Location((cfg.length + cfg.thickness, 0, cfg.thickness + beam_height / 2)))
-        result = result.cut(undercut)
+        result = result.cut(undercut)  # type: ignore[assignment]
 
         # Apply fillets for stress relief
         try:
@@ -340,7 +340,7 @@ class SnapFitGenerator:
         pocket = Box(
             pocket_width, pocket_length, pocket_depth, align=(Align.CENTER, Align.CENTER, Align.MAX)
         ).moved(Location((0, 0, (pocket_depth + 2) / 2)))
-        return result.cut(pocket)
+        return result.cut(pocket)  # type: ignore[return-value]
 
 
 # =============================================================================
@@ -415,7 +415,7 @@ class DINRailGenerator:
         top_positioned = top_clip.moved(Location((0, top_y, clip_z)))
         bottom_positioned = bottom_clip.moved(Location((0, bottom_y, clip_z)))
 
-        return base.fuse(top_positioned).fuse(bottom_positioned)
+        return base.fuse(top_positioned).fuse(bottom_positioned)  # type: ignore[return-value, union-attr]
 
     def _create_fixed_clip(self) -> Part:
         """Create fixed top clip that hooks over rail lip."""
@@ -432,7 +432,7 @@ class DINRailGenerator:
         hook = Box(clip_width, lip_depth, 2, align=(Align.CENTER, Align.MIN, Align.MAX)).moved(
             Location((0, -1, clip_height))
         )
-        return result.fuse(hook)
+        return result.fuse(hook)  # type: ignore[return-value]
 
     def _create_spring_clip(self) -> Part:
         """Create spring-loaded bottom clip."""
@@ -449,7 +449,7 @@ class DINRailGenerator:
         hook = Box(clip_width, lip_depth, 2, align=(Align.CENTER, Align.MIN, Align.MIN)).moved(
             Location((0, -1, -clip_height))
         )
-        return result.fuse(hook)
+        return result.fuse(hook)  # type: ignore[return-value]
 
 
 # =============================================================================
@@ -511,7 +511,7 @@ class WallMountGenerator:
             cfg.bracket_thickness,
             align=(Align.CENTER, Align.MIN, Align.MAX),
         ).moved(Location((0, 0, -cfg.bracket_height / 2)))
-        return result.fuse(shelf)
+        return result.fuse(shelf)  # type: ignore[return-value]
 
     def _add_keyholes(self, bracket: Part) -> Part:
         """Add keyhole pattern to wall plate."""
@@ -537,7 +537,7 @@ class WallMountGenerator:
                 .moved(Location((x, cfg.bracket_thickness / 2, 0)))
                 .rotate(Axis.X, 90)
             )
-            result = result.cut(hole)
+            result = result.cut(hole)  # type: ignore[assignment]
 
             # Cut slot extending downward
             slot = (
@@ -550,7 +550,7 @@ class WallMountGenerator:
                 .moved(Location((x, cfg.bracket_thickness / 2, 0)))
                 .rotate(Axis.X, 90)
             )
-            result = result.cut(slot)
+            result = result.cut(slot)  # type: ignore[assignment]
 
         return result
 
@@ -586,7 +586,7 @@ class WallMountGenerator:
                     (x_pos, cfg.bracket_thickness, -cfg.bracket_height / 2 + cfg.bracket_thickness)
                 )
             )
-            result = result.fuse(rib)
+            result = result.fuse(rib)  # type: ignore[assignment]
 
         return result
 
@@ -635,14 +635,14 @@ class PCBStandoffGenerator:
         column = Cylinder(
             cfg.outer_diameter / 2, cfg.height, align=(Align.CENTER, Align.CENTER, Align.MIN)
         ).moved(Location((0, 0, cfg.base_height)))
-        result = result.fuse(column)
+        result = result.fuse(column)  # type: ignore[assignment]
 
         # Center hole through entire part
         total_height = cfg.base_height + cfg.height
         hole = Cylinder(
             cfg.inner_diameter / 2, total_height, align=(Align.CENTER, Align.CENTER, Align.MIN)
         )
-        return result.cut(hole)
+        return result.cut(hole)  # type: ignore[return-value]
 
     def _create_hex_standoff(self) -> Part:
         """Create hexagonal standoff."""
@@ -659,14 +659,14 @@ class PCBStandoffGenerator:
             RegularPolygon(cfg.outer_diameter / 2, 6)
         hex_column = extrude(hex_sketch.sketch, amount=cfg.height)
         hex_column = hex_column.moved(Location((0, 0, cfg.base_height)))
-        result = result.fuse(hex_column)
+        result = result.fuse(hex_column)  # type: ignore[assignment]
 
         # Center hole through entire part
         total_height = cfg.base_height + cfg.height
         hole = Cylinder(
             cfg.inner_diameter / 2, total_height, align=(Align.CENTER, Align.CENTER, Align.MIN)
         )
-        return result.cut(hole)
+        return result.cut(hole)  # type: ignore[return-value]
 
     def generate_array(
         self,
