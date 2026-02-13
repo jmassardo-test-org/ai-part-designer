@@ -12,6 +12,7 @@ import {
   Shrink,
   Eye,
   EyeOff,
+  Focus,
   RotateCcw,
   List,
   Move,
@@ -23,6 +24,7 @@ import {
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { STLLoader, OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { useComponentVisibility } from '../../hooks/useComponentVisibility';
 import { usePartTransforms } from '../../hooks/usePartTransforms';
 import { PartTransformControls, type TransformMode, type PartTransform } from '../viewer/PartTransformControls';
 
@@ -70,6 +72,8 @@ interface InteractiveAssemblyViewerProps {
   explodedView?: boolean;
   explodeFactor?: number;
   hiddenComponents?: Set<string>;
+  /** Assembly ID for sessionStorage visibility persistence. */
+  assemblyId?: string;
   className?: string;
 }
 
@@ -411,6 +415,7 @@ export function InteractiveAssemblyViewer({
   explodedView: _explodedView = false,
   explodeFactor: externalExplodeFactor,
   hiddenComponents: externalHiddenComponents,
+  assemblyId,
   className = '',
 }: InteractiveAssemblyViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -418,7 +423,6 @@ export function InteractiveAssemblyViewer({
 
   // Local state
   const [localExplodeFactor, setLocalExplodeFactor] = useState(0);
-  const [localHiddenComponents, setLocalHiddenComponents] = useState<Set<string>>(new Set());
   const [showComponentList, setShowComponentList] = useState(false);
   const [transformMode, setTransformMode] = useState<TransformMode>('translate');
   const [enableSnapping, setEnableSnapping] = useState(true);
@@ -428,7 +432,20 @@ export function InteractiveAssemblyViewer({
 
   // Use external or local state
   const explodeFactor = externalExplodeFactor ?? localExplodeFactor;
-  const hiddenComponents = externalHiddenComponents ?? localHiddenComponents;
+
+  // Component visibility (hide/show/isolate)
+  const {
+    hiddenComponents,
+    isolateState,
+    toggleVisibility,
+    isolateComponent,
+    showAll,
+    hiddenCount,
+  } = useComponentVisibility({
+    componentIds: components.map((c) => c.id),
+    assemblyId,
+    externalHiddenComponents,
+  });
 
   // Transform management with undo/redo
   const partTransforms = usePartTransforms({
@@ -462,19 +479,6 @@ export function InteractiveAssemblyViewer({
     },
     [partTransforms, transformMode, components]
   );
-
-  // Toggle component visibility
-  const toggleComponentVisibility = useCallback((componentId: string) => {
-    setLocalHiddenComponents((prev) => {
-      const next = new Set(prev);
-      if (next.has(componentId)) {
-        next.delete(componentId);
-      } else {
-        next.add(componentId);
-      }
-      return next;
-    });
-  }, []);
 
   // Reset camera
   const resetCamera = useCallback(() => {
@@ -517,11 +521,30 @@ export function InteractiveAssemblyViewer({
         e.preventDefault();
         setEnableSnapping((prev) => !prev);
       }
+      // Hide selected component
+      else if (e.key === 'h' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        if (selectedComponentId) {
+          e.preventDefault();
+          toggleVisibility(selectedComponentId);
+        }
+      }
+      // Show all components
+      else if (e.key === 'H' && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        showAll();
+      }
+      // Isolate selected component
+      else if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.metaKey) {
+        if (selectedComponentId) {
+          e.preventDefault();
+          isolateComponent(selectedComponentId);
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [partTransforms]);
+  }, [partTransforms, selectedComponentId, toggleVisibility, showAll, isolateComponent]);
 
   return (
     <div ref={containerRef} className={`relative bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden ${className}`}>
@@ -658,7 +681,8 @@ export function InteractiveAssemblyViewer({
       <div className="absolute bottom-4 left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md">
         <span className="text-sm text-gray-600 dark:text-gray-300">
           {components.length} component{components.length !== 1 ? 's' : ''}
-          {hiddenComponents.size > 0 && ` (${hiddenComponents.size} hidden)`}
+          {hiddenCount > 0 && ` (${hiddenCount} hidden)`}
+          {isolateState.isActive && ' \u2022 Isolated'}
         </span>
       </div>
 
@@ -666,7 +690,50 @@ export function InteractiveAssemblyViewer({
       {showComponentList && (
         <div className="absolute top-4 right-4 w-64 max-h-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
           <div className="px-4 py-3 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-            <h3 className="font-medium text-gray-900 dark:text-gray-100">Components</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                Components
+                {isolateState.isActive && (
+                  <span className="ml-2 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                    Isolated
+                  </span>
+                )}
+              </h3>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    if (selectedComponentId) {
+                      isolateComponent(selectedComponentId);
+                    }
+                  }}
+                  disabled={!selectedComponentId}
+                  className={`p-1.5 rounded transition-colors ${
+                    isolateState.isActive
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                      : selectedComponentId
+                      ? 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                      : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                  }`}
+                  title={`Isolate selected (I)${!selectedComponentId ? ' - select a component first' : ''}`}
+                  aria-label="Isolate selected component"
+                >
+                  <Focus className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={showAll}
+                  disabled={hiddenCount === 0 && !isolateState.isActive}
+                  className={`p-1.5 rounded transition-colors ${
+                    hiddenCount > 0 || isolateState.isActive
+                      ? 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                      : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                  }`}
+                  title="Show all (Shift+H)"
+                  aria-label="Show all components"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
           <div className="overflow-y-auto max-h-80">
             {components.map((component) => (
@@ -690,9 +757,10 @@ export function InteractiveAssemblyViewer({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleComponentVisibility(component.id);
+                    toggleVisibility(component.id);
                   }}
-                  className="p-1 text-gray-400 hover:text-gray-600"
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label={`${hiddenComponents.has(component.id) ? 'Show' : 'Hide'} ${component.name}`}
                 >
                   {hiddenComponents.has(component.id) ? (
                     <EyeOff className="w-4 h-4" />

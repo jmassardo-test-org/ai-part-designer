@@ -2,7 +2,7 @@
  * AssemblyViewer Component Tests
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssemblyViewer } from './AssemblyViewer';
 
@@ -65,6 +65,7 @@ describe('AssemblyViewer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('renders canvas container', () => {
@@ -195,5 +196,210 @@ describe('AssemblyViewer', () => {
     
     render(<AssemblyViewer components={cotsComponent} />);
     expect(screen.getByTestId('canvas')).toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Visibility keyboard shortcuts
+  // ---------------------------------------------------------------------------
+
+  describe('keyboard shortcuts', () => {
+    it('hides selected component on H key', () => {
+      render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      fireEvent.keyDown(window, { key: 'h' });
+
+      // After hiding, the component count should reflect 1 hidden
+      expect(screen.getByText(/1 hidden/)).toBeInTheDocument();
+    });
+
+    it('does not hide when no component is selected on H key', () => {
+      render(<AssemblyViewer components={mockComponents} />);
+
+      fireEvent.keyDown(window, { key: 'h' });
+
+      expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
+    });
+
+    it('shows all on Shift+H key', () => {
+      render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Hide one first
+      fireEvent.keyDown(window, { key: 'h' });
+      expect(screen.getByText(/1 hidden/)).toBeInTheDocument();
+
+      // Show all
+      fireEvent.keyDown(window, { key: 'H', shiftKey: true });
+      expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
+    });
+
+    it('isolates selected component on I key', () => {
+      render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      fireEvent.keyDown(window, { key: 'i' });
+
+      // Should show isolated indicator
+      expect(screen.getByText(/Isolated/)).toBeInTheDocument();
+    });
+
+    it('does not isolate when no component is selected on I key', () => {
+      render(<AssemblyViewer components={mockComponents} />);
+
+      fireEvent.keyDown(window, { key: 'i' });
+
+      expect(screen.queryByText(/Isolated/)).not.toBeInTheDocument();
+    });
+
+    it('ignores shortcuts when typing in input', () => {
+      const { container } = render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Simulate keydown from an input element
+      const input = document.createElement('input');
+      container.appendChild(input);
+      fireEvent.keyDown(input, { key: 'h', target: input });
+
+      expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Component list panel visibility controls
+  // ---------------------------------------------------------------------------
+
+  describe('component list panel', () => {
+    it('shows isolate and show-all buttons in component list header', () => {
+      const { container } = render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open the component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      expect(listButton).toBeDefined();
+      fireEvent.click(listButton!);
+
+      // Should find isolate and show-all buttons
+      expect(screen.getByLabelText('Isolate selected component')).toBeInTheDocument();
+      expect(screen.getByLabelText('Show all components')).toBeInTheDocument();
+    });
+
+    it('toggles component visibility via eye button in list', () => {
+      const { container } = render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open the component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      // Find the hide button for component 1
+      const hideButton = screen.getByLabelText('Hide Component 1');
+      expect(hideButton).toBeInTheDocument();
+      fireEvent.click(hideButton);
+
+      // Should now show as hidden
+      expect(screen.getByLabelText('Show Component 1')).toBeInTheDocument();
+    });
+
+    it('isolate button enters isolate mode', () => {
+      const { container } = render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open the component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      // Click isolate
+      const isolateBtn = screen.getByLabelText('Isolate selected component');
+      fireEvent.click(isolateBtn);
+
+      // Should show "Isolated" badge
+      expect(screen.getByText('Isolated')).toBeInTheDocument();
+    });
+
+    it('show-all button clears hidden and exits isolate', () => {
+      const { container } = render(
+        <AssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open the component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      // Isolate first
+      const isolateBtn = screen.getByLabelText('Isolate selected component');
+      fireEvent.click(isolateBtn);
+      expect(screen.getByText('Isolated')).toBeInTheDocument();
+
+      // Show all
+      const showAllBtn = screen.getByLabelText('Show all components');
+      fireEvent.click(showAllBtn);
+      expect(screen.queryByText('Isolated')).not.toBeInTheDocument();
+    });
+
+    it('isolate button is disabled when no component is selected', () => {
+      const { container } = render(
+        <AssemblyViewer components={mockComponents} />
+      );
+
+      // Open the component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      const isolateBtn = screen.getByLabelText('Isolate selected component');
+      expect(isolateBtn).toBeDisabled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // assemblyId prop
+  // ---------------------------------------------------------------------------
+
+  describe('assemblyId prop', () => {
+    it('accepts assemblyId prop without error', () => {
+      render(
+        <AssemblyViewer
+          components={mockComponents}
+          assemblyId="asm-123"
+        />
+      );
+      expect(screen.getByTestId('canvas')).toBeInTheDocument();
+    });
   });
 });
