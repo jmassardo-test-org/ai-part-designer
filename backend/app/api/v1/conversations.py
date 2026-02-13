@@ -4,14 +4,15 @@ Conversation API endpoints for chat-based CAD generation.
 Provides REST API for iterative, conversational part design.
 """
 
-from __future__ import annotations
-
 import logging
-from typing import TYPE_CHECKING, Annotated, Any
+from datetime import datetime
+from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.ai.exceptions import AIConnectionError
@@ -25,7 +26,13 @@ from app.ai.iterative_reasoning import (
     process_user_message,
 )
 from app.ai.reasoning import PartIntent
-from app.api.deps import get_current_user, get_db, require_feature
+from app.api.deps import (
+    check_org_feature_for_design,
+    get_current_user,
+    get_db,
+    require_feature,
+    require_org_feature_for_conversation,
+)
 from app.models.conversation import (
     Conversation,
     ConversationMessage,
@@ -33,14 +40,7 @@ from app.models.conversation import (
     MessageRole,
     MessageType,
 )
-
-if TYPE_CHECKING:
-    from datetime import datetime
-    from uuid import UUID
-
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from app.models.user import User
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -335,8 +335,14 @@ async def create_conversation(
     Start a new conversation for CAD generation.
 
     Optionally attach context from an existing design for Q&A.
+    Enforces org-level ai_chat feature if the design belongs to an org.
     """
     design_id = request.design_id
+
+    # Org-level feature enforcement: if design_id points to an org-scoped
+    # design, verify the org has ai_chat enabled. Personal designs skip.
+    if design_id:
+        await check_org_feature_for_design(db, design_id, "ai_chat")
 
     # If design_id provided, verify access and extract context
     model_context_dict = None
@@ -556,6 +562,7 @@ async def send_message(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     _feature: None = Depends(require_feature("ai_chat")),
+    _org_feature: None = Depends(require_org_feature_for_conversation("ai_chat")),
 ) -> SendMessageResponse:
     """
     Send a message in a conversation and get AI response.
@@ -908,6 +915,7 @@ async def trigger_generation(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     _feature: None = Depends(require_feature("ai_generation")),
+    _org_feature: None = Depends(require_org_feature_for_conversation("ai_generation")),
 ) -> SendMessageResponse:
     """
     Manually trigger generation if the conversation is ready.

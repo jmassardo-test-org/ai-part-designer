@@ -242,9 +242,7 @@ def require_org_feature(feature_name: str) -> Callable[..., None]:
             return
 
         # Get organization
-        result = await db.execute(
-            select(Organization).where(Organization.id == actual_org_id)
-        )
+        result = await db.execute(select(Organization).where(Organization.id == actual_org_id))
         org = result.scalar_one_or_none()
 
         if not org:
@@ -296,9 +294,7 @@ def require_org_feature_for_project(feature_name: str) -> Callable[..., None]:
         from app.models.project import Project
 
         # Get project
-        result = await db.execute(
-            select(Project).where(Project.id == project_id)
-        )
+        result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
 
         if not project:
@@ -368,9 +364,7 @@ def require_org_feature_for_design(feature_name: str) -> Callable[..., None]:
         from app.models.project import Project
 
         # Get design
-        result = await db.execute(
-            select(Design).where(Design.id == design_id)
-        )
+        result = await db.execute(select(Design).where(Design.id == design_id))
         design = result.scalar_one_or_none()
 
         if not design:
@@ -380,9 +374,7 @@ def require_org_feature_for_design(feature_name: str) -> Callable[..., None]:
             )
 
         # Get project
-        result = await db.execute(
-            select(Project).where(Project.id == design.project_id)
-        )
+        result = await db.execute(select(Project).where(Project.id == design.project_id))
         project = result.scalar_one_or_none()
 
         if not project:
@@ -452,9 +444,7 @@ def require_org_feature_for_assembly(feature_name: str) -> Callable[..., None]:
         from app.models.project import Project
 
         # Get assembly
-        result = await db.execute(
-            select(Assembly).where(Assembly.id == assembly_id)
-        )
+        result = await db.execute(select(Assembly).where(Assembly.id == assembly_id))
         assembly = result.scalar_one_or_none()
 
         if not assembly:
@@ -464,9 +454,7 @@ def require_org_feature_for_assembly(feature_name: str) -> Callable[..., None]:
             )
 
         # Get project
-        result = await db.execute(
-            select(Project).where(Project.id == assembly.project_id)
-        )
+        result = await db.execute(select(Project).where(Project.id == assembly.project_id))
         project = result.scalar_one_or_none()
 
         if not project:
@@ -506,11 +494,176 @@ def require_org_feature_for_assembly(feature_name: str) -> Callable[..., None]:
     return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
 
 
+def require_org_feature_for_conversation(feature_name: str) -> Callable[..., None]:
+    """
+    Dependency to require an organization feature for conversation-scoped operations.
+
+    Resolution chain: conversation_id → conversation.design_id → design.project_id
+    → project.organization_id → org.has_feature()
+
+    If the conversation has no design_id, or the design's project has no org,
+    this is a personal resource — the check is skipped.
+
+    Args:
+        feature_name: Name of the feature to require
+
+    Usage:
+        @router.post("/{conversation_id}/messages")
+        async def send_message(
+            _org_feature: None = Depends(
+                require_org_feature_for_conversation("ai_chat")
+            ),
+            conversation_id: UUID,
+            ...
+        ):
+            ...
+    """
+
+    async def dependency(
+        conversation_id: UUID,
+        db: AsyncSession = Depends(get_db),
+        _user: User = Depends(get_current_user),
+    ) -> None:
+        from app.models.conversation import Conversation
+        from app.models.design import Design
+        from app.models.organization import Organization
+        from app.models.project import Project
+
+        # Get conversation
+        result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+        conversation = result.scalar_one_or_none()
+
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
+        # If no design linked, this is a personal conversation - skip check
+        if not conversation.design_id:
+            return
+
+        # Get design
+        result = await db.execute(select(Design).where(Design.id == conversation.design_id))
+        design = result.scalar_one_or_none()
+
+        if not design:
+            # Design was deleted - treat as personal
+            return
+
+        # Get project
+        result = await db.execute(select(Project).where(Project.id == design.project_id))
+        project = result.scalar_one_or_none()
+
+        if not project:
+            # Project was deleted - treat as personal
+            return
+
+        # If no organization, this is a personal project - skip check
+        if not project.organization_id:
+            return
+
+        # Get organization
+        result = await db.execute(
+            select(Organization).where(Organization.id == project.organization_id)
+        )
+        org = result.scalar_one_or_none()
+
+        if not org:
+            # Organization was deleted but project still references it
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found",
+            )
+
+        # Check if feature is enabled
+        if not org.has_feature(feature_name):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "feature_disabled",
+                    "message": f"Feature '{feature_name}' is not enabled for this organization",
+                    "feature": feature_name,
+                },
+            )
+
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
+
+
+async def check_org_feature_for_design(
+    db: AsyncSession,
+    design_id: UUID,
+    feature_name: str,
+) -> None:
+    """
+    Check org feature enforcement through design → project → org chain.
+
+    This is a utility function (not a FastAPI dependency) for use when
+    the design_id comes from the request body rather than a path parameter.
+
+    If the design belongs to a personal project (no org), the check is skipped.
+    If the design or project is not found, the check is skipped (graceful degradation).
+
+    Args:
+        db: Database session.
+        design_id: The design UUID to resolve org context from.
+        feature_name: Name of the feature to require.
+
+    Raises:
+        HTTPException: 404 if org not found, 403 if feature disabled.
+    """
+    from app.models.design import Design
+    from app.models.organization import Organization
+    from app.models.project import Project
+
+    # Get design
+    result = await db.execute(select(Design).where(Design.id == design_id))
+    design = result.scalar_one_or_none()
+
+    if not design:
+        # Design not found - skip check (graceful degradation)
+        return
+
+    # Get project
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
+    project = result.scalar_one_or_none()
+
+    if not project or not project.organization_id:
+        # Personal project - skip check
+        return
+
+    # Get organization
+    result = await db.execute(
+        select(Organization).where(Organization.id == project.organization_id)
+    )
+    org = result.scalar_one_or_none()
+
+    if not org:
+        # Organization was deleted but project still references it
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    # Check if feature is enabled
+    if not org.has_feature(feature_name):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "feature_disabled",
+                "message": f"Feature '{feature_name}' is not enabled for this organization",
+                "feature": feature_name,
+            },
+        )
+
+
 # Alias for convenience
 get_optional_user = get_current_user_optional
 
 
 __all__ = [
+    # Utility functions
+    "check_org_feature_for_design",
     # Credits & Quotas
     "get_credit_service",
     "get_current_admin_user",
@@ -526,6 +679,7 @@ __all__ = [
     "require_job_slot",
     "require_org_feature",
     "require_org_feature_for_assembly",
+    "require_org_feature_for_conversation",
     "require_org_feature_for_design",
     "require_org_feature_for_project",
     "require_role",

@@ -4,20 +4,21 @@ File upload and management API endpoints.
 Provides REST API for uploading, downloading, and managing files.
 """
 
-from __future__ import annotations
-
 import hashlib
 import logging
+from collections.abc import AsyncIterator, Iterator
+from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_feature
+from app.api.deps import get_current_user, require_feature, require_org_feature
 from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.core.storage import StorageBucket, storage_client
@@ -29,14 +30,7 @@ from app.models.file import (
 from app.models.file import (
     File as FileModel,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterator
-    from datetime import datetime
-
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from app.models.user import User
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +181,7 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
     _feature: None = Depends(require_feature("file_uploads")),
+    _org_feature: None = Depends(require_org_feature("file_uploads")),
 ) -> FileResponse:
     """
     Upload a file.
