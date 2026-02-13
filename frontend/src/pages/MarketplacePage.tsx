@@ -21,12 +21,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { SaveButton } from '@/components/marketplace/SaveButton';
 import { useAuth } from '@/contexts/AuthContext';
+import * as api from '@/lib/marketplace';
 import type {
   BrowseFilters,
   CategoryResponse,
   DesignSummary,
 } from '@/types/marketplace';
-import * as api from '@/lib/marketplace';
 
 // =============================================================================
 // Custom Hooks

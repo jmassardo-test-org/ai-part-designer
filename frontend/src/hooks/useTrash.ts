@@ -50,7 +50,7 @@ export function useTrash(options: UseTrashOptions = {}) {
   const restoreMutation = useMutation({
     mutationFn: ({ itemId, itemType }: { itemId: string; itemType: string }) =>
       trashApi.restoreItem(itemId, itemType),
-    onSuccess: (data: any) => {
+    onSuccess: (data: { message: string }) => {
       toast({
         title: 'Item restored',
         description: data.message,
@@ -91,7 +91,7 @@ export function useTrash(options: UseTrashOptions = {}) {
   // Empty trash mutation
   const emptyTrashMutation = useMutation({
     mutationFn: () => trashApi.emptyTrash(),
-    onSuccess: (data: any) => {
+    onSuccess: (data: { deleted_count: number }) => {
       toast({
         title: 'Trash emptied',
         description: `${data.deleted_count} items permanently deleted.`,

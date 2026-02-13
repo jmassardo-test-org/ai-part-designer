@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import type { DesignList } from '@/types/marketplace';
 import * as api from '@/lib/marketplace';
+import type { DesignList } from '@/types/marketplace';
 
 interface SaveToListDialogProps {
   isOpen: boolean;

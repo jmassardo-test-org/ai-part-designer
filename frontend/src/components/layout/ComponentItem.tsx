@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import type { ComponentData } from './types';
 import { cn } from '@/lib/utils';
+import type { ComponentData } from './types';
 
 interface ComponentItemProps {
   component: ComponentData;

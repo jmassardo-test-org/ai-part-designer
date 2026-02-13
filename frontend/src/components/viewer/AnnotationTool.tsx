@@ -227,9 +227,9 @@ function AnnotationForm({ position, onSubmit, onCancel, parentId }: AnnotationFo
       position,
       content: content.trim(),
       annotation_type: annotationType,
-      priority: priority as any,
+      priority,
       parent_id: parentId,
-    } as any);
+    } as unknown as CreateAnnotationData);
   };
 
   return (
@@ -379,7 +379,7 @@ function AnnotationDetail({
         {/* Tags */}
         {annotation.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">
-            {annotation.tags.map((tag: any) => (
+            {annotation.tags.map((tag: string) => (
               <span key={tag} className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full">
                 {tag}
               </span>

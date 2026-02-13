@@ -215,7 +215,7 @@ function FeatureComparison({ plans }: { plans: SubscriptionPlan[] }) {
                 <td className="py-4 px-6 text-gray-300">{feature.label}</td>
                 {plans.map(plan => (
                   <td key={plan.slug} className="py-4 px-6 text-center">
-                    {(plan.features as any)[feature.key] ? (
+                    {((plan.features) as unknown as Record<string, boolean>)[feature.key] ? (
                       <Check className="w-5 h-5 text-green-400 mx-auto" />
                     ) : (
                       <X className="w-5 h-5 text-gray-600 mx-auto" />

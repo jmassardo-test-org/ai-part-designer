@@ -137,8 +137,8 @@ class BackupService:
         s3_bucket: str | None = None,
     ):
         self.backup_dir = Path(
-            backup_dir or getattr(settings, "BACKUP_DIR", None) or "/tmp/backups"
-        )  # nosec B108 - configurable default, overridden in production
+            backup_dir or getattr(settings, "BACKUP_DIR", None) or "/tmp/backups"  # nosec B108 - configurable default, overridden in production
+        )
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         self.s3_bucket = s3_bucket or getattr(settings, "BACKUP_S3_BUCKET", None)
         self._backup_index: dict[str, BackupRecord] = {}

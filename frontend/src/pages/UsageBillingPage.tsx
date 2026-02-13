@@ -551,7 +551,7 @@ export function UsageBillingPage() {
                   No transactions yet
                 </p>
               ) : (
-                dashboard.recent_transactions.slice(0, 5).map((t: any) => (
+                dashboard.recent_transactions.slice(0, 5).map((t: CreditTransaction) => (
                   <TransactionRow key={t.id} transaction={t} />
                 ))
               )}
@@ -572,7 +572,7 @@ export function UsageBillingPage() {
                 No transactions yet
               </p>
             ) : (
-              dashboard.recent_transactions.map((t: any) => (
+              dashboard.recent_transactions.map((t: CreditTransaction) => (
                 <TransactionRow key={t.id} transaction={t} />
               ))
             )}

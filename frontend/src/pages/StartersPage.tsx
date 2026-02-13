@@ -18,8 +18,8 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import type { StarterDesign } from '@/types/marketplace';
 import * as api from '@/lib/marketplace';
+import type { StarterDesign } from '@/types/marketplace';
 
 // =============================================================================
 // Custom Hooks
@@ -178,7 +178,7 @@ export function StartersPage() {
     async function loadCategories() {
       try {
         const cats = await api.getStarterCategories();
-        setCategories(cats as any);
+        setCategories(cats.map(c => ({ name: c.name, slug: c.slug, count: c.design_count })));
       } catch (err) {
         console.error('Failed to load categories:', err);
       }

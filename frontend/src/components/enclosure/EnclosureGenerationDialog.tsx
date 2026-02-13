@@ -5,8 +5,8 @@
  */
 
 import React, { useState } from 'react';
-import type { LayoutDimensions, ComponentPlacement } from '../layout/types';
 import { cn } from '@/lib/utils';
+import type { LayoutDimensions, ComponentPlacement } from '../layout/types';
 
 export type EnclosureStyle = 
   | 'rectangular' 

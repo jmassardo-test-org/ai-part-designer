@@ -5,8 +5,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrganizationSettingsPage } from './OrganizationSettingsPage';
 import type { Organization, OrganizationMember } from '@/lib/api/organizations';
+import { OrganizationSettingsPage } from './OrganizationSettingsPage';
 
 // Mock data
 const mockOrganization: Organization = {

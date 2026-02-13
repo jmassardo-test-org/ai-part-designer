@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_org_feature
+from app.api.v1.organizations import require_org_role
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models.organization import OrganizationMember, OrganizationRole

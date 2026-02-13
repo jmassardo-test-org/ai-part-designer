@@ -7,7 +7,7 @@ const DESIGN_API = '/api/v1/designs';
 const PROJECT_API = '/api/v1/projects';
 
 export interface Project {
-  [key: string]: any;
+  [key: string]: unknown;
   id: string;
   name: string;
   description?: string | null;
@@ -19,7 +19,7 @@ export interface Project {
 
 /** A design entity returned by the API. */
 export interface Design {
-  [key: string]: any;
+  [key: string]: unknown;
   id: string;
   name: string;
   description: string;
@@ -30,11 +30,18 @@ export interface Design {
   thumbnail_url: string | null;
   created_at: string;
   updated_at: string;
+  extra_data?: {
+    job_id?: string;
+    downloads?: { stl?: string; step?: string };
+    shape?: string;
+    enclosure_schema?: unknown;
+    [key: string]: unknown;
+  };
 }
 
 /** Response from copying a design. */
 export interface CopyResponse {
-  [key: string]: any;
+  [key: string]: unknown;
   design_id: string;
   name: string;
   id?: string;
@@ -61,7 +68,7 @@ export interface DesignSaveParams {
 export async function saveDesignFromJob(
   paramsOrJobId: DesignSaveParams | string,
   authTokenOrName?: string,
-  options?: Record<string, any>,
+  options?: Record<string, unknown>,
   authToken?: string
 ): Promise<{ design_id: string }> {
   const token = authToken || (typeof paramsOrJobId === 'string' ? '' : authTokenOrName) || '';
@@ -113,7 +120,7 @@ export async function getDesign(designId: string, authToken: string): Promise<De
  */
 export async function updateDesign(
   designId: string,
-  data: Record<string, any>,
+  data: Record<string, unknown>,
   authToken: string
 ): Promise<Design> {
   const resp = await fetch(`${DESIGN_API}/${designId}`, {
@@ -138,9 +145,9 @@ export async function updateDesign(
 export async function copyDesign(
   designId: string,
   nameOrTargetProjectId: string,
-  optionsOrAuthToken?: any,
+  optionsOrAuthToken?: string | Record<string, unknown>,
   authToken?: string
-): Promise<any> {
+): Promise<Design> {
   const token = authToken || (typeof optionsOrAuthToken === 'string' ? optionsOrAuthToken : '');
   const resp = await fetch(`${DESIGN_API}/${designId}/copy`, {
     method: 'POST',
@@ -168,7 +175,7 @@ export async function copyDesign(
 export async function deleteDesignWithUndo(
   designId: string,
   authToken: string
-): Promise<any> {
+): Promise<{ undo_token: string; undo_expires_at: string }> {
   const resp = await fetch(`${DESIGN_API}/${designId}`, {
     method: 'DELETE',
     headers: {
@@ -189,7 +196,7 @@ export async function deleteDesignWithUndo(
 export async function undoDeleteDesign(
   undoToken: string,
   authToken: string
-): Promise<any> {
+): Promise<Design> {
   const resp = await fetch(`${DESIGN_API}/undo-delete`, {
     method: 'POST',
     headers: {
@@ -202,6 +209,8 @@ export async function undoDeleteDesign(
   if (!resp.ok) {
     throw new Error(`Failed to undo delete: ${resp.status}`);
   }
+
+  return resp.json();
 }
 
 /**
@@ -210,7 +219,7 @@ export async function undoDeleteDesign(
 export async function saveDesignFromConversation(
   conversationId: string,
   nameOrData: string | { name: string; description: string; project_id: string },
-  dataOrAuthToken?: any,
+  dataOrAuthToken?: string | Record<string, unknown>,
   authToken?: string
 ): Promise<{ design_id: string }> {
   const token = authToken || (typeof dataOrAuthToken === 'string' ? dataOrAuthToken : '');

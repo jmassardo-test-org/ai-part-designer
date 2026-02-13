@@ -110,7 +110,7 @@ export function ComponentUploadPage() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
-      return componentsApi.uploadComponent(formData, (progress: any) => {
+      return componentsApi.uploadComponent(formData, (progress: number) => {
         setExtractionProgress(progress);
       });
     },

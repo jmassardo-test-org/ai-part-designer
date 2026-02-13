@@ -389,12 +389,12 @@ export function AlignmentEditor({
               Alignment Mode
             </h3>
             <div className="grid grid-cols-2 gap-2">
-              {ALIGNMENT_PRESETS.map((preset: any) => {
-                const Icon = iconMap[preset.icon] || Target;
+              {ALIGNMENT_PRESETS.map((preset: { mode: string; label: string; description: string; icon?: string }) => {
+                const Icon = (preset.icon && iconMap[preset.icon]) || Target;
                 return (
                   <button
                     key={preset.mode}
-                    onClick={() => setSelectedMode(preset.mode)}
+                    onClick={() => setSelectedMode(preset.mode as AlignmentMode)}
                     className={cn(
                       'flex flex-col items-center gap-1 rounded border p-3 text-center transition-colors',
                       selectedMode === preset.mode

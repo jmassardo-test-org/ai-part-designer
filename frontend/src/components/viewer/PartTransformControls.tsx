@@ -227,7 +227,7 @@ export function PartTransformControls({
 
   if (!object) return null;
 
-  const transformProps: any = {
+  const transformProps = {
     ref: controlsRef,
     object,
     mode,
@@ -237,7 +237,7 @@ export function PartTransformControls({
     showY: true,
     showZ: true,
     size: 0.8,
-    space: 'world',
+    space: 'world' as const,
   };
 
   return (

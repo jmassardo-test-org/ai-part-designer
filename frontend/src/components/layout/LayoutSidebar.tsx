@@ -5,9 +5,9 @@
  */
 
 import React from 'react';
+import { cn } from '@/lib/utils';
 import { ComponentItem } from './ComponentItem';
 import type { ComponentData, ComponentPlacement, LayoutDimensions } from './types';
-import { cn } from '@/lib/utils';
 
 interface LayoutSidebarProps {
   availableComponents: ComponentData[];

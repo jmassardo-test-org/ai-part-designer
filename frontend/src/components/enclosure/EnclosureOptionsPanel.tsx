@@ -5,8 +5,8 @@
  */
 
 import React, { useState } from 'react';
-import type { EnclosureGenerationOptions } from './EnclosureGenerationDialog';
 import { cn } from '@/lib/utils';
+import type { EnclosureGenerationOptions } from './EnclosureGenerationDialog';
 
 interface EnclosureOptionsPanelProps {
   options: EnclosureGenerationOptions;

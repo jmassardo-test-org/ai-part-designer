@@ -8,8 +8,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CheckoutSuccessPage } from './CheckoutSuccessPage';
 import * as subscriptionsApi from '@/lib/api/subscriptions';
+import { CheckoutSuccessPage } from './CheckoutSuccessPage';
 
 // Mock the subscriptions API
 vi.mock('@/lib/api/subscriptions', async () => {

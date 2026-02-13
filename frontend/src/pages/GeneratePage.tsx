@@ -450,7 +450,7 @@ export function GeneratePage() {
                     <h4 className="font-medium text-blue-900 dark:text-blue-300">Assembly Parts ({result.parts.length})</h4>
                   </div>
                   <div className="space-y-3">
-                    {result.parts.map((part: any, index: number) => (
+                    {result.parts.map((part: { name: string; description: string; downloads: { step: string; stl: string } }, index: number) => (
                       <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-blue-100 dark:border-blue-800">
                         <div className="flex items-center justify-between">
                           <div>
@@ -498,7 +498,7 @@ export function GeneratePage() {
                         </tr>
                       </thead>
                       <tbody className="text-gray-700 dark:text-gray-300">
-                        {result.bom.map((item: any, index: number) => (
+                        {result.bom.map((item: { name: string; quantity: number; material: string; supplier_url?: string; mcmaster_pn?: string }, index: number) => (
                           <tr key={index} className="border-t border-green-100 dark:border-green-800">
                             <td className="py-2">{item.name}</td>
                             <td className="py-2">{item.quantity}</td>
@@ -531,7 +531,7 @@ export function GeneratePage() {
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Warnings</p>
                   <ul className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
-                    {result.warnings.map((warning: any, index: number) => (
+                    {result.warnings.map((warning: string, index: number) => (
                       <li key={index}>• {warning}</li>
                     ))}
                   </ul>

@@ -263,7 +263,7 @@ describe('DesignDetailPage', () => {
     it('shows no preview message when STL fails to load', async () => {
       vi.mocked(designs.getDesign).mockResolvedValue({
         ...mockDesign,
-        extra_data: { ...mockDesign.extra_data, job_id: undefined },
+        extra_data: { ...(mockDesign.extra_data ?? {}), job_id: undefined },
       });
 
       renderPage();
