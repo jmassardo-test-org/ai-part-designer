@@ -83,6 +83,7 @@ describe('InteractiveAssemblyViewer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('renders canvas container', () => {
@@ -230,5 +231,183 @@ describe('InteractiveAssemblyViewer', () => {
     // Should have multiple toolbar sections
     const toolbars = container.querySelectorAll('.absolute.top-4.left-4 > div');
     expect(toolbars.length).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Visibility keyboard shortcuts
+  // ---------------------------------------------------------------------------
+
+  describe('keyboard shortcuts for visibility', () => {
+    it('hides selected component on H key', () => {
+      render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      fireEvent.keyDown(window, { key: 'h' });
+      expect(screen.getByText(/1 hidden/)).toBeInTheDocument();
+    });
+
+    it('does not hide when no component is selected on H key', () => {
+      render(<InteractiveAssemblyViewer components={mockComponents} />);
+
+      fireEvent.keyDown(window, { key: 'h' });
+      expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
+    });
+
+    it('shows all on Shift+H key', () => {
+      render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Hide one first
+      fireEvent.keyDown(window, { key: 'h' });
+      expect(screen.getByText(/1 hidden/)).toBeInTheDocument();
+
+      // Show all
+      fireEvent.keyDown(window, { key: 'H', shiftKey: true });
+      expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
+    });
+
+    it('isolates selected component on I key', () => {
+      render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      fireEvent.keyDown(window, { key: 'i' });
+      expect(screen.getByText(/Isolated/)).toBeInTheDocument();
+    });
+
+    it('does not isolate when no component is selected on I key', () => {
+      render(<InteractiveAssemblyViewer components={mockComponents} />);
+
+      fireEvent.keyDown(window, { key: 'i' });
+      expect(screen.queryByText(/Isolated/)).not.toBeInTheDocument();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Component list panel visibility controls
+  // ---------------------------------------------------------------------------
+
+  describe('component list panel visibility controls', () => {
+    it('shows isolate and show-all buttons in component list header', () => {
+      const { container } = render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      expect(listButton).toBeDefined();
+      fireEvent.click(listButton!);
+
+      expect(screen.getByLabelText('Isolate selected component')).toBeInTheDocument();
+      expect(screen.getByLabelText('Show all components')).toBeInTheDocument();
+    });
+
+    it('toggles visibility via eye button in list', () => {
+      const { container } = render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      const hideButton = screen.getByLabelText('Hide Component 1');
+      expect(hideButton).toBeInTheDocument();
+      fireEvent.click(hideButton);
+
+      expect(screen.getByLabelText('Show Component 1')).toBeInTheDocument();
+    });
+
+    it('isolate button enters isolate mode', () => {
+      const { container } = render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      const isolateBtn = screen.getByLabelText('Isolate selected component');
+      fireEvent.click(isolateBtn);
+
+      expect(screen.getByText('Isolated')).toBeInTheDocument();
+    });
+
+    it('show-all button clears hidden and exits isolate', () => {
+      const { container } = render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          selectedComponentId="comp-1"
+        />
+      );
+
+      // Open component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      // Isolate first
+      const isolateBtn = screen.getByLabelText('Isolate selected component');
+      fireEvent.click(isolateBtn);
+      expect(screen.getByText('Isolated')).toBeInTheDocument();
+
+      // Show all
+      const showAllBtn = screen.getByLabelText('Show all components');
+      fireEvent.click(showAllBtn);
+      expect(screen.queryByText('Isolated')).not.toBeInTheDocument();
+    });
+
+    it('isolate button is disabled when no component is selected', () => {
+      const { container } = render(
+        <InteractiveAssemblyViewer components={mockComponents} />
+      );
+
+      // Open component list
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const listButton = buttons.find((btn) => btn.title === 'Component list');
+      fireEvent.click(listButton!);
+
+      const isolateBtn = screen.getByLabelText('Isolate selected component');
+      expect(isolateBtn).toBeDisabled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // assemblyId prop
+  // ---------------------------------------------------------------------------
+
+  describe('assemblyId prop', () => {
+    it('accepts assemblyId prop without error', () => {
+      render(
+        <InteractiveAssemblyViewer
+          components={mockComponents}
+          assemblyId="asm-456"
+        />
+      );
+      expect(screen.getByTestId('canvas')).toBeInTheDocument();
+    });
   });
 });

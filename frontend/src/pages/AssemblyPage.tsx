@@ -488,6 +488,7 @@ export function AssemblyPage() {
               }))}
               selectedComponentId={selectedComponentId}
               onSelectComponent={setSelectedComponentId}
+              assemblyId={assemblyId}
               className="h-full"
             />
           </div>

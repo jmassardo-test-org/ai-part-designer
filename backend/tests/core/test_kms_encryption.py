@@ -6,10 +6,7 @@ Tests envelope encryption with KMS integration.
 
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from app.core.security import KMSEncryptionService
 

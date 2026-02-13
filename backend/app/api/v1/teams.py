@@ -69,30 +69,6 @@ async def get_membership(
     return result.scalar_one_or_none()
 
 
-async def require_org_role(
-    db: AsyncSession,
-    org_id: UUID,
-    user_id: UUID,
-    min_role: OrganizationRole,
-) -> OrganizationMember:
-    """Require user has at least the specified role in the organization."""
-    membership = await get_membership(db, org_id, user_id)
-
-    if not membership:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this organization",
-        )
-
-    if not membership.has_permission(min_role):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Requires {min_role.value} role or higher",
-        )
-
-    return membership
-
-
 # =============================================================================
 # Dependencies
 # =============================================================================

@@ -150,6 +150,18 @@ You should:
 6. Spawn Architecture & Security with Strategy output + original request
 7. Continue through the pipeline...
 
+### 8. Pull Request Creation
+
+When creating PRs (typically in Phase 5), **never pass multi-line markdown directly as a tool parameter string**. Newline characters (`\n`) will be stored literally on GitHub, breaking all formatting.
+
+**Correct approach:**
+1. Write the PR body to a temporary file using `create_file` (e.g., `.tmp-pr-body.md`)
+2. Create the PR using the GitHub REST API with the file: `gh api repos/{owner}/{repo}/pulls -X POST -F "title=..." -F "head=..." -F "base=main" -F "body=@.tmp-pr-body.md"`
+3. Or create the PR first with a minimal body, then update it: `gh api repos/{owner}/{repo}/pulls/{number} -X PATCH -F "body=@.tmp-pr-body.md"`
+4. Clean up: `rm .tmp-pr-body.md`
+
+**This also applies to updating PR bodies** — always use `-F "body=@file"` with `gh api`, never inline multi-line strings.
+
 ## What You Do NOT Do
 
 - **DO NOT write code yourself** - That's the Development agent's job

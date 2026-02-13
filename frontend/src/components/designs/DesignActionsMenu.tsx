@@ -23,8 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
 import type { Design, Project } from '@/lib/designs';
+import { cn } from '@/lib/utils';
 
 // =============================================================================
 // Types

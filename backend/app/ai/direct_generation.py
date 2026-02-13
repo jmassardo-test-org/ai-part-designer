@@ -314,7 +314,7 @@ def execute_build123d_code(code: str) -> Part:
     }
 
     # Execute the code
-    exec(code, namespace)
+    exec(code, namespace)  # nosec B102 - intentional exec for AI-generated CAD code in sandboxed namespace
 
     # Get the result
     if "result" not in namespace:

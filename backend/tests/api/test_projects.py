@@ -651,7 +651,7 @@ class TestProjectTeamAssignment:
         assert response.status_code == 200
         teams = response.json()
         assert len(teams) > 0
-        
+
         # Find our test team
         test_team = next((t for t in teams if t["id"] == str(sample_team.id)), None)
         assert test_team is not None

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class ModelContext:
     """
     Structured model context extracted from a Design.
-    
+
     This provides all relevant information about a model that
     the AI needs to understand what the user is asking about.
     """
@@ -70,15 +70,15 @@ class ModelContext:
     def format_for_ai(self) -> str:
         """
         Format model context as a string for AI consumption.
-        
+
         Returns:
             Formatted string describing the model.
         """
         parts = [f"Current Model: {self.name}"]
-        
+
         if self.description:
             parts.append(f"Description: {self.description}")
-        
+
         # Format dimensions
         if self.dimensions:
             dim_parts = []
@@ -88,7 +88,7 @@ class ModelContext:
                     dim_parts.append(f"{key}: {value}{unit}")
             if dim_parts:
                 parts.append(f"Dimensions: {', '.join(dim_parts)}")
-        
+
         # Format features
         if self.features:
             feature_descriptions = []
@@ -101,7 +101,7 @@ class ModelContext:
                     feature_descriptions.append(f"- {feature_type}")
             if feature_descriptions:
                 parts.append("Features:\n" + "\n".join(feature_descriptions))
-        
+
         # Format parameters
         if self.parameters:
             param_parts = []
@@ -110,7 +110,7 @@ class ModelContext:
                     param_parts.append(f"{key}: {value}")
             if param_parts:
                 parts.append(f"Parameters: {', '.join(param_parts[:10])}")  # Limit to 10
-        
+
         # Format metadata
         if self.metadata:
             meta_parts = []
@@ -123,14 +123,14 @@ class ModelContext:
                         meta_parts.append(f"{key}: {value}")
             if meta_parts:
                 parts.append(f"Metadata: {', '.join(meta_parts)}")
-        
+
         return "\n\n".join(parts)
 
 
 def extract_model_context(design: Design) -> ModelContext:
     """
     Extract model context from a Design entity.
-    
+
     Extracts dimensions, features, parameters, and metadata from
     the design's extra_data field and current version.
 
@@ -141,7 +141,7 @@ def extract_model_context(design: Design) -> ModelContext:
         ModelContext containing all relevant information
     """
     extra_data = design.extra_data or {}
-    
+
     # Extract dimensions
     dimensions = extra_data.get("dimensions", {})
     if not dimensions and "parameters" in extra_data:
@@ -154,20 +154,20 @@ def extract_model_context(design: Design) -> ModelContext:
         }
         if dimensions and "unit" not in dimensions:
             dimensions["unit"] = "mm"  # Default unit
-    
+
     # Extract features (from AI prompt analysis or stored features)
     features = extra_data.get("features", [])
-    
+
     # Extract parameters
     parameters = extra_data.get("parameters", {})
-    
+
     # Extract metadata
     metadata = {
         k: v
         for k, v in extra_data.items()
         if k in ["volume", "surfaceArea", "isPrintable", "printEstimate", "boundingBox"]
     }
-    
+
     return ModelContext(
         design_id=design.id,
         name=design.name,

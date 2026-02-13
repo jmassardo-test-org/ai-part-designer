@@ -569,7 +569,7 @@ async def extract_dimensions(
 ) -> tuple[dict[str, ExtractedDimension], list[ExtractedFeature], list[dict[str, Any]], list[str]]:
     """
     Pass 2: Extract dimensions and features from user input.
-    
+
     Args:
         user_input: The user's message
         part_type: Type of part being created
@@ -579,7 +579,7 @@ async def extract_dimensions(
     client = get_ai_client()
 
     hints = DIMENSION_HINTS.get(part_type, DIMENSION_HINTS["custom"])
-    
+
     # Format model context if provided
     model_context_section = ""
     if model_context:
@@ -599,7 +599,7 @@ async def extract_dimensions(
                 feature_list = ", ".join(f.get("type", "unknown") for f in features[:5])
                 model_context_section += f"Features: {feature_list}\n"
         model_context_section += "\nThe user is asking about or referring to this existing model.\n"
-    
+
     prompt = EXTRACT_PROMPT.format(
         part_type=part_type,
         user_input=user_input,

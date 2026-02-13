@@ -371,12 +371,11 @@ def get_kms_provider() -> KMSKeyProvider:
 
     if provider == "local":
         return LocalKMSProvider()
-    elif provider == "aws":
+    if provider == "aws":
         return AWSKMSProvider()
-    elif provider == "gcp":
+    if provider == "gcp":
         return GCPKMSProvider()
-    else:
-        raise KMSError(f"Unknown KMS provider: {provider}. Must be 'local', 'aws', or 'gcp'")
+    raise KMSError(f"Unknown KMS provider: {provider}. Must be 'local', 'aws', or 'gcp'")
 
 
 # Global DEK cache instance

@@ -5,8 +5,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Organization, OrganizationMember } from '@/lib/api/organizations';
 import { OrganizationSettingsPage } from './OrganizationSettingsPage';
+import type { Organization, OrganizationMember } from '@/lib/api/organizations';
 
 // Mock data
 const mockOrganization: Organization = {
@@ -55,7 +55,7 @@ const mockViewerMember: OrganizationMember = {
 };
 
 // Mock AuthContext
-let mockUser = {
+const mockUser = {
   id: 'user-1',
   email: 'admin@example.com',
   display_name: 'Admin User',

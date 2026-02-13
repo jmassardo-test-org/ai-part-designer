@@ -33,7 +33,7 @@ class DatabaseBackup:
 
     def __init__(
         self,
-        backup_dir: str = "/tmp/backups",
+        backup_dir: str = "/tmp/backups",  # nosec B108 - configurable default, overridden in production
         retention_days: int = 30,
     ):
         self.backup_dir = Path(backup_dir)
@@ -284,7 +284,7 @@ class DataExporter:
     - Audit and compliance
     """
 
-    def __init__(self, export_dir: str = "/tmp/exports"):
+    def __init__(self, export_dir: str = "/tmp/exports"):  # nosec B108 - configurable default, overridden in production
         self.export_dir = Path(export_dir)
         self.export_dir.mkdir(parents=True, exist_ok=True)
 

@@ -538,11 +538,11 @@ async def get_organization_features(
 ) -> FeaturesResponse:
     """
     Get enabled and available features for an organization.
-    
+
     Returns the list of currently enabled features and all features
     available for the organization's subscription tier.
     """
-    from app.core.features import get_all_features, get_default_features
+    from app.core.features import get_default_features
 
     org = await get_org_or_404(db, org_id)
     await require_org_role(db, org_id, current_user.id, OrganizationRole.VIEWER)
@@ -566,7 +566,7 @@ async def update_organization_features(
 ) -> FeaturesResponse:
     """
     Update enabled features for an organization.
-    
+
     Requires admin role. Can only enable features that are included
     in the organization's subscription tier.
     """

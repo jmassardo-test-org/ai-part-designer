@@ -211,6 +211,28 @@ If you cannot complete a task fully:
 
 **This protects the project from future licensing issues and ensures operational freedom.**
 
+### 9. Pull Request & GitHub API Best Practices
+
+**When creating or updating PRs with multi-line markdown bodies**, never pass the content directly as an inline string parameter. Newline characters get stored literally as `\n` on GitHub, breaking all markdown formatting.
+
+**Always use file-based body submission:**
+
+```bash
+# 1. Write body to a temp file
+cat > .tmp-pr-body.md << 'PREOF'
+## Summary
+Your PR description here with proper newlines...
+PREOF
+
+# 2. Create or update PR via REST API with file reference
+gh api repos/{owner}/{repo}/pulls/{number} -X PATCH -F "body=@.tmp-pr-body.md"
+
+# 3. Clean up
+rm .tmp-pr-body.md
+```
+
+**Note:** `gh pr edit --body-file` may fail with a GraphQL "Projects Classic" deprecation error. Use `gh api` REST endpoint directly as the reliable alternative.
+
 ---
 
 ## Operational Modes

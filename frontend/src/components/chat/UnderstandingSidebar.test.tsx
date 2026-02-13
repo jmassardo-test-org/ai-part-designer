@@ -4,8 +4,8 @@
 
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { UnderstandingSidebar } from './UnderstandingSidebar';
 import type { PartUnderstanding } from '@/lib/conversations';
+import { UnderstandingSidebar } from './UnderstandingSidebar';
 
 describe('UnderstandingSidebar', () => {
   describe('Empty State', () => {

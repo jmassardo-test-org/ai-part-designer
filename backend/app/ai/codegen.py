@@ -404,7 +404,7 @@ def execute_cadquery_code(code: str, base_shape: Part | None = None) -> Part:
         ast.parse(code)
 
         # Execute
-        exec(code, allowed_globals, local_vars)
+        exec(code, allowed_globals, local_vars)  # nosec B102 - intentional exec for AI-generated CAD code in sandboxed namespace
 
         if "result" not in local_vars:
             raise AIValidationError("Code did not create 'result' variable")

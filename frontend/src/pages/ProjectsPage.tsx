@@ -208,7 +208,7 @@ export function ProjectsPage() {
 
     try {
       setIsSubmitting(true);
-      const body: any = {
+      const body: Record<string, string | null> = {
         name: newProjectName,
         description: newProjectDescription || null,
       };
