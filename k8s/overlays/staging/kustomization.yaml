@@ -30,6 +30,10 @@ patches:
   target:
     kind: Deployment
     name: celery-worker
+- path: patches/ingress-staging.yaml
+  target:
+    kind: Ingress
+    name: ai-part-designer
 
 # ConfigMap generator for environment-specific config
 configMapGenerator:

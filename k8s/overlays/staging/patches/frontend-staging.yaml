@@ -12,8 +12,10 @@ spec:
         env:
         - name: VITE_API_URL
           value: "https://api-staging.assemblematic.ai/api/v1"
+          valueFrom: null
         - name: VITE_WS_URL
           value: "wss://api-staging.assemblematic.ai/ws"
+          valueFrom: null
         resources:
           requests:
             memory: "64Mi"

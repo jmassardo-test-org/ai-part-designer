@@ -1,0 +1,37 @@
+---
+# Ingress patch for staging environment
+# Uses staging subdomain to avoid collision with dev/prod
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-part-designer
+spec:
+  tls:
+  - hosts:
+    - staging.assemblematic.ai
+    secretName: ai-part-designer-tls-staging
+  rules:
+  - host: staging.assemblematic.ai
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-staging
+            port:
+              number: 8000
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-staging
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-staging
+            port:
+              number: 80
