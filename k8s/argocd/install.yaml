@@ -51,13 +51,22 @@ data:
       name: ai-part-designer
       type: git
 
-  # Resource customizations for health checks
+  # Resource customizations for health checks and schema compatibility
   resource.customizations: |
     networking.k8s.io/Ingress:
       health.lua: |
         hs = {}
         hs.status = "Healthy"
         return hs
+    batch/Job:
+      ignoreDifferences: |
+        jsonPointers:
+        - /spec/podReplacementPolicy
+        - /status/terminating
+    batch/CronJob:
+      ignoreDifferences: |
+        jsonPointers:
+        - /spec/jobTemplate/spec/podReplacementPolicy
 
   # Webhook configuration for GitHub
   webhook.github.secret: github-webhook-secret
