@@ -50,7 +50,7 @@ interface Template {
 }
 
 // API base URL
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 export function TemplateDetailPage() {
   const { slug } = useParams<{ slug: string }>();

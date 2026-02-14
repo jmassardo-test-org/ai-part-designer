@@ -103,12 +103,17 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
   const getWsUrl = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // VITE_API_URL may include /api/v1, so we need to handle that
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    // Remove protocol and any trailing path for base host
+    const apiUrl = import.meta.env.VITE_API_URL || '/api/v1';
+    
+    // If VITE_API_URL is a relative path (starts with /), use current host
+    if (apiUrl.startsWith('/')) {
+      // Use the same host as the page, WebSocket goes through nginx proxy at /api/v1/ws
+      return `${protocol}//${window.location.host}/api/v1/ws?token=${token}`;
+    }
+    
+    // Otherwise extract host from absolute URL
     const hostWithPath = apiUrl.replace(/^https?:\/\//, '');
-    // Extract just the host:port, removing any path
-    const host = hostWithPath.split('/')[0] || 'localhost:8000';
+    const host = hostWithPath.split('/')[0] || window.location.host;
     return `${protocol}//${host}/api/v1/ws?token=${token}`;
   }, [token]);
 

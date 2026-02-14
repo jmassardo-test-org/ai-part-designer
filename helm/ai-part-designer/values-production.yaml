@@ -16,8 +16,9 @@ logLevel: "INFO"
 ingressEnabled: true
 ingressHost: "app.ai-part-designer.com"
 
-# Production CORS
-viteApiUrl: "https://app.ai-part-designer.com"
+# Frontend API URL (NOTE: Vite bakes at BUILD time - set in Dockerfile)
+# Relative paths work because nginx proxies /api to backend
+viteApiUrl: "/api/v1"
 
 # Enable all infrastructure components
 installPostgres: true

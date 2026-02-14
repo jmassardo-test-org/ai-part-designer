@@ -14,7 +14,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // API base URL
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 // Allowed file types
 const ALLOWED_EXTENSIONS = ['.step', '.stp', '.stl', '.iges', '.igs', '.obj', '.3mf'];

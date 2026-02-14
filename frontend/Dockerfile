@@ -36,8 +36,13 @@ COPY . .
 # Validate imports before building (fails fast if packages are missing)
 RUN node scripts/validate-imports.js
 
-# Build the application
-RUN npm run build
+# Set API URLs for production build - use relative paths so nginx can proxy
+# These can be overridden at build time with --build-arg
+ARG VITE_API_URL=/api/v1
+ARG VITE_WS_URL=/ws
+
+# Build the application with environment variables
+RUN VITE_API_URL=$VITE_API_URL VITE_WS_URL=$VITE_WS_URL npm run build
 
 # Production stage
 FROM nginx:alpine AS production

@@ -459,14 +459,14 @@ export function GeneratePage() {
                           </div>
                           <div className="flex gap-2">
                             <a
-                              href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}${part.downloads.step}`}
+                              href={`${import.meta.env.VITE_API_URL || '/api/v1'}${part.downloads.step}`}
                               className="flex items-center gap-1 px-2 py-1 text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded hover:bg-primary-200 dark:hover:bg-primary-900/50"
                             >
                               <Download className="h-3 w-3" />
                               STEP
                             </a>
                             <a
-                              href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}${part.downloads.stl}`}
+                              href={`${import.meta.env.VITE_API_URL || '/api/v1'}${part.downloads.stl}`}
                               className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
                             >
                               <Download className="h-3 w-3" />

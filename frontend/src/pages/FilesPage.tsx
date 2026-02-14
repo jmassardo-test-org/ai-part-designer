@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { DesignFile } from '@/types';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 type ViewMode = 'grid' | 'list';
 type SortField = 'name' | 'created_at' | 'updated_at' | 'size';

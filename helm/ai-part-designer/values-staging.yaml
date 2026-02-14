@@ -16,8 +16,9 @@ logLevel: "INFO"
 ingressEnabled: true
 ingressHost: "staging.ai-part-designer.assemblematic.ai"
 
-# Staging-specific CORS
-viteApiUrl: "https://staging.ai-part-designer.assemblematic.ai"
+# Frontend API URL (NOTE: Vite bakes at BUILD time - set in Dockerfile)
+# Relative paths work because nginx proxies /api to backend
+viteApiUrl: "/api/v1"
 
 # Staging storage configuration
 # Use standard SSD storage class for staging

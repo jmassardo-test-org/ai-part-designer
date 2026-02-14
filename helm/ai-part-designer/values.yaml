@@ -116,9 +116,11 @@ logLevel: "INFO"
 deploymentEnvironment: "production"
 debugEnabled: false
 
-# Frontend config from k8s/base/frontend/configmap.yaml
-viteApiUrl: "http://backend:8000"
-viteWsUrl: "ws://backend:8000"
+# Frontend config (NOTE: Vite bakes env vars at BUILD time, not runtime)
+# These values are NOT used - VITE_API_URL is set in Dockerfile/CI build args
+# The frontend uses relative paths (/api/v1, /ws) which nginx proxies to backend
+viteApiUrl: "/api/v1"
+viteWsUrl: "/ws"
 
 # Ingress settings
 ingressEnabled: false
