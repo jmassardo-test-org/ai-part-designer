@@ -3,8 +3,8 @@
  */
 
 import { renderHook } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as THREE from 'three';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   useAlignmentGuides,
   DEFAULT_ALIGNMENT_SETTINGS,
@@ -259,11 +259,12 @@ describe('useAlignmentGuides', () => {
 
       // Face guides detect when faces are within snap distance
       // With parts at y=0 and y=10, and each having size 10, faces are at y=5 and y=5, touching
-      const _faceGuides = result.current.guides.filter((g) => g.type === 'face');
+      const faceGuides = result.current.guides.filter((g) => g.type === 'face');
       // Face alignment checks for abutting faces (within threshold)
       // The test setup may not produce face guides depending on exact geometry
-      // This test verifies the hook doesn't error
+      // This test verifies the hook doesn't error and returns valid guides array
       expect(result.current.guides).toBeDefined();
+      expect(Array.isArray(faceGuides)).toBe(true);
     });
 
     it('respects enableFaceAlignment setting', () => {

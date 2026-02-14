@@ -414,7 +414,7 @@ export function CommentsPanel({ designId, className = '' }: CommentsPanelProps) 
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiClient.get(`/comments/designs/${designId}`);
+      const response = await apiClient.get<{ items: Comment[] }>(`/comments/designs/${designId}`);
       setComments(response.data.items || []);
     } catch (err) {
       console.error('Failed to load comments:', err);
@@ -436,7 +436,7 @@ export function CommentsPanel({ designId, className = '' }: CommentsPanelProps) 
         payload.parent_id = replyingTo.id;
       }
 
-      const response = await apiClient.post(`/comments/designs/${designId}`, payload);
+      const response = await apiClient.post<Comment>(`/comments/designs/${designId}`, payload);
       
       if (replyingTo) {
         // Add as reply

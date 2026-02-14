@@ -8,7 +8,6 @@ import { Magnet, Settings2 } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  DEFAULT_ALIGNMENT_SETTINGS,
   type AlignmentSettings,
 } from '../../hooks/useAlignmentGuides';
 

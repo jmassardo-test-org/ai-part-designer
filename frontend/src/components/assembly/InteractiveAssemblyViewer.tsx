@@ -23,14 +23,14 @@ import {
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { STLLoader, OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { useComponentVisibility } from '../../hooks/useComponentVisibility';
-import { usePartTransforms } from '../../hooks/usePartTransforms';
-import { useExplodedView } from '../../hooks/useExplodedView';
 import { useAlignmentGuides, DEFAULT_ALIGNMENT_SETTINGS, type AlignmentSettings, type AlignmentPart } from '../../hooks/useAlignmentGuides';
+import { useComponentVisibility } from '../../hooks/useComponentVisibility';
+import { useExplodedView } from '../../hooks/useExplodedView';
+import { usePartTransforms } from '../../hooks/usePartTransforms';
 import { PartTransformControls, type TransformMode, type PartTransform } from '../viewer/PartTransformControls';
-import { ExplodeToolbar } from './ExplodeToolbar';
-import { AlignmentToolbar } from './AlignmentToolbar';
 import { AlignmentGuides } from './AlignmentGuides';
+import { AlignmentToolbar } from './AlignmentToolbar';
+import { ExplodeToolbar } from './ExplodeToolbar';
 
 // =============================================================================
 // Types

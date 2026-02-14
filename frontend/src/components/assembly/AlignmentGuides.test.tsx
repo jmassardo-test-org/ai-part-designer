@@ -2,12 +2,12 @@
  * AlignmentGuides Component Tests
  */
 
-import { render } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Canvas } from '@react-three/fiber';
+import { render } from '@testing-library/react';
 import * as THREE from 'three';
-import { AlignmentGuides } from './AlignmentGuides';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AlignmentGuide } from '../../hooks/useAlignmentGuides';
+import { AlignmentGuides } from './AlignmentGuides';
 
 // =============================================================================
 // Test Helpers

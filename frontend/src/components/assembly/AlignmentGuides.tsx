@@ -5,8 +5,8 @@
  * Renders edge, center, and face guides with appropriate colors and styles.
  */
 
-import { useMemo } from 'react';
 import { Line, Plane } from '@react-three/drei';
+import { useMemo } from 'react';
 import * as THREE from 'three';
 import type { AlignmentGuide } from '../../hooks/useAlignmentGuides';
 

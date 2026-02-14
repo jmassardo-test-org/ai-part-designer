@@ -248,7 +248,7 @@ describe('alignmentApi', () => {
 
 describe('ALIGNMENT_PRESETS', () => {
   it('contains all alignment modes', () => {
-    const modes = ALIGNMENT_PRESETS.map((p) => p.mode);
+    const modes = ALIGNMENT_PRESETS.map((p: { mode: string }) => p.mode);
     expect(modes).toContain('CENTER');
     expect(modes).toContain('ORIGIN');
     expect(modes).toContain('STACK_Z');
@@ -259,7 +259,7 @@ describe('ALIGNMENT_PRESETS', () => {
   });
 
   it('has required properties for each preset', () => {
-    ALIGNMENT_PRESETS.forEach((preset) => {
+    ALIGNMENT_PRESETS.forEach((preset: { mode: string; label: string; description: string; icon: unknown }) => {
       expect(preset).toHaveProperty('mode');
       expect(preset).toHaveProperty('label');
       expect(preset).toHaveProperty('description');
@@ -270,7 +270,7 @@ describe('ALIGNMENT_PRESETS', () => {
   });
 
   it('has unique modes', () => {
-    const modes = ALIGNMENT_PRESETS.map((p) => p.mode);
+    const modes = ALIGNMENT_PRESETS.map((p: { mode: string }) => p.mode);
     const uniqueModes = new Set(modes);
     expect(uniqueModes.size).toBe(modes.length);
   });
