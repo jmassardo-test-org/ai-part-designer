@@ -2,14 +2,13 @@
  * Interactive Assembly Viewer Component
  * 
  * Enhanced assembly viewer with interactive transform controls for
- * moving and rotating parts with snapping and undo/redo support.
+ * moving and rotating parts with snapping, alignment guides, exploded view,
+ * and undo/redo support.
  */
 
 import { OrbitControls, PerspectiveCamera, Environment, Html } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
 import {
-  Expand,
-  Shrink,
   Eye,
   EyeOff,
   Focus,
@@ -26,7 +25,12 @@ import * as THREE from 'three';
 import { STLLoader, OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useComponentVisibility } from '../../hooks/useComponentVisibility';
 import { usePartTransforms } from '../../hooks/usePartTransforms';
+import { useExplodedView } from '../../hooks/useExplodedView';
+import { useAlignmentGuides, DEFAULT_ALIGNMENT_SETTINGS, type AlignmentSettings, type AlignmentPart } from '../../hooks/useAlignmentGuides';
 import { PartTransformControls, type TransformMode, type PartTransform } from '../viewer/PartTransformControls';
+import { ExplodeToolbar } from './ExplodeToolbar';
+import { AlignmentToolbar } from './AlignmentToolbar';
+import { AlignmentGuides } from './AlignmentGuides';
 
 // =============================================================================
 // Types
@@ -86,10 +90,12 @@ interface ComponentMeshProps {
   isSelected: boolean;
   isHidden: boolean;
   explodeFactor: number;
+  distanceMultiplier: number;
   assemblyCenter: THREE.Vector3;
   transform?: PartTransform;
   onClick: () => void;
   onMeshReady?: (mesh: THREE.Mesh) => void;
+  onBoundingBoxReady?: (id: string, box: THREE.Box3) => void;
 }
 
 function ComponentMesh({
@@ -97,10 +103,12 @@ function ComponentMesh({
   isSelected,
   isHidden,
   explodeFactor,
+  distanceMultiplier,
   assemblyCenter,
   transform,
   onClick,
   onMeshReady,
+  onBoundingBoxReady,
 }: ComponentMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
@@ -173,6 +181,20 @@ function ComponentMesh({
     }
   }, [transform]);
 
+  // Report bounding box when geometry is ready
+  useEffect(() => {
+    if (geometry && onBoundingBoxReady) {
+      const pos = transform?.position || component.position;
+      const box = new THREE.Box3().setFromBufferAttribute(
+        geometry.getAttribute('position') as THREE.BufferAttribute
+      );
+      // Translate box to world position
+      const offset = new THREE.Vector3(pos.x, pos.y, pos.z);
+      box.translate(offset);
+      onBoundingBoxReady(component.id, box);
+    }
+  }, [geometry, component.id, component.position, transform?.position, onBoundingBoxReady]);
+
   // Calculate exploded position
   const explodedPosition = useMemo(() => {
     // Use transform position if available, otherwise use component position
@@ -180,13 +202,19 @@ function ComponentMesh({
     const basePos = new THREE.Vector3(pos.x, pos.y, pos.z);
 
     if (explodeFactor > 0) {
-      const direction = basePos.clone().sub(assemblyCenter).normalize();
-      const explodeDistance = explodeFactor * 50;
-      return basePos.add(direction.multiplyScalar(explodeDistance));
+      let direction = basePos.clone().sub(assemblyCenter);
+      // Handle parts at center - use default direction
+      if (direction.length() < 0.001) {
+        direction = new THREE.Vector3(0, 1, 0);
+      } else {
+        direction.normalize();
+      }
+      const explodeDistance = explodeFactor * distanceMultiplier * 50;
+      return basePos.clone().add(direction.multiplyScalar(explodeDistance));
     }
 
     return basePos;
-  }, [component.position, transform?.position, explodeFactor, assemblyCenter]);
+  }, [component.position, transform?.position, explodeFactor, distanceMultiplier, assemblyCenter]);
 
   // Rotation in radians
   const rotationEuler = useMemo(() => {
@@ -274,6 +302,7 @@ interface AssemblySceneProps {
   selectedComponentId: string | null;
   onSelectComponent: (componentId: string | null) => void;
   explodeFactor: number;
+  distanceMultiplier: number;
   hiddenComponents: Set<string>;
   transforms: { [key: string]: PartTransform };
   transformMode: TransformMode;
@@ -283,6 +312,12 @@ interface AssemblySceneProps {
   onTransformChange: (partId: string, transform: PartTransform) => void;
   onTransformEnd: (partId: string, transform: PartTransform) => void;
   onDraggingChange: (isDragging: boolean) => void;
+  onDragPositionChange: (partId: string, position: THREE.Vector3) => void;
+  alignmentEnabled: boolean;
+  alignmentGuides: ReturnType<typeof useAlignmentGuides>['guides'];
+  isDragging: boolean;
+  partBoundingBoxes: Map<string, THREE.Box3>;
+  onBoundingBoxReady: (id: string, box: THREE.Box3) => void;
 }
 
 function AssemblyScene({
@@ -290,6 +325,7 @@ function AssemblyScene({
   selectedComponentId,
   onSelectComponent,
   explodeFactor,
+  distanceMultiplier,
   hiddenComponents,
   transforms,
   transformMode,
@@ -299,6 +335,11 @@ function AssemblyScene({
   onTransformChange,
   onTransformEnd,
   onDraggingChange,
+  onDragPositionChange,
+  alignmentEnabled,
+  alignmentGuides,
+  isDragging,
+  onBoundingBoxReady,
 }: AssemblySceneProps) {
   useThree();
   const [selectedMesh, setSelectedMesh] = useState<THREE.Mesh | null>(null);
@@ -372,14 +413,22 @@ function AssemblyScene({
           isSelected={selectedComponentId === component.id}
           isHidden={hiddenComponents.has(component.id)}
           explodeFactor={explodeFactor}
+          distanceMultiplier={distanceMultiplier}
           assemblyCenter={assemblyCenter}
           transform={transforms[component.id]}
           onClick={() => {
             onSelectComponent(component.id);
           }}
           onMeshReady={handleMeshReady(component.id)}
+          onBoundingBoxReady={onBoundingBoxReady}
         />
       ))}
+
+      {/* Alignment Guides */}
+      <AlignmentGuides
+        guides={alignmentGuides}
+        visible={alignmentEnabled && isDragging}
+      />
 
       {/* Transform Controls */}
       {selectedComponentId && selectedMesh && (
@@ -392,6 +441,14 @@ function AssemblyScene({
           rotationSnapIncrement={rotationSnapIncrement}
           onTransformChange={(transform) => {
             onTransformChange(selectedComponentId, transform);
+            // Report position for alignment guides
+            if (transformMode === 'translate') {
+              onDragPositionChange(selectedComponentId, new THREE.Vector3(
+                transform.position.x,
+                transform.position.y,
+                transform.position.z
+              ));
+            }
           }}
           onTransformEnd={(transform) => {
             onTransformEnd(selectedComponentId, transform);
@@ -422,16 +479,24 @@ export function InteractiveAssemblyViewer({
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
   // Local state
-  const [localExplodeFactor, setLocalExplodeFactor] = useState(0);
   const [showComponentList, setShowComponentList] = useState(false);
   const [transformMode, setTransformMode] = useState<TransformMode>('translate');
   const [enableSnapping, setEnableSnapping] = useState(true);
   const [positionSnapIncrement] = useState(5);
   const [rotationSnapIncrement] = useState(15);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragPosition, setDragPosition] = useState<THREE.Vector3 | null>(null);
+  const [partBoundingBoxes, setPartBoundingBoxes] = useState<Map<string, THREE.Box3>>(new Map());
 
-  // Use external or local state
-  const explodeFactor = externalExplodeFactor ?? localExplodeFactor;
+  // Alignment state
+  const [alignmentEnabled, setAlignmentEnabled] = useState(true);
+  const [alignmentSettings, setAlignmentSettings] = useState<AlignmentSettings>(DEFAULT_ALIGNMENT_SETTINGS);
+
+  // Exploded view with animation
+  const explodedView = useExplodedView();
+  
+  // Use external explodeFactor if provided, otherwise use animated value
+  const effectiveExplodeFactor = externalExplodeFactor ?? explodedView.explodeFactor;
 
   // Component visibility (hide/show/isolate)
   const {
@@ -452,6 +517,47 @@ export function InteractiveAssemblyViewer({
     onTransformUpdate: onComponentTransform,
   });
 
+  // Convert components to AlignmentPart format for alignment hook
+  const alignmentParts = useMemo((): AlignmentPart[] => {
+    return components.map((c) => {
+      const transform = partTransforms.transforms[c.id];
+      const pos = transform?.position || c.position;
+      const position = new THREE.Vector3(pos.x, pos.y, pos.z);
+      
+      // Use stored bounding box or create default
+      const storedBox = partBoundingBoxes.get(c.id);
+      const boundingBox = storedBox ?? new THREE.Box3(
+        position.clone().sub(new THREE.Vector3(10, 10, 10)),
+        position.clone().add(new THREE.Vector3(10, 10, 10))
+      );
+
+      return {
+        id: c.id,
+        name: c.name,
+        position,
+        boundingBox,
+      };
+    });
+  }, [components, partTransforms.transforms, partBoundingBoxes]);
+
+  // Alignment guides calculation
+  const alignmentGuidesResult = useAlignmentGuides({
+    parts: alignmentParts,
+    draggedPartId: isDragging ? selectedComponentId : null,
+    dragPosition,
+    hiddenParts: hiddenComponents,
+    settings: alignmentSettings,
+  });
+
+  // Handle bounding box updates from ComponentMesh
+  const handleBoundingBoxReady = useCallback((id: string, box: THREE.Box3) => {
+    setPartBoundingBoxes((prev) => {
+      const next = new Map(prev);
+      next.set(id, box);
+      return next;
+    });
+  }, []);
+
   // Handle selection
   const handleSelectComponent = useCallback(
     (componentId: string | null) => {
@@ -464,6 +570,25 @@ export function InteractiveAssemblyViewer({
   const handleTransformChange = useCallback(
     (_partId: string, _transform: PartTransform) => {
       // We don't push to history during dragging, only on end
+    },
+    []
+  );
+
+  // Handle drag position change for alignment guides
+  const handleDragPositionChange = useCallback(
+    (_partId: string, position: THREE.Vector3) => {
+      setDragPosition(position);
+    },
+    []
+  );
+
+  // Handle dragging state change
+  const handleDraggingChange = useCallback(
+    (dragging: boolean) => {
+      setIsDragging(dragging);
+      if (!dragging) {
+        setDragPosition(null);
+      }
     },
     []
   );
@@ -487,10 +612,13 @@ export function InteractiveAssemblyViewer({
     }
   }, []);
 
-  // Toggle exploded view
-  const toggleExplodedView = useCallback(() => {
-    setLocalExplodeFactor((prev) => (prev > 0 ? 0 : 1));
-  }, []);
+  // Handle alignment settings change
+  const handleAlignmentSettingsChange = useCallback(
+    (changes: Partial<AlignmentSettings>) => {
+      setAlignmentSettings((prev) => ({ ...prev, ...changes }));
+    },
+    []
+  );
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -521,6 +649,16 @@ export function InteractiveAssemblyViewer({
         e.preventDefault();
         setEnableSnapping((prev) => !prev);
       }
+      // Toggle alignment guides
+      else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        setAlignmentEnabled((prev) => !prev);
+      }
+      // Toggle exploded view
+      else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        explodedView.toggle();
+      }
       // Hide selected component
       else if (e.key === 'h' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         if (selectedComponentId) {
@@ -544,7 +682,7 @@ export function InteractiveAssemblyViewer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [partTransforms, selectedComponentId, toggleVisibility, showAll, isolateComponent]);
+  }, [partTransforms, selectedComponentId, toggleVisibility, showAll, isolateComponent, explodedView]);
 
   return (
     <div ref={containerRef} className={`relative bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden ${className}`}>
@@ -563,7 +701,8 @@ export function InteractiveAssemblyViewer({
           components={components}
           selectedComponentId={selectedComponentId}
           onSelectComponent={handleSelectComponent}
-          explodeFactor={explodeFactor}
+          explodeFactor={effectiveExplodeFactor}
+          distanceMultiplier={explodedView.distanceMultiplier}
           hiddenComponents={hiddenComponents}
           transforms={partTransforms.transforms}
           transformMode={transformMode}
@@ -572,7 +711,13 @@ export function InteractiveAssemblyViewer({
           rotationSnapIncrement={rotationSnapIncrement}
           onTransformChange={handleTransformChange}
           onTransformEnd={handleTransformEnd}
-          onDraggingChange={setIsDragging}
+          onDraggingChange={handleDraggingChange}
+          onDragPositionChange={handleDragPositionChange}
+          alignmentEnabled={alignmentEnabled}
+          alignmentGuides={alignmentGuidesResult.guides}
+          isDragging={isDragging}
+          partBoundingBoxes={partBoundingBoxes}
+          onBoundingBoxReady={handleBoundingBoxReady}
         />
       </Canvas>
 
@@ -645,17 +790,24 @@ export function InteractiveAssemblyViewer({
           >
             <Grid3x3 className="w-5 h-5" />
           </button>
-          <button
-            onClick={toggleExplodedView}
-            className={`p-2 rounded transition-colors ${
-              explodeFactor > 0
-                ? 'bg-primary-600 text-white'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
-            title={explodeFactor > 0 ? 'Collapse view' : 'Exploded view'}
-          >
-            {explodeFactor > 0 ? <Shrink className="w-5 h-5" /> : <Expand className="w-5 h-5" />}
-          </button>
+          
+          {/* Alignment Toolbar */}
+          <AlignmentToolbar
+            enabled={alignmentEnabled}
+            onToggle={() => setAlignmentEnabled(!alignmentEnabled)}
+            settings={alignmentSettings}
+            onSettingsChange={handleAlignmentSettingsChange}
+          />
+          
+          {/* Explode Toolbar */}
+          <ExplodeToolbar
+            state={explodedView.explodeState}
+            isAnimating={explodedView.isAnimating}
+            distanceMultiplier={explodedView.distanceMultiplier}
+            onToggle={explodedView.toggle}
+            onDistanceChange={explodedView.setDistanceMultiplier}
+          />
+          
           <button
             onClick={resetCamera}
             className="p-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
