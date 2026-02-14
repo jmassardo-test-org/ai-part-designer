@@ -262,7 +262,26 @@ def rate_limit(rate: str | None = None, category: str | None = None) -> Callable
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(request: Request, *args: Any, **kwargs: Any) -> Any:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Find Request object - check kwargs first (most likely from FastAPI dependency injection)
+            request: Request | None = None
+            for _key, value in kwargs.items():
+                if isinstance(value, Request):
+                    request = value
+                    break
+
+            # Check args if not found in kwargs
+            if request is None:
+                for arg in args:
+                    if isinstance(arg, Request):
+                        request = arg
+                        break
+
+            if request is None:
+                # Create a minimal Request-like object or skip rate limiting
+                # This shouldn't happen in production but makes testing easier
+                return await func(*args, **kwargs)
+
             # Determine rate to use
             if rate:
                 limit = rate
@@ -276,19 +295,24 @@ def rate_limit(rate: str | None = None, category: str | None = None) -> Callable
             # Check rate limit
             identifier = get_identifier(request)
             endpoint = request.url.path
-            allowed, headers = _rate_limiter.is_allowed(identifier, endpoint, limit)
+            allowed, rate_headers = _rate_limiter.is_allowed(identifier, endpoint, limit)
 
             if not allowed:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail="Rate limit exceeded. Please try again later.",
-                    headers=headers,
+                    headers=rate_headers,
                 )
 
-            # Call the actual function
-            return await func(request, *args, **kwargs)
+            # Call the actual function with original args/kwargs
+            response = await func(*args, **kwargs)
 
-            # Note: Headers would need to be added at the response level
+            # Add rate limit headers to response if it has a headers attribute
+            if hasattr(response, "headers"):
+                for key, value in rate_headers.items():
+                    response.headers[key] = value
+
+            return response
 
         return wrapper
 

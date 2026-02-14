@@ -324,8 +324,9 @@ class TestUserAuditLogs:
         # Filter by date range (last 2 days)
         start_date = (now - timedelta(days=2)).isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs?start_date={start_date}",
+            "/api/v1/users/me/audit-logs",
             headers=auth_headers,
+            params={"start_date": start_date},
         )
         assert response.status_code == 200
         data = response.json()
@@ -335,8 +336,9 @@ class TestUserAuditLogs:
         # Filter by end date
         end_date = (now - timedelta(days=2)).isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs?end_date={end_date}",
+            "/api/v1/users/me/audit-logs",
             headers=auth_headers,
+            params={"end_date": end_date},
         )
         assert response.status_code == 200
         data = response.json()
@@ -347,8 +349,9 @@ class TestUserAuditLogs:
         start_date = (now - timedelta(days=4)).isoformat()
         end_date = (now - timedelta(days=2)).isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs?start_date={start_date}&end_date={end_date}",
+            "/api/v1/users/me/audit-logs",
             headers=auth_headers,
+            params={"start_date": start_date, "end_date": end_date},
         )
         assert response.status_code == 200
         data = response.json()
@@ -417,8 +420,9 @@ class TestUserAuditLogs:
         # Filter by resource_type and date
         start_date = (now - timedelta(hours=1)).isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs?resource_type=design&start_date={start_date}",
+            "/api/v1/users/me/audit-logs",
             headers=auth_headers,
+            params={"resource_type": "design", "start_date": start_date},
         )
         assert response.status_code == 200
         data = response.json()
@@ -437,9 +441,9 @@ class TestUserAuditLogs:
         # Create another user
         other_user = User(
             email="other@example.com",
-            hashed_password="hashed",
+            password_hash="hashed",
             display_name="Other User",
-            is_active=True,
+            status="active",
         )
         db.add(other_user)
         await db.commit()
@@ -764,8 +768,9 @@ class TestUserAuditLogsExportCSV:
         # Export logs from last 2 days
         start_date = (now - timedelta(days=2)).isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs/export/csv?start_date={start_date}",
+            "/api/v1/users/me/audit-logs/export/csv",
             headers=auth_headers,
+            params={"start_date": start_date},
         )
         assert response.status_code == 200
 
@@ -805,8 +810,9 @@ class TestUserAuditLogsExportCSV:
         start_date = (now - timedelta(days=7)).isoformat()
         end_date = now.isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs/export/csv?start_date={start_date}&end_date={end_date}",
+            "/api/v1/users/me/audit-logs/export/csv",
             headers=auth_headers,
+            params={"start_date": start_date, "end_date": end_date},
         )
         assert response.status_code == 200
 
@@ -1014,8 +1020,9 @@ class TestUserAuditLogsExportJSON:
         start_date = (now - timedelta(days=6)).isoformat()
         end_date = (now - timedelta(days=2)).isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs/export/json?start_date={start_date}&end_date={end_date}",
+            "/api/v1/users/me/audit-logs/export/json",
             headers=auth_headers,
+            params={"start_date": start_date, "end_date": end_date},
         )
         assert response.status_code == 200
 
@@ -1102,8 +1109,9 @@ class TestUserAuditLogsExportJSON:
         start_date = (now - timedelta(days=30)).isoformat()
         end_date = now.isoformat()
         response = await client.get(
-            f"/api/v1/users/me/audit-logs/export/json?start_date={start_date}&end_date={end_date}",
+            "/api/v1/users/me/audit-logs/export/json",
             headers=auth_headers,
+            params={"start_date": start_date, "end_date": end_date},
         )
         assert response.status_code == 200
 

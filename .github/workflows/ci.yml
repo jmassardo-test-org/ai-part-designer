@@ -148,14 +148,14 @@ jobs:
   # ============================================================
   
   backend-test:
-    name: Backend Tests (${{ matrix.shard }})
+    name: Backend Tests (${{ matrix.shard }}/10)
     runs-on: ubuntu-latest
     needs: [backend-lint, backend-typecheck]
     
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
     services:
       postgres:
@@ -211,7 +211,7 @@ jobs:
         working-directory: backend
         run: uv sync --all-extras
 
-      - name: Run tests with coverage (shard ${{ matrix.shard }}/4)
+      - name: Run tests with coverage (shard ${{ matrix.shard }}/10)
         working-directory: backend
         env:
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
@@ -225,7 +225,7 @@ jobs:
             --cov-report=xml:coverage-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
             -n auto \
-            --splits 4 \
+            --splits 10 \
             --group ${{ matrix.shard }} \
             -v
 
@@ -266,14 +266,6 @@ jobs:
           coverage xml -o coverage.xml || true
           coverage report --fail-under=80 || echo "Coverage check will be validated"
 
-      - name: Upload combined coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
-          flags: backend
-          fail_ci_if_error: false
-
   frontend-test:
     name: Frontend Unit Tests
     runs-on: ubuntu-latest
@@ -296,14 +288,6 @@ jobs:
       - name: Run unit tests with coverage
         working-directory: frontend
         run: npm run test:coverage
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: frontend/coverage/coverage-final.json
-          flags: frontend
-          fail_ci_if_error: false
 
   # ============================================================
   # STAGE 3: Migration validation (only on main branch, after tests)

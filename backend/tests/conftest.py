@@ -139,6 +139,12 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture(scope="function")
+async def db(db_session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
+    """Alias for db_session fixture for backward compatibility."""
+    yield db_session
+
+
+@pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client with database dependency override."""
     from httpx import ASGITransport
