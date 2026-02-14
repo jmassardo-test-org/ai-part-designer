@@ -82,9 +82,16 @@ configMapGenerator:
 # - sealed-backend-secrets.yaml
 
 # Images with production tags (use specific version tags, not 'latest')
+# CI builds: -production (API), -worker, -beat, -frontend
 images:
 - name: ai-part-designer-backend
-  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-production
+  newTag: v1.0.0
+- name: ai-part-designer-worker
+  newName: ghcr.io/jmassardo/ai-part-designer-worker
+  newTag: v1.0.0
+- name: ai-part-designer-beat
+  newName: ghcr.io/jmassardo/ai-part-designer-beat
   newTag: v1.0.0
 - name: ai-part-designer-frontend
   newName: ghcr.io/jmassardo/ai-part-designer-frontend

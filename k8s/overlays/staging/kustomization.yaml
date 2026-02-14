@@ -61,9 +61,16 @@ configMapGenerator:
 #   kubeseal -o yaml > sealed-backend-secrets.yaml
 
 # Images with staging tags
+# CI builds: -production (API), -worker, -beat, -frontend
 images:
 - name: ai-part-designer-backend
-  newName: ghcr.io/jmassardo/ai-part-designer-backend
+  newName: ghcr.io/jmassardo/ai-part-designer-production
+  newTag: staging
+- name: ai-part-designer-worker
+  newName: ghcr.io/jmassardo/ai-part-designer-worker
+  newTag: staging
+- name: ai-part-designer-beat
+  newName: ghcr.io/jmassardo/ai-part-designer-beat
   newTag: staging
 - name: ai-part-designer-frontend
   newName: ghcr.io/jmassardo/ai-part-designer-frontend

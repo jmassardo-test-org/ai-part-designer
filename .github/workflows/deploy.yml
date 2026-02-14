@@ -64,10 +64,19 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
 
-          # Update backend image tag
           cd k8s/overlays/staging
+
+          # Update backend (API) image tag
           kustomize edit set image \
             ai-part-designer-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-production:${TAG}
+
+          # Update worker image tag
+          kustomize edit set image \
+            ai-part-designer-worker=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${TAG}
+
+          # Update beat image tag
+          kustomize edit set image \
+            ai-part-designer-beat=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-beat:${TAG}
 
           # Update frontend image tag
           kustomize edit set image \
@@ -141,6 +150,10 @@ jobs:
           cd k8s/overlays/production
           kustomize edit set image \
             ai-part-designer-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-production:${TAG}
+          kustomize edit set image \
+            ai-part-designer-worker=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${TAG}
+          kustomize edit set image \
+            ai-part-designer-beat=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-beat:${TAG}
           kustomize edit set image \
             ai-part-designer-frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${TAG}
 

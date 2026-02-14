@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: worker
-        image: ai-part-designer-backend:latest
+        image: ai-part-designer-worker:latest
         imagePullPolicy: IfNotPresent
         command: [".venv/bin/celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
         env:
