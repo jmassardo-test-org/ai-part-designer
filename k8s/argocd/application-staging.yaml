@@ -71,6 +71,12 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+    # Ignore Job fields added in K8s 1.29+ that older ArgoCD schema doesn't recognize
+    - group: batch
+      kind: Job
+      jsonPointers:
+        - /spec/podReplacementPolicy
+        - /status/terminating
     # Ignore differences in auto-generated fields
     - group: "*"
       kind: "*"
