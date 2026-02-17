@@ -42,6 +42,7 @@ from app.models.conversation import (
 )
 from app.models.user import User
 from app.services.conversation_moderation import moderate_conversation_message
+from app.services.geometry_introspection import answer_geometry_query, is_geometry_query
 
 logger = logging.getLogger(__name__)
 
@@ -635,6 +636,45 @@ async def send_message(
             understanding=None,
             ready_to_generate=False,
             result=None,
+        )
+
+    # --- Geometry introspection shortcut ---
+    # If the conversation already has a generated part and the user is asking
+    # about dimensions / geometry, answer directly without going through the
+    # full reasoning engine.
+    if is_geometry_query(request.content) and conversation.result_data:
+        design_extra: dict[str, Any] | None = None
+        if conversation.design_id:
+            from app.services.model_context import get_design_by_id
+
+            linked_design = await get_design_by_id(
+                conversation.design_id, current_user.id, db
+            )
+            if linked_design:
+                design_extra = linked_design.extra_data
+
+        geo_answer = answer_geometry_query(
+            message=request.content,
+            result_data=conversation.result_data,
+            design_extra_data=design_extra,
+        )
+        assistant_msg = ConversationMessage(
+            conversation_id=conversation.id,
+            role=MessageRole.ASSISTANT.value,
+            message_type=MessageType.TEXT.value,
+            content=geo_answer.response_text,
+            extra_data={"geometry_query": True, "source": geo_answer.source},
+        )
+        conversation.messages.append(assistant_msg)
+        await db.commit()
+
+        return SendMessageResponse(
+            user_message=_message_to_response(user_msg),
+            assistant_message=_message_to_response(assistant_msg),
+            conversation_status=conversation.status,
+            understanding=conversation.intent_data,
+            ready_to_generate=False,
+            result=conversation.result_data,
         )
 
     # Load or create understanding
