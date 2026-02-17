@@ -415,9 +415,7 @@ class TestAssemblyPartDownloadSecurity:
         ]
 
         for pattern in invalid_patterns:
-            response = await simple_client.get(
-                f"/api/v1/generate/{job_id}/download/step/{pattern}"
-            )
+            response = await simple_client.get(f"/api/v1/generate/{job_id}/download/step/{pattern}")
             # Should be rejected as 400 (invalid part name) or 422 (validation error)
             assert response.status_code in (400, 422), f"Pattern {pattern} should be rejected"
 

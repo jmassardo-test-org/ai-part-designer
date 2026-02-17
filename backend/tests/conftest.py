@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
 
     from app.models import User
+    from app.models.project import Project
 
 
 # =============================================================================
@@ -202,7 +203,7 @@ async def async_client(client: AsyncClient) -> AsyncClient:
 @pytest.fixture
 def mock_current_user():
     """Create a mock user for testing.
-    
+
     Note: This fixture alone doesn't inject auth into the client.
     Use it with `mock_auth_client` or manually override the dependency.
     """
@@ -226,15 +227,15 @@ async def mock_auth_client(
     mock_current_user,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client with mocked authentication.
-    
+
     This client overrides get_current_user to return mock_current_user,
     allowing tests to bypass real authentication while still testing
     authorization and business logic.
-    
+
     Also mocks require_org_feature to skip feature checks for unit tests.
     """
     from unittest.mock import patch
-    
+
     from httpx import ASGITransport
 
     from app.core.auth import get_current_user
@@ -250,6 +251,7 @@ async def mock_auth_client(
     def mock_require_org_feature(feature_name: str):
         async def no_op(*args, **kwargs):
             return None
+
         return no_op
 
     app.dependency_overrides[get_db] = override_get_db
@@ -292,7 +294,7 @@ async def test_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def test_user_2(db_session: AsyncSession) -> "User":
+async def test_user_2(db_session: AsyncSession) -> User:
     """Create a second test user for access control tests."""
     from datetime import datetime
 
@@ -335,7 +337,7 @@ async def test_admin(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def test_project(db_session: AsyncSession, test_user: "User") -> "Project":
+async def test_project(db_session: AsyncSession, test_user: User) -> Project:
     """Create a test project."""
     from app.models.project import Project
 
@@ -364,7 +366,7 @@ def auth_headers(test_user: User) -> dict[str, str]:
 
 
 @pytest.fixture
-def auth_headers_2(test_user_2: "User") -> dict[str, str]:
+def auth_headers_2(test_user_2: User) -> dict[str, str]:
     """Generate authentication headers for second test user."""
     from app.core.security import create_access_token
 

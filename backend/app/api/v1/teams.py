@@ -252,19 +252,21 @@ async def list_teams(
     for team in teams:
         # Get member count efficiently
         member_count = await service.get_team_member_count(team.id)
-        items.append(TeamResponse(
-            id=team.id,
-            organization_id=team.organization_id,
-            name=team.name,
-            slug=team.slug,
-            description=team.description,
-            settings=team.settings,
-            is_active=team.is_active,
-            created_by_id=team.created_by_id,
-            created_at=team.created_at,
-            updated_at=team.updated_at,
-            member_count=member_count,
-        ))
+        items.append(
+            TeamResponse(
+                id=team.id,
+                organization_id=team.organization_id,
+                name=team.name,
+                slug=team.slug,
+                description=team.description,
+                settings=team.settings,
+                is_active=team.is_active,
+                created_by_id=team.created_by_id,
+                created_at=team.created_at,
+                updated_at=team.updated_at,
+                member_count=member_count,
+            )
+        )
 
     return TeamListResponse(
         items=items,

@@ -86,7 +86,9 @@ async def test_pending_job(db_session: AsyncSession, test_user) -> Job:
 
 
 @pytest_asyncio.fixture
-async def test_design(db_session: AsyncSession, test_project, test_completed_job, test_user) -> Design:
+async def test_design(
+    db_session: AsyncSession, test_project, test_completed_job, test_user
+) -> Design:
     """Create a test design."""
     design = Design(
         project_id=test_project.id,

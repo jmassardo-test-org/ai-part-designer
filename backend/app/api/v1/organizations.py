@@ -11,7 +11,6 @@ import logging
 import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -32,6 +31,8 @@ from app.models.organization import (
 from app.models.user import User
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -735,7 +736,7 @@ async def remove_member(
     Cannot remove owner.
     """
     await get_org_or_404(db, org_id)
-    
+
     # Get the member to be removed
     result = await db.execute(
         select(OrganizationMember).where(

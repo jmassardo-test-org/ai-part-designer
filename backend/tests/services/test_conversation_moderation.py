@@ -96,9 +96,7 @@ class TestCategoryToViolationMapping:
     def test_unmapped_category_falls_back_to_tos_violation(self) -> None:
         """Categories not in the explicit map should default to TOS_VIOLATION."""
         assert map_category_to_violation(ProhibitedCategory.SUSPICIOUS) == DEFAULT_VIOLATION_TYPE
-        assert (
-            map_category_to_violation(ProhibitedCategory.COUNTERFEIT) == DEFAULT_VIOLATION_TYPE
-        )
+        assert map_category_to_violation(ProhibitedCategory.COUNTERFEIT) == DEFAULT_VIOLATION_TYPE
 
     def test_mapping_dict_has_expected_entries(self) -> None:
         """Ensure the mapping dict has exactly the expected number of entries."""
@@ -154,9 +152,7 @@ class TestModerateConversationMessage:
                 flags=[_make_flag(ProhibitedCategory.FIREARM, severity="critical")],
             )
         )
-        mock_content_mod.get_rejection_message = MagicMock(
-            return_value="Weapons are not allowed."
-        )
+        mock_content_mod.get_rejection_message = MagicMock(return_value="Weapons are not allowed.")
 
         mock_abuse_instance = AsyncMock()
         mock_abuse_instance.record_violation = AsyncMock(
@@ -203,9 +199,7 @@ class TestModerateConversationMessage:
                 flags=[_make_flag(ProhibitedCategory.PROMPT_INJECTION, severity="critical")],
             )
         )
-        mock_content_mod.get_rejection_message = MagicMock(
-            return_value="Abuse patterns detected."
-        )
+        mock_content_mod.get_rejection_message = MagicMock(return_value="Abuse patterns detected.")
 
         mock_abuse_instance = AsyncMock()
         mock_abuse_instance.record_violation = AsyncMock(

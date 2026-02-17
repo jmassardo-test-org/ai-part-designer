@@ -38,6 +38,7 @@ async def seed_subscription_tiers(db_session: AsyncSession) -> None:
     """
     # Check if already seeded (avoid duplicates with api/conftest.py fixture)
     from sqlalchemy import select
+
     result = await db_session.execute(
         select(SubscriptionTier).where(SubscriptionTier.slug == "free")
     )
@@ -561,7 +562,7 @@ class TestAssemblyFeatureEnforcement:
         test_project_in_org_no_features,
     ):
         """Should deny creation when assemblies feature is disabled.
-        
+
         Note: The require_org_feature_for_project dependency expects project_id
         as a path parameter, but POST /assemblies has it in the request body.
         FastAPI can't inject body fields into dependencies, so this returns 422

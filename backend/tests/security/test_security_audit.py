@@ -25,7 +25,6 @@ from prometheus_client import REGISTRY
 from app.core.config import get_settings
 from app.main import create_app
 
-
 # Module-scoped app to avoid recreating it for each test (Prometheus registry issue)
 _test_app = None
 
@@ -37,7 +36,7 @@ def _get_test_app():
         # Clear any existing prometheus metrics before creating app
         collectors_to_remove = []
         for name in list(REGISTRY._names_to_collectors.keys()):
-            if 'http_request' in name or 'http_response' in name:
+            if "http_request" in name or "http_response" in name:
                 collectors_to_remove.append(name)
         for name in collectors_to_remove:
             try:

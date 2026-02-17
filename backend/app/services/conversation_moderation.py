@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from uuid import UUID
-
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TYPE_CHECKING
 
 from app.services.abuse_detection import (
     AbuseDecision,
@@ -26,6 +24,11 @@ from app.services.content_moderation import (
     ProhibitedCategory,
     content_moderation,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

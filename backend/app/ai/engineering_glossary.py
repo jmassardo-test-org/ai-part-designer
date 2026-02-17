@@ -16,10 +16,8 @@ from __future__ import annotations
 
 import difflib
 import re
-from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TypedDict
-
 
 # =============================================================================
 # Types
@@ -55,9 +53,7 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
     # ── Primitives ──────────────────────────────────────────────────────
     {
         "term": "box",
-        "definition": (
-            "A rectangular prism / cuboid defined by length, width, and height."
-        ),
+        "definition": ("A rectangular prism / cuboid defined by length, width, and height."),
         "category": GlossaryCategory.PRIMITIVES,
         "aliases": ["cube", "rectangular prism", "cuboid", "block"],
         "keywords": ["rectangle", "square", "brick", "slab"],
@@ -65,8 +61,7 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
     {
         "term": "cylinder",
         "definition": (
-            "A solid with circular cross-section defined by radius/diameter "
-            "and height."
+            "A solid with circular cross-section defined by radius/diameter and height."
         ),
         "category": GlossaryCategory.PRIMITIVES,
         "aliases": ["tube", "rod", "pipe", "round bar"],
@@ -102,8 +97,7 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
     {
         "term": "wedge",
         "definition": (
-            "A triangular-prism solid that slopes from one edge to another, "
-            "like a doorstop."
+            "A triangular-prism solid that slopes from one edge to another, like a doorstop."
         ),
         "category": GlossaryCategory.PRIMITIVES,
         "aliases": ["ramp", "incline"],
@@ -121,9 +115,14 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["bevel", "edge break", "edge cut"],
         "keywords": [
-            "shave off edge", "cut edge", "angled edge",
-            "angle cut", "beveled edge", "remove corner",
-            "flat edge cut", "45 degree edge",
+            "shave off edge",
+            "cut edge",
+            "angled edge",
+            "angle cut",
+            "beveled edge",
+            "remove corner",
+            "flat edge cut",
+            "45 degree edge",
         ],
     },
     {
@@ -136,8 +135,12 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["round", "radius", "blend"],
         "keywords": [
-            "round edge", "smooth edge", "curved edge",
-            "round corner", "smooth corner", "rounded transition",
+            "round edge",
+            "smooth edge",
+            "curved edge",
+            "round corner",
+            "smooth corner",
+            "rounded transition",
         ],
     },
     {
@@ -149,8 +152,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["stud", "post", "pillar"],
         "keywords": [
-            "raised cylinder", "mounting post", "screw post",
-            "standoff post", "protruding cylinder",
+            "raised cylinder",
+            "mounting post",
+            "screw post",
+            "standoff post",
+            "protruding cylinder",
         ],
     },
     {
@@ -163,8 +169,12 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["cavity", "recess", "depression"],
         "keywords": [
-            "cut into surface", "hollowed out", "recessed area",
-            "carved out", "indentation", "dugout",
+            "cut into surface",
+            "hollowed out",
+            "recessed area",
+            "carved out",
+            "indentation",
+            "dugout",
         ],
     },
     {
@@ -187,8 +197,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["cbore", "spot face"],
         "keywords": [
-            "flat bottom hole", "bolt recess", "screw head recess",
-            "socket head clearance", "stepped hole",
+            "flat bottom hole",
+            "bolt recess",
+            "screw head recess",
+            "socket head clearance",
+            "stepped hole",
         ],
     },
     {
@@ -200,46 +213,50 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["csink", "csk"],
         "keywords": [
-            "cone-shaped hole", "screw flush", "flat head screw hole",
-            "angled hole entry", "bevel hole",
+            "cone-shaped hole",
+            "screw flush",
+            "flat head screw hole",
+            "angled hole entry",
+            "bevel hole",
         ],
     },
     {
         "term": "through-hole",
-        "definition": (
-            "A hole that passes completely through a part from one side to "
-            "the other."
-        ),
+        "definition": ("A hole that passes completely through a part from one side to the other."),
         "category": GlossaryCategory.FEATURES,
         "aliases": ["thru hole", "thru-hole"],
         "keywords": [
-            "hole all the way through", "complete hole",
-            "passes through", "open both sides",
+            "hole all the way through",
+            "complete hole",
+            "passes through",
+            "open both sides",
         ],
     },
     {
         "term": "blind hole",
         "definition": (
-            "A hole that does not pass all the way through the part; it has "
-            "a defined depth."
+            "A hole that does not pass all the way through the part; it has a defined depth."
         ),
         "category": GlossaryCategory.FEATURES,
         "aliases": ["dead-end hole", "closed hole"],
         "keywords": [
-            "partial hole", "hole with depth", "hole not through",
+            "partial hole",
+            "hole with depth",
+            "hole not through",
             "stopped hole",
         ],
     },
     {
         "term": "slot",
         "definition": (
-            "An elongated rectangular or profiled cut-out in a part. Can be "
-            "through or blind."
+            "An elongated rectangular or profiled cut-out in a part. Can be through or blind."
         ),
         "category": GlossaryCategory.FEATURES,
         "aliases": ["groove", "channel", "track"],
         "keywords": [
-            "long cut", "elongated hole", "sliding track",
+            "long cut",
+            "elongated hole",
+            "sliding track",
             "rectangular cut",
         ],
     },
@@ -252,7 +269,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["key slot", "key seat"],
         "keywords": [
-            "shaft slot", "key groove", "anti-rotation slot",
+            "shaft slot",
+            "key groove",
+            "anti-rotation slot",
             "locking slot",
         ],
     },
@@ -265,7 +284,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["splined shaft", "serration"],
         "keywords": [
-            "ridged shaft", "toothed shaft", "torque transmission",
+            "ridged shaft",
+            "toothed shaft",
+            "torque transmission",
             "gear-like shaft",
         ],
     },
@@ -278,8 +299,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["dovetail joint", "dovetail slide"],
         "keywords": [
-            "interlocking joint", "fan-shaped joint", "trapezoidal joint",
-            "woodworking joint", "sliding joint",
+            "interlocking joint",
+            "fan-shaped joint",
+            "trapezoidal joint",
+            "woodworking joint",
+            "sliding joint",
         ],
     },
     {
@@ -291,8 +315,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["rebate"],
         "keywords": [
-            "edge step", "L-shaped cut", "edge recess",
-            "panel joint", "overlap cut",
+            "edge step",
+            "L-shaped cut",
+            "edge recess",
+            "panel joint",
+            "overlap cut",
         ],
     },
     {
@@ -304,7 +331,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["housing joint", "trench"],
         "keywords": [
-            "cross groove", "shelf slot", "panel groove",
+            "cross groove",
+            "shelf slot",
+            "panel groove",
             "flat groove",
         ],
     },
@@ -317,20 +346,23 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["mortice"],
         "keywords": [
-            "rectangular hole", "tenon receiver", "joint socket",
+            "rectangular hole",
+            "tenon receiver",
+            "joint socket",
             "square hole",
         ],
     },
     {
         "term": "tenon",
         "definition": (
-            "A projecting tongue on a part that fits into a mortise to form "
-            "a strong joint."
+            "A projecting tongue on a part that fits into a mortise to form a strong joint."
         ),
         "category": GlossaryCategory.FEATURES,
         "aliases": ["tongue"],
         "keywords": [
-            "projecting tab", "joint tongue", "insert tab",
+            "projecting tab",
+            "joint tongue",
+            "insert tab",
             "protruding piece",
         ],
     },
@@ -343,8 +375,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["rim", "lip", "collar", "mounting flange"],
         "keywords": [
-            "protruding edge", "mounting rim", "attachment lip",
-            "bolt circle", "pipe connection",
+            "protruding edge",
+            "mounting rim",
+            "attachment lip",
+            "bolt circle",
+            "pipe connection",
         ],
     },
     {
@@ -356,7 +391,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["o-ring channel", "seal groove", "gland"],
         "keywords": [
-            "seal channel", "rubber ring groove", "gasket groove",
+            "seal channel",
+            "rubber ring groove",
+            "gasket groove",
             "sealing groove",
         ],
     },
@@ -370,8 +407,12 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["screw thread", "threading"],
         "keywords": [
-            "helical ridge", "screw pattern", "bolt thread",
-            "nut thread", "threaded hole", "tapped hole",
+            "helical ridge",
+            "screw pattern",
+            "bolt thread",
+            "nut thread",
+            "threaded hole",
+            "tapped hole",
         ],
     },
     {
@@ -383,8 +424,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["knurling", "grip pattern"],
         "keywords": [
-            "textured surface", "grip texture", "diamond pattern",
-            "anti-slip surface", "rough surface",
+            "textured surface",
+            "grip texture",
+            "diamond pattern",
+            "anti-slip surface",
+            "rough surface",
         ],
     },
     {
@@ -397,8 +441,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["recess", "back-cut"],
         "keywords": [
-            "hidden recess", "overhang", "unreachable area",
-            "negative draft", "support needed",
+            "hidden recess",
+            "overhang",
+            "unreachable area",
+            "negative draft",
+            "support needed",
         ],
     },
     {
@@ -411,7 +458,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["relief groove", "tool relief", "stress relief"],
         "keywords": [
-            "clearance groove", "stress reducer", "corner clearance",
+            "clearance groove",
+            "stress reducer",
+            "corner clearance",
             "runout groove",
         ],
     },
@@ -424,7 +473,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["step", "ledge"],
         "keywords": [
-            "diameter change", "step down", "shaft step",
+            "diameter change",
+            "step down",
+            "shaft step",
             "locating shoulder",
         ],
     },
@@ -437,20 +488,24 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["spacer post", "PCB standoff"],
         "keywords": [
-            "circuit board mount", "PCB post", "board spacer",
-            "raised mount", "hex standoff",
+            "circuit board mount",
+            "PCB post",
+            "board spacer",
+            "raised mount",
+            "hex standoff",
         ],
     },
     {
         "term": "spacer",
         "definition": (
-            "A component placed between two parts to maintain a fixed "
-            "distance or gap between them."
+            "A component placed between two parts to maintain a fixed distance or gap between them."
         ),
         "category": GlossaryCategory.FEATURES,
         "aliases": ["shim", "washer"],
         "keywords": [
-            "gap filler", "distance keeper", "separator",
+            "gap filler",
+            "distance keeper",
+            "separator",
             "spacing ring",
         ],
     },
@@ -463,7 +518,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["sleeve", "bush", "liner"],
         "keywords": [
-            "sleeve bearing", "cylindrical insert", "wear liner",
+            "sleeve bearing",
+            "cylindrical insert",
+            "wear liner",
             "guide bushing",
         ],
     },
@@ -476,19 +533,20 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["ball bearing", "roller bearing"],
         "keywords": [
-            "rotation support", "friction reducer", "rolling element",
+            "rotation support",
+            "friction reducer",
+            "rolling element",
             "shaft support",
         ],
     },
     {
         "term": "journal",
-        "definition": (
-            "The portion of a shaft that rides inside a bearing or bushing."
-        ),
+        "definition": ("The portion of a shaft that rides inside a bearing or bushing."),
         "category": GlossaryCategory.FEATURES,
         "aliases": ["bearing journal", "shaft journal"],
         "keywords": [
-            "shaft bearing surface", "rotating surface",
+            "shaft bearing surface",
+            "rotating surface",
             "bearing seat",
         ],
     },
@@ -501,7 +559,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.FEATURES,
         "aliases": ["seal", "packing"],
         "keywords": [
-            "sealing material", "leak prevention", "joint seal",
+            "sealing material",
+            "leak prevention",
+            "joint seal",
             "flat seal",
         ],
     },
@@ -515,32 +575,35 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["extrusion", "pad", "protrusion"],
         "keywords": [
-            "push profile", "stretch shape", "add material along path",
+            "push profile",
+            "stretch shape",
+            "add material along path",
             "pull up sketch",
         ],
     },
     {
         "term": "revolve",
-        "definition": (
-            "To create a 3D solid by rotating a 2D profile around an axis."
-        ),
+        "definition": ("To create a 3D solid by rotating a 2D profile around an axis."),
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["revolution", "lathe", "turn"],
         "keywords": [
-            "spin profile", "rotate sketch", "axis rotation",
+            "spin profile",
+            "rotate sketch",
+            "axis rotation",
             "turned part",
         ],
     },
     {
         "term": "sweep",
         "definition": (
-            "To create a 3D solid by moving a 2D profile along a curved "
-            "or complex path."
+            "To create a 3D solid by moving a 2D profile along a curved or complex path."
         ),
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["swept feature"],
         "keywords": [
-            "follow path", "profile along curve", "pipe shape",
+            "follow path",
+            "profile along curve",
+            "pipe shape",
             "path extrusion",
         ],
     },
@@ -553,20 +616,23 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["blend", "transition"],
         "keywords": [
-            "morph between shapes", "cross-section transition",
-            "blended shape", "smooth transition",
+            "morph between shapes",
+            "cross-section transition",
+            "blended shape",
+            "smooth transition",
         ],
     },
     {
         "term": "boolean union",
         "definition": (
-            "Combining two or more solids into a single body, merging "
-            "overlapping volumes."
+            "Combining two or more solids into a single body, merging overlapping volumes."
         ),
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["fuse", "join", "add", "combine"],
         "keywords": [
-            "merge shapes", "add together", "join solids",
+            "merge shapes",
+            "add together",
+            "join solids",
             "combine bodies",
         ],
     },
@@ -579,57 +645,62 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["cut", "subtract", "difference"],
         "keywords": [
-            "remove material", "cut away", "carve out",
+            "remove material",
+            "cut away",
+            "carve out",
             "subtract shape",
         ],
     },
     {
         "term": "boolean intersection",
-        "definition": (
-            "Keeping only the volume shared by two overlapping solids."
-        ),
+        "definition": ("Keeping only the volume shared by two overlapping solids."),
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["intersect", "common"],
         "keywords": [
-            "shared volume", "overlapping region", "common area",
+            "shared volume",
+            "overlapping region",
+            "common area",
         ],
     },
     {
         "term": "mirror",
         "definition": (
-            "Duplicating geometry across a plane of symmetry to create a "
-            "symmetric part or pattern."
+            "Duplicating geometry across a plane of symmetry to create a symmetric part or pattern."
         ),
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["reflect", "symmetric copy"],
         "keywords": [
-            "flip copy", "symmetry", "mirror image",
+            "flip copy",
+            "symmetry",
+            "mirror image",
             "reflected geometry",
         ],
     },
     {
         "term": "pattern",
         "definition": (
-            "Repeating a feature in a linear or circular arrangement "
-            "(e.g., a ring of bolt holes)."
+            "Repeating a feature in a linear or circular arrangement (e.g., a ring of bolt holes)."
         ),
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["array", "linear pattern", "circular pattern"],
         "keywords": [
-            "repeat feature", "copy in circle", "array of holes",
+            "repeat feature",
+            "copy in circle",
+            "array of holes",
             "bolt circle",
         ],
     },
     {
         "term": "shell",
         "definition": (
-            "Hollowing out a solid to create a thin-walled part with a "
-            "specified wall thickness."
+            "Hollowing out a solid to create a thin-walled part with a specified wall thickness."
         ),
         "category": GlossaryCategory.OPERATIONS,
         "aliases": ["hollow", "thin wall"],
         "keywords": [
-            "hollow out", "make thin wall", "empty inside",
+            "hollow out",
+            "make thin wall",
+            "empty inside",
             "create cavity",
         ],
     },
@@ -644,20 +715,23 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MANUFACTURING,
         "aliases": ["draft", "mold taper", "demolding angle"],
         "keywords": [
-            "mold release angle", "taper for molding",
-            "ejection taper", "slight angle on wall",
+            "mold release angle",
+            "taper for molding",
+            "ejection taper",
+            "slight angle on wall",
         ],
     },
     {
         "term": "taper",
         "definition": (
-            "A gradual change in diameter or width along the length of a "
-            "feature or part."
+            "A gradual change in diameter or width along the length of a feature or part."
         ),
         "category": GlossaryCategory.MANUFACTURING,
         "aliases": ["tapered"],
         "keywords": [
-            "narrowing", "widening", "gradual change",
+            "narrowing",
+            "widening",
+            "gradual change",
             "cone-like change",
         ],
     },
@@ -670,20 +744,23 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MANUFACTURING,
         "aliases": ["cut width", "blade width"],
         "keywords": [
-            "saw cut width", "laser cut width", "material loss",
+            "saw cut width",
+            "laser cut width",
+            "material loss",
             "cutting width",
         ],
     },
     {
         "term": "deburr",
         "definition": (
-            "Removing sharp edges, burrs, or rough material left after "
-            "machining or cutting."
+            "Removing sharp edges, burrs, or rough material left after machining or cutting."
         ),
         "category": GlossaryCategory.MANUFACTURING,
         "aliases": ["deburring", "edge finishing"],
         "keywords": [
-            "remove burrs", "smooth after cutting", "clean edges",
+            "remove burrs",
+            "smooth after cutting",
+            "clean edges",
             "finishing",
         ],
     },
@@ -696,7 +773,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MANUFACTURING,
         "aliases": ["heat treatment", "stress relief annealing"],
         "keywords": [
-            "heat and cool", "soften metal", "relieve stress",
+            "heat and cool",
+            "soften metal",
+            "relieve stress",
             "thermal treatment",
         ],
     },
@@ -711,7 +790,8 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MATERIALS,
         "aliases": ["polylactic acid"],
         "keywords": [
-            "beginner filament", "eco-friendly filament",
+            "beginner filament",
+            "eco-friendly filament",
             "basic 3d printing material",
         ],
     },
@@ -725,7 +805,8 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MATERIALS,
         "aliases": ["acrylonitrile butadiene styrene"],
         "keywords": [
-            "tough filament", "heat resistant filament",
+            "tough filament",
+            "heat resistant filament",
             "lego material",
         ],
     },
@@ -739,7 +820,8 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MATERIALS,
         "aliases": ["polyethylene terephthalate glycol"],
         "keywords": [
-            "food safe filament", "balanced filament",
+            "food safe filament",
+            "balanced filament",
             "durable filament",
         ],
     },
@@ -753,7 +835,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MATERIALS,
         "aliases": ["thermoplastic polyurethane", "flexible filament"],
         "keywords": [
-            "rubber-like", "flexible material", "elastic filament",
+            "rubber-like",
+            "flexible material",
+            "elastic filament",
             "soft filament",
         ],
     },
@@ -766,8 +850,10 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.MATERIALS,
         "aliases": ["PA", "polyamide", "PA6", "PA12"],
         "keywords": [
-            "engineering plastic", "strong filament",
-            "wear resistant filament", "gear material",
+            "engineering plastic",
+            "strong filament",
+            "wear resistant filament",
+            "gear material",
         ],
     },
     # ── Tolerances & Dimensioning ───────────────────────────────────────
@@ -780,20 +866,23 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["dimensional tolerance", "tol"],
         "keywords": [
-            "allowable variation", "plus minus", "accuracy range",
+            "allowable variation",
+            "plus minus",
+            "accuracy range",
             "acceptable range",
         ],
     },
     {
         "term": "clearance",
         "definition": (
-            "The intentional gap between two mating parts to allow free "
-            "movement or easy assembly."
+            "The intentional gap between two mating parts to allow free movement or easy assembly."
         ),
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["clearance fit", "running fit"],
         "keywords": [
-            "gap between parts", "loose fit", "free movement",
+            "gap between parts",
+            "loose fit",
+            "free movement",
             "play between parts",
         ],
     },
@@ -807,8 +896,11 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["press fit", "force fit", "shrink fit"],
         "keywords": [
-            "tight fit", "forced assembly", "permanent fit",
-            "oversized shaft", "no gap",
+            "tight fit",
+            "forced assembly",
+            "permanent fit",
+            "oversized shaft",
+            "no gap",
         ],
     },
     {
@@ -821,7 +913,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["force fit", "friction fit"],
         "keywords": [
-            "push in fit", "pressed insert", "friction hold",
+            "push in fit",
+            "pressed insert",
+            "friction hold",
             "tight insertion",
         ],
     },
@@ -835,8 +929,10 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["reference surface", "datum plane"],
         "keywords": [
-            "measurement reference", "origin surface",
-            "reference point", "GD&T reference",
+            "measurement reference",
+            "origin surface",
+            "reference point",
+            "GD&T reference",
         ],
     },
     {
@@ -853,33 +949,38 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
             "geometric tolerancing",
         ],
         "keywords": [
-            "engineering symbols", "tolerance symbols",
-            "flatness", "perpendicularity", "position tolerance",
+            "engineering symbols",
+            "tolerance symbols",
+            "flatness",
+            "perpendicularity",
+            "position tolerance",
         ],
     },
     {
         "term": "concentricity",
         "definition": (
-            "A GD&T condition where two or more cylindrical features "
-            "share the same center axis."
+            "A GD&T condition where two or more cylindrical features share the same center axis."
         ),
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["concentric", "coaxial"],
         "keywords": [
-            "same center", "shared axis", "aligned centers",
+            "same center",
+            "shared axis",
+            "aligned centers",
             "centered circles",
         ],
     },
     {
         "term": "perpendicularity",
         "definition": (
-            "A GD&T condition where a surface or axis is exactly 90° "
-            "to a datum reference."
+            "A GD&T condition where a surface or axis is exactly 90° to a datum reference."
         ),
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["perpendicular", "squareness"],
         "keywords": [
-            "right angle", "90 degrees", "square to reference",
+            "right angle",
+            "90 degrees",
+            "square to reference",
             "normal to surface",
         ],
     },
@@ -892,8 +993,10 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["parallel"],
         "keywords": [
-            "same distance apart", "equidistant surfaces",
-            "constant gap", "uniform distance",
+            "same distance apart",
+            "equidistant surfaces",
+            "constant gap",
+            "uniform distance",
         ],
     },
     {
@@ -905,7 +1008,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["surface flatness"],
         "keywords": [
-            "flat surface", "planar", "no waviness",
+            "flat surface",
+            "planar",
+            "no waviness",
             "level surface",
         ],
     },
@@ -919,7 +1024,9 @@ ENGINEERING_GLOSSARY: list[GlossaryEntry] = [
         "category": GlossaryCategory.TOLERANCES,
         "aliases": ["total runout", "TIR"],
         "keywords": [
-            "wobble", "rotation variation", "shaft wobble",
+            "wobble",
+            "rotation variation",
+            "shaft wobble",
             "total indicator reading",
         ],
     },
@@ -957,7 +1064,7 @@ def search_glossary(
         query: The user's search text (e.g., "what do you call shaving
             off an edge?" or "chamfer").
         max_results: Maximum number of results to return.
-        score_cutoff: Minimum relevance score (0–1) to include a result.
+        score_cutoff: Minimum relevance score (0-1) to include a result.
 
     Returns:
         List of dicts with keys: term, definition, category, score.
@@ -1036,7 +1143,6 @@ def format_glossary_context() -> str:
         "",
     ]
 
-    categories_seen: set[str] = set()
     grouped: dict[str, list[GlossaryEntry]] = {}
     for entry in ENGINEERING_GLOSSARY:
         cat = entry["category"]
@@ -1070,12 +1176,21 @@ def _normalize(text: str) -> str:
     text = text.lower().strip()
     # Remove common question phrasing
     for prefix in (
-        "what is a ", "what is an ", "what is the ", "what is ",
-        "what do you call ", "what's a ", "what's an ", "what's the ",
-        "define ", "explain ", "meaning of ", "tell me about ",
+        "what is a ",
+        "what is an ",
+        "what is the ",
+        "what is ",
+        "what do you call ",
+        "what's a ",
+        "what's an ",
+        "what's the ",
+        "define ",
+        "explain ",
+        "meaning of ",
+        "tell me about ",
     ):
         if text.startswith(prefix):
-            text = text[len(prefix):]
+            text = text[len(prefix) :]
             break
     # Strip trailing punctuation
     text = re.sub(r"[?!.,;:]+$", "", text)
@@ -1149,13 +1264,25 @@ def _score_entry(
         # Check token overlap with definition
         def_tokens = set(re.findall(r"\w+", def_lower))
         meaningful_overlap = query_tokens & def_tokens - {
-            "a", "an", "the", "is", "are", "to", "of", "and",
-            "or", "in", "on", "for", "with", "it", "that", "this",
+            "a",
+            "an",
+            "the",
+            "is",
+            "are",
+            "to",
+            "of",
+            "and",
+            "or",
+            "in",
+            "on",
+            "for",
+            "with",
+            "it",
+            "that",
+            "this",
         }
         if meaningful_overlap:
-            def_score = len(meaningful_overlap) / max(
-                len(query_tokens), 1
-            )
+            def_score = len(meaningful_overlap) / max(len(query_tokens), 1)
             score = max(score, def_score * 0.45)
 
     return min(score, 1.0)

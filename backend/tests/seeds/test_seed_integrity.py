@@ -6,6 +6,8 @@ Verifies that all seed data is consistent and valid.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 # =============================================================================
@@ -18,7 +20,7 @@ class TestTemplateSeedIntegrity:
 
     # Templates that are seeded but generators are not yet implemented
     # These are tracked for future implementation
-    UNIMPLEMENTED_GENERATORS = {
+    UNIMPLEMENTED_GENERATORS: ClassVar[set[str]] = {
         "rounded-box-enclosure",
         "raspberry-pi-case",
         "parametric-gear",

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from botocore.exceptions import ClientError
@@ -41,11 +41,11 @@ def mock_s3_client():
 def storage_service(mock_s3_client):
     """Create a StorageService with mocked S3 client."""
     service = StorageService()
-    
+
     @asynccontextmanager
     async def mock_get_client():
         yield mock_s3_client
-    
+
     service._get_client = mock_get_client
     return service
 
@@ -239,6 +239,6 @@ class TestErrorHandling:
 
         # The service catches ClientError and returns False
         result = await storage_service.delete_file("s3://test-bucket/restricted/file.stl")
-        
+
         # The actual implementation returns False on error rather than raising
         assert result is False
