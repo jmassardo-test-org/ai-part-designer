@@ -16,6 +16,9 @@ import {
   List,
   ChevronRight,
   X,
+  CheckSquare,
+  Square,
+  FolderInput,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -99,6 +102,12 @@ export function ProjectsPage() {
   const [copyTarget, setCopyTarget] = useState<Design | null>(null);
   const [moveTarget, setMoveTarget] = useState<Design | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Design | null>(null);
+
+  // Bulk operations state
+  const [selectedDesigns, setSelectedDesigns] = useState<Set<string>>(new Set());
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
 
   // Form state
   const [newProjectName, setNewProjectName] = useState('');
@@ -207,7 +216,70 @@ export function ProjectsPage() {
       setSelectedProject(null);
       setDesigns([]);
     }
+    // Clear selection when switching projects
+    clearSelection();
   }, [projectId, projects, fetchProjectDesigns]);
+
+  // ==========================================================================
+  // Bulk Selection Helpers
+  // ==========================================================================
+
+  /** Toggle a single design's selection state. */
+  const toggleDesignSelection = (designId: string) => {
+    setSelectedDesigns(prev => {
+      const next = new Set(prev);
+      if (next.has(designId)) next.delete(designId);
+      else next.add(designId);
+      return next;
+    });
+  };
+
+  /** Select or deselect all visible designs. */
+  const selectAllDesigns = () => {
+    if (selectedDesigns.size === filteredDesigns.length) {
+      setSelectedDesigns(new Set());
+    } else {
+      setSelectedDesigns(new Set(filteredDesigns.map(d => d.id)));
+    }
+  };
+
+  /** Clear selection and exit bulk mode. */
+  const clearSelection = () => {
+    setSelectedDesigns(new Set());
+    setIsBulkMode(false);
+  };
+
+  // ==========================================================================
+  // Bulk Action Handlers
+  // ==========================================================================
+
+  /**
+   * Delete all selected designs after user confirmation.
+   *
+   * Iterates through selected design IDs and calls the existing
+   * deleteDesignWithToast for each one, then resets state.
+   */
+  const handleBulkDelete = async () => {
+    for (const designId of selectedDesigns) {
+      const design = designs.find(d => d.id === designId);
+      if (design) await deleteDesignWithToast(design as unknown as FullDesign);
+    }
+    clearSelection();
+    setShowBulkDeleteConfirm(false);
+  };
+
+  /**
+   * Move all selected designs to the given target project.
+   *
+   * @param targetProjectId - The project to move designs into.
+   */
+  const handleBulkMove = async (targetProjectId: string) => {
+    for (const designId of selectedDesigns) {
+      await moveDesign(designId, targetProjectId);
+    }
+    clearSelection();
+    setShowBulkMoveModal(false);
+  };
 
   // Create project
   const handleCreateProject = async () => {
@@ -460,6 +532,55 @@ export function ProjectsPage() {
             </div>
           </div>
 
+          {/* Bulk Action Toolbar */}
+          {selectedDesigns.size > 0 && (
+            <div
+              data-testid="bulk-toolbar"
+              className="flex items-center gap-3 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 rounded-lg px-4 py-3 mb-4"
+            >
+              <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+                {selectedDesigns.size} design{selectedDesigns.size !== 1 ? 's' : ''} selected
+              </span>
+
+              <button
+                onClick={selectAllDesigns}
+                className="flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                {selectedDesigns.size === filteredDesigns.length ? (
+                  <><CheckSquare className="w-4 h-4" /> Deselect All</>
+                ) : (
+                  <><Square className="w-4 h-4" /> Select All</>
+                )}
+              </button>
+
+              <div className="flex-1" />
+
+              <button
+                onClick={() => setShowBulkMoveModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200"
+              >
+                <FolderInput className="w-4 h-4" />
+                Move
+              </button>
+
+              <button
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+
+              <button
+                onClick={clearSelection}
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                aria-label="Clear selection"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Designs Grid/List */}
           {filteredDesigns.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -474,75 +595,147 @@ export function ProjectsPage() {
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredDesigns.map(design => (
-                <div
-                  key={design.id}
-                  onClick={() => navigate(`/designs/${design.id}`)}
-                  className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-t-lg flex items-center justify-center">
-                    {design.thumbnail_url ? (
-                      <img
-                        src={design.thumbnail_url}
-                        alt={design.name}
-                        className="w-full h-full object-cover rounded-t-lg"
-                      />
-                    ) : (
-                      <FileBox className="w-12 h-12 text-gray-300" />
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-medium truncate text-gray-900 dark:text-gray-100">{design.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(design.created_at)}</p>
+              {filteredDesigns.map(design => {
+                const isSelected = selectedDesigns.has(design.id);
+                return (
+                  <div
+                    key={design.id}
+                    onClick={() => {
+                      if (isBulkMode) {
+                        toggleDesignSelection(design.id);
+                      } else {
+                        navigate(`/designs/${design.id}`);
+                      }
+                    }}
+                    className={`relative bg-white dark:bg-gray-800 rounded-lg border hover:shadow-md transition-shadow cursor-pointer group/card ${
+                      isSelected
+                        ? 'border-primary-500 ring-2 ring-primary-500/30'
+                        : 'dark:border-gray-700'
+                    }`}
+                  >
+                    {/* Selection checkbox */}
+                    <div
+                      className={`absolute top-2 left-2 z-10 ${
+                        isBulkMode || isSelected ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'
+                      } transition-opacity`}
+                    >
+                      <button
+                        data-testid={`select-design-${design.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleDesignSelection(design.id);
+                          if (!isBulkMode) setIsBulkMode(true);
+                        }}
+                        className="p-1 bg-white dark:bg-gray-800 rounded shadow-sm border dark:border-gray-600"
+                        aria-label={`Select ${design.name}`}
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-4 h-4 text-primary-600" />
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-t-lg flex items-center justify-center">
+                      {design.thumbnail_url ? (
+                        <img
+                          src={design.thumbnail_url}
+                          alt={design.name}
+                          className="w-full h-full object-cover rounded-t-lg"
+                        />
+                      ) : (
+                        <FileBox className="w-12 h-12 text-gray-300" />
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-medium truncate text-gray-900 dark:text-gray-100">{design.name}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(design.created_at)}</p>
+                        </div>
+                        <DesignActionsMenu
+                          design={design as unknown as FullDesign}
+                          projects={projects as unknown as LibProject[]}
+                          onRename={(d) => setRenameTarget(d as unknown as Design)}
+                          onCopy={(d) => setCopyTarget(d as unknown as Design)}
+                          onMove={(d) => setMoveTarget(d as unknown as Design)}
+                          onDelete={(d) => setDeleteTarget(d as unknown as Design)}
+                        />
                       </div>
-                      <DesignActionsMenu
-                        design={design as unknown as FullDesign}
-                        projects={projects as unknown as LibProject[]}
-                        onRename={(d) => setRenameTarget(d as unknown as Design)}
-                        onCopy={(d) => setCopyTarget(d as unknown as Design)}
-                        onMove={(d) => setMoveTarget(d as unknown as Design)}
-                        onDelete={(d) => setDeleteTarget(d as unknown as Design)}
-                      />
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 divide-y dark:divide-gray-700">
-              {filteredDesigns.map(design => (
-                <div
-                  key={design.id}
-                  onClick={() => navigate(`/designs/${design.id}`)}
-                  className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                >
-                  <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center">
-                    {design.thumbnail_url ? (
-                      <img
-                        src={design.thumbnail_url}
-                        alt={design.name}
-                        className="w-full h-full object-cover rounded"
-                      />
-                    ) : (
-                      <FileBox className="w-6 h-6 text-gray-300" />
-                    )}
+              {filteredDesigns.map(design => {
+                const isSelected = selectedDesigns.has(design.id);
+                return (
+                  <div
+                    key={design.id}
+                    onClick={() => {
+                      if (isBulkMode) {
+                        toggleDesignSelection(design.id);
+                      } else {
+                        navigate(`/designs/${design.id}`);
+                      }
+                    }}
+                    className={`flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group/row ${
+                      isSelected ? 'bg-primary-50/50 dark:bg-primary-900/20' : ''
+                    }`}
+                  >
+                    {/* Selection checkbox */}
+                    <div
+                      className={`${
+                        isBulkMode || isSelected ? 'flex' : 'hidden group-hover/row:flex'
+                      }`}
+                    >
+                      <button
+                        data-testid={`select-design-list-${design.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleDesignSelection(design.id);
+                          if (!isBulkMode) setIsBulkMode(true);
+                        }}
+                        className="p-1"
+                        aria-label={`Select ${design.name}`}
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-5 h-5 text-primary-600" />
+                        ) : (
+                          <Square className="w-5 h-5 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center">
+                      {design.thumbnail_url ? (
+                        <img
+                          src={design.thumbnail_url}
+                          alt={design.name}
+                          className="w-full h-full object-cover rounded"
+                        />
+                      ) : (
+                        <FileBox className="w-6 h-6 text-gray-300" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{design.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(design.created_at)}</p>
+                    </div>
+                    <DesignActionsMenu
+                      design={design as unknown as FullDesign}
+                      projects={projects as unknown as LibProject[]}
+                      onRename={(d) => setRenameTarget(d as unknown as Design)}
+                      onCopy={(d) => setCopyTarget(d as unknown as Design)}
+                      onMove={(d) => setMoveTarget(d as unknown as Design)}
+                      onDelete={(d) => setDeleteTarget(d as unknown as Design)}
+                    />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{design.name}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(design.created_at)}</p>
-                  </div>
-                  <DesignActionsMenu
-                    design={design as unknown as FullDesign}
-                    projects={projects as unknown as LibProject[]}
-                    onRename={(d) => setRenameTarget(d as unknown as Design)}
-                    onCopy={(d) => setCopyTarget(d as unknown as Design)}
-                    onMove={(d) => setMoveTarget(d as unknown as Design)}
-                    onDelete={(d) => setDeleteTarget(d as unknown as Design)}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -808,6 +1001,49 @@ export function ProjectsPage() {
           </div>
         </div>
       )}
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Delete {selectedDesigns.size} design{selectedDesigns.size !== 1 ? 's' : ''}?
+              </h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              This action cannot be undone. All selected designs will be permanently deleted.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Move Modal — reuses MoveModal with a synthetic design */}
+      <MoveModal
+        isOpen={showBulkMoveModal}
+        onClose={() => setShowBulkMoveModal(false)}
+        design={{ id: 'bulk', name: `${selectedDesigns.size} designs`, project_id: selectedProject?.id ?? '' } as unknown as FullDesign}
+        projects={projects as unknown as LibProject[]}
+        onConfirm={handleBulkMove}
+        isLoading={isDesignOpLoading}
+      />
+
       {/* Design Action Modals */}
       <RenameModal
         isOpen={!!renameTarget}

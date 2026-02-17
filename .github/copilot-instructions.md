@@ -245,3 +245,9 @@ npm run test:e2e
 3. **Docs are required** - Future you will thank you
 4. **Follow existing patterns** - Consistency matters
 5. **When in doubt, look at existing code** - Mirror the style
+
+---
+
+## GitHub PR & Issue Formatting
+
+When creating or updating pull requests and issues via GitHub tools, **never use escaped `\n` sequences** in the body text. Always use actual newlines. Escaped `\n` renders as literal text on GitHub instead of line breaks.
