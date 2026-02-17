@@ -124,7 +124,7 @@ export async function updateDesign(
   authToken: string
 ): Promise<Design> {
   const resp = await fetch(`${DESIGN_API}/${designId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${authToken}`,
