@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +41,7 @@ from app.models.conversation import (
     MessageType,
 )
 from app.models.user import User
+from app.services.conversation_moderation import moderate_conversation_message
 
 logger = logging.getLogger(__name__)
 
@@ -559,6 +560,7 @@ async def get_conversation(
 async def send_message(
     conversation_id: UUID,
     request: MessageRequest,
+    http_request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     _feature: None = Depends(require_feature("ai_chat")),
@@ -596,6 +598,44 @@ async def send_message(
         content=request.content,
     )
     conversation.messages.append(user_msg)
+
+    # --- Abuse / content moderation check ---
+    request_ip = (
+        http_request.client.host if http_request.client else "unknown"
+    )
+    moderation = await moderate_conversation_message(
+        message=request.content,
+        user_id=current_user.id,
+        ip_address=request_ip,
+        db=db,
+    )
+    if not moderation.allowed:
+        rejection_text = (
+            moderation.rejection_message
+            or "Your message was flagged by our content policy."
+        )
+        assistant_msg = ConversationMessage(
+            conversation_id=conversation.id,
+            role=MessageRole.ASSISTANT.value,
+            message_type=MessageType.ERROR.value,
+            content=rejection_text,
+            extra_data={"moderated": True},
+        )
+        conversation.messages.append(assistant_msg)
+
+        if not conversation.title and request.content:
+            conversation.title = request.content[:100]
+
+        await db.commit()
+
+        return SendMessageResponse(
+            user_message=_message_to_response(user_msg),
+            assistant_message=_message_to_response(assistant_msg),
+            conversation_status=conversation.status,
+            understanding=None,
+            ready_to_generate=False,
+            result=None,
+        )
 
     # Load or create understanding
     if conversation.intent_data:
