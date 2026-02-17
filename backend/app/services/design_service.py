@@ -8,6 +8,7 @@ and lifecycle management.
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
@@ -596,6 +597,83 @@ class DesignService:
         )
 
         return design
+
+    # =========================================================================
+    # Edit / Save-as-Version Operations
+    # =========================================================================
+
+    async def save_edit_as_version(
+        self,
+        design_id: UUID,
+        user: User,
+        job_id: str,
+        change_description: str,
+        parameters: dict[str, Any] | None = None,
+        file_url: str | None = None,
+    ) -> DesignVersion:
+        """
+        Save an edited design as a new version.
+
+        Creates a new version from externally-provided data (e.g. after
+        re-compiling an enclosure with modified dimensions).
+
+        Args:
+            design_id: ID of the design being edited.
+            user: User performing the edit.
+            job_id: Compile job ID that produced the new geometry.
+            change_description: Human-readable description of changes.
+            parameters: Optional parameter dict for the new version.
+            file_url: Optional explicit file URL.  Falls back to job-based URL.
+
+        Returns:
+            Newly created DesignVersion.
+
+        Raises:
+            DesignNotFoundError: Design not found or deleted.
+            DesignPermissionError: User cannot access design.
+        """
+        design = await self._get_design_with_access(design_id, user)
+
+        # Determine next version number
+        next_number = await self._get_next_version_number(design_id)
+
+        resolved_file_url = file_url or f"/api/v2/generate/download/{job_id}/enclosure.stl"
+
+        new_version = DesignVersion(
+            id=uuid4(),
+            design_id=design_id,
+            version_number=next_number,
+            file_url=resolved_file_url,
+            file_formats={
+                "stl": f"/api/v2/generate/download/{job_id}/enclosure.stl",
+                "step": f"/api/v2/generate/download/{job_id}/enclosure.step",
+            },
+            parameters=parameters or {},
+            geometry_info={},
+            change_description=change_description or "Edited via part editor",
+            created_by=user.id,
+        )
+
+        self.db.add(new_version)
+
+        # Update design's current version and extra_data
+        design.current_version_id = new_version.id
+        if design.extra_data is None:
+            design.extra_data = {}
+        design.extra_data["job_id"] = job_id
+        if parameters:
+            design.extra_data["parameters"] = parameters
+        design.updated_at = datetime.now(UTC)
+
+        await self.db.commit()
+        await self.db.refresh(new_version)
+
+        logger.info(
+            f"Created edit version {next_number} for design {design_id} "
+            f"(job {job_id}) by user {user.id}"
+        )
+
+        return new_version
 
     # =========================================================================
     # Helper Methods
