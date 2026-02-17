@@ -29,12 +29,12 @@ class TestTemplateRatings:
         response = await client.post(
             f"/api/v1/templates/{template.id}/ratings",
             headers=auth_headers,
-            json={"score": 5, "review": "Excellent template!"},
+            json={"rating": 5, "review": "Excellent template!"},
         )
 
         assert response.status_code == 201
         data = response.json()
-        assert data["score"] == 5
+        assert data["rating"] == 5
         assert data["review"] == "Excellent template!"
 
     async def test_rate_template_updates_existing(
@@ -45,31 +45,31 @@ class TestTemplateRatings:
 
         # First rating
         await client.post(
-            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"score": 3}
+            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"rating": 3}
         )
 
         # Update rating
         response = await client.post(
             f"/api/v1/templates/{template.id}/ratings",
             headers=auth_headers,
-            json={"score": 5, "review": "Changed my mind, great!"},
+            json={"rating": 5, "review": "Changed my mind, great!"},
         )
 
         assert response.status_code == 201
         data = response.json()
-        assert data["score"] == 5
+        assert data["rating"] == 5
         assert data["review"] == "Changed my mind, great!"
 
-    async def test_rate_template_invalid_score(
+    async def test_rate_template_invalid_rating(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ):
-        """Invalid score returns 422."""
+        """Invalid rating returns 422."""
         template = await TemplateFactory.create(db_session, is_active=True)
 
         response = await client.post(
             f"/api/v1/templates/{template.id}/ratings",
             headers=auth_headers,
-            json={"score": 0},  # Invalid - must be 1-5
+            json={"rating": 0},  # Invalid - must be 1-5
         )
 
         assert response.status_code == 422
@@ -92,16 +92,16 @@ class TestTemplateRatings:
 
         # Add a rating
         await client.post(
-            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"score": 4}
+            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"rating": 4}
         )
 
         response = await client.get(f"/api/v1/templates/{template.id}/ratings/summary")
 
         assert response.status_code == 200
         data = response.json()
-        assert "average" in data
-        assert "total_count" in data
-        assert "distribution" in data
+        assert "average_rating" in data
+        assert "total_ratings" in data
+        assert "rating_distribution" in data
 
     async def test_get_my_rating(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
@@ -111,7 +111,7 @@ class TestTemplateRatings:
 
         # Create rating
         await client.post(
-            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"score": 5}
+            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"rating": 5}
         )
 
         response = await client.get(
@@ -120,7 +120,7 @@ class TestTemplateRatings:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["score"] == 5
+        assert data["rating"] == 5
 
     async def test_get_my_rating_not_rated(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
@@ -143,7 +143,7 @@ class TestTemplateRatings:
 
         # Create rating
         await client.post(
-            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"score": 3}
+            f"/api/v1/templates/{template.id}/ratings", headers=auth_headers, json={"rating": 3}
         )
 
         response = await client.delete(
@@ -243,9 +243,9 @@ class TestTemplateFeedback:
 
         assert response.status_code == 200
         data = response.json()
-        assert "thumbs_up_count" in data
-        assert "thumbs_down_count" in data
-        assert data["thumbs_up_count"] >= 1
+        assert "thumbs_up" in data
+        assert "thumbs_down" in data
+        assert data["thumbs_up"] >= 1
 
     async def test_remove_feedback(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession

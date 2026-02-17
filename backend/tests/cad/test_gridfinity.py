@@ -2,7 +2,7 @@
 Tests for Gridfinity pattern generators.
 """
 
-from build123d import Compound, Part
+from build123d import Compound, Part, Solid
 
 from app.cad.gridfinity import (
     BASE_HEIGHT,
@@ -93,7 +93,7 @@ class TestGridfinityBaseplate:
     def test_generates_solid(self):
         """Generator produces a solid."""
         result = generate_gridfinity_baseplate()
-        assert isinstance(result, (Part, Compound))
+        assert isinstance(result, (Part, Compound, Solid))
         assert result is not None
 
     def test_default_dimensions(self):
@@ -153,7 +153,7 @@ class TestGridfinityBin:
     def test_generates_solid(self):
         """Generator produces a solid."""
         result = generate_gridfinity_bin()
-        assert isinstance(result, (Part, Compound))
+        assert isinstance(result, (Part, Compound, Solid))
         assert result is not None
 
     def test_default_1x1x3_bin(self):
@@ -258,7 +258,7 @@ class TestGridfinityDivider:
     def test_generates_solid(self):
         """Generator produces a solid."""
         result = generate_gridfinity_divider()
-        assert isinstance(result, (Part, Compound))
+        assert isinstance(result, (Part, Compound, Solid))
         assert result is not None
 
     def test_default_2x2_cells(self):

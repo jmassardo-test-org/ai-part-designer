@@ -16,26 +16,8 @@ class TestGetPlans:
 
     async def test_get_plans_success(self, client: AsyncClient, db_session):
         """Test getting subscription plans."""
-        # Create mock plans in database
-        from app.models.subscription import SubscriptionTier
-
-        plan = SubscriptionTier(
-            slug="free",
-            name="Free",
-            description="Get started",
-            monthly_credits=10,
-            max_concurrent_jobs=1,
-            max_storage_gb=1,
-            max_projects=3,
-            max_designs_per_project=10,
-            max_file_size_mb=10,
-            features={"ai_generation": True},
-            price_monthly_cents=0,
-            price_yearly_cents=0,
-        )
-        db_session.add(plan)
-        await db_session.commit()
-
+        # The seed_subscription_tiers_api fixture already creates a "free" tier,
+        # so we just verify the endpoint returns it
         response = await client.get("/api/v1/subscriptions/plans")
 
         assert response.status_code == 200

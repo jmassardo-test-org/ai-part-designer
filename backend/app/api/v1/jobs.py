@@ -7,7 +7,9 @@ Provides REST API for tracking async job status and results.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -21,9 +23,6 @@ from app.models.project import Project
 from app.worker.celery import celery_app
 
 if TYPE_CHECKING:
-    from datetime import datetime
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -113,11 +112,11 @@ def _requeue_job_task(job: Job) -> str | None:
         # AI generation task
         prompt = input_params.get("prompt")
         if not prompt:
-            logger.error(  # type: ignore[call-arg]
-                "job_requeue_missing_param",
-                job_id=job_id,
-                job_type=job.job_type,
-                missing_param="prompt",
+            logger.error(
+                "job_requeue_missing_param job_id=%s job_type=%s missing_param=%s",
+                job_id,
+                job.job_type,
+                "prompt",
             )
             raise ValueError("Missing required parameter 'prompt' for ai_generation job")
 
@@ -132,11 +131,11 @@ def _requeue_job_task(job: Job) -> str | None:
         # CAD v2 compilation task
         enclosure_schema = input_params.get("enclosure_schema")
         if not enclosure_schema:
-            logger.error(  # type: ignore[call-arg]
-                "job_requeue_missing_param",
-                job_id=job_id,
-                job_type=job.job_type,
-                missing_param="enclosure_schema",
+            logger.error(
+                "job_requeue_missing_param job_id=%s job_type=%s missing_param=%s",
+                job_id,
+                job.job_type,
+                "enclosure_schema",
             )
             raise ValueError("Missing required parameter 'enclosure_schema' for cad_v2_compile job")
 
@@ -151,11 +150,11 @@ def _requeue_job_task(job: Job) -> str | None:
         # Format conversion task
         source_url = input_params.get("source_url")
         if not source_url:
-            logger.error(  # type: ignore[call-arg]
-                "job_requeue_missing_param",
-                job_id=job_id,
-                job_type=job.job_type,
-                missing_param="source_url",
+            logger.error(
+                "job_requeue_missing_param job_id=%s job_type=%s missing_param=%s",
+                job_id,
+                job.job_type,
+                "source_url",
             )
             raise ValueError("Missing required parameter 'source_url' for format_conversion job")
 
@@ -174,10 +173,10 @@ def _requeue_job_task(job: Job) -> str | None:
 
     else:
         # For other job types, we don't currently support re-queuing
-        logger.warning(  # type: ignore[call-arg]
-            "job_requeue_unsupported",
-            job_id=job_id,
-            job_type=job.job_type,
+        logger.warning(
+            "job_requeue_unsupported job_id=%s job_type=%s",
+            job_id,
+            job.job_type,
         )
         return None
 
@@ -362,29 +361,29 @@ async def cancel_job(
                 terminate=True,
                 signal="SIGTERM",  # Allow graceful cleanup
             )
-            logger.info(  # type: ignore[call-arg]
-                "celery_task_revoked",
-                job_id=str(job_id),
-                task_id=job.celery_task_id,
+            logger.info(
+                "celery_task_revoked job_id=%s task_id=%s",
+                str(job_id),
+                job.celery_task_id,
             )
         except Exception as e:
             # Log the error but don't fail the cancellation
-            logger.warning(  # type: ignore[call-arg]
-                "celery_task_revoke_failed",
-                job_id=str(job_id),
-                task_id=job.celery_task_id,
-                error=str(e),
+            logger.warning(
+                "celery_task_revoke_failed job_id=%s task_id=%s error=%s",
+                str(job_id),
+                job.celery_task_id,
+                str(e),
             )
     else:
-        logger.debug(  # type: ignore[call-arg]
-            "job_cancelled_no_task_id",
-            job_id=str(job_id),
+        logger.debug(
+            "job_cancelled_no_task_id job_id=%s",
+            str(job_id),
         )
 
-    logger.info(  # type: ignore[call-arg]
-        "job_cancelled",
-        job_id=str(job_id),
-        user_id=str(current_user.id),
+    logger.info(
+        "job_cancelled job_id=%s user_id=%s",
+        str(job_id),
+        str(current_user.id),
     )
 
     return CancelJobResponse(
@@ -452,10 +451,10 @@ async def retry_job(
 
     # Log old task ID before clearing (for debugging)
     if job.celery_task_id:
-        logger.debug(  # type: ignore[call-arg]
-            "clearing_old_task_id",
-            job_id=str(job_id),
-            old_task_id=job.celery_task_id,
+        logger.debug(
+            "clearing_old_task_id job_id=%s old_task_id=%s",
+            str(job_id),
+            job.celery_task_id,
         )
     job.celery_task_id = None
 
@@ -467,18 +466,18 @@ async def retry_job(
         if new_task_id:
             job.celery_task_id = new_task_id
             await db.commit()
-            logger.info(  # type: ignore[call-arg]
-                "job_requeued",
-                job_id=str(job_id),
-                retry_count=job.retry_count,
-                max_retries=job.max_retries,
-                new_task_id=new_task_id,
+            logger.info(
+                "job_requeued job_id=%s retry_count=%s max_retries=%s new_task_id=%s",
+                str(job_id),
+                job.retry_count,
+                job.max_retries,
+                new_task_id,
             )
         else:
-            logger.warning(  # type: ignore[call-arg]
-                "job_requeue_no_task",
-                job_id=str(job_id),
-                job_type=job.job_type,
+            logger.warning(
+                "job_requeue_no_task job_id=%s job_type=%s",
+                str(job_id),
+                job.job_type,
             )
     except Exception as e:
         # Roll back the retry if re-queuing fails
@@ -486,10 +485,10 @@ async def retry_job(
         job.retry_count -= 1
         job.celery_task_id = None
         await db.commit()
-        logger.error(  # type: ignore[call-arg]
-            "job_requeue_failed",
-            job_id=str(job_id),
-            error=str(e),
+        logger.error(
+            "job_requeue_failed job_id=%s error=%s",
+            str(job_id),
+            str(e),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

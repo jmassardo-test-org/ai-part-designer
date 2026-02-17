@@ -21,6 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 os.environ["TESTING"] = "true"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["SECRET_KEY"] = "test-secret-key-minimum-32-characters-long"
+# Set POSTGRES_DB to test_db before app imports (to override app/core/config.py default)
+if "POSTGRES_DB" not in os.environ:
+    os.environ["POSTGRES_DB"] = "test_db"
 # Use PostgreSQL for testing - build URL from POSTGRES_* vars if DATABASE_URL not set
 # Note: SQLite doesn't support JSONB, so PostgreSQL is required
 if "DATABASE_URL" not in os.environ:
@@ -29,7 +32,7 @@ if "DATABASE_URL" not in os.environ:
     port = os.environ.get("POSTGRES_PORT", "5432")
     user = os.environ.get("POSTGRES_USER", "postgres")
     password = os.environ.get("POSTGRES_PASSWORD", "postgres")
-    db = os.environ.get("POSTGRES_DB", "ai_part_designer")
+    db = os.environ.get("POSTGRES_DB", "test_db")
     os.environ["DATABASE_URL"] = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 if "REDIS_URL" not in os.environ:
     os.environ["REDIS_URL"] = "redis://localhost:6379/0"
@@ -71,11 +74,12 @@ def get_database_url():
         return os.environ["DATABASE_URL"]
 
     # Build from individual postgres variables (for Docker container)
+    # Default to test_db for tests - matches docker-compose.test.yml
     host = os.environ.get("POSTGRES_HOST", "localhost")
     port = os.environ.get("POSTGRES_PORT", "5432")
     user = os.environ.get("POSTGRES_USER", "postgres")
     password = os.environ.get("POSTGRES_PASSWORD", "postgres")
-    db = os.environ.get("POSTGRES_DB", "ai_part_designer")
+    db = os.environ.get("POSTGRES_DB", "test_db")
 
     return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
@@ -197,7 +201,11 @@ async def async_client(client: AsyncClient) -> AsyncClient:
 
 @pytest.fixture
 def mock_current_user():
-    """Create a mock user for testing."""
+    """Create a mock user for testing.
+    
+    Note: This fixture alone doesn't inject auth into the client.
+    Use it with `mock_auth_client` or manually override the dependency.
+    """
     from uuid import uuid4
 
     from app.models.user import User
@@ -208,7 +216,53 @@ def mock_current_user():
     user.username = "testuser"
     user.is_active = True
     user.is_superuser = False
+    user.role = "user"
     return user
+
+
+@pytest_asyncio.fixture(scope="function")
+async def mock_auth_client(
+    db_session: AsyncSession,
+    mock_current_user,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Create test HTTP client with mocked authentication.
+    
+    This client overrides get_current_user to return mock_current_user,
+    allowing tests to bypass real authentication while still testing
+    authorization and business logic.
+    
+    Also mocks require_org_feature to skip feature checks for unit tests.
+    """
+    from unittest.mock import patch
+    
+    from httpx import ASGITransport
+
+    from app.core.auth import get_current_user
+    from app.main import app
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_user():
+        return mock_current_user
+
+    # Mock require_org_feature to return a no-op dependency
+    def mock_require_org_feature(feature_name: str):
+        async def no_op(*args, **kwargs):
+            return None
+        return no_op
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    # Patch require_org_feature at the module level
+    with patch("app.api.deps.require_org_feature", mock_require_org_feature):
+        with patch("app.api.v1.teams.require_org_feature", mock_require_org_feature):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                yield ac
+
+    app.dependency_overrides.clear()
 
 
 # =============================================================================
@@ -228,6 +282,27 @@ async def test_user(db_session: AsyncSession) -> User:
         email="test@example.com",
         password_hash=hash_password("TestPassword123!"),
         display_name="Test User",
+        status="active",
+        email_verified_at=datetime.now(UTC),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def test_user_2(db_session: AsyncSession) -> "User":
+    """Create a second test user for access control tests."""
+    from datetime import datetime
+
+    from app.core.security import hash_password
+    from app.models import User
+
+    user = User(
+        email="testuser2@example.com",
+        password_hash=hash_password("TestPassword123!"),
+        display_name="Test User 2",
         status="active",
         email_verified_at=datetime.now(UTC),
     )
@@ -259,6 +334,22 @@ async def test_admin(db_session: AsyncSession) -> User:
     return admin
 
 
+@pytest_asyncio.fixture
+async def test_project(db_session: AsyncSession, test_user: "User") -> "Project":
+    """Create a test project."""
+    from app.models.project import Project
+
+    project = Project(
+        user_id=test_user.id,
+        name="Test Project",
+        description="A test project for unit tests",
+    )
+    db_session.add(project)
+    await db_session.commit()
+    await db_session.refresh(project)
+    return project
+
+
 @pytest.fixture
 def auth_headers(test_user: User) -> dict[str, str]:
     """Generate authentication headers for test user."""
@@ -270,6 +361,31 @@ def auth_headers(test_user: User) -> dict[str, str]:
         role=test_user.role,
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def auth_headers_2(test_user_2: "User") -> dict[str, str]:
+    """Generate authentication headers for second test user."""
+    from app.core.security import create_access_token
+
+    token = create_access_token(
+        user_id=test_user_2.id,
+        email=test_user_2.email,
+        role=test_user_2.role,
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def test_user_token(test_user: User) -> str:
+    """Generate access token for test user (without Bearer prefix)."""
+    from app.core.security import create_access_token
+
+    return create_access_token(
+        user_id=test_user.id,
+        email=test_user.email,
+        role=test_user.role,
+    )
 
 
 @pytest.fixture
@@ -288,7 +404,19 @@ def admin_headers(test_admin: User) -> dict[str, str]:
 @pytest_asyncio.fixture
 async def subscription_tiers(db_session: AsyncSession):
     """Seed subscription tiers for tests that need them."""
+    from sqlalchemy import select
+
     from app.models.subscription import SubscriptionTier
+
+    # Check if already seeded (by autouse fixture or previous test)
+    result = await db_session.execute(
+        select(SubscriptionTier).where(SubscriptionTier.slug == "free")
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        # Return existing tiers
+        result = await db_session.execute(select(SubscriptionTier))
+        return result.scalars().all()
 
     tiers = [
         SubscriptionTier(
@@ -328,6 +456,47 @@ async def subscription_tiers(db_session: AsyncSession):
 
     await db_session.commit()
     return tiers
+
+
+@pytest_asyncio.fixture
+async def test_org_with_features(db_session: AsyncSession, test_user: User):
+    """Create a test organization with all features enabled."""
+    from uuid import uuid4
+
+    from app.core.features import OrgFeature
+    from app.models.organization import Organization, OrganizationMember, OrganizationRole
+
+    org = Organization(
+        id=uuid4(),
+        name="Test Organization",
+        slug=f"test-org-{uuid4().hex[:8]}",
+        owner_id=test_user.id,
+        settings={
+            "enabled_features": [
+                OrgFeature.AI_GENERATION,
+                OrgFeature.AI_CHAT,
+                OrgFeature.DESIGN_SHARING,
+                OrgFeature.TEAMS,
+                OrgFeature.FILE_UPLOADS,
+                OrgFeature.ASSEMBLIES,
+                OrgFeature.BOM,
+            ],
+        },
+    )
+    db_session.add(org)
+
+    # Add user as owner
+    member = OrganizationMember(
+        id=uuid4(),
+        organization_id=org.id,
+        user_id=test_user.id,
+        role=OrganizationRole.OWNER,
+    )
+    db_session.add(member)
+    await db_session.commit()
+    await db_session.refresh(org)
+
+    return org
 
 
 # =============================================================================

@@ -384,7 +384,7 @@ async def resolve_report(
 
 @router.get("/usage/stats")
 async def get_usage_stats(
-    period: str = Query("day", regex="^(hour|day|week|month)$"),
+    period: str = Query("day", pattern="^(hour|day|week|month)$"),
     resource_type: str | None = None,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin_user),
@@ -435,7 +435,7 @@ async def get_usage_stats(
 @router.get("/usage/top-users")
 async def get_top_users(
     resource_type: str = "generation",
-    period: str = Query("day", regex="^(day|week|month)$"),
+    period: str = Query("day", pattern="^(day|week|month)$"),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin_user),

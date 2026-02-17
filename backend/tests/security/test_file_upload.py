@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from httpx import AsyncClient
 
 
+@pytest.mark.usefixtures("subscription_tiers")
 class TestFileUploadSecurity:
     """Tests for file upload security."""
 

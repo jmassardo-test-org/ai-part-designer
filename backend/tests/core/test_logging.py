@@ -45,8 +45,10 @@ class TestStructlogConfiguration:
         # Configure structlog
         configure_structlog()
 
-        # Replace handler to capture output
+        # Get the formatter from the configured handler and apply to our test handler
         root_logger = logging.getLogger()
+        if root_logger.handlers:
+            handler.setFormatter(root_logger.handlers[0].formatter)
         root_logger.handlers.clear()
         root_logger.addHandler(handler)
 
@@ -167,10 +169,17 @@ class TestContextVariables:
         handler = logging.StreamHandler(log_stream)
 
         # Configure structlog
+        # Capture log output
+        log_stream = StringIO()
+        handler = logging.StreamHandler(log_stream)
+
+        # Configure structlog
         configure_structlog()
 
-        # Replace handler to capture output
+        # Get the formatter from the configured handler and apply to our test handler
         root_logger = logging.getLogger()
+        if root_logger.handlers:
+            handler.setFormatter(root_logger.handlers[0].formatter)
         root_logger.handlers.clear()
         root_logger.addHandler(handler)
 
@@ -247,8 +256,10 @@ class TestLogLevels:
         # Configure structlog
         configure_structlog()
 
-        # Replace handler and set debug level
+        # Get the formatter from the configured handler and apply to our test handler
         root_logger = logging.getLogger()
+        if root_logger.handlers:
+            handler.setFormatter(root_logger.handlers[0].formatter)
         root_logger.handlers.clear()
         root_logger.addHandler(handler)
         root_logger.setLevel(logging.DEBUG)
@@ -280,8 +291,10 @@ class TestLogLevels:
         # Configure structlog (sets INFO level in production)
         configure_structlog()
 
-        # Replace handler
+        # Get the formatter from the configured handler and apply to our test handler
         root_logger = logging.getLogger()
+        if root_logger.handlers:
+            handler.setFormatter(root_logger.handlers[0].formatter)
         root_logger.handlers.clear()
         root_logger.addHandler(handler)
 

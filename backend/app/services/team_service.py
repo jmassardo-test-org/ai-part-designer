@@ -11,7 +11,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 
 from app.models.organization import OrganizationMember, OrganizationRole
 from app.models.team import ProjectTeam, Team, TeamMember, TeamRole
@@ -70,20 +70,20 @@ class TeamService:
 
         Args:
             team_id: Team UUID.
-            include_members: Whether to load team members.
+            include_members: Whether to load team members (ignored - use list_team_members instead).
 
         Returns:
             Team if found, None otherwise.
         """
+        # Note: include_members parameter is kept for backwards compatibility but ignored
+        # because Team.members uses lazy="dynamic" which doesn't support eager loading.
+        # Use list_team_members() to get team members instead.
         query = select(Team).where(
             and_(
                 Team.id == team_id,
                 Team.deleted_at.is_(None),
             )
         )
-
-        if include_members:
-            query = query.options(selectinload(Team.members).joinedload(TeamMember.user))
 
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
@@ -111,6 +111,24 @@ class TeamService:
         )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
+
+    async def get_team_member_count(self, team_id: UUID) -> int:
+        """Get the count of active members in a team.
+
+        Args:
+            team_id: Team UUID.
+
+        Returns:
+            Number of active team members.
+        """
+        query = select(func.count(TeamMember.id)).where(
+            and_(
+                TeamMember.team_id == team_id,
+                TeamMember.is_active == True,  # noqa: E712
+            )
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one() or 0
 
     async def list_teams(
         self,

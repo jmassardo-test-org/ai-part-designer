@@ -86,10 +86,11 @@ async def test_pending_job(db_session: AsyncSession, test_user) -> Job:
 
 
 @pytest_asyncio.fixture
-async def test_design(db_session: AsyncSession, test_project, test_completed_job) -> Design:
+async def test_design(db_session: AsyncSession, test_project, test_completed_job, test_user) -> Design:
     """Create a test design."""
     design = Design(
         project_id=test_project.id,
+        user_id=test_user.id,  # Required field
         name="Existing Test Design",
         description="An existing design for testing",
         source_type="v2_generated",
@@ -277,7 +278,7 @@ class TestListDesignsV2:
         assert data["total"] == 0
         assert data["designs"] == []
         assert data["page"] == 1
-        assert data["page_size"] == 20
+        assert data["per_page"] == 20
 
     @pytest.mark.asyncio
     async def test_list_designs_with_data(
@@ -302,12 +303,14 @@ class TestListDesignsV2:
         test_design: Design,
         db_session: AsyncSession,
         test_project: Project,
+        test_user,
     ):
         """Test pagination parameters work correctly."""
         # Create additional designs
         for i in range(5):
             design = Design(
                 project_id=test_project.id,
+                user_id=test_user.id,
                 name=f"Design {i}",
                 source_type="v2_generated",
                 status="ready",
@@ -316,15 +319,15 @@ class TestListDesignsV2:
         await db_session.commit()
 
         # Test page size limit
-        response = await auth_client.get("/api/v2/designs/?page_size=2")
+        response = await auth_client.get("/api/v2/designs/?per_page=2")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 6  # 1 from fixture + 5 created
         assert len(data["designs"]) == 2
-        assert data["page_size"] == 2
+        assert data["per_page"] == 2
 
         # Test page 2
-        response = await auth_client.get("/api/v2/designs/?page=2&page_size=2")
+        response = await auth_client.get("/api/v2/designs/?page=2&per_page=2")
         assert response.status_code == 200
         data = response.json()
         assert len(data["designs"]) == 2
@@ -351,6 +354,7 @@ class TestListDesignsV2:
 
         other_design = Design(
             project_id=other_project.id,
+            user_id=test_user.id,
             name="Other Design",
             source_type="v2_generated",
             status="ready",

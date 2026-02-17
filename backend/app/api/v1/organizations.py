@@ -11,6 +11,7 @@ import logging
 import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -31,8 +32,6 @@ from app.models.organization import (
 from app.models.user import User
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -732,11 +731,12 @@ async def remove_member(
     """
     Remove a member from organization.
 
-    Requires admin role. Cannot remove owner.
+    Requires admin role to remove others. Members can remove themselves.
+    Cannot remove owner.
     """
     await get_org_or_404(db, org_id)
-    actor = await require_org_role(db, org_id, current_user.id, OrganizationRole.ADMIN)
-
+    
+    # Get the member to be removed
     result = await db.execute(
         select(OrganizationMember).where(
             OrganizationMember.id == member_id,
@@ -757,12 +757,11 @@ async def remove_member(
             detail="Cannot remove organization owner",
         )
 
-    # Members can remove themselves
-    if member.user_id != current_user.id and not actor.has_permission(OrganizationRole.ADMIN):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can remove other members",
-        )
+    # Members can remove themselves; otherwise require admin role
+    is_self_removal = member.user_id == current_user.id
+    if not is_self_removal:
+        # Only admins can remove other members
+        await require_org_role(db, org_id, current_user.id, OrganizationRole.ADMIN)
 
     member.is_active = False
 

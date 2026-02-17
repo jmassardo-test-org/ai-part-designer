@@ -89,6 +89,7 @@ class RatingService:
             self.db.add(rating)
 
         await self.db.flush()
+        await self.db.refresh(rating)
 
         # Update template average rating
         await self._update_template_avg_rating(template_id)

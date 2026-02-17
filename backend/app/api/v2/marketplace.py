@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc, func, or_, select
@@ -28,8 +29,6 @@ from app.schemas.marketplace import (
 )
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -330,8 +329,9 @@ async def get_design_detail(
         remixed_from_id=design.remixed_from_id,
         remixed_from_name=remixed_from_name,
         featured_at=design.featured_at,
-        has_step=design.step_file_path is not None,
-        has_stl=design.stl_file_path is not None,
+        # Check extra_data for file paths (v2 designs store downloads there)
+        has_step=bool(design.extra_data.get("downloads", {}).get("body") if design.extra_data else False),
+        has_stl=bool(design.extra_data.get("downloads", {}).get("stl") if design.extra_data else False),
     )
 
 

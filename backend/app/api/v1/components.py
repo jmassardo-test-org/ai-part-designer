@@ -735,7 +735,7 @@ async def delete_component(
 @router.post("/{component_id}/extract", response_model=ExtractionJobResponse)
 async def trigger_extraction(
     component_id: UUID,
-    job_type: str = Query("full", regex="^(datasheet|cad|full)$"),
+    job_type: str = Query("full", pattern="^(datasheet|cad|full)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ExtractionJobResponse:
@@ -841,7 +841,7 @@ async def browse_library(
     manufacturer: str | None = None,
     search: str | None = None,
     featured: bool | None = None,
-    sort_by: str = Query("popularity", regex="^(popularity|name|newest)$"),
+    sort_by: str = Query("popularity", pattern="^(popularity|name|newest)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),

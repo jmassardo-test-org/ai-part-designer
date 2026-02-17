@@ -53,6 +53,8 @@ async def public_designs(db_session: AsyncSession, test_project) -> list[Design]
         tags=["arduino", "beginner", "case"],
         save_count=100,
         remix_count=25,
+        source_type="v2_generated",
+        status="ready",
     )
     designs.append(design1)
 
@@ -69,6 +71,8 @@ async def public_designs(db_session: AsyncSession, test_project) -> list[Design]
         tags=["raspberry-pi", "pi5", "cooling"],
         save_count=50,
         remix_count=10,
+        source_type="v2_generated",
+        status="ready",
     )
     designs.append(design2)
 
@@ -84,6 +88,8 @@ async def public_designs(db_session: AsyncSession, test_project) -> list[Design]
         tags=["esp32", "iot", "weather"],
         save_count=5,
         remix_count=0,
+        source_type="v2_generated",
+        status="ready",
     )
     designs.append(design3)
 
@@ -97,6 +103,8 @@ async def public_designs(db_session: AsyncSession, test_project) -> list[Design]
         category="electronics",
         tags=["private"],
         save_count=0,
+        source_type="v2_generated",
+        status="ready",
     )
     designs.append(design4)
 
@@ -335,6 +343,8 @@ class TestPublishDesign:
             is_public=False,
             category=None,
             tags=[],
+            source_type="v2_generated",
+            status="ready",
         )
         db_session.add(design)
         await db_session.commit()

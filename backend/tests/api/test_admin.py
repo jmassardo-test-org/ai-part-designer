@@ -1372,8 +1372,8 @@ class TestAuditLogging:
         audit_entry = result.scalar_one_or_none()
 
         assert audit_entry is not None
-        assert audit_entry.changes["old_role"] == "user"
-        assert audit_entry.changes["new_role"] == "moderator"
+        assert audit_entry.context["details"]["old_role"] == "user"
+        assert audit_entry.context["details"]["new_role"] == "moderator"
 
     async def test_admin_reset_password_creates_audit_log(
         self, client: AsyncClient, admin_headers: dict, db_session: AsyncSession
@@ -1400,4 +1400,4 @@ class TestAuditLogging:
         audit_entry = result.scalar_one_or_none()
 
         assert audit_entry is not None
-        assert audit_entry.changes["target_user_email"] == user.email
+        assert audit_entry.context["details"]["target_user_email"] == user.email

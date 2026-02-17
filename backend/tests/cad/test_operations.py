@@ -5,7 +5,7 @@ Tests for CAD boolean and transformation operations.
 from __future__ import annotations
 
 import pytest
-from build123d import Compound, Part
+from build123d import Compound, Part, Solid
 
 from app.cad.exceptions import GeometryError, ValidationError
 from app.cad.operations import (
@@ -39,7 +39,7 @@ class TestUnion:
         result = union(box1, box2)
 
         # Combined volume should be less than sum (overlap)
-        assert isinstance(result, (Part, Compound))
+        assert isinstance(result, (Part, Compound, Solid))
         combined_volume = result.volume
         individual_sum = box1.volume + box2.volume
         assert combined_volume < individual_sum
@@ -52,7 +52,7 @@ class TestUnion:
 
         result = union(box, cyl, sphere)
 
-        assert isinstance(result, (Part, Compound))
+        assert isinstance(result, (Part, Compound, Solid))
 
     def test_union_single_shape_fails(self):
         """Test that union with single shape raises error."""

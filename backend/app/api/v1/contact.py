@@ -106,8 +106,8 @@ async def send_contact_email(
     logger.info(
         "Contact form submission received",
         extra={
-            "name": name,
-            "email": email,
+            "sender_name": name,
+            "sender_email": email,
             "subject": subject,
             "message_length": len(message),
             "ip_address": ip_address,

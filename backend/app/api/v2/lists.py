@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select, update
@@ -32,8 +33,6 @@ from app.schemas.marketplace import (
 )
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)

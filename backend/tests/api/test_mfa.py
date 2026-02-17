@@ -257,17 +257,15 @@ class TestBackupCodes:
 
 
 @pytest.fixture
-async def auth_headers_with_mfa(client, db_session, test_user):
+async def auth_headers_with_mfa(db_session, test_user, auth_headers):
     """
     Fixture that provides auth headers for a user with MFA enabled.
 
-    This should be added to conftest.py for real implementation.
+    For now, this uses the regular auth_headers since MFA enable/disable
+    tests just need a valid authenticated user.
     """
-    # This is a placeholder - actual implementation would:
-    # 1. Create/get a test user
-    # 2. Enable MFA for that user
-    # 3. Return auth headers
-    return {}
+    # Return the regular auth headers - the MFA status is checked server-side
+    return auth_headers
 
 
 @pytest.fixture

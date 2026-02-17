@@ -32,6 +32,7 @@ async def design_for_comments(db_session: AsyncSession, test_user):
     design = Design(
         id=uuid4(),
         project_id=project.id,
+        user_id=test_user.id,  # Required field
         name="Design for Comments",
         source_type="ai_generated",
         status="completed",

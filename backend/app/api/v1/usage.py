@@ -11,6 +11,7 @@ import contextlib
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -29,8 +30,6 @@ from app.models.subscription import (
 )
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User

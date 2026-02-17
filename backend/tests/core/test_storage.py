@@ -288,7 +288,7 @@ class TestStorageBucket:
 
     def test_all_buckets_defined(self):
         """Test all expected buckets are defined."""
-        expected_buckets = {"designs", "exports", "thumbnails", "uploads", "temp"}
+        expected_buckets = {"designs", "exports", "thumbnails", "uploads", "temp", "archives"}
         actual_buckets = {bucket.value for bucket in StorageBucket}
         assert actual_buckets == expected_buckets
 

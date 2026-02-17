@@ -45,6 +45,8 @@ async def test_designs(db_session: AsyncSession, test_project) -> list[Design]:
             user_id=test_project.user_id,
             name=f"Test Design {i + 1}",
             description=f"Design {i + 1} for testing lists",
+            source_type="v2_generated",
+            status="ready",
             is_public=True,
         )
         db_session.add(design)
@@ -426,10 +428,14 @@ class TestListAccessControl:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         """Test that users cannot access other users' lists."""
+        from tests.factories import UserFactory
+
+        # Create an actual user in the database
+        other_user = await UserFactory.create(db_session)
+
         # Create a list for a different user
-        other_user_id = uuid4()
         other_list = DesignList(
-            user_id=other_user_id,
+            user_id=other_user.id,
             name="Other User's List",
             description="Not yours",
         )
@@ -446,10 +452,14 @@ class TestListAccessControl:
         self, auth_client: AsyncClient, user_lists: list[DesignList], db_session: AsyncSession
     ):
         """Test that private designs from others cannot be added."""
+        from tests.factories import UserFactory
+
+        # Create an actual user in the database
+        other_user = await UserFactory.create(db_session)
+
         # Create a private design from another user
-        other_user_id = uuid4()
         other_project = Project(
-            user_id=other_user_id,
+            user_id=other_user.id,
             name="Other Project",
         )
         db_session.add(other_project)
@@ -457,8 +467,10 @@ class TestListAccessControl:
 
         private_design = Design(
             project_id=other_project.id,
-            user_id=other_user_id,
+            user_id=other_user.id,
             name="Private Design",
+            source_type="v2_generated",
+            status="ready",
             is_public=False,
         )
         db_session.add(private_design)

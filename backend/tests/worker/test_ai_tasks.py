@@ -129,7 +129,7 @@ class TestGenerateFromPromptTask:
 
         assert "job_id" in params
         assert "prompt" in params
-        assert "context" in params
+        assert "_context" in params  # Note: underscore prefix indicates optional/reserved
         assert "user_id" in params
 
 

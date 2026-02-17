@@ -8,6 +8,7 @@ from datetime import UTC
 from uuid import uuid4
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,10 +17,25 @@ from app.models.conversation import (
     ConversationMessage,
     ConversationStatus,
 )
+from app.models.project import Project
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
+
+@pytest_asyncio.fixture
+async def test_project(db_session: AsyncSession, test_user) -> Project:
+    """Create a test project for the test user."""
+    project = Project(
+        user_id=test_user.id,
+        name="Conversations Test Project",
+        description="A project for conversations tests",
+    )
+    db_session.add(project)
+    await db_session.commit()
+    await db_session.refresh(project)
+    return project
 
 
 @pytest.fixture

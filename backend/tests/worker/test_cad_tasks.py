@@ -129,24 +129,24 @@ class TestProcessCadFileTask:
 
 
 class TestGeometryInfoExtraction:
-    """Tests for extracting geometry info from CadQuery results."""
+    """Tests for extracting geometry info from build123d results."""
 
     def test_extract_bounding_box(self):
         """Test extracting bounding box from shape."""
         box = create_box(100, 50, 25)
 
-        bbox = box.val().BoundingBox()
+        bbox = box.bounding_box()
 
-        # Box is centered at origin, so dimensions are symmetric
-        assert round(bbox.xlen, 1) == 100.0
-        assert round(bbox.ylen, 1) == 50.0
-        assert round(bbox.zlen, 1) == 25.0
+        # Box dimensions via build123d bounding_box
+        assert round(bbox.size.X, 1) == 100.0
+        assert round(bbox.size.Y, 1) == 50.0
+        assert round(bbox.size.Z, 1) == 25.0
 
     def test_extract_volume(self):
         """Test extracting volume from shape."""
         box = create_box(10, 10, 10)  # 1000 mm³
 
-        volume = box.val().Volume()
+        volume = box.volume
 
         assert round(volume, 0) == 1000.0
 
@@ -156,14 +156,14 @@ class TestGeometryInfoExtraction:
 
         cylinder = create_cylinder(radius=25, height=100)
 
-        bbox = cylinder.val().BoundingBox()
-        volume = cylinder.val().Volume()
+        bbox = cylinder.bounding_box()
+        volume = cylinder.volume
 
         geometry_info = {
             "bounding_box": {
-                "x": round(bbox.xlen, 2),
-                "y": round(bbox.ylen, 2),
-                "z": round(bbox.zlen, 2),
+                "x": round(bbox.size.X, 2),
+                "y": round(bbox.size.Y, 2),
+                "z": round(bbox.size.Z, 2),
             },
             "volume": round(volume, 2),
             "is_manifold": True,

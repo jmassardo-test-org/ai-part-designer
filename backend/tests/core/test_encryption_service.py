@@ -190,7 +190,7 @@ class TestEncryptionServiceFileOperations:
         """Test streaming encryption with large data."""
         # Create 5MB of data
         data = b"x" * (5 * 1024 * 1024)
-        encrypted = await encryption_service.encrypt_stream(data, chunk_size=1024 * 1024)
+        encrypted = await encryption_service.encrypt_stream(data)
 
         assert isinstance(encrypted, bytes)
         assert len(encrypted) > len(data)
@@ -200,8 +200,8 @@ class TestEncryptionServiceFileOperations:
         """Test streaming decryption with large data."""
         # Create 5MB of data
         data = b"x" * (5 * 1024 * 1024)
-        encrypted = await encryption_service.encrypt_stream(data, chunk_size=1024 * 1024)
-        decrypted = await encryption_service.decrypt_stream(encrypted, chunk_size=1024 * 1024)
+        encrypted = await encryption_service.encrypt_stream(data)
+        decrypted = await encryption_service.decrypt_stream(encrypted)
 
         assert decrypted == data
 

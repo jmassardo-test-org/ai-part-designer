@@ -217,9 +217,16 @@ class TestGetTemplate:
         assert data["name"] == "Test Box"
         assert data["slug"] == "test-box"
         assert data["category"] == "mechanical"
-        assert "length" in data["parameters"]
-        assert data["parameters"]["length"]["type"] == "number"
-        assert data["parameters"]["length"]["default"] == 100
+        
+        # Parameters are returned as a list
+        param_names = [p["name"] for p in data["parameters"]]
+        assert "length" in param_names
+        
+        # Find the length parameter
+        length_param = next((p for p in data["parameters"] if p["name"] == "length"), None)
+        assert length_param is not None
+        assert length_param["type"] == "number"
+        assert length_param["default"] == 100
 
     @pytest.mark.asyncio
     async def test_get_template_not_found(
@@ -424,7 +431,10 @@ class TestParameterValidation:
         assert response.status_code == 200
         data = response.json()
 
-        assert data["parameters"]["style"]["options"] == ["rounded", "chamfered", "sharp"]
+        # Find the style parameter in the list
+        style_param = next((p for p in data["parameters"] if p["name"] == "style"), None)
+        assert style_param is not None
+        assert style_param["options"] == ["rounded", "chamfered", "sharp"]
 
 
 # =============================================================================

@@ -74,6 +74,10 @@ class SaveDesignV2Response(BaseModel):
     source_type: str = Field(description="Source type (v2_generated)")
     status: str = Field(description="Design status")
     job_id: str = Field(description="Original generation job ID")
+    tags: list[str] = Field(
+        default_factory=list,
+        description="Tags for categorization",
+    )
     enclosure_spec: dict[str, Any] | None = Field(
         default=None,
         description="The EnclosureSpec used to generate this design",
@@ -219,6 +223,7 @@ async def save_design_v2(
     # Create the design
     design = Design(
         project_id=project.id,
+        user_id=current_user.id,  # Required field
         name=request.name,
         description=request.description or job_input.get("description", ""),
         source_type="v2_generated",
@@ -246,6 +251,7 @@ async def save_design_v2(
         source_type=design.source_type,
         status=design.status,
         job_id=str(job.id),
+        tags=design.tags or [],
         enclosure_spec=extra_data.get("enclosure_spec"),
         downloads=extra_data.get("downloads", {}),
         created_at=design.created_at.isoformat(),

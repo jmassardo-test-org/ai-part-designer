@@ -221,9 +221,14 @@ class NotificationPreference(Base):
         index=True,
     )
 
-    # Notification type
+    # Notification type - use native PostgreSQL enum that already exists
     notification_type: Mapped[NotificationType] = mapped_column(
-        Enum(NotificationType),
+        Enum(
+            NotificationType,
+            name="notificationtype",
+            create_type=False,
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
         nullable=False,
     )
 

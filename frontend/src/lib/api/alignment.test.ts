@@ -1,277 +1,190 @@
 /**
  * Alignment API client tests.
+ *
+ * Tests for the alignment API module that handles part alignment operations.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { alignmentApi, ALIGNMENT_PRESETS } from './alignment';
-// Mock the apiClient
-vi.mock('./client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
-import { apiClient } from './client';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { alignmentApi, ALIGNMENT_PRESETS, AlignmentMode } from './alignment';
+
+// Store original fetch
+const originalFetch = global.fetch;
+
+// Mock fetch helper that returns proper Response-like object
+function createMockResponse(data: unknown, ok = true, status = 200): Response {
+  return {
+    ok,
+    status,
+    json: () => Promise.resolve(data),
+    clone: function() { return this; },
+    headers: new Headers(),
+    redirected: false,
+    statusText: ok ? 'OK' : 'Error',
+    type: 'basic',
+    url: '',
+    body: null,
+    bodyUsed: false,
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    blob: () => Promise.resolve(new Blob()),
+    formData: () => Promise.resolve(new FormData()),
+    text: () => Promise.resolve(JSON.stringify(data)),
+  } as Response;
+}
 
 describe('alignmentApi', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   describe('align', () => {
-    it('aligns files with CENTER mode', async () => {
+    it('aligns parts with CENTER mode', async () => {
       const mockResponse = {
         success: true,
         output_path: '/uploads/aligned-result.step',
         mode: 'CENTER',
         file_count: 2,
-        combined_bounds: {
-          min_x: 0,
-          min_y: 0,
-          min_z: 0,
-          max_x: 100,
-          max_y: 100,
-          max_z: 50,
-          center_x: 50,
-          center_y: 50,
-          center_z: 25,
-        },
         transformations: [],
         message: 'Alignment complete',
       };
 
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: mockResponse,
-      });
+      global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(mockResponse));
 
-      const result = await alignmentApi.align({
-        file_paths: ['/path/to/file1.step', '/path/to/file2.step'],
-        mode: 'CENTER',
-      });
+      const result = await alignmentApi.align(
+        ['part1', 'part2'],
+        'CENTER' as AlignmentMode
+      );
 
-      expect(apiClient.post).toHaveBeenCalledWith('/cad/align', {
-        file_paths: ['/path/to/file1.step', '/path/to/file2.step'],
-        mode: 'CENTER',
+      expect(global.fetch).toHaveBeenCalledWith('/api/v1/alignment/align', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ part_ids: ['part1', 'part2'], mode: 'CENTER' }),
       });
       expect(result).toEqual(mockResponse);
     });
 
-    it('aligns files with STACK_Z mode and gap', async () => {
+    it('aligns parts with stack mode and options', async () => {
       const mockResponse = {
         success: true,
         output_path: '/uploads/stacked.step',
-        mode: 'STACK_Z',
+        mode: 'stack',
         file_count: 3,
-        combined_bounds: {
-          min_x: 0,
-          min_y: 0,
-          min_z: 0,
-          max_x: 50,
-          max_y: 50,
-          max_z: 150,
-          center_x: 25,
-          center_y: 25,
-          center_z: 75,
-        },
         transformations: [],
-        message: 'Files stacked vertically',
+        message: 'Files stacked',
       };
 
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: mockResponse,
-      });
+      global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(mockResponse));
 
-      const result = await alignmentApi.align({
-        file_paths: ['/a.step', '/b.step', '/c.step'],
-        mode: 'STACK_Z',
-        gap: 5,
-      });
-
-      expect(apiClient.post).toHaveBeenCalledWith('/cad/align', {
-        file_paths: ['/a.step', '/b.step', '/c.step'],
-        mode: 'STACK_Z',
-        gap: 5,
-      });
-      expect(result.mode).toBe('STACK_Z');
-      expect(result.file_count).toBe(3);
-    });
-
-    it('aligns files with reference index', async () => {
-      const mockResponse = {
-        success: true,
-        output_path: '/uploads/aligned.step',
-        mode: 'FACE',
-        file_count: 2,
-        combined_bounds: {
-          min_x: 0, min_y: 0, min_z: 0,
-          max_x: 100, max_y: 100, max_z: 50,
-          center_x: 50, center_y: 50, center_z: 25,
-        },
-        transformations: [],
-        message: 'Faces aligned',
-      };
-
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: mockResponse,
-      });
-
-      await alignmentApi.align({
-        file_paths: ['/a.step', '/b.step'],
-        mode: 'FACE',
-        reference_index: 1,
-      });
-
-      expect(apiClient.post).toHaveBeenCalledWith('/cad/align', {
-        file_paths: ['/a.step', '/b.step'],
-        mode: 'FACE',
-        reference_index: 1,
-      });
-    });
-
-    it('handles alignment errors', async () => {
-      (apiClient.post as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        new Error('Alignment failed')
+      const result = await alignmentApi.align(
+        ['part1', 'part2', 'part3'],
+        'stack' as AlignmentMode,
+        { gap: 5, reference: 'first' }
       );
+
+      expect(global.fetch).toHaveBeenCalledWith('/api/v1/alignment/align', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          part_ids: ['part1', 'part2', 'part3'],
+          mode: 'stack',
+          gap: 5,
+          reference: 'first',
+        }),
+      });
+      expect(result.mode).toBe('stack');
+    });
+
+    it('includes authorization header when token provided', async () => {
+      const mockResponse = { success: true, transformations: [] };
+
+      global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await alignmentApi.align(['part1'], 'center' as AlignmentMode, {}, 'test-token');
+
+      expect(global.fetch).toHaveBeenCalledWith('/api/v1/alignment/align', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer test-token',
+        },
+        body: expect.any(String),
+      });
+    });
+
+    it('throws error on failed alignment', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse({}, false, 500));
 
       await expect(
-        alignmentApi.align({
-          file_paths: ['/invalid.step'],
-          mode: 'CENTER',
-        })
-      ).rejects.toThrow('Alignment failed');
+        alignmentApi.align(['part1'], 'CENTER' as AlignmentMode)
+      ).rejects.toThrow('Alignment failed: 500');
     });
   });
 
-  describe('uploadAndAlign', () => {
-    it('uploads files and aligns with specified mode', async () => {
-      const mockFiles = [
-        new File(['content1'], 'part1.step', { type: 'application/step' }),
-        new File(['content2'], 'part2.step', { type: 'application/step' }),
-      ];
-
+  describe('alignParts', () => {
+    it('aligns parts using alignParts method', async () => {
       const mockResponse = {
         success: true,
-        output_path: '/uploads/aligned-upload.step',
-        mode: 'STACK_X',
-        file_count: 2,
-        combined_bounds: {
-          min_x: 0, min_y: 0, min_z: 0,
-          max_x: 200, max_y: 50, max_z: 50,
-          center_x: 100, center_y: 25, center_z: 25,
-        },
         transformations: [],
-        message: 'Upload and alignment complete',
       };
 
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: mockResponse,
-      });
+      global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(mockResponse));
 
-      const result = await alignmentApi.uploadAndAlign(mockFiles, 'STACK_X', 10);
-
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/cad/align/upload',
-        expect.any(FormData),
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+      const result = await alignmentApi.alignParts(
+        ['part1', 'part2'],
+        'align-x' as AlignmentMode,
+        { gap: 10 }
       );
 
-      // Verify FormData contents
-      const formData = (apiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as FormData;
-      expect(formData.get('mode')).toBe('STACK_X');
-      expect(formData.get('gap')).toBe('10');
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('uploads with default gap of 0', async () => {
-      const mockFiles = [new File(['content'], 'part.step')];
-      
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: { success: true, output_path: '/output.step', mode: 'CENTER', file_count: 1 },
+      expect(global.fetch).toHaveBeenCalledWith('/api/v1/alignment/align', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          part_ids: ['part1', 'part2'],
+          mode: 'align-x',
+          gap: 10,
+        }),
       });
-
-      await alignmentApi.uploadAndAlign(mockFiles, 'CENTER');
-
-      const formData = (apiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as FormData;
-      expect(formData.get('gap')).toBe('0');
-    });
-  });
-
-  describe('preview', () => {
-    it('gets alignment preview without creating output file', async () => {
-      const mockPreview = {
-        success: true,
-        mode: 'EDGE',
-        file_count: 2,
-        combined_bounds: {
-          min_x: 0, min_y: 0, min_z: 0,
-          max_x: 100, max_y: 100, max_z: 50,
-          center_x: 50, center_y: 50, center_z: 25,
-        },
-        transformations: [
-          {
-            file_path: '/a.step',
-            original_bounds: {
-              min_x: 0, min_y: 0, min_z: 0,
-              max_x: 50, max_y: 50, max_z: 25,
-              center_x: 25, center_y: 25, center_z: 12.5,
-            },
-            applied_translation: { x: 0, y: 0, z: 0 },
-            final_bounds: {
-              min_x: 0, min_y: 0, min_z: 0,
-              max_x: 50, max_y: 50, max_z: 25,
-              center_x: 25, center_y: 25, center_z: 12.5,
-            },
-          },
-        ],
-        message: 'Preview generated',
-      };
-
-      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: mockPreview,
-      });
-
-      const result = await alignmentApi.preview({
-        file_paths: ['/a.step', '/b.step'],
-        mode: 'EDGE',
-      });
-
-      expect(apiClient.post).toHaveBeenCalledWith('/cad/align/preview', {
-        file_paths: ['/a.step', '/b.step'],
-        mode: 'EDGE',
-      });
-      expect(result.transformations).toHaveLength(1);
+      expect(result.success).toBe(true);
     });
   });
 });
 
 describe('ALIGNMENT_PRESETS', () => {
-  it('contains all alignment modes', () => {
-    const modes = ALIGNMENT_PRESETS.map((p: { mode: string }) => p.mode);
-    expect(modes).toContain('CENTER');
-    expect(modes).toContain('ORIGIN');
-    expect(modes).toContain('STACK_Z');
-    expect(modes).toContain('STACK_X');
-    expect(modes).toContain('STACK_Y');
-    expect(modes).toContain('FACE');
-    expect(modes).toContain('EDGE');
+  it('contains expected alignment preset keys', () => {
+    expect(ALIGNMENT_PRESETS).toHaveProperty('center');
+    expect(ALIGNMENT_PRESETS).toHaveProperty('stack-z');
+    expect(ALIGNMENT_PRESETS).toHaveProperty('align-x');
+    expect(ALIGNMENT_PRESETS).toHaveProperty('align-y');
   });
 
   it('has required properties for each preset', () => {
-    ALIGNMENT_PRESETS.forEach((preset: { mode: string; label: string; description: string; icon: unknown }) => {
+    Object.values(ALIGNMENT_PRESETS).forEach((preset) => {
       expect(preset).toHaveProperty('mode');
       expect(preset).toHaveProperty('label');
       expect(preset).toHaveProperty('description');
-      expect(preset).toHaveProperty('icon');
       expect(typeof preset.label).toBe('string');
       expect(typeof preset.description).toBe('string');
     });
   });
 
-  it('has unique modes', () => {
-    const modes = ALIGNMENT_PRESETS.map((p: { mode: string }) => p.mode);
+  it('has unique modes across presets', () => {
+    const modes = Object.values(ALIGNMENT_PRESETS).map((p) => p.mode);
     const uniqueModes = new Set(modes);
     expect(uniqueModes.size).toBe(modes.length);
+  });
+
+  it('center preset has correct configuration', () => {
+    const centerPreset = ALIGNMENT_PRESETS['center'];
+    expect(centerPreset.mode).toBe('center');
+    expect(centerPreset.label).toBe('Center');
+  });
+
+  it('stack-z preset has correct configuration', () => {
+    const stackPreset = ALIGNMENT_PRESETS['stack-z'];
+    expect(stackPreset.mode).toBe('stack');
+    expect(stackPreset.label).toBe('Stack (Z)');
   });
 });

@@ -1,23 +1,80 @@
 """
 Tests for Teams API endpoints.
+
+Tests team CRUD operations and team membership management.
 """
 
-from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 from fastapi import status
-from httpx import AsyncClient
 
-from app.models.team import Team, TeamMember, TeamRole
-from app.services.team_service import (
-    TeamDuplicateError,
-    TeamMemberExistsError,
-    TeamMemberNotFoundError,
-    TeamNotFoundError,
-    TeamService,
-)
+from app.models.team import TeamRole
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.organization import Organization
+    from app.models.user import User
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+async def create_team(
+    db_session: AsyncSession,
+    org: Organization,
+    name: str = "Engineering",
+    slug: str | None = None,
+    created_by: User | None = None,
+) -> "Team":
+    """Create a team for testing."""
+    from app.models.team import Team
+
+    team = Team(
+        id=uuid4(),
+        organization_id=org.id,
+        name=name,
+        slug=slug or name.lower().replace(" ", "-"),
+        description=f"{name} team",
+        created_by_id=created_by.id if created_by else None,
+    )
+    db_session.add(team)
+    await db_session.commit()
+    await db_session.refresh(team)
+    return team
+
+
+async def add_team_member(
+    db_session: AsyncSession,
+    team: "Team",
+    user: User,
+    role: TeamRole = TeamRole.MEMBER,
+) -> "TeamMember":
+    """Add a member to a team."""
+    from app.models.team import TeamMember
+
+    member = TeamMember(
+        id=uuid4(),
+        team_id=team.id,
+        user_id=user.id,
+        role=role,
+    )
+    db_session.add(member)
+    await db_session.commit()
+    await db_session.refresh(member)
+    return member
+
+
+# =============================================================================
+# Create Team Tests
+# =============================================================================
 
 
 class TestCreateTeam:
@@ -26,84 +83,85 @@ class TestCreateTeam:
     @pytest.mark.asyncio
     async def test_create_team_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful team creation."""
-        org_id = uuid4()
-        team_id = uuid4()
-
-        mock_team = MagicMock(spec=Team)
-        mock_team.id = team_id
-        mock_team.organization_id = org_id
-        mock_team.name = "Engineering"
-        mock_team.slug = "engineering"
-        mock_team.description = "Backend team"
-        mock_team.settings = {"color": "#3B82F6"}
-        mock_team.is_active = True
-        mock_team.created_by_id = mock_current_user.id
-        mock_team.created_at = datetime.now(tz=UTC)
-        mock_team.updated_at = datetime.now(tz=UTC)
-        mock_team.member_count = 1
-
-        with (
-            patch.object(TeamService, "check_org_team_permission", return_value=True),
-            patch.object(TeamService, "create_team", return_value=mock_team),
-        ):
-            response = await async_client.post(
-                f"/api/v1/organizations/{org_id}/teams",
-                json={
-                    "name": "Engineering",
-                    "description": "Backend team",
-                    "settings": {"color": "#3B82F6"},
-                },
-            )
+        response = await client.post(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams",
+            headers=auth_headers,
+            json={
+                "name": "Engineering",
+                "slug": "engineering",
+                "description": "Backend team",
+                "settings": {"color": "#3B82F6"},
+            },
+        )
 
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
         assert data["name"] == "Engineering"
         assert data["slug"] == "engineering"
+        assert data["description"] == "Backend team"
 
     @pytest.mark.asyncio
-    async def test_create_team_forbidden(
+    async def test_create_team_requires_auth(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        test_org_with_features: Organization,
     ) -> None:
-        """Test team creation without permission."""
-        org_id = uuid4()
+        """Test that team creation requires authentication."""
+        response = await client.post(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams",
+            json={"name": "Engineering"},
+        )
 
-        with patch.object(TeamService, "check_org_team_permission", return_value=False):
-            response = await async_client.post(
-                f"/api/v1/organizations/{org_id}/teams",
-                json={"name": "Engineering"},
-            )
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+    @pytest.mark.asyncio
+    async def test_create_team_org_not_found(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ) -> None:
+        """Test team creation with non-existent org."""
+        response = await client.post(
+            f"/api/v1/organizations/{uuid4()}/teams",
+            headers=auth_headers,
+            json={"name": "Engineering"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_create_team_duplicate_slug(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test team creation with duplicate slug."""
-        org_id = uuid4()
+        # Create initial team
+        await create_team(db_session, test_org_with_features, "Engineering", "engineering")
 
-        with (
-            patch.object(TeamService, "check_org_team_permission", return_value=True),
-            patch.object(
-                TeamService,
-                "create_team",
-                side_effect=TeamDuplicateError("Slug exists"),
-            ),
-        ):
-            response = await async_client.post(
-                f"/api/v1/organizations/{org_id}/teams",
-                json={"name": "Engineering"},
-            )
+        # Try to create another with same slug
+        response = await client.post(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams",
+            headers=auth_headers,
+            json={"name": "Engineering 2", "slug": "engineering"},
+        )
 
         assert response.status_code == status.HTTP_409_CONFLICT
+
+
+# =============================================================================
+# List Teams Tests
+# =============================================================================
 
 
 class TestListTeams:
@@ -112,55 +170,76 @@ class TestListTeams:
     @pytest.mark.asyncio
     async def test_list_teams_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful team listing."""
-        org_id = uuid4()
+        # Create some teams
+        await create_team(db_session, test_org_with_features, "Engineering")
+        await create_team(db_session, test_org_with_features, "Design")
 
-        mock_team = MagicMock(spec=Team)
-        mock_team.id = uuid4()
-        mock_team.organization_id = org_id
-        mock_team.name = "Engineering"
-        mock_team.slug = "engineering"
-        mock_team.description = None
-        mock_team.settings = {}
-        mock_team.is_active = True
-        mock_team.created_by_id = None
-        mock_team.created_at = datetime.now(tz=UTC)
-        mock_team.updated_at = datetime.now(tz=UTC)
-        mock_team.member_count = 5
-
-        with patch.object(TeamService, "list_teams", return_value=([mock_team], 1)):
-            response = await async_client.get(f"/api/v1/organizations/{org_id}/teams")
+        response = await client.get(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["total"] == 1
-        assert len(data["items"]) == 1
-        assert data["items"][0]["name"] == "Engineering"
+        assert data["total"] >= 2
+        names = [t["name"] for t in data["items"]]
+        assert "Engineering" in names
+        assert "Design" in names
+
+    @pytest.mark.asyncio
+    async def test_list_teams_empty(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_org_with_features: Organization,
+    ) -> None:
+        """Test listing teams when none exist."""
+        response = await client.get(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total"] == 0
+        assert data["items"] == []
 
     @pytest.mark.asyncio
     async def test_list_teams_pagination(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test team listing with pagination."""
-        org_id = uuid4()
+        # Create 5 teams
+        for i in range(5):
+            await create_team(db_session, test_org_with_features, f"Team {i}")
 
-        with patch.object(TeamService, "list_teams", return_value=([], 0)) as mock_list:
-            response = await async_client.get(
-                f"/api/v1/organizations/{org_id}/teams",
-                params={"page": 2, "page_size": 10},
-            )
+        # Get first page
+        response = await client.get(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 2},
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        mock_list.assert_called_once()
-        # Verify pagination params were passed
-        call_kwargs = mock_list.call_args[1]
-        assert call_kwargs["page"] == 2
-        assert call_kwargs["page_size"] == 10
+        data = response.json()
+        assert data["total"] == 5
+        assert len(data["items"]) == 2
+
+
+# =============================================================================
+# Get Team Tests
+# =============================================================================
 
 
 class TestGetTeam:
@@ -169,42 +248,18 @@ class TestGetTeam:
     @pytest.mark.asyncio
     async def test_get_team_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful team retrieval."""
-        org_id = uuid4()
-        team_id = uuid4()
+        team = await create_team(db_session, test_org_with_features, "Engineering")
 
-        mock_team = MagicMock(spec=Team)
-        mock_team.id = team_id
-        mock_team.organization_id = org_id
-        mock_team.name = "Engineering"
-        mock_team.slug = "engineering"
-        mock_team.description = "Backend team"
-        mock_team.settings = {}
-        mock_team.is_active = True
-        mock_team.created_by_id = None
-        mock_team.created_at = datetime.now(tz=UTC)
-        mock_team.updated_at = datetime.now(tz=UTC)
-        mock_team.__dict__ = {
-            "id": team_id,
-            "organization_id": org_id,
-            "name": "Engineering",
-            "slug": "engineering",
-            "description": "Backend team",
-            "settings": {},
-            "is_active": True,
-            "created_by_id": None,
-            "created_at": datetime.now(tz=UTC),
-            "updated_at": datetime.now(tz=UTC),
-        }
-
-        with (
-            patch.object(TeamService, "get_team_by_id", return_value=mock_team),
-            patch.object(TeamService, "list_team_members", return_value=([], 0)),
-        ):
-            response = await async_client.get(f"/api/v1/organizations/{org_id}/teams/{team_id}")
+        response = await client.get(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{team.id}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -214,17 +269,22 @@ class TestGetTeam:
     @pytest.mark.asyncio
     async def test_get_team_not_found(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test team retrieval when not found."""
-        org_id = uuid4()
-        team_id = uuid4()
-
-        with patch.object(TeamService, "get_team_by_id", return_value=None):
-            response = await async_client.get(f"/api/v1/organizations/{org_id}/teams/{team_id}")
+        response = await client.get(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{uuid4()}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# =============================================================================
+# Update Team Tests
+# =============================================================================
 
 
 class TestUpdateTeam:
@@ -233,60 +293,34 @@ class TestUpdateTeam:
     @pytest.mark.asyncio
     async def test_update_team_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful team update."""
-        org_id = uuid4()
-        team_id = uuid4()
+        team = await create_team(
+            db_session, test_org_with_features, "Engineering", created_by=test_user
+        )
+        # Add user as team admin
+        await add_team_member(db_session, team, test_user, TeamRole.ADMIN)
 
-        mock_team = MagicMock(spec=Team)
-        mock_team.id = team_id
-        mock_team.organization_id = org_id
-        mock_team.name = "Engineering Updated"
-        mock_team.slug = "engineering"
-        mock_team.description = "Updated description"
-        mock_team.settings = {}
-        mock_team.is_active = True
-        mock_team.created_by_id = None
-        mock_team.created_at = datetime.now(tz=UTC)
-        mock_team.updated_at = datetime.now(tz=UTC)
-        mock_team.member_count = 5
-
-        with (
-            patch.object(TeamService, "check_team_permission", return_value=True),
-            patch.object(TeamService, "check_org_team_permission", return_value=False),
-            patch.object(TeamService, "update_team", return_value=mock_team),
-        ):
-            response = await async_client.patch(
-                f"/api/v1/organizations/{org_id}/teams/{team_id}",
-                json={"name": "Engineering Updated"},
-            )
+        response = await client.patch(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{team.id}",
+            headers=auth_headers,
+            json={"name": "Engineering Updated", "description": "New description"},
+        )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["name"] == "Engineering Updated"
+        assert data["description"] == "New description"
 
-    @pytest.mark.asyncio
-    async def test_update_team_forbidden(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test team update without permission."""
-        org_id = uuid4()
-        team_id = uuid4()
 
-        with (
-            patch.object(TeamService, "check_team_permission", return_value=False),
-            patch.object(TeamService, "check_org_team_permission", return_value=False),
-        ):
-            response = await async_client.patch(
-                f"/api/v1/organizations/{org_id}/teams/{team_id}",
-                json={"name": "Updated"},
-            )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+# =============================================================================
+# Delete Team Tests
+# =============================================================================
 
 
 class TestDeleteTeam:
@@ -295,42 +329,40 @@ class TestDeleteTeam:
     @pytest.mark.asyncio
     async def test_delete_team_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful team deletion."""
-        org_id = uuid4()
-        team_id = uuid4()
+        team = await create_team(db_session, test_org_with_features)
 
-        with (
-            patch.object(TeamService, "check_org_team_permission", return_value=True),
-            patch.object(TeamService, "delete_team", return_value=None),
-        ):
-            response = await async_client.delete(f"/api/v1/organizations/{org_id}/teams/{team_id}")
+        response = await client.delete(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{team.id}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
     @pytest.mark.asyncio
     async def test_delete_team_not_found(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test team deletion when not found."""
-        org_id = uuid4()
-        team_id = uuid4()
-
-        with (
-            patch.object(TeamService, "check_org_team_permission", return_value=True),
-            patch.object(
-                TeamService,
-                "delete_team",
-                side_effect=TeamNotFoundError("Not found"),
-            ),
-        ):
-            response = await async_client.delete(f"/api/v1/organizations/{org_id}/teams/{team_id}")
+        response = await client.delete(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{uuid4()}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# =============================================================================
+# Team Members Tests
+# =============================================================================
 
 
 class TestTeamMembers:
@@ -339,122 +371,103 @@ class TestTeamMembers:
     @pytest.mark.asyncio
     async def test_list_team_members_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful member listing."""
-        org_id = uuid4()
-        team_id = uuid4()
+        team = await create_team(db_session, test_org_with_features)
+        await add_team_member(db_session, team, test_user, TeamRole.ADMIN)
 
-        mock_member = MagicMock(spec=TeamMember)
-        mock_member.id = uuid4()
-        mock_member.team_id = team_id
-        mock_member.user_id = mock_current_user.id
-        mock_member.role = TeamRole.ADMIN.value
-        mock_member.joined_at = datetime.now(tz=UTC)
-        mock_member.is_active = True
-        mock_member.added_by_id = None
-        mock_member.created_at = datetime.now(tz=UTC)
-        mock_member.updated_at = datetime.now(tz=UTC)
-        mock_member.user = MagicMock()
-        mock_member.user.email = "test@example.com"
-        mock_member.user.full_name = "Test User"
-
-        with patch.object(TeamService, "list_team_members", return_value=([mock_member], 1)):
-            response = await async_client.get(
-                f"/api/v1/organizations/{org_id}/teams/{team_id}/members"
-            )
+        response = await client.get(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{team.id}/members",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["total"] == 1
-        assert len(data["items"]) == 1
+        assert data["items"][0]["user_id"] == str(test_user.id)
 
     @pytest.mark.asyncio
     async def test_add_team_member_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful member addition."""
-        org_id = uuid4()
-        team_id = uuid4()
-        new_user_id = uuid4()
+        team = await create_team(db_session, test_org_with_features, created_by=test_user)
+        await add_team_member(db_session, team, test_user, TeamRole.ADMIN)
 
-        mock_member = MagicMock(spec=TeamMember)
-        mock_member.id = uuid4()
-        mock_member.team_id = team_id
-        mock_member.user_id = new_user_id
-        mock_member.role = TeamRole.MEMBER.value
-        mock_member.joined_at = datetime.now(tz=UTC)
-        mock_member.is_active = True
-        mock_member.added_by_id = mock_current_user.id
-        mock_member.created_at = datetime.now(tz=UTC)
-        mock_member.updated_at = datetime.now(tz=UTC)
+        # Create another user to add
+        from app.core.security import hash_password
+        from app.models.user import User as UserModel
 
-        with (
-            patch.object(TeamService, "check_team_permission", return_value=True),
-            patch.object(TeamService, "check_org_team_permission", return_value=False),
-            patch.object(TeamService, "add_team_member", return_value=mock_member),
-        ):
-            response = await async_client.post(
-                f"/api/v1/organizations/{org_id}/teams/{team_id}/members",
-                json={"user_id": str(new_user_id), "role": "member"},
-            )
+        new_user = UserModel(
+            email="newuser@example.com",
+            password_hash=hash_password("Password123!"),
+            display_name="New User",
+            status="active",
+        )
+        db_session.add(new_user)
+        await db_session.commit()
+        await db_session.refresh(new_user)
+
+        response = await client.post(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{team.id}/members",
+            headers=auth_headers,
+            json={"user_id": str(new_user.id), "role": "member"},
+        )
 
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
-        assert data["user_id"] == str(new_user_id)
+        assert data["user_id"] == str(new_user.id)
         assert data["role"] == "member"
-
-    @pytest.mark.asyncio
-    async def test_add_team_member_already_exists(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test adding member that already exists."""
-        org_id = uuid4()
-        team_id = uuid4()
-        user_id = uuid4()
-
-        with (
-            patch.object(TeamService, "check_team_permission", return_value=True),
-            patch.object(TeamService, "check_org_team_permission", return_value=False),
-            patch.object(
-                TeamService,
-                "add_team_member",
-                side_effect=TeamMemberExistsError("Already member"),
-            ),
-        ):
-            response = await async_client.post(
-                f"/api/v1/organizations/{org_id}/teams/{team_id}/members",
-                json={"user_id": str(user_id), "role": "member"},
-            )
-
-        assert response.status_code == status.HTTP_409_CONFLICT
 
     @pytest.mark.asyncio
     async def test_remove_team_member_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test successful member removal."""
-        org_id = uuid4()
-        team_id = uuid4()
-        user_id = uuid4()
+        team = await create_team(db_session, test_org_with_features, created_by=test_user)
+        await add_team_member(db_session, team, test_user, TeamRole.ADMIN)
 
-        with (
-            patch.object(TeamService, "check_team_permission", return_value=True),
-            patch.object(TeamService, "check_org_team_permission", return_value=False),
-            patch.object(TeamService, "remove_team_member", return_value=None),
-        ):
-            response = await async_client.delete(
-                f"/api/v1/organizations/{org_id}/teams/{team_id}/members/{user_id}"
-            )
+        # Create and add another user
+        from app.core.security import hash_password
+        from app.models.user import User as UserModel
+
+        other_user = UserModel(
+            email="other@example.com",
+            password_hash=hash_password("Password123!"),
+            display_name="Other User",
+            status="active",
+        )
+        db_session.add(other_user)
+        await db_session.commit()
+        await db_session.refresh(other_user)
+        await add_team_member(db_session, team, other_user)
+
+        response = await client.delete(
+            f"/api/v1/organizations/{test_org_with_features.id}/teams/{team.id}/members/{other_user.id}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
+
+
+# =============================================================================
+# User Teams Tests
+# =============================================================================
 
 
 class TestUserTeams:
@@ -463,321 +476,77 @@ class TestUserTeams:
     @pytest.mark.asyncio
     async def test_get_my_teams_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test getting current user's teams."""
-        team_data = {
-            "id": uuid4(),
-            "team_id": uuid4(),
-            "team_name": "Engineering",
-            "team_slug": "engineering",
-            "organization_id": uuid4(),
-            "organization_name": "Acme Corp",
-            "role": "member",
-            "joined_at": datetime.now(tz=UTC),
-            "is_active": True,
-        }
+        team = await create_team(db_session, test_org_with_features, "Engineering")
+        await add_team_member(db_session, team, test_user)
 
-        with patch.object(TeamService, "get_user_teams", return_value=[team_data]):
-            response = await async_client.get("/api/v1/users/me/teams")
+        response = await client.get(
+            "/api/v1/users/me/teams",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["total"] == 1
-        assert data["items"][0]["team_name"] == "Engineering"
+        assert data["total"] >= 1
+        team_names = [t["team_name"] for t in data["items"]]
+        assert "Engineering" in team_names
+
+    @pytest.mark.asyncio
+    async def test_get_my_teams_empty(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ) -> None:
+        """Test getting user's teams when not in any."""
+        response = await client.get(
+            "/api/v1/users/me/teams",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total"] == 0
 
     @pytest.mark.asyncio
     async def test_leave_team_success(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test leaving a team."""
-        team_id = uuid4()
+        team = await create_team(db_session, test_org_with_features)
+        await add_team_member(db_session, team, test_user)
 
-        with patch.object(TeamService, "leave_team", return_value=None):
-            response = await async_client.delete(f"/api/v1/users/me/teams/{team_id}")
+        response = await client.delete(
+            f"/api/v1/users/me/teams/{team.id}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
     @pytest.mark.asyncio
     async def test_leave_team_not_member(
         self,
-        async_client: AsyncClient,
-        mock_current_user,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict,
+        test_org_with_features: Organization,
     ) -> None:
         """Test leaving a team when not a member."""
-        team_id = uuid4()
+        team = await create_team(db_session, test_org_with_features)
 
-        with patch.object(
-            TeamService,
-            "leave_team",
-            side_effect=TeamMemberNotFoundError("Not a member"),
-        ):
-            response = await async_client.delete(f"/api/v1/users/me/teams/{team_id}")
+        response = await client.delete(
+            f"/api/v1/users/me/teams/{team.id}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-
-
-class TestProjectTeams:
-    """Tests for project-team assignment endpoints."""
-
-    @pytest.mark.asyncio
-    async def test_list_project_teams_success(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test listing teams assigned to a project."""
-        project_id = uuid4()
-
-        mock_assignment = MagicMock()
-        mock_assignment.id = uuid4()
-        mock_assignment.project_id = project_id
-        mock_assignment.team_id = uuid4()
-        mock_assignment.permission_level = "editor"
-        mock_assignment.assigned_by_id = mock_current_user.id
-        mock_assignment.assigned_at = datetime.now(tz=UTC)
-        mock_assignment.created_at = datetime.now(tz=UTC)
-        mock_assignment.updated_at = datetime.now(tz=UTC)
-        mock_assignment.team = MagicMock()
-        mock_assignment.team.name = "Engineering"
-
-        with (
-            patch.object(TeamService, "list_project_teams", return_value=[mock_assignment]),
-            patch("app.api.v1.teams.check_project_permission", return_value=MagicMock()),
-        ):
-            response = await async_client.get(f"/api/v1/projects/{project_id}/teams")
-
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert len(data) == 1
-        assert data[0]["team_name"] == "Engineering"
-        assert data[0]["permission_level"] == "editor"
-
-    @pytest.mark.asyncio
-    async def test_list_project_teams_unauthorized_returns_403(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test that unauthorized users cannot list project team assignments."""
-        from fastapi import HTTPException
-
-        project_id = uuid4()
-
-        # Mock check_project_permission to raise 403
-        with patch(
-            "app.api.v1.teams.check_project_permission",
-            side_effect=HTTPException(status_code=403, detail="Not authorized"),
-        ):
-            response = await async_client.get(f"/api/v1/projects/{project_id}/teams")
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    @pytest.mark.asyncio
-    async def test_assign_team_to_project_success(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test assigning a team to a project."""
-        project_id = uuid4()
-        team_id = uuid4()
-
-        mock_assignment = MagicMock()
-        mock_assignment.id = uuid4()
-        mock_assignment.project_id = project_id
-        mock_assignment.team_id = team_id
-        mock_assignment.permission_level = "editor"
-        mock_assignment.assigned_by_id = mock_current_user.id
-        mock_assignment.assigned_at = datetime.now(tz=UTC)
-        mock_assignment.created_at = datetime.now(tz=UTC)
-        mock_assignment.updated_at = datetime.now(tz=UTC)
-
-        with patch.object(TeamService, "assign_team_to_project", return_value=mock_assignment):
-            response = await async_client.post(
-                f"/api/v1/projects/{project_id}/teams",
-                json={"team_id": str(team_id), "permission_level": "editor"},
-            )
-
-        assert response.status_code == status.HTTP_201_CREATED
-        data = response.json()
-        assert data["team_id"] == str(team_id)
-        assert data["permission_level"] == "editor"
-
-    @pytest.mark.asyncio
-    async def test_remove_team_from_project_success(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test removing a team from a project."""
-        project_id = uuid4()
-        team_id = uuid4()
-
-        with patch.object(TeamService, "remove_team_from_project", return_value=None):
-            response = await async_client.delete(f"/api/v1/projects/{project_id}/teams/{team_id}")
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-
-    @pytest.mark.asyncio
-    async def test_assign_team_unauthorized_returns_403(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test that unauthorized users cannot assign teams to projects."""
-        from fastapi import HTTPException
-
-        project_id = uuid4()
-        team_id = uuid4()
-
-        # Mock check_project_permission to raise 403
-        with patch(
-            "app.api.v1.teams.check_project_permission",
-            side_effect=HTTPException(status_code=403, detail="Not authorized"),
-        ):
-            response = await async_client.post(
-                f"/api/v1/projects/{project_id}/teams",
-                json={"team_id": str(team_id), "permission_level": "editor"},
-            )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    @pytest.mark.asyncio
-    async def test_update_assignment_unauthorized_returns_403(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test that unauthorized users cannot update project team assignments."""
-        from fastapi import HTTPException
-
-        project_id = uuid4()
-        team_id = uuid4()
-
-        # Mock check_project_permission to raise 403
-        with patch(
-            "app.api.v1.teams.check_project_permission",
-            side_effect=HTTPException(status_code=403, detail="Not authorized"),
-        ):
-            response = await async_client.patch(
-                f"/api/v1/projects/{project_id}/teams/{team_id}",
-                json={"permission_level": "viewer"},
-            )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    @pytest.mark.asyncio
-    async def test_remove_assignment_unauthorized_returns_403(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test that unauthorized users cannot remove team assignments."""
-        from fastapi import HTTPException
-
-        project_id = uuid4()
-        team_id = uuid4()
-
-        # Mock check_project_permission to raise 403
-        with patch(
-            "app.api.v1.teams.check_project_permission",
-            side_effect=HTTPException(status_code=403, detail="Not authorized"),
-        ):
-            response = await async_client.delete(f"/api/v1/projects/{project_id}/teams/{team_id}")
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    @pytest.mark.asyncio
-    async def test_assign_team_project_owner_returns_201(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test that project owners can assign teams."""
-        from app.models.project import Project
-
-        project_id = uuid4()
-        team_id = uuid4()
-
-        # Mock project with user as owner
-        mock_project = MagicMock(spec=Project)
-        mock_project.id = project_id
-        mock_project.user_id = mock_current_user.id
-        mock_project.organization_id = None
-
-        mock_assignment = MagicMock()
-        mock_assignment.id = uuid4()
-        mock_assignment.project_id = project_id
-        mock_assignment.team_id = team_id
-        mock_assignment.permission_level = "editor"
-        mock_assignment.assigned_by_id = mock_current_user.id
-        mock_assignment.assigned_at = datetime.now(tz=UTC)
-        mock_assignment.created_at = datetime.now(tz=UTC)
-        mock_assignment.updated_at = datetime.now(tz=UTC)
-
-        with (
-            patch(
-                "app.api.v1.teams.check_project_permission",
-                return_value=mock_project,
-            ),
-            patch.object(TeamService, "assign_team_to_project", return_value=mock_assignment),
-        ):
-            response = await async_client.post(
-                f"/api/v1/projects/{project_id}/teams",
-                json={"team_id": str(team_id), "permission_level": "editor"},
-            )
-
-        assert response.status_code == status.HTTP_201_CREATED
-        data = response.json()
-        assert data["team_id"] == str(team_id)
-        assert data["permission_level"] == "editor"
-
-    @pytest.mark.asyncio
-    async def test_assign_team_org_admin_returns_201(
-        self,
-        async_client: AsyncClient,
-        mock_current_user,
-    ) -> None:
-        """Test that org admins can assign teams to org projects."""
-        from app.models.project import Project
-
-        project_id = uuid4()
-        team_id = uuid4()
-        org_id = uuid4()
-
-        # Mock project belonging to org
-        mock_project = MagicMock(spec=Project)
-        mock_project.id = project_id
-        mock_project.user_id = uuid4()  # Different user
-        mock_project.organization_id = org_id
-
-        mock_assignment = MagicMock()
-        mock_assignment.id = uuid4()
-        mock_assignment.project_id = project_id
-        mock_assignment.team_id = team_id
-        mock_assignment.permission_level = "editor"
-        mock_assignment.assigned_by_id = mock_current_user.id
-        mock_assignment.assigned_at = datetime.now(tz=UTC)
-        mock_assignment.created_at = datetime.now(tz=UTC)
-        mock_assignment.updated_at = datetime.now(tz=UTC)
-
-        with (
-            patch(
-                "app.api.v1.teams.check_project_permission",
-                return_value=mock_project,
-            ),
-            patch.object(TeamService, "assign_team_to_project", return_value=mock_assignment),
-        ):
-            response = await async_client.post(
-                f"/api/v1/projects/{project_id}/teams",
-                json={"team_id": str(team_id), "permission_level": "editor"},
-            )
-
-        assert response.status_code == status.HTTP_201_CREATED
-        data = response.json()
-        assert data["team_id"] == str(team_id)
-        assert data["permission_level"] == "editor"

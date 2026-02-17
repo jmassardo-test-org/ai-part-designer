@@ -234,6 +234,157 @@ async def list_projects(
     )
 
 
+# ============================================================================
+# Static routes - must be defined BEFORE /projects/{project_id}
+# ============================================================================
+
+
+class ExampleProjectResponse(BaseModel):
+    """Response schema for an example project."""
+
+    id: UUID
+    name: str
+    description: str | None
+    design_count: int
+    tags: list[str]
+    thumbnail_url: str | None
+
+
+@router.get("/projects/default", response_model=ProjectResponse)
+async def get_or_create_default_project(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProjectResponse:
+    """
+    Get or create the user's default project.
+
+    The default project is named "My Designs" and is created automatically
+    for new users.
+    """
+    # Try to find existing default project
+    query = (
+        select(Project)
+        .where(Project.user_id == current_user.id)
+        .where(Project.name == "My Designs")
+        .where(Project.deleted_at.is_(None))
+    )
+    result = await db.execute(query)
+    project = result.scalar_one_or_none()
+
+    if not project:
+        # Create default project
+        project = Project(
+            user_id=current_user.id,
+            name="My Designs",
+            description="Default project for your designs",
+        )
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
+
+    # Get design count
+    design_count_query = (
+        select(func.count())
+        .where(Design.project_id == project.id)
+        .where(Design.deleted_at.is_(None))
+    )
+    design_count_result = await db.execute(design_count_query)
+    design_count = design_count_result.scalar() or 0
+
+    return ProjectResponse(
+        id=project.id,
+        name=project.name,
+        description=project.description,
+        design_count=design_count,
+        thumbnail_url=None,
+        created_at=project.created_at.isoformat(),
+        updated_at=project.updated_at.isoformat(),
+        team_id=None,
+        team_name=None,
+    )
+
+
+@router.get("/projects/available-teams", response_model=list[dict[str, Any]])
+async def get_available_teams(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    """
+    Get list of teams available to assign to projects.
+
+    Returns teams where the current user is a member.
+    """
+    from app.models.team import TeamMember
+
+    # Get teams where user is a member
+    query = (
+        select(Team)
+        .join(TeamMember, Team.id == TeamMember.team_id)
+        .where(TeamMember.user_id == current_user.id)
+        .where(TeamMember.is_active.is_(True))
+        .where(Team.deleted_at.is_(None))
+        .where(Team.is_active.is_(True))
+    )
+
+    result = await db.execute(query)
+    teams = result.scalars().all()
+
+    return [
+        {
+            "id": str(team.id),
+            "name": team.name,
+            "organization_id": str(team.organization_id),
+        }
+        for team in teams
+    ]
+
+
+@router.get("/projects/examples", response_model=list[ExampleProjectResponse])
+async def list_example_projects(
+    db: AsyncSession = Depends(get_db),
+) -> list[ExampleProjectResponse]:
+    """
+    List all example projects available for users to explore or copy.
+    """
+    # Query projects marked as examples
+    query = select(Project).where(Project.deleted_at.is_(None)).where(Project.is_public.is_(True))  # type: ignore[attr-defined]
+    result = await db.execute(query)
+    projects = result.scalars().all()
+
+    examples = []
+    for project in projects:
+        # Check if marked as example
+        if not project.extra_data.get("is_example"):  # type: ignore[attr-defined]
+            continue
+
+        # Get design count
+        design_count_query = (
+            select(func.count())
+            .where(Design.project_id == project.id)
+            .where(Design.deleted_at.is_(None))
+        )
+        design_count_result = await db.execute(design_count_query)
+        design_count = design_count_result.scalar() or 0
+
+        examples.append(
+            ExampleProjectResponse(
+                id=project.id,
+                name=project.name,
+                description=project.description,
+                design_count=design_count,
+                tags=project.extra_data.get("tags", []),  # type: ignore[attr-defined]
+                thumbnail_url=None,
+            )
+        )
+
+    return examples
+
+
+# ============================================================================
+# Dynamic project routes
+# ============================================================================
+
+
 @router.get("/projects/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
     project_id: UUID,
@@ -704,152 +855,6 @@ async def move_design_to_project(
         "from_project_id": str(old_project_id),
         "to_project_id": str(project_id),
     }
-
-
-@router.get("/projects/default", response_model=ProjectResponse)
-async def get_or_create_default_project(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> ProjectResponse:
-    """
-    Get or create the user's default project.
-
-    The default project is named "My Designs" and is created automatically
-    for new users.
-    """
-    # Try to find existing default project
-    query = (
-        select(Project)
-        .where(Project.user_id == current_user.id)
-        .where(Project.name == "My Designs")
-        .where(Project.deleted_at.is_(None))
-    )
-    result = await db.execute(query)
-    project = result.scalar_one_or_none()
-
-    if not project:
-        # Create default project
-        project = Project(
-            user_id=current_user.id,
-            name="My Designs",
-            description="Default project for your designs",
-        )
-        db.add(project)
-        await db.commit()
-        await db.refresh(project)
-
-    # Get design count
-    design_count_query = (
-        select(func.count())
-        .where(Design.project_id == project.id)
-        .where(Design.deleted_at.is_(None))
-    )
-    design_count_result = await db.execute(design_count_query)
-    design_count = design_count_result.scalar() or 0
-
-    return ProjectResponse(
-        id=project.id,
-        name=project.name,
-        description=project.description,
-        design_count=design_count,
-        thumbnail_url=None,
-        created_at=project.created_at.isoformat(),
-        updated_at=project.updated_at.isoformat(),
-        team_id=None,
-        team_name=None,
-    )
-
-
-@router.get("/projects/available-teams", response_model=list[dict[str, Any]])
-async def get_available_teams(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> list[dict[str, Any]]:
-    """
-    Get list of teams available to assign to projects.
-
-    Returns teams where the current user is a member.
-    """
-    from app.models.team import TeamMember
-
-    # Get teams where user is a member
-    query = (
-        select(Team)
-        .join(TeamMember, Team.id == TeamMember.team_id)
-        .where(TeamMember.user_id == current_user.id)
-        .where(TeamMember.is_active.is_(True))
-        .where(Team.deleted_at.is_(None))
-        .where(Team.is_active.is_(True))
-    )
-
-    result = await db.execute(query)
-    teams = result.scalars().all()
-
-    return [
-        {
-            "id": str(team.id),
-            "name": team.name,
-            "organization_id": str(team.organization_id),
-        }
-        for team in teams
-    ]
-
-
-# ============================================================================
-# Example Projects
-# ============================================================================
-
-
-class ExampleProjectResponse(BaseModel):
-    """Response schema for an example project."""
-
-    id: UUID
-    name: str
-    description: str | None
-    design_count: int
-    tags: list[str]
-    thumbnail_url: str | None
-
-
-@router.get("/projects/examples", response_model=list[ExampleProjectResponse])
-async def list_example_projects(
-    db: AsyncSession = Depends(get_db),
-) -> list[ExampleProjectResponse]:
-    """
-    List all example projects available for users to explore or copy.
-    """
-    # Query projects marked as examples
-    query = select(Project).where(Project.deleted_at.is_(None)).where(Project.is_public.is_(True))  # type: ignore[attr-defined]
-    result = await db.execute(query)
-    projects = result.scalars().all()
-
-    examples = []
-    for project in projects:
-        # Check if marked as example
-        if not project.extra_data.get("is_example"):  # type: ignore[attr-defined]
-            continue
-
-        # Get design count
-        design_count_query = (
-            select(func.count())
-            .where(Design.project_id == project.id)
-            .where(Design.deleted_at.is_(None))
-        )
-        design_count_result = await db.execute(design_count_query)
-        design_count = design_count_result.scalar() or 0
-
-        examples.append(
-            ExampleProjectResponse(
-                id=project.id,
-                name=project.name,
-                description=project.description,
-                design_count=design_count,
-                tags=project.extra_data.get("tags", []),  # type: ignore[attr-defined]
-                thumbnail_url=None,
-            )
-        )
-
-    return examples
 
 
 @router.post("/projects/examples/{project_id}/copy", response_model=ProjectResponse)

@@ -184,7 +184,20 @@ async def create_team(
 
     try:
         team = await service.create_team(organization_id, data, current_user)
-        return TeamResponse.model_validate(team)
+        # Build response manually to avoid lazy loading issues
+        return TeamResponse(
+            id=team.id,
+            organization_id=team.organization_id,
+            name=team.name,
+            slug=team.slug,
+            description=team.description,
+            settings=team.settings,
+            is_active=team.is_active,
+            created_by_id=team.created_by_id,
+            created_at=team.created_at,
+            updated_at=team.updated_at,
+            member_count=1,  # Creator is added as member, so count is 1
+        )
     except TeamDuplicateError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -234,8 +247,27 @@ async def list_teams(
         include_inactive=include_inactive,
     )
 
+    # Build responses manually to avoid lazy loading issues
+    items = []
+    for team in teams:
+        # Get member count efficiently
+        member_count = await service.get_team_member_count(team.id)
+        items.append(TeamResponse(
+            id=team.id,
+            organization_id=team.organization_id,
+            name=team.name,
+            slug=team.slug,
+            description=team.description,
+            settings=team.settings,
+            is_active=team.is_active,
+            created_by_id=team.created_by_id,
+            created_at=team.created_at,
+            updated_at=team.updated_at,
+            member_count=member_count,
+        ))
+
     return TeamListResponse(
-        items=[TeamResponse.model_validate(t) for t in teams],
+        items=items,
         total=total,
         page=page,
         page_size=page_size,
@@ -345,7 +377,20 @@ async def update_team(
 
     try:
         team = await service.update_team(team_id, data)
-        return TeamResponse.model_validate(team)
+        member_count = await service.get_team_member_count(team.id)
+        return TeamResponse(
+            id=team.id,
+            organization_id=team.organization_id,
+            name=team.name,
+            slug=team.slug,
+            description=team.description,
+            settings=team.settings,
+            is_active=team.is_active,
+            created_by_id=team.created_by_id,
+            created_at=team.created_at,
+            updated_at=team.updated_at,
+            member_count=member_count,
+        )
     except TeamNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

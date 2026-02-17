@@ -8,7 +8,7 @@ with proper dimensions, validation, and Build123d integration.
 from __future__ import annotations
 
 import pytest
-from build123d import Compound, Part
+from build123d import Compound, Part, Solid
 
 from app.cad.exceptions import ValidationError
 from app.cad.primitives import (
@@ -32,7 +32,7 @@ class TestCreateBox:
         """Test creating a basic box with standard dimensions."""
         box = create_box(100, 50, 25)
 
-        assert isinstance(box, (Part, Compound))
+        assert isinstance(box, (Part, Compound, Solid))
         # Verify volume (100 * 50 * 25 = 125000)
         volume = box.volume
         assert abs(volume - 125000) < 0.1
@@ -93,7 +93,7 @@ class TestCreateCylinder:
         """Test cylinder creation with radius."""
         cyl = create_cylinder(radius=25, height=100)
 
-        assert isinstance(cyl, (Part, Compound))
+        assert isinstance(cyl, (Part, Compound, Solid))
         # Volume = π * r² * h = π * 625 * 100
         expected_volume = 3.14159 * 625 * 100
         actual_volume = cyl.volume
@@ -142,7 +142,7 @@ class TestCreateSphere:
         """Test sphere creation with radius."""
         sphere = create_sphere(radius=50)
 
-        assert isinstance(sphere, (Part, Compound))
+        assert isinstance(sphere, (Part, Compound, Solid))
         # Volume = 4/3 * π * r³
         expected_volume = (4 / 3) * 3.14159 * (50**3)
         actual_volume = sphere.volume
@@ -186,7 +186,7 @@ class TestCreateCone:
         """Test basic cone creation."""
         cone = create_cone(radius_bottom=50, radius_top=0, height=100)
 
-        assert isinstance(cone, (Part, Compound))
+        assert isinstance(cone, (Part, Compound, Solid))
         # Volume = 1/3 * π * h * (r1² + r1*r2 + r2²) for truncated cone
         # For cone (r2=0): 1/3 * π * 100 * 50² = 261799
         volume = cone.volume
@@ -222,7 +222,7 @@ class TestCreateTorus:
         """Test basic torus creation."""
         torus = create_torus(major_radius=50, minor_radius=10)
 
-        assert isinstance(torus, (Part, Compound))
+        assert isinstance(torus, (Part, Compound, Solid))
         # Volume = 2 * π² * R * r² = 2 * π² * 50 * 100 = ~98696
         volume = torus.volume
         assert volume > 90000
@@ -246,7 +246,7 @@ class TestCreateWedge:
         """Test basic wedge creation."""
         wedge = create_wedge(length=100, width=50, height=30)
 
-        assert isinstance(wedge, (Part, Compound))
+        assert isinstance(wedge, (Part, Compound, Solid))
         # Wedge is like half a box
         volume = wedge.volume
         assert volume > 0

@@ -27,6 +27,7 @@ import tempfile
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
@@ -40,8 +41,6 @@ from app.core.database import get_db
 from app.models.template import Template
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models import User

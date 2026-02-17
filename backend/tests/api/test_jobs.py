@@ -474,6 +474,7 @@ class TestRetryJob:
             user=test_user,
             retry_count=0,
             max_retries=3,
+            input_params={"prompt": "Test prompt for generation"},  # Required for ai_generation
         )
 
         response = await client.post(
@@ -838,7 +839,7 @@ class TestCeleryTaskRetry:
         mock_task = mocker.MagicMock()
         mock_task.delay.return_value.id = "new-task-id-123"
         mocker.patch(
-            "app.api.v1.jobs.generate_from_prompt",
+            "app.worker.tasks.ai.generate_from_prompt",
             mock_task,
         )
 
@@ -890,7 +891,7 @@ class TestCeleryTaskRetry:
         mock_task = mocker.MagicMock()
         mock_task.delay.return_value.id = "new-task-id-456"
         mocker.patch(
-            "app.api.v1.jobs.compile_enclosure_v2",
+            "app.worker.tasks.cad_v2.compile_enclosure_v2",
             mock_task,
         )
 
@@ -937,7 +938,7 @@ class TestCeleryTaskRetry:
         mock_task = mocker.MagicMock()
         mock_task.delay.return_value.id = "new-task-id-789"
         mocker.patch(
-            "app.api.v1.jobs.convert_format",
+            "app.worker.tasks.export.convert_format",
             mock_task,
         )
 
@@ -980,7 +981,7 @@ class TestCeleryTaskRetry:
         mock_task = mocker.MagicMock()
         mock_task.delay.return_value.id = "new-task-id-abc"
         mocker.patch(
-            "app.api.v1.jobs.extract_component_task",
+            "app.worker.tasks.extraction.extract_component_task",
             mock_task,
         )
 
@@ -1054,7 +1055,7 @@ class TestCeleryTaskRetry:
         mock_task = mocker.MagicMock()
         mock_task.delay.side_effect = Exception("Celery broker unavailable")
         mocker.patch(
-            "app.api.v1.jobs.generate_from_prompt",
+            "app.worker.tasks.ai.generate_from_prompt",
             mock_task,
         )
 

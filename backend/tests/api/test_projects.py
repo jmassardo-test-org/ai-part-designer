@@ -375,6 +375,7 @@ class TestGetProjectDesigns:
             design = Design(
                 id=uuid4(),
                 project_id=project.id,
+                user_id=test_user.id,
                 name=f"Test Design {i + 1}",
                 description=f"Test design number {i + 1}",
                 status="ready" if i % 2 == 0 else "draft",

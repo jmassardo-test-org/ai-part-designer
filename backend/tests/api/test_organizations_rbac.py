@@ -1047,14 +1047,13 @@ class TestPrivilegeEscalation:
         org_owner: User,
     ):
         """Invites should be rejected when member limit reached."""
-        # Create org with max_members = 1
+        # Create org with max_members = 1 (set via settings)
         org = Organization(
             id=uuid4(),
             name="Limited Org",
             slug=f"limited-{uuid4().hex[:8]}",
             owner_id=org_owner.id,
-            max_members=1,
-            settings={},
+            settings={"max_members": 1},
         )
         db_session.add(org)
         member = OrganizationMember(

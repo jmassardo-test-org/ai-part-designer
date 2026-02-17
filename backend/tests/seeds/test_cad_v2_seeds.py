@@ -176,11 +176,11 @@ class TestStarterSeeding:
         for starter in starters:
             assert starter.source_type == "starter"
             assert starter.is_public is True
-            # is_starter stored in extra_data
-            assert starter.extra_data.get("is_starter", False) is True
+            # is_starter is a direct column
+            assert starter.is_starter is True
 
     async def test_seeded_starters_have_enclosure_spec(self, db_session: AsyncSession):
-        """Seeded starters have enclosure_spec in extra_data."""
+        """Seeded starters have enclosure_spec."""
         from app.seeds.starters import seed_starters
 
         await seed_starters(db_session)
@@ -189,7 +189,8 @@ class TestStarterSeeding:
         starters = result.scalars().all()
 
         for starter in starters:
-            enclosure_spec = starter.extra_data.get("enclosure_spec")
+            # enclosure_spec is a direct column
+            enclosure_spec = starter.enclosure_spec
             assert enclosure_spec is not None
             assert "exterior" in enclosure_spec
 

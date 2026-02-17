@@ -44,6 +44,8 @@ async def public_design(db_session: AsyncSession, test_project) -> Design:
         user_id=test_project.user_id,
         name="Saveable Design",
         description="A public design that can be saved",
+        source_type="v2_generated",
+        status="ready",
         is_public=True,
         published_at=datetime.now(UTC),
         save_count=5,
@@ -57,9 +59,13 @@ async def public_design(db_session: AsyncSession, test_project) -> Design:
 @pytest_asyncio.fixture
 async def other_user_design(db_session: AsyncSession) -> Design:
     """Create a public design from another user."""
-    other_user_id = uuid4()
+    from tests.factories import UserFactory
+
+    # Create an actual user in the database
+    other_user = await UserFactory.create(db_session)
+
     project = Project(
-        user_id=other_user_id,
+        user_id=other_user.id,
         name="Other Project",
     )
     db_session.add(project)
@@ -67,9 +73,11 @@ async def other_user_design(db_session: AsyncSession) -> Design:
 
     design = Design(
         project_id=project.id,
-        user_id=other_user_id,
+        user_id=other_user.id,
         name="Other User's Design",
         description="A public design from another user",
+        source_type="v2_generated",
+        status="ready",
         is_public=True,
         published_at=datetime.now(UTC),
         save_count=10,
@@ -305,6 +313,8 @@ class TestGetMySaves:
                 project_id=test_project.id,
                 user_id=test_project.user_id,
                 name=f"Design {i}",
+                source_type="v2_generated",
+                status="ready",
                 is_public=True,
                 published_at=datetime.now(UTC),
             )
@@ -374,9 +384,13 @@ class TestSaveAccessControl:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         """Test that private designs from others cannot be saved."""
-        other_user_id = uuid4()
+        from tests.factories import UserFactory
+
+        # Create an actual user in the database
+        other_user = await UserFactory.create(db_session)
+
         project = Project(
-            user_id=other_user_id,
+            user_id=other_user.id,
             name="Private Project",
         )
         db_session.add(project)
@@ -384,8 +398,10 @@ class TestSaveAccessControl:
 
         private_design = Design(
             project_id=project.id,
-            user_id=other_user_id,
+            user_id=other_user.id,
             name="Private Design",
+            source_type="v2_generated",
+            status="ready",
             is_public=False,
         )
         db_session.add(private_design)
@@ -408,6 +424,8 @@ class TestSaveAccessControl:
             project_id=test_project.id,
             user_id=test_project.user_id,
             name="My Private Design",
+            source_type="v2_generated",
+            status="draft",
             is_public=False,
         )
         db_session.add(private_design)

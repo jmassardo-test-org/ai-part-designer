@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from app.core.logging import configure_structlog, get_logger
 from app.middleware.request_context import RequestContextMiddleware
@@ -46,9 +46,47 @@ def create_test_app() -> FastAPI:
     @app.get("/test-with-user")
     async def test_endpoint_with_user(request: Request) -> JSONResponse:
         """Test endpoint with user context."""
-        # Simulate user being set by auth middleware
-        request.state.user_id = "test-user-123"
+        logger = get_logger("test.endpoint")
+        logger.info("test_request_with_user")
 
+        return JSONResponse({"status": "ok"})
+
+    return app
+
+
+def create_test_app_with_auth(user_id: str = "test-user-123") -> FastAPI:
+    """Create a test FastAPI app with auth middleware that sets user_id before RequestContextMiddleware."""
+    from starlette.middleware.base import BaseHTTPMiddleware as AuthBase
+
+    class MockAuthMiddleware(AuthBase):
+        """Simulates auth middleware setting user_id."""
+
+        async def dispatch(self, request: Request, call_next):
+            request.state.user_id = user_id
+            return await call_next(request)
+
+    app = FastAPI()
+    # Add RequestContextMiddleware first (inner)
+    app.add_middleware(RequestContextMiddleware)
+    # Add MockAuthMiddleware second (outer - runs first, sets user_id before RequestContextMiddleware)
+    app.add_middleware(MockAuthMiddleware)
+
+    @app.get("/test")
+    async def test_endpoint(request: Request) -> JSONResponse:
+        """Test endpoint that logs and returns request state."""
+        logger = get_logger("test.endpoint")
+        logger.info("test_request_processed", extra_field="test_value")
+
+        return JSONResponse(
+            {
+                "request_id": getattr(request.state, "request_id", None),
+                "user_id": getattr(request.state, "user_id", None),
+            }
+        )
+
+    @app.get("/test-with-user")
+    async def test_endpoint_with_user(request: Request) -> JSONResponse:
+        """Test endpoint with user context."""
         logger = get_logger("test.endpoint")
         logger.info("test_request_with_user")
 
@@ -70,7 +108,7 @@ class TestRequestContextMiddleware:
         """Test middleware generates request_id if not provided."""
         app = create_test_app()
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/test")
 
         assert response.status_code == 200
@@ -90,7 +128,7 @@ class TestRequestContextMiddleware:
         app = create_test_app()
         custom_request_id = "custom-request-id-12345"
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(
                 "/test",
                 headers={"X-Request-ID": custom_request_id},
@@ -113,15 +151,17 @@ class TestRequestContextMiddleware:
             lambda: Settings(ENVIRONMENT="production", APP_NAME="test-app", APP_VERSION="1.0.0"),
         )
 
-        # Capture log output
-        log_stream = StringIO()
-        handler = logging.StreamHandler(log_stream)
-
-        # Configure structlog
+        # Configure structlog first
         configure_structlog()
 
-        # Replace handler to capture output
+        # Capture log output - get formatter from the configured handler
+        log_stream = StringIO()
+        handler = logging.StreamHandler(log_stream)
         root_logger = logging.getLogger()
+        if root_logger.handlers:
+            handler.setFormatter(root_logger.handlers[0].formatter)
+
+        # Replace handler to capture output
         root_logger.handlers.clear()
         root_logger.addHandler(handler)
 
@@ -129,7 +169,7 @@ class TestRequestContextMiddleware:
         app = create_test_app()
         custom_request_id = "test-request-456"
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             await client.get(
                 "/test",
                 headers={"X-Request-ID": custom_request_id},
@@ -168,22 +208,24 @@ class TestRequestContextMiddleware:
             lambda: Settings(ENVIRONMENT="production", APP_NAME="test-app", APP_VERSION="1.0.0"),
         )
 
-        # Capture log output
-        log_stream = StringIO()
-        handler = logging.StreamHandler(log_stream)
-
-        # Configure structlog
+        # Configure structlog first
         configure_structlog()
 
-        # Replace handler to capture output
+        # Capture log output - get formatter from the configured handler
+        log_stream = StringIO()
+        handler = logging.StreamHandler(log_stream)
         root_logger = logging.getLogger()
+        if root_logger.handlers:
+            handler.setFormatter(root_logger.handlers[0].formatter)
+
+        # Replace handler to capture output
         root_logger.handlers.clear()
         root_logger.addHandler(handler)
 
-        # Create app and make request
-        app = create_test_app()
+        # Create app with auth middleware that sets user_id before RequestContextMiddleware
+        app = create_test_app_with_auth()
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             await client.get("/test-with-user")
 
         # Get log output
@@ -209,29 +251,55 @@ class TestRequestContextMiddleware:
     @pytest.mark.asyncio
     async def test_clears_context_between_requests(self, monkeypatch):
         """Test that context is cleared between requests to prevent leakage."""
+        from starlette.middleware.base import BaseHTTPMiddleware as ContextBase
+
         from app.core.config import Settings
+
+        class ConditionalAuthMiddleware(ContextBase):
+            """Auth middleware that only sets user_id for /test-with-user path."""
+
+            async def dispatch(self, request: Request, call_next):
+                if request.url.path == "/test-with-user":
+                    request.state.user_id = "test-user-123"
+                return await call_next(request)
 
         monkeypatch.setattr(
             "app.core.logging.get_settings",
             lambda: Settings(ENVIRONMENT="production", APP_NAME="test-app", APP_VERSION="1.0.0"),
         )
 
-        # Capture log output
-        log_stream = StringIO()
-        handler = logging.StreamHandler(log_stream)
-
-        # Configure structlog
+        # Configure structlog first
         configure_structlog()
 
-        # Replace handler to capture output
+        # Capture log output - get formatter from the configured handler
+        log_stream = StringIO()
+        handler = logging.StreamHandler(log_stream)
         root_logger = logging.getLogger()
+        if root_logger.handlers:
+            handler.setFormatter(root_logger.handlers[0].formatter)
+
+        # Replace handler to capture output
         root_logger.handlers.clear()
         root_logger.addHandler(handler)
 
-        # Create app
-        app = create_test_app()
+        # Create app with conditional auth middleware
+        app = FastAPI()
+        app.add_middleware(RequestContextMiddleware)
+        app.add_middleware(ConditionalAuthMiddleware)
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        @app.get("/test-with-user")
+        async def test_with_user(request: Request) -> JSONResponse:
+            logger = get_logger("test.endpoint")
+            logger.info("test_request_with_user")
+            return JSONResponse({"status": "ok"})
+
+        @app.get("/test")
+        async def test_no_user(request: Request) -> JSONResponse:
+            logger = get_logger("test.endpoint")
+            logger.info("test_request_processed")
+            return JSONResponse({"status": "ok"})
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             # First request with user
             await client.get("/test-with-user")
 
@@ -285,7 +353,7 @@ class TestRequestContextMiddleware:
 
             return JSONResponse({"status": "ok"})
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/test-user-object")
 
         assert response.status_code == 200
@@ -293,21 +361,27 @@ class TestRequestContextMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_order_with_existing_request_id(self):
         """Test that middleware works with request_id set by other middleware."""
+        from starlette.middleware.base import BaseHTTPMiddleware as SetRequestIdBase
+
+        class SetRequestIdMiddleware(SetRequestIdBase):
+            """Middleware that sets request_id before RequestContextMiddleware."""
+
+            async def dispatch(self, request: Request, call_next):
+                request.state.request_id = "preset-id-999"
+                return await call_next(request)
+
         app = FastAPI()
 
-        # Simulate another middleware setting request_id
-        @app.middleware("http")
-        async def set_request_id(request: Request, call_next):
-            request.state.request_id = "preset-id-999"
-            return await call_next(request)
-
+        # Add RequestContextMiddleware first (inner)
         app.add_middleware(RequestContextMiddleware)
+        # Add SetRequestIdMiddleware second (outer - runs first)
+        app.add_middleware(SetRequestIdMiddleware)
 
         @app.get("/test")
         async def test_endpoint(request: Request) -> JSONResponse:
             return JSONResponse({"request_id": getattr(request.state, "request_id", None)})
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/test")
 
         data = response.json()

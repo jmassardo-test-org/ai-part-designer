@@ -80,11 +80,11 @@ class TestTemplateGenerationIntegration:
 
         assert result is not None
 
-        # Verify dimensions
-        bbox = result.val().BoundingBox()
-        assert round(bbox.xlen, 0) == 100
-        assert round(bbox.ylen, 0) == 50
-        assert round(bbox.zlen, 0) == 25
+        # Verify dimensions using build123d bounding_box
+        bbox = result.bounding_box()
+        assert round(bbox.size.X, 0) == 100
+        assert round(bbox.size.Y, 0) == 50
+        assert round(bbox.size.Z, 0) == 25
 
     def test_generate_cylinder_from_primitives(self):
         """Test generating cylinder using primitives module."""
@@ -94,9 +94,9 @@ class TestTemplateGenerationIntegration:
 
         assert result is not None
 
-        # Verify height
-        bbox = result.val().BoundingBox()
-        assert round(bbox.zlen, 0) == 100
+        # Verify height using build123d bounding_box
+        bbox = result.bounding_box()
+        assert round(bbox.size.Z, 0) == 100
 
     def test_generate_and_export_box(self, tmp_path):
         """Test generating and exporting a box."""

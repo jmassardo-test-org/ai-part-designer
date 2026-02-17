@@ -35,7 +35,7 @@ from app.models.api_key import APIKey
 from app.models.audit import AuditLog
 from app.models.file import File as FileModel
 from app.models.moderation import ModerationLog
-from app.models.notification import Notification
+from app.models.notification import Notification, NotificationType
 from app.models.organization import Organization, OrganizationMember
 from app.models.reference_component import ReferenceComponent
 from app.models.subscription import CreditBalance, SubscriptionTier
@@ -3352,14 +3352,13 @@ async def list_subscriptions(
     """List all subscriptions."""
     query = select(Subscription).options(
         selectinload(Subscription.user),
-        selectinload(Subscription.tier),
     )
 
     filters = []
     if status_filter:
         filters.append(Subscription.status == status_filter)
     if tier_filter:
-        filters.append(Subscription.tier.has(slug=tier_filter))
+        filters.append(Subscription.tier == tier_filter)
 
     if filters:
         query = query.where(and_(*filters))
@@ -4190,8 +4189,7 @@ async def list_notifications_admin(
                 id=n.id,
                 user_id=n.user_id,
                 user_email=n.user.email if n.user else None,
-                notification_type=getattr(n, "notification_type", None)
-                or getattr(n, "type", "unknown"),
+                notification_type=n.type.value if n.type else "unknown",
                 title=n.title,
                 message=n.message,
                 is_read=n.is_read,
@@ -4279,7 +4277,7 @@ async def create_announcement(
     for user in users:
         notification = Notification(
             user_id=user.id,
-            notification_type="system_announcement",
+            type=NotificationType.SYSTEM_ANNOUNCEMENT,
             title=request.title,
             message=request.message,
             expires_at=request.expires_at,
@@ -4323,7 +4321,7 @@ async def send_user_notification(
 
     notification = Notification(
         user_id=user_id,
-        notification_type="admin_message",
+        type=NotificationType.SYSTEM_ANNOUNCEMENT,
         title=title,
         message=message,
     )
@@ -5225,15 +5223,15 @@ async def list_cad_v2_components(
             or any(search_lower in alias.lower() for alias in c.aliases)
         ]
 
-    # Get database records for these components
-    slugs = [c.id for c in components]
+    # Get database records for these components (lookup by notes field which stores registry ID)
+    component_ids = [c.id for c in components]
     db_components = await db.execute(
         select(ReferenceComponent).where(
-            ReferenceComponent.name.in_(slugs)
-        )  # Using name instead of slug
+            ReferenceComponent.notes.in_(component_ids)
+        )
     )
     db_comp_map: dict[str, ReferenceComponent] = {
-        str(c.name): c for c in db_components.scalars().all()
+        str(c.notes): c for c in db_components.scalars().all()
     }
 
     # Build category counts
@@ -5250,7 +5248,7 @@ async def list_cad_v2_components(
                 id=comp.id,
                 name=comp.name,
                 category=comp.category.value,
-                description=comp.description,  # type: ignore[attr-defined]
+                description=comp.notes,
                 dimensions_mm=comp.dimensions.to_tuple_mm(),
                 aliases=list(comp.aliases) if comp.aliases else [],
                 mounting_hole_count=len(comp.mounting_holes) if comp.mounting_holes else 0,
@@ -5291,9 +5289,9 @@ async def get_cad_v2_component(
             detail=f"Component '{component_id}' not found in registry",
         )
 
-    # Get database record if exists
+    # Get database record if exists (lookup by notes field which stores registry ID)
     db_result = await db.execute(
-        select(ReferenceComponent).where(ReferenceComponent.name == component_id)
+        select(ReferenceComponent).where(ReferenceComponent.notes == component_id)
     )
     db_record = db_result.scalar_one_or_none()
 
@@ -5302,7 +5300,7 @@ async def get_cad_v2_component(
             "id": comp.id,
             "name": comp.name,
             "category": comp.category.value,
-            "description": getattr(comp, "description", None) or comp.name,
+            "description": comp.notes or comp.name,
             "dimensions_mm": comp.dimensions.to_tuple_mm(),
             "aliases": list(comp.aliases) if comp.aliases else [],
             "mounting_holes": [
@@ -5375,8 +5373,9 @@ async def verify_cad_v2_component(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Mark a CAD v2 component as verified."""
+    # Look up by notes field which stores the registry ID
     result = await db.execute(
-        select(ReferenceComponent).where(ReferenceComponent.name == component_id)
+        select(ReferenceComponent).where(ReferenceComponent.notes == component_id)
     )
     comp = result.scalar_one_or_none()
 
@@ -5404,8 +5403,9 @@ async def feature_cad_v2_component(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Mark a CAD v2 component as featured."""
+    # Look up by notes field which stores the registry ID
     result = await db.execute(
-        select(ReferenceComponent).where(ReferenceComponent.name == component_id)
+        select(ReferenceComponent).where(ReferenceComponent.notes == component_id)
     )
     comp = result.scalar_one_or_none()
 
