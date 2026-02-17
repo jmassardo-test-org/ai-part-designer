@@ -20,6 +20,12 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { DesignActionsMenu, RenameModal } from '@/components/designs/DesignActionsMenu';
+import { CopyModal } from '@/components/designs/CopyModal';
+import { MoveModal } from '@/components/designs/MoveModal';
+import { DeleteModal } from '@/components/designs/DeleteModal';
+import { useDesignManagement } from '@/hooks/useDesignManagement';
+import type { Design as FullDesign, Project as LibProject } from '@/lib/designs';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -39,11 +45,18 @@ interface Project {
 }
 
 interface Design {
+  [key: string]: unknown;
   id: string;
   name: string;
+  description: string;
+  project_id: string;
+  project_name: string;
+  source_type: string;
+  status: string;
   thumbnail_url: string | null;
   created_at: string;
   updated_at: string;
+  extra_data?: Record<string, unknown>;
 }
 
 interface Team {
@@ -81,10 +94,36 @@ export function ProjectsPage() {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
+  // Design action modal state
+  const [renameTarget, setRenameTarget] = useState<Design | null>(null);
+  const [copyTarget, setCopyTarget] = useState<Design | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Design | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Design | null>(null);
+
   // Form state
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Design management hook
+  const {
+    renameDesign,
+    copyDesignTo,
+    moveDesign,
+    deleteDesignWithToast,
+    isLoading: isDesignOpLoading,
+  } = useDesignManagement({
+    token: token || '',
+    onDesignChange: () => {
+      if (selectedProject) fetchProjectDesigns(selectedProject.id);
+    },
+    onDesignDelete: () => {
+      if (selectedProject) fetchProjectDesigns(selectedProject.id);
+    },
+    onDesignRestore: () => {
+      if (selectedProject) fetchProjectDesigns(selectedProject.id);
+    },
+  });
 
   // Fetch projects
   const fetchProjects = useCallback(async () => {
@@ -453,8 +492,20 @@ export function ProjectsPage() {
                     )}
                   </div>
                   <div className="p-3">
-                    <h3 className="font-medium truncate text-gray-900 dark:text-gray-100">{design.name}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(design.created_at)}</p>
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium truncate text-gray-900 dark:text-gray-100">{design.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(design.created_at)}</p>
+                      </div>
+                      <DesignActionsMenu
+                        design={design as unknown as FullDesign}
+                        projects={projects as unknown as LibProject[]}
+                        onRename={(d) => setRenameTarget(d as unknown as Design)}
+                        onCopy={(d) => setCopyTarget(d as unknown as Design)}
+                        onMove={(d) => setMoveTarget(d as unknown as Design)}
+                        onDelete={(d) => setDeleteTarget(d as unknown as Design)}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -478,10 +529,18 @@ export function ProjectsPage() {
                       <FileBox className="w-6 h-6 text-gray-300" />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100">{design.name}</h3>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{design.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(design.created_at)}</p>
                   </div>
+                  <DesignActionsMenu
+                    design={design as unknown as FullDesign}
+                    projects={projects as unknown as LibProject[]}
+                    onRename={(d) => setRenameTarget(d as unknown as Design)}
+                    onCopy={(d) => setCopyTarget(d as unknown as Design)}
+                    onMove={(d) => setMoveTarget(d as unknown as Design)}
+                    onDelete={(d) => setDeleteTarget(d as unknown as Design)}
+                  />
                 </div>
               ))}
             </div>
@@ -749,6 +808,61 @@ export function ProjectsPage() {
           </div>
         </div>
       )}
+      {/* Design Action Modals */}
+      <RenameModal
+        isOpen={!!renameTarget}
+        onClose={() => setRenameTarget(null)}
+        design={renameTarget as unknown as FullDesign | null}
+        onConfirm={async (newName: string) => {
+          if (renameTarget) {
+            await renameDesign(renameTarget.id, newName);
+            setRenameTarget(null);
+          }
+        }}
+        isLoading={isDesignOpLoading}
+      />
+
+      <CopyModal
+        isOpen={!!copyTarget}
+        onClose={() => setCopyTarget(null)}
+        design={copyTarget as unknown as FullDesign | null}
+        projects={projects as unknown as LibProject[]}
+        onConfirm={async (options) => {
+          if (copyTarget) {
+            await copyDesignTo(copyTarget.id, options);
+            setCopyTarget(null);
+          }
+        }}
+        isLoading={isDesignOpLoading}
+      />
+
+      <MoveModal
+        isOpen={!!moveTarget}
+        onClose={() => setMoveTarget(null)}
+        design={moveTarget as unknown as FullDesign | null}
+        projects={projects as unknown as LibProject[]}
+        onConfirm={async (targetProjectId: string) => {
+          if (moveTarget) {
+            await moveDesign(moveTarget.id, targetProjectId);
+            setMoveTarget(null);
+          }
+        }}
+        isLoading={isDesignOpLoading}
+      />
+
+      <DeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        design={deleteTarget as unknown as FullDesign | null}
+        onConfirm={async () => {
+          if (deleteTarget) {
+            await deleteDesignWithToast(deleteTarget as unknown as FullDesign);
+            setDeleteTarget(null);
+          }
+          return { undoToken: '', expiresAt: '' };
+        }}
+        isLoading={isDesignOpLoading}
+      />
     </div>
   );
 }
