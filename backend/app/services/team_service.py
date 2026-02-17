@@ -64,7 +64,7 @@ class TeamService:
     async def get_team_by_id(
         self,
         team_id: UUID,
-        _include_members: bool = False,
+        include_members: bool = False,  # noqa: ARG002
     ) -> Team | None:
         """Get a team by ID.
 
