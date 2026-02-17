@@ -105,6 +105,7 @@ class TestListAssemblies:
 # =============================================================================
 
 
+@pytest.mark.usefixtures("subscription_tiers")
 class TestCreateAssembly:
     """Tests for POST /api/v1/assemblies."""
 
@@ -112,12 +113,13 @@ class TestCreateAssembly:
         self, client: AsyncClient, auth_headers: dict, test_project_for_assembly
     ):
         """Should create a new assembly."""
+        project_id = str(test_project_for_assembly.id)
         response = await client.post(
-            "/api/v1/assemblies",
+            f"/api/v1/assemblies?project_id={project_id}",
             headers=auth_headers,
             json={
                 "name": "New Assembly",
-                "project_id": str(test_project_for_assembly.id),
+                "project_id": project_id,
             },
         )
 

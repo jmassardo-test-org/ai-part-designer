@@ -27,7 +27,8 @@ class TestSharingAuditLogging:
         # Create another user to share with
         share_user = User(
             email="shareuser@example.com",
-            hashed_password="hashed",
+            password_hash="hashed",
+            display_name="Share User",
         )
         db_session.add(share_user)
         await db_session.flush()
