@@ -84,6 +84,7 @@ const renderPage = (designId: string = 'design-123') => {
           <Route path="/designs/:designId" element={<DesignDetailPage />} />
           <Route path="/projects" element={<div>Projects Page</div>} />
           <Route path="/create" element={<div>Create Page</div>} />
+          <Route path="/generate" element={<div>Generate Page</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -336,6 +337,71 @@ describe('DesignDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.queryByTestId('version-history-panel')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('edit functionality', () => {
+    it('shows edit button when enclosure_schema is present', async () => {
+      const designWithSchema: designs.Design = {
+        ...mockDesign,
+        extra_data: {
+          ...(mockDesign.extra_data ?? {}),
+          enclosure_schema: { exterior: { width: { value: 120 } } },
+        },
+      };
+      vi.mocked(designs.getDesign).mockResolvedValue(designWithSchema);
+      vi.mocked(generate.getPreviewData).mockResolvedValue(new ArrayBuffer(100));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+      });
+    });
+
+    it('does not show edit button when enclosure_schema is missing', async () => {
+      const designNoSchema: designs.Design = {
+        ...mockDesign,
+        extra_data: {
+          ...(mockDesign.extra_data ?? {}),
+          enclosure_schema: undefined,
+        },
+      };
+      vi.mocked(designs.getDesign).mockResolvedValue(designNoSchema);
+      vi.mocked(generate.getPreviewData).mockResolvedValue(new ArrayBuffer(100));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Design')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+    });
+
+    it('navigates to generate page when edit button is clicked', async () => {
+      const designWithSchema: designs.Design = {
+        ...mockDesign,
+        extra_data: {
+          ...(mockDesign.extra_data ?? {}),
+          enclosure_schema: { exterior: { width: { value: 120 } } },
+        },
+      };
+      vi.mocked(designs.getDesign).mockResolvedValue(designWithSchema);
+      vi.mocked(generate.getPreviewData).mockResolvedValue(new ArrayBuffer(100));
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Generate Page')).toBeInTheDocument();
       });
     });
   });
