@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Edit2,
   GitFork,
   Lightbulb,
   Loader2,
@@ -94,16 +95,22 @@ interface RemixLocationState {
   };
   designId?: string;
   designName?: string;
+  editMode?: boolean;
+  editDesignId?: string;
+  editDesignName?: string;
 }
 
 export function GeneratePageV2() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token: authToken } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = location.state as RemixLocationState | null;
 
   // Remix state
   const [isRemixMode, setIsRemixMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editDesignId, setEditDesignId] = useState<string | null>(null);
+  const [editDesignName, setEditDesignName] = useState<string | null>(null);
   const [remixedFrom, setRemixedFrom] = useState<{ id: string; name: string } | null>(null);
   const [, setCurrentDesignId] = useState<string | null>(null);
 
@@ -129,6 +136,8 @@ export function GeneratePageV2() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveDescription, setSaveDescription] = useState('');
+  const [changeDescription, setChangeDescription] = useState('');
+  const [savingVersion, setSavingVersion] = useState(false);
 
   // Results
   const [result, setResult] = useState<GenerateV2Response | CompileResponse | null>(null);
@@ -186,6 +195,58 @@ export function GeneratePageV2() {
 
       // Auto-compile to show the 3D preview
       compileEnclosure.mutateAsync({ 
+        enclosure_schema: locationState.enclosureSpec,
+        export_format: 'stl',
+      }).then((response) => {
+        setResult(response);
+      }).catch(console.error);
+    }
+
+    // Handle edit mode from navigation
+    if (locationState?.editMode && locationState.enclosureSpec) {
+      setIsRemixMode(true);
+      setIsEditMode(true);
+      setGeneratedSpec(locationState.enclosureSpec);
+
+      if (locationState.editDesignId) {
+        setEditDesignId(locationState.editDesignId);
+      }
+      if (locationState.editDesignName) {
+        setEditDesignName(locationState.editDesignName);
+        setSaveName(locationState.editDesignName);
+      }
+      if (locationState.remixedFrom) {
+        setRemixedFrom(locationState.remixedFrom);
+      }
+
+      // Switch to manual mode for direct editing
+      setMode('manual');
+
+      // Extract dimensions from spec to populate sliders
+      const spec = locationState.enclosureSpec;
+      if (spec.exterior) {
+        setWidth(spec.exterior.width?.value || 120);
+        setDepth(spec.exterior.depth?.value || 80);
+        setHeight(spec.exterior.height?.value || 50);
+      }
+      if (spec.walls?.thickness) {
+        setWallThickness(spec.walls.thickness.value || 2);
+      }
+      if (spec.corner_radius) {
+        setCornerRadius(spec.corner_radius.value || 3);
+      }
+      if (spec.lid?.type) {
+        setLidType(spec.lid.type as 'snap_fit' | 'screw_on' | 'hinged');
+      }
+      if (spec.ventilation?.enabled) {
+        setHasVentilation(true);
+        if (spec.ventilation.pattern) {
+          setVentPattern(spec.ventilation.pattern as 'slots' | 'honeycomb' | 'circular');
+        }
+      }
+
+      // Auto-compile to show the 3D preview
+      compileEnclosure.mutateAsync({
         enclosure_schema: locationState.enclosureSpec,
         export_format: 'stl',
       }).then((response) => {
@@ -332,7 +393,34 @@ export function GeneratePageV2() {
 
   // Handle save to project
   const handleSaveToProject = useCallback(async () => {
-    if (!result || !('job_id' in result) || !saveName.trim()) return;
+    if (!result || !('job_id' in result)) return;
+
+    // Edit mode: save as new version
+    if (isEditMode && editDesignId) {
+      if (!changeDescription.trim()) return;
+      setSavingVersion(true);
+      try {
+        const { saveEditAsVersion } = await import('@/lib/designs');
+        await saveEditAsVersion(editDesignId, {
+          job_id: result.job_id,
+          change_description: changeDescription.trim(),
+          parameters: generatedSpec ? (generatedSpec as unknown as Record<string, unknown>) : undefined,
+        }, authToken!);
+
+        setShowSaveDialog(false);
+        setChangeDescription('');
+        navigate(`/designs/${editDesignId}`);
+      } catch (err) {
+        console.error('Failed to save version:', err);
+        alert('Failed to save version. Please try again.');
+      } finally {
+        setSavingVersion(false);
+      }
+      return;
+    }
+
+    // Normal save flow
+    if (!saveName.trim()) return;
 
     try {
       await saveDesign.mutateAsync({
@@ -344,12 +432,11 @@ export function GeneratePageV2() {
       setShowSaveDialog(false);
       setSaveName('');
       setSaveDescription('');
-      // Show success message (could use toast)
       alert('Design saved successfully!');
     } catch {
       // Error is handled by the hook
     }
-  }, [result, saveName, saveDescription, saveDesign]);
+  }, [result, saveName, saveDescription, saveDesign, isEditMode, editDesignId, changeDescription, generatedSpec, navigate, authToken]);
 
   // Current error from any hook
   const error =
@@ -378,8 +465,27 @@ export function GeneratePageV2() {
         </p>
       </div>
 
+      {/* Edit Mode Banner */}
+      {isEditMode && editDesignName && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 bg-amber-500 rounded-full flex items-center justify-center">
+              <Edit2 className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="font-medium text-amber-900 dark:text-amber-100">
+                Editing: {editDesignName}
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Adjust parameters below to modify the design. When you save, a new version will be created.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Remix Banner */}
-      {isRemixMode && remixedFrom && (
+      {isRemixMode && !isEditMode && remixedFrom && (
         <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/30 border border-primary-200 dark:border-primary-700 rounded-lg">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center">
@@ -884,36 +990,56 @@ export function GeneratePageV2() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Save to Project
+                  {isEditMode ? 'Save as New Version' : 'Save to Project'}
                 </h3>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Design Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={saveName}
-                      onChange={(e) => setSaveName(e.target.value)}
-                      placeholder="My Enclosure"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      autoFocus
-                    />
-                  </div>
+                  {isEditMode ? (
+                    /* Edit mode: only change description needed */
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Change Description *
+                      </label>
+                      <textarea
+                        value={changeDescription}
+                        onChange={(e) => setChangeDescription(e.target.value)}
+                        placeholder="Describe what you changed..."
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    /* Normal save: name + description */
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Design Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={saveName}
+                          onChange={(e) => setSaveName(e.target.value)}
+                          placeholder="My Enclosure"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          autoFocus
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Description (optional)
-                    </label>
-                    <textarea
-                      value={saveDescription}
-                      onChange={(e) => setSaveDescription(e.target.value)}
-                      placeholder="Add a description..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Description (optional)
+                        </label>
+                        <textarea
+                          value={saveDescription}
+                          onChange={(e) => setSaveDescription(e.target.value)}
+                          placeholder="Add a description..."
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-6 flex gap-3 justify-end">
@@ -922,18 +1048,23 @@ export function GeneratePageV2() {
                       setShowSaveDialog(false);
                       setSaveName('');
                       setSaveDescription('');
+                      setChangeDescription('');
                     }}
                     className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                    disabled={saveDesign.isPending}
+                    disabled={saveDesign.isPending || savingVersion}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveToProject}
-                    disabled={!saveName.trim() || saveDesign.isPending}
+                    disabled={
+                      isEditMode
+                        ? !changeDescription.trim() || savingVersion
+                        : !saveName.trim() || saveDesign.isPending
+                    }
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {saveDesign.isPending ? (
+                    {(saveDesign.isPending || savingVersion) ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Saving...
@@ -941,7 +1072,7 @@ export function GeneratePageV2() {
                     ) : (
                       <>
                         <Save className="h-4 w-4" />
-                        Save
+                        {isEditMode ? 'Save Version' : 'Save'}
                       </>
                     )}
                   </button>

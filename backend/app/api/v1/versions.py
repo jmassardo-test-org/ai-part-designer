@@ -111,6 +111,35 @@ class VersionDiffResponse(BaseModel):
     summary: str
 
 
+class CreateVersionFromEditRequest(BaseModel):
+    """Request to create a new version from an edit."""
+
+    job_id: str = Field(..., description="Compile job ID that produced the new geometry")
+    change_description: str = Field(
+        ...,
+        description="Human-readable description of what changed",
+        min_length=1,
+        max_length=500,
+    )
+    parameters: dict[str, Any] | None = Field(
+        default=None,
+        description="Parameter values for the new version",
+    )
+    file_url: str | None = Field(
+        default=None,
+        description="Optional explicit file URL",
+    )
+
+
+class CreateVersionFromEditResponse(BaseModel):
+    """Response after creating a version from an edit."""
+
+    version_id: UUID
+    version_number: int
+    design_id: UUID
+    message: str
+
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -362,6 +391,40 @@ async def restore_version(
         new_version_number=new_version.version_number,
         restored_from_version=version.version_number,
         message=f"Successfully restored version {version.version_number} as version {new_version.version_number}",
+    )
+
+
+@router.post(
+    "/designs/{design_id}/versions",
+    response_model=CreateVersionFromEditResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create version from edit",
+    description="Save an edited design as a new version.",
+)
+async def create_version_from_edit(
+    design_id: UUID,
+    request: CreateVersionFromEditRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CreateVersionFromEditResponse:
+    """Create a new version of a design from edited data."""
+    from app.services.design_service import DesignService
+
+    service = DesignService(db)
+    new_version = await service.save_edit_as_version(
+        design_id=design_id,
+        user=current_user,
+        job_id=request.job_id,
+        change_description=request.change_description,
+        parameters=request.parameters,
+        file_url=request.file_url,
+    )
+
+    return CreateVersionFromEditResponse(
+        version_id=new_version.id,
+        version_number=new_version.version_number,
+        design_id=design_id,
+        message=f"Version {new_version.version_number} created successfully",
     )
 
 

@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Box,
   Download,
+  Edit2,
   Loader2,
   AlertCircle,
   FileBox,
@@ -106,6 +107,20 @@ export function DesignDetailPage() {
     });
   };
 
+  const handleEdit = () => {
+    if (!design || !extraData?.enclosure_schema) return;
+
+    navigate('/generate', {
+      state: {
+        editMode: true,
+        editDesignId: design.id,
+        editDesignName: design.name,
+        enclosureSpec: extraData.enclosure_schema,
+        remixedFrom: { id: design.id, name: design.name },
+      },
+    });
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -167,12 +182,21 @@ export function DesignDetailPage() {
             </h1>
             {design.description && (
               <p className="mt-2 text-gray-600 dark:text-gray-400">
-                {design.description}
+                {String(design.description)}
               </p>
             )}
           </div>
           
           <div className="flex gap-2">
+            {extraData?.enclosure_schema != null && (
+              <button
+                onClick={handleEdit}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit
+              </button>
+            )}
             <button
               onClick={handleRemix}
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"

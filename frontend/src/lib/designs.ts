@@ -256,3 +256,46 @@ export async function listProjects(authToken: string): Promise<Project[]> {
 
   return resp.json();
 }
+
+/** Parameters for saving an edit as a new version. */
+export interface SaveEditAsVersionParams {
+  job_id: string;
+  change_description: string;
+  parameters?: Record<string, unknown>;
+  file_url?: string;
+}
+
+/** Response from saving an edit as a new version. */
+export interface SaveEditAsVersionResponse {
+  version_id: string;
+  version_number: number;
+  design_id: string;
+  message: string;
+}
+
+/**
+ * Save an edited design as a new version.
+ *
+ * Calls POST /api/v1/designs/{designId}/versions with the provided data.
+ */
+export async function saveEditAsVersion(
+  designId: string,
+  data: SaveEditAsVersionParams,
+  authToken: string,
+): Promise<SaveEditAsVersionResponse> {
+  const resp = await fetch(`${DESIGN_API}/${designId}/versions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: 'Save version failed' }));
+    throw new Error(err.detail || `Failed to save version: ${resp.status}`);
+  }
+
+  return resp.json();
+}
