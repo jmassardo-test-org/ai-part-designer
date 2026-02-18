@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 # Set test environment before importing app modules
 os.environ["TESTING"] = "true"
@@ -85,9 +85,9 @@ def get_database_url():
     return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="session")
 async def db_engine():
-    """Create test database engine using PostgreSQL."""
+    """Create test database engine (one per xdist worker process)."""
     database_url = get_database_url()
 
     engine = create_async_engine(
@@ -95,7 +95,7 @@ async def db_engine():
         echo=False,
     )
 
-    # Create tables if they don't exist
+    # Create tables once per worker process
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -106,41 +106,29 @@ async def db_engine():
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create isolated database session for each test."""
-    from sqlalchemy import text
+    """Create isolated database session for each test using nested transactions.
 
-    async_session_factory = async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autoflush=False,
-    )
+    Uses the connection-level transaction pattern:
+    1. Get a connection from the engine
+    2. Begin an outer transaction (will be rolled back at end)
+    3. Create a session bound to this connection
+    4. Tests can commit/rollback freely (operates on savepoints)
+    5. After the test, rollback the outer transaction to undo everything
+    """
+    async with db_engine.connect() as conn:
+        trans = await conn.begin()
 
-    async with async_session_factory() as session:
-        # Clean up any existing data before the test
-        # Get all table names and truncate them (excluding alembic)
-        try:
-            await session.execute(
-                text("""
-                DO $$
-                DECLARE
-                    r RECORD;
-                BEGIN
-                    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != 'alembic_version') LOOP
-                        EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
-                    END LOOP;
-                END $$;
-            """)
-            )
-            await session.commit()
-        except Exception:
-            # If truncate fails (e.g., first run), that's ok
-            await session.rollback()
+        session = AsyncSession(
+            bind=conn,
+            expire_on_commit=False,
+            autoflush=False,
+            join_transaction_mode="create_savepoint",
+        )
 
         yield session
 
-        # Clean up after the test
-        await session.rollback()
+        await session.close()
+        await trans.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
