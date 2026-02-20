@@ -26,6 +26,7 @@ import { useSearchParams, useLocation } from 'react-router-dom';
 import AuditLogViewer from '@/components/settings/AuditLogViewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { getNotificationPreferences, updateNotificationPreference } from '@/lib/api/notifications';
 import { oauthApi, OAuthConnection } from '@/lib/api/oauth';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
@@ -634,21 +635,65 @@ export function SettingsPage() {
     }
   };
 
-  // Save notification preferences
+  // Load notification preferences when entering notifications section
+  useEffect(() => {
+    if (activeSection === 'notifications' && token) {
+      const loadPreferences = async () => {
+        try {
+          const prefs = await getNotificationPreferences(token);
+          const prefMap = Object.fromEntries(
+            prefs.map((p) => [p.notification_type, p])
+          );
+          setNotifications((prev) => ({
+            ...prev,
+            email_design_complete: prefMap['job_completed']?.email_enabled ?? prev.email_design_complete,
+            email_comments: prefMap['comment_added']?.email_enabled ?? prev.email_comments,
+            email_shares: prefMap['design_shared']?.email_enabled ?? prev.email_shares,
+            in_app_design_complete: prefMap['job_completed']?.in_app_enabled ?? prev.in_app_design_complete,
+            in_app_comments: prefMap['comment_added']?.in_app_enabled ?? prev.in_app_comments,
+            in_app_shares: prefMap['design_shared']?.in_app_enabled ?? prev.in_app_shares,
+          }));
+        } catch (err) {
+          console.error('Failed to load notification preferences:', err);
+        }
+      };
+      loadPreferences();
+    }
+  }, [activeSection, token]);
+
+  // Save notification preferences using correct API
   const handleSaveNotifications = async () => {
+    if (!token) return;
     try {
       setIsNotificationsSaving(true);
 
-      const response = await fetch(`${API_BASE}/users/me/notifications`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(notifications),
-      });
+      const inApp = notifications.mute_all ? false : notifications.in_app_design_complete;
+      const email = notifications.mute_all ? false : notifications.email_design_complete;
 
-      if (!response.ok) throw new Error('Failed to update preferences');
+      await Promise.all([
+        updateNotificationPreference('job_completed', { in_app_enabled: inApp, email_enabled: email }, token),
+        updateNotificationPreference('job_failed', { in_app_enabled: inApp, email_enabled: true }, token),
+        updateNotificationPreference('comment_added', {
+          in_app_enabled: notifications.mute_all ? false : notifications.in_app_comments,
+          email_enabled: notifications.mute_all ? false : notifications.email_comments,
+        }, token),
+        updateNotificationPreference('comment_reply', {
+          in_app_enabled: notifications.mute_all ? false : notifications.in_app_comments,
+          email_enabled: notifications.mute_all ? false : notifications.email_comments,
+        }, token),
+        updateNotificationPreference('comment_mention', {
+          in_app_enabled: notifications.mute_all ? false : notifications.in_app_comments,
+          email_enabled: notifications.mute_all ? false : notifications.email_comments,
+        }, token),
+        updateNotificationPreference('design_shared', {
+          in_app_enabled: notifications.mute_all ? false : notifications.in_app_shares,
+          email_enabled: notifications.mute_all ? false : notifications.email_shares,
+        }, token),
+        updateNotificationPreference('share_permission_changed', {
+          in_app_enabled: notifications.mute_all ? false : notifications.in_app_shares,
+          email_enabled: notifications.mute_all ? false : notifications.email_shares,
+        }, token),
+      ]);
 
       setNotificationsSuccess(true);
       setTimeout(() => setNotificationsSuccess(false), 3000);

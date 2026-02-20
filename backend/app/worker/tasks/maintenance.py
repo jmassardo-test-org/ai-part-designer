@@ -12,6 +12,70 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(  # type: ignore[untyped-decorator]
+    name="app.worker.tasks.maintenance.send_subscription_expiry_reminders",
+)
+def send_subscription_expiry_reminders() -> dict[str, Any]:
+    """
+    Send notifications to users whose subscription expires in 7 days.
+
+    Runs daily via Celery beat.
+    """
+    import asyncio
+
+    from sqlalchemy import and_, select
+
+    from app.core.database import async_session_maker
+    from app.models.user import Subscription, User
+    from app.services.notification_service import notify_subscription_expiring
+
+    async def run() -> dict[str, Any]:
+        summary: dict[str, Any] = {"notifications_sent": 0, "errors": []}
+
+        seven_days_from_now = datetime.now(tz=UTC) + timedelta(days=7)
+        eight_days_from_now = datetime.now(tz=UTC) + timedelta(days=8)
+
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(Subscription, User)
+                .join(User, Subscription.user_id == User.id)
+                .where(
+                    and_(
+                        Subscription.status == "active",
+                        Subscription.current_period_end.isnot(None),
+                        Subscription.current_period_end >= seven_days_from_now,
+                        Subscription.current_period_end < eight_days_from_now,
+                    )
+                )
+            )
+            rows = result.all()
+
+            for subscription, user in rows:
+                try:
+                    if subscription.current_period_end:
+                        days_remaining = (
+                            subscription.current_period_end - datetime.now(tz=UTC)
+                        ).days
+                        await notify_subscription_expiring(
+                            db=session,
+                            user_id=user.id,
+                            days_remaining=days_remaining,
+                            tier_name=subscription.tier or "subscription",
+                        )
+                        summary["notifications_sent"] += 1
+                except Exception as e:
+                    summary["errors"].append(f"User {user.id}: {e}")
+
+            await session.commit()
+
+        if summary["notifications_sent"] > 0:
+            logger.info(f"Sent {summary['notifications_sent']} subscription expiry reminders")
+
+        return summary
+
+    return asyncio.run(run())
+
+
+@shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.maintenance.purge_expired_trash",
 )
 def purge_expired_trash() -> dict[str, Any]:

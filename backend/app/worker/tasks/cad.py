@@ -206,21 +206,51 @@ def generate_from_template(
             if user_id:
                 send_job_complete(user_id, job_id, result)
 
+            # Persist notification for offline users
+            if user_id:
+                from app.services.notification_service import notify_job_completed
+
+                await notify_job_completed(
+                    db=session,
+                    user_id=UUID(user_id),
+                    job_id=UUID(job_id),
+                    job_type="CAD generation",
+                    design_name=template.slug or "design",
+                )
+
             logger.info(f"CAD generation complete for job {job_id}")
             return result
 
     try:
         return asyncio.run(run())
-    except Exception as e:
-        logger.error(f"CAD generation failed: {e}")
+    except Exception as exc:
+        logger.error(f"CAD generation failed: {exc}")
 
         # Send WebSocket failure notification
         if user_id:
-            send_job_failed(user_id, job_id, str(e), type(e).__name__)
+            send_job_failed(user_id, job_id, str(exc), type(exc).__name__)
+
+        # Persist failure notification for offline users
+        error_msg = str(exc)
+        if user_id:
+            from app.core.database import async_session_maker
+            from app.services.notification_service import notify_job_failed
+
+            async def persist_failure_notification() -> None:
+                async with async_session_maker() as session:
+                    await notify_job_failed(
+                        db=session,
+                        user_id=UUID(user_id),
+                        job_id=UUID(job_id),
+                        job_type="CAD generation",
+                        design_name="design",
+                        error_message=error_msg,
+                    )
+
+            asyncio.run(persist_failure_notification())
 
         # Update job as failed
-        error_msg = str(e)
-        error_type = type(e).__name__
+        error_type = type(exc).__name__
 
         async def mark_failed() -> None:
             async with async_session_maker() as session:
@@ -238,8 +268,8 @@ def generate_from_template(
 
         # Retry if applicable
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=e)
-        raise
+            raise self.retry(exc=exc) from exc
+        raise exc
 
 
 @shared_task(  # type: ignore[untyped-decorator]

@@ -285,6 +285,17 @@ async def upload_file(
 
     logger.info(f"File uploaded: {file_record.id} by user {current_user.id}")
 
+    # Check if storage is at 90%+ and send warning notification
+    updated_quota = await get_storage_quota(current_user, db, settings)
+    if updated_quota.usage_percent >= 90:
+        from app.services.notification_service import notify_storage_warning
+
+        await notify_storage_warning(
+            db=db,
+            user_id=current_user.id,
+            usage_percent=updated_quota.usage_percent,
+        )
+
     return FileResponse(
         id=str(file_record.id),
         filename=file_record.filename,

@@ -54,3 +54,41 @@ export const markNotificationRead = notificationsApi.markRead;
 
 /** Dismiss (mark read) a notification. */
 export const dismissNotification = notificationsApi.markRead;
+
+/** Notification preference from API. */
+export interface NotificationPreference {
+  notification_type: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  push_enabled: boolean;
+  email_digest: string | null;
+}
+
+/** Get all notification preferences. */
+export async function getNotificationPreferences(
+  token?: string
+): Promise<NotificationPreference[]> {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const resp = await fetch('/api/v1/notifications/preferences', { headers });
+  if (!resp.ok) throw new Error(`Failed to get preferences: ${resp.status}`);
+  const data = await resp.json();
+  return data.preferences ?? [];
+}
+
+/** Update a single notification preference. */
+export async function updateNotificationPreference(
+  notificationType: string,
+  updates: { in_app_enabled?: boolean; email_enabled?: boolean },
+  token?: string
+): Promise<NotificationPreference> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const resp = await fetch(`/api/v1/notifications/preferences/${notificationType}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(updates),
+  });
+  if (!resp.ok) throw new Error(`Failed to update preference: ${resp.status}`);
+  return resp.json();
+}

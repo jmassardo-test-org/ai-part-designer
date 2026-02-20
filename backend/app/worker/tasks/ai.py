@@ -101,6 +101,17 @@ def generate_from_prompt(
                 if user_id:
                     send_job_failed(user_id, job_id, error_msg, "ContentPolicyViolation")
 
+                    from app.services.notification_service import notify_job_failed
+
+                    await notify_job_failed(
+                        db=session,
+                        user_id=UUID(user_id),
+                        job_id=UUID(job_id),
+                        job_type="AI generation",
+                        design_name="design",
+                        error_message=error_msg,
+                    )
+
                 raise ValueError(error_msg)
 
             # Step 2: Generate CAD using AI pipeline
@@ -139,6 +150,17 @@ def generate_from_prompt(
 
                 if user_id:
                     send_job_failed(user_id, job_id, str(gen_error), "GenerationError")
+
+                    from app.services.notification_service import notify_job_failed
+
+                    await notify_job_failed(
+                        db=session,
+                        user_id=UUID(user_id),
+                        job_id=UUID(job_id),
+                        job_type="AI generation",
+                        design_name="design",
+                        error_message=str(gen_error),
+                    )
 
                 raise ValueError(f"CAD generation failed: {gen_error}")
 
@@ -231,18 +253,52 @@ def generate_from_prompt(
             if user_id:
                 send_job_complete(user_id, job_id, result)
 
+                # Persist notification for offline users
+                from app.services.notification_service import notify_job_completed
+
+                await notify_job_completed(
+                    db=session,
+                    user_id=UUID(user_id),
+                    job_id=UUID(job_id),
+                    job_type="AI generation",
+                    design_name=prompt[:50] if prompt else "design",
+                )
+
             logger.info(f"AI generation complete for job {job_id}")
             return result
 
     try:
         return asyncio.run(run())
-    except Exception as e:
-        logger.error(f"AI generation failed: {e}")
+    except Exception as exc:
+        logger.error(f"AI generation failed: {exc}")
 
         if user_id:
-            send_job_failed(user_id, job_id, str(e), type(e).__name__)
+            send_job_failed(user_id, job_id, str(exc), type(exc).__name__)
 
-        raise self.retry(exc=e) if self.request.retries < self.max_retries else e
+            # Persist failure notification for offline users
+            import asyncio
+
+            from app.core.database import async_session_maker
+            from app.services.notification_service import notify_job_failed
+
+            error_msg = str(exc)
+
+            async def persist_failure_notification() -> None:
+                async with async_session_maker() as session:
+                    await notify_job_failed(
+                        db=session,
+                        user_id=UUID(user_id),
+                        job_id=UUID(job_id),
+                        job_type="AI generation",
+                        design_name="design",
+                        error_message=error_msg,
+                    )
+
+            asyncio.run(persist_failure_notification())
+
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc) from exc
+        raise exc
 
 
 async def _check_content_moderation(content: str) -> dict[str, Any]:

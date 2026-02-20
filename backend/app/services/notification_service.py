@@ -292,6 +292,31 @@ class NotificationService:
 # --- Notification Helpers ---
 
 
+async def notify_share_permission_changed(
+    db: AsyncSession,
+    recipient_id: UUID,
+    actor_id: UUID,
+    actor_name: str,
+    design_id: UUID,
+    design_name: str,
+    new_permission: str,
+) -> Notification | None:
+    """Send notification when share permission is updated."""
+    service = NotificationService(db)
+    return await service.create_notification(
+        user_id=recipient_id,
+        notification_type=NotificationType.SHARE_PERMISSION_CHANGED,
+        title="Share permission updated",
+        message=f"{actor_name} changed your access to '{design_name}' to {new_permission}",
+        action_url=f"/designs/{design_id}",
+        action_label="View Design",
+        actor_id=actor_id,
+        entity_type="design",
+        entity_id=design_id,
+        data={"permission": new_permission},
+    )
+
+
 async def notify_design_shared(
     db: AsyncSession,
     recipient_id: UUID,
@@ -314,6 +339,54 @@ async def notify_design_shared(
         entity_type="design",
         entity_id=design_id,
         data={"permission": permission},
+    )
+
+
+async def notify_comment_added(
+    db: AsyncSession,
+    recipient_id: UUID,
+    actor_id: UUID,
+    actor_name: str,
+    design_id: UUID,
+    design_name: str,
+    comment_preview: str,
+) -> Notification | None:
+    """Send notification when a comment is added to a design (to design owner)."""
+    service = NotificationService(db)
+    return await service.create_notification(
+        user_id=recipient_id,
+        notification_type=NotificationType.COMMENT_ADDED,
+        title="New comment on your design",
+        message=f"{actor_name} commented on '{design_name}': {comment_preview[:100]}{'...' if len(comment_preview) > 100 else ''}",
+        action_url=f"/designs/{design_id}",
+        action_label="View Comment",
+        actor_id=actor_id,
+        entity_type="design",
+        entity_id=design_id,
+    )
+
+
+async def notify_comment_reply(
+    db: AsyncSession,
+    recipient_id: UUID,
+    actor_id: UUID,
+    actor_name: str,
+    design_id: UUID,
+    design_name: str,
+    comment_preview: str,
+) -> Notification | None:
+    """Send notification when someone replies to a comment thread."""
+    service = NotificationService(db)
+    return await service.create_notification(
+        user_id=recipient_id,
+        notification_type=NotificationType.COMMENT_REPLY,
+        title="New reply to comment",
+        message=f"{actor_name} replied to a comment on '{design_name}': {comment_preview[:100]}{'...' if len(comment_preview) > 100 else ''}",
+        action_url=f"/designs/{design_id}",
+        action_label="View Reply",
+        actor_id=actor_id,
+        entity_type="design",
+        entity_id=design_id,
     )
 
 
@@ -383,6 +456,68 @@ async def notify_job_failed(
         entity_type="job",
         entity_id=job_id,
         priority=NotificationPriority.HIGH,
+    )
+
+
+async def notify_subscription_expiring(
+    db: AsyncSession,
+    user_id: UUID,
+    days_remaining: int,
+    tier_name: str,
+) -> Notification | None:
+    """Send notification when subscription is about to expire."""
+    service = NotificationService(db)
+    return await service.create_notification(
+        user_id=user_id,
+        notification_type=NotificationType.SYSTEM_ANNOUNCEMENT,
+        title="Subscription expiring soon",
+        message=f"Your {tier_name} subscription expires in {days_remaining} days. Renew to keep your benefits.",
+        action_url="/settings/billing",
+        action_label="Manage Subscription",
+        data={"kind": "subscription_expiring", "days_remaining": days_remaining},
+    )
+
+
+async def notify_storage_warning(
+    db: AsyncSession,
+    user_id: UUID,
+    usage_percent: float,
+) -> Notification | None:
+    """Send notification when storage is near capacity."""
+    service = NotificationService(db)
+    return await service.create_notification(
+        user_id=user_id,
+        notification_type=NotificationType.SYSTEM_ANNOUNCEMENT,
+        title="Storage almost full",
+        message=f"Your storage is {usage_percent:.0f}% full. Consider freeing up space or upgrading your plan.",
+        action_url="/settings",
+        action_label="Manage Storage",
+        data={"kind": "storage_warning", "usage_percent": usage_percent},
+    )
+
+
+async def notify_design_remixed(
+    db: AsyncSession,
+    recipient_id: UUID,
+    actor_id: UUID,
+    actor_name: str,
+    design_id: UUID,
+    design_name: str,
+    remix_name: str,
+) -> Notification | None:
+    """Send notification when someone remixes your design."""
+    service = NotificationService(db)
+    return await service.create_notification(
+        user_id=recipient_id,
+        notification_type=NotificationType.SYSTEM_ANNOUNCEMENT,
+        title="Your design was remixed",
+        message=f"{actor_name} created a remix of '{design_name}' called '{remix_name}'",
+        action_url=f"/designs/{design_id}",
+        action_label="View Design",
+        actor_id=actor_id,
+        entity_type="design",
+        entity_id=design_id,
+        data={"kind": "design_remixed", "remix_name": remix_name},
     )
 
 
