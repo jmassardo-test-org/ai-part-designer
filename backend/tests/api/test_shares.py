@@ -4,6 +4,9 @@ Tests for shares API endpoints.
 Tests design sharing functionality.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -13,6 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Notification, NotificationPreference
 from app.models.notification import NotificationType
+
+if TYPE_CHECKING:
+    from app.models.project import Project
+    from app.models.user import User
 
 # =============================================================================
 # Share Design Notification Tests
@@ -98,6 +105,100 @@ class TestShareDesignNotifications:
         )
         notifications = result.scalars().all()
         assert len(notifications) == 0
+
+    @pytest.mark.asyncio
+    async def test_share_permission_change_creates_notification(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: "User",
+        test_user_2: "User",
+        test_project: "Project",
+        design_factory,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Updating a share's permission should create a SHARE_PERMISSION_CHANGED notification."""
+        # Arrange — create design and initial share
+        design = await design_factory.create(
+            db_session, project=test_project, name="Permission Test"
+        )
+
+        initial_response = await client.post(
+            f"/api/v1/shares/designs/{design.id}",
+            json={"email": test_user_2.email, "permission": "view"},
+            headers=auth_headers,
+        )
+        assert initial_response.status_code == 201
+
+        # Act — re-share with a different permission (triggers permission change path)
+        update_response = await client.post(
+            f"/api/v1/shares/designs/{design.id}",
+            json={"email": test_user_2.email, "permission": "edit"},
+            headers=auth_headers,
+        )
+        assert update_response.status_code == 201
+
+        # Assert — a SHARE_PERMISSION_CHANGED notification exists for the recipient
+        result = await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_2.id,
+                Notification.type == NotificationType.SHARE_PERMISSION_CHANGED,
+            )
+        )
+        notifications = result.scalars().all()
+        assert len(notifications) == 1
+        assert "edit" in notifications[0].message
+        assert "Permission Test" in notifications[0].message
+
+    @pytest.mark.asyncio
+    async def test_share_notification_contains_correct_data(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: "User",
+        test_user_2: "User",
+        test_project: "Project",
+        design_factory,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Notification data should contain action_url, actor info, and design name."""
+        # Arrange
+        design = await design_factory.create(
+            db_session, project=test_project, name="Data Check Design"
+        )
+
+        # Act
+        response = await client.post(
+            f"/api/v1/shares/designs/{design.id}",
+            json={"email": test_user_2.email, "permission": "comment"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+        # Assert — verify the notification data JSONB payload
+        result = await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_2.id,
+                Notification.type == NotificationType.DESIGN_SHARED,
+            )
+        )
+        notification = result.scalars().first()
+        assert notification is not None
+
+        # Title and message correctness
+        assert notification.title == "Design shared with you"
+        assert "Data Check Design" in notification.message
+        assert "comment" in notification.message
+
+        # Data payload should contain extended fields
+        data = notification.data
+        assert data is not None
+        assert data["action_url"] == f"/designs/{design.id}"
+        assert data["action_label"] == "View Design"
+        assert data["actor_id"] == str(test_user.id)
+        assert data["entity_type"] == "design"
+        assert data["entity_id"] == str(design.id)
+        assert data["permission"] == "comment"
 
 
 # =============================================================================

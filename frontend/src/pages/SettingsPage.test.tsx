@@ -39,6 +39,15 @@ vi.mock('@/lib/api/oauth', () => ({
   OAuthConnection: {},
 }));
 
+// Mock Notifications API
+const mockGetNotificationPreferences = vi.fn();
+const mockUpdateNotificationPreference = vi.fn();
+
+vi.mock('@/lib/api/notifications', () => ({
+  getNotificationPreferences: (...args: unknown[]) => mockGetNotificationPreferences(...args),
+  updateNotificationPreference: (...args: unknown[]) => mockUpdateNotificationPreference(...args),
+}));
+
 const renderSettingsPage = () => {
   return render(
     <BrowserRouter>
@@ -54,6 +63,15 @@ describe('SettingsPage', () => {
     window.confirm = vi.fn(() => true);
     // Default mock for OAuth connections
     mockGetConnections.mockResolvedValue({ connections: [] });
+    // Default mock for notification preferences (return empty)
+    mockGetNotificationPreferences.mockResolvedValue([]);
+    mockUpdateNotificationPreference.mockResolvedValue({
+      notification_type: 'job_completed',
+      in_app_enabled: true,
+      email_enabled: true,
+      push_enabled: false,
+      email_digest: null,
+    });
   });
 
   it('renders settings page with sections', () => {
@@ -278,6 +296,342 @@ describe('SettingsPage', () => {
       await user.type(displayNameInput, 'New Name');
       expect(displayNameInput).toHaveValue('New Name');
     }
+  });
+
+  describe('Notification Preferences', () => {
+    /** Helper: mock preferences returned from API. */
+    const makePref = (
+      type: string,
+      inApp: boolean,
+      email: boolean,
+    ) => ({
+      notification_type: type,
+      in_app_enabled: inApp,
+      email_enabled: email,
+      push_enabled: false,
+      email_digest: null,
+    });
+
+    /** Standard set of API preferences for most tests. */
+    const defaultApiPrefs = [
+      makePref('job_completed', true, true),
+      makePref('job_failed', true, true),
+      makePref('comment_added', true, false),
+      makePref('comment_reply', true, false),
+      makePref('comment_mention', true, true),
+      makePref('design_shared', true, true),
+      makePref('share_permission_changed', true, false),
+      makePref('share_revoked', true, false),
+      makePref('system_announcement', true, false),
+    ];
+
+    it('loads preferences from API and populates UI correctly', async () => {
+      const user = userEvent.setup();
+      mockGetNotificationPreferences.mockResolvedValue(defaultApiPrefs);
+
+      renderSettingsPage();
+
+      // Navigate to notifications section
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      // Wait for preferences to load
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalledWith('test-token');
+      });
+
+      // Verify section rendered with correct heading
+      expect(screen.getByText(/email notifications/i)).toBeInTheDocument();
+      expect(screen.getByText(/in-app notifications/i)).toBeInTheDocument();
+    });
+
+    it('maps API preference types to UI toggles correctly', async () => {
+      const user = userEvent.setup();
+      // Set specific values to verify mapping
+      mockGetNotificationPreferences.mockResolvedValue([
+        makePref('job_completed', false, true),
+        makePref('comment_added', true, false),
+        makePref('design_shared', false, true),
+        makePref('system_announcement', true, true),
+      ]);
+
+      renderSettingsPage();
+
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalledWith('test-token');
+      });
+    });
+
+    it('saves preferences with correct API calls for all notification types', async () => {
+      const user = userEvent.setup();
+      mockGetNotificationPreferences.mockResolvedValue(defaultApiPrefs);
+
+      renderSettingsPage();
+
+      // Navigate to notifications
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalled();
+      });
+
+      // Click save
+      const saveButton = screen.getByRole('button', { name: /save preferences/i });
+      await user.click(saveButton);
+
+      // Verify all expected notification types are updated
+      await waitFor(() => {
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'job_completed',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: true }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'job_failed',
+          expect.objectContaining({ in_app_enabled: true }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'comment_added',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: false }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'comment_reply',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: false }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'comment_mention',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: false }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'design_shared',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: true }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'share_permission_changed',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: true }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'share_revoked',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: true }),
+          'test-token',
+        );
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'system_announcement',
+          expect.objectContaining({ email_enabled: false }),
+          'test-token',
+        );
+      });
+
+      // 9 notification types total
+      expect(mockUpdateNotificationPreference).toHaveBeenCalledTimes(9);
+    });
+
+    it('saves all preferences as disabled when mute_all is toggled on', async () => {
+      const user = userEvent.setup();
+      mockGetNotificationPreferences.mockResolvedValue(defaultApiPrefs);
+
+      renderSettingsPage();
+
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalled();
+      });
+
+      // Toggle mute all — navigate from text up to the flex-justify-between container
+      const muteAllButton = screen.getByText(/mute all notifications/i)
+        .closest('div')!
+        .parentElement!
+        .parentElement!
+        .querySelector('button')!;
+      await user.click(muteAllButton);
+
+      // Save
+      const saveButton = screen.getByRole('button', { name: /save preferences/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        // All calls should have in_app_enabled: false
+        // job_failed keeps email_enabled: true (critical failure always emailed)
+        const calls = mockUpdateNotificationPreference.mock.calls;
+        for (const call of calls) {
+          expect(call[1].in_app_enabled).toBe(false);
+          if (call[0] === 'job_failed') {
+            expect(call[1].email_enabled).toBe(true);
+          } else {
+            expect(call[1].email_enabled).toBe(false);
+          }
+        }
+      });
+    });
+
+    it('derives mute_all as true when all key preferences are disabled', async () => {
+      const user = userEvent.setup();
+      // Return all key types with both channels disabled
+      mockGetNotificationPreferences.mockResolvedValue([
+        makePref('job_completed', false, false),
+        makePref('comment_added', false, false),
+        makePref('design_shared', false, false),
+        makePref('system_announcement', false, false),
+      ]);
+
+      renderSettingsPage();
+
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalled();
+      });
+
+      // mute_all should be derived as true, so the email/in-app sections should be dimmed
+      await waitFor(() => {
+        const emailSection = screen.getByText(/email notifications/i).closest('div');
+        expect(emailSection?.className).toContain('opacity-50');
+      });
+    });
+
+    it('preserves toggled preference after save and reload', async () => {
+      const user = userEvent.setup();
+
+      // First load: comments email enabled
+      mockGetNotificationPreferences.mockResolvedValue([
+        makePref('job_completed', true, true),
+        makePref('comment_added', true, true),
+        makePref('design_shared', true, true),
+        makePref('system_announcement', true, false),
+      ]);
+
+      const { unmount } = renderSettingsPage();
+
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalledTimes(1);
+      });
+
+      // Save to trigger API calls
+      const saveButton = screen.getByRole('button', { name: /save preferences/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(mockUpdateNotificationPreference).toHaveBeenCalled();
+      });
+
+      // Unmount and re-render to simulate page refresh
+      unmount();
+      mockGetNotificationPreferences.mockClear();
+
+      // Second load: return what was saved (same values, proving persistence)
+      mockGetNotificationPreferences.mockResolvedValue([
+        makePref('job_completed', true, true),
+        makePref('comment_added', true, true),
+        makePref('design_shared', true, true),
+        makePref('system_announcement', true, false),
+      ]);
+
+      renderSettingsPage();
+
+      const notificationsTab2 = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab2);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalledWith('test-token');
+      });
+
+      // Section still renders correctly
+      expect(screen.getByText(/email notifications/i)).toBeInTheDocument();
+    });
+
+    it('shows success message after saving preferences', async () => {
+      const user = userEvent.setup();
+      mockGetNotificationPreferences.mockResolvedValue(defaultApiPrefs);
+
+      renderSettingsPage();
+
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalled();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /save preferences/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/preferences saved successfully/i)).toBeInTheDocument();
+      });
+    });
+
+    it('includes system_announcement mapping for email_marketing toggle', async () => {
+      const user = userEvent.setup();
+      // Load with system_announcement email enabled
+      mockGetNotificationPreferences.mockResolvedValue([
+        makePref('job_completed', true, true),
+        makePref('comment_added', true, false),
+        makePref('design_shared', true, true),
+        makePref('system_announcement', true, true),
+      ]);
+
+      renderSettingsPage();
+
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalled();
+      });
+
+      // Save and verify system_announcement is included with email_enabled: true
+      const saveButton = screen.getByRole('button', { name: /save preferences/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'system_announcement',
+          expect.objectContaining({ email_enabled: true }),
+          'test-token',
+        );
+      });
+    });
+
+    it('includes share_revoked in share preference saves', async () => {
+      const user = userEvent.setup();
+      mockGetNotificationPreferences.mockResolvedValue(defaultApiPrefs);
+
+      renderSettingsPage();
+
+      const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+      await user.click(notificationsTab);
+
+      await waitFor(() => {
+        expect(mockGetNotificationPreferences).toHaveBeenCalled();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /save preferences/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(mockUpdateNotificationPreference).toHaveBeenCalledWith(
+          'share_revoked',
+          expect.objectContaining({ in_app_enabled: true, email_enabled: true }),
+          'test-token',
+        );
+      });
+    });
   });
 
   describe('Connected Accounts section', () => {

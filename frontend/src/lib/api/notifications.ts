@@ -5,8 +5,22 @@
  * Handles user notification management.
  */
 
-/** Notification type. */
-export type NotificationType = 'info' | 'warning' | 'error' | 'success' | 'system' | string;
+/** Backend notification type enum values. */
+export type NotificationType =
+  | 'design_shared'
+  | 'share_permission_changed'
+  | 'share_revoked'
+  | 'comment_added'
+  | 'comment_reply'
+  | 'comment_mention'
+  | 'annotation_added'
+  | 'annotation_resolved'
+  | 'job_completed'
+  | 'job_failed'
+  | 'org_invite'
+  | 'org_role_changed'
+  | 'org_member_joined'
+  | 'system_announcement';
 
 /** Notification entity. */
 export interface Notification {
@@ -76,10 +90,10 @@ export async function getNotificationPreferences(
   return data.preferences ?? [];
 }
 
-/** Update a single notification preference. */
+/** Update a single notification preference by type. */
 export async function updateNotificationPreference(
-  notificationType: string,
-  updates: { in_app_enabled?: boolean; email_enabled?: boolean },
+  notificationType: NotificationType,
+  updates: { in_app_enabled?: boolean; email_enabled?: boolean; push_enabled?: boolean; email_digest?: string },
   token?: string
 ): Promise<NotificationPreference> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

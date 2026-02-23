@@ -644,11 +644,20 @@ export function SettingsPage() {
           const prefMap = Object.fromEntries(
             prefs.map((p) => [p.notification_type, p])
           );
+
+          // Derive mute_all: true when all key preference channels are disabled
+          const keyTypes = ['job_completed', 'comment_added', 'design_shared', 'system_announcement'] as const;
+          const allMuted = keyTypes.every(
+            (t) => prefMap[t] && !prefMap[t].in_app_enabled && !prefMap[t].email_enabled
+          );
+
           setNotifications((prev) => ({
             ...prev,
+            mute_all: allMuted,
             email_design_complete: prefMap['job_completed']?.email_enabled ?? prev.email_design_complete,
             email_comments: prefMap['comment_added']?.email_enabled ?? prev.email_comments,
             email_shares: prefMap['design_shared']?.email_enabled ?? prev.email_shares,
+            email_marketing: prefMap['system_announcement']?.email_enabled ?? prev.email_marketing,
             in_app_design_complete: prefMap['job_completed']?.in_app_enabled ?? prev.in_app_design_complete,
             in_app_comments: prefMap['comment_added']?.in_app_enabled ?? prev.in_app_comments,
             in_app_shares: prefMap['design_shared']?.in_app_enabled ?? prev.in_app_shares,
@@ -692,6 +701,14 @@ export function SettingsPage() {
         updateNotificationPreference('share_permission_changed', {
           in_app_enabled: notifications.mute_all ? false : notifications.in_app_shares,
           email_enabled: notifications.mute_all ? false : notifications.email_shares,
+        }, token),
+        updateNotificationPreference('share_revoked', {
+          in_app_enabled: notifications.mute_all ? false : notifications.in_app_shares,
+          email_enabled: notifications.mute_all ? false : notifications.email_shares,
+        }, token),
+        updateNotificationPreference('system_announcement', {
+          in_app_enabled: notifications.mute_all ? false : true,
+          email_enabled: notifications.mute_all ? false : notifications.email_marketing,
         }, token),
       ]);
 
