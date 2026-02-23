@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 
 from app.ai.generator import GenerationResult
 from app.ai.parser import CADParameters, ParseResult, ShapeType
@@ -19,6 +20,12 @@ from app.core.config import Settings, get_settings
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def seed_subscription_tiers_api() -> None:
+    """Override API autouse DB seeding fixture for this module's DB-free tests."""
+    return None
 
 
 def _make_test_settings(**overrides: Any) -> Settings:
@@ -53,7 +60,7 @@ class TestGenerateEndpoint:
     """Tests for POST /api/v1/generate endpoint."""
 
     @pytest.mark.asyncio
-    async def test_generate_success(self, client: AsyncClient) -> None:
+    async def test_generate_success(self, simple_client: AsyncClient) -> None:
         """Test successful CAD generation via v1 pipeline."""
         from app.main import app
 
@@ -79,16 +86,19 @@ class TestGenerateEndpoint:
         app.dependency_overrides[get_settings] = lambda: test_settings
 
         try:
-            with patch(
-                "app.api.v1.generate.generate_from_description",
-                new_callable=AsyncMock,
-            ) as mock_gen:
-                mock_gen.return_value = mock_result
+            with patch("app.ai.providers.get_ai_provider") as mock_provider:
+                mock_provider.return_value = MagicMock(is_configured=True, name="anthropic")
 
-                response = await client.post(
-                    "/api/v1/generate",
-                    json={"description": "Create a box 100x50x30mm"},
-                )
+                with patch(
+                    "app.api.v1.generate.generate_from_description",
+                    new_callable=AsyncMock,
+                ) as mock_gen:
+                    mock_gen.return_value = mock_result
+
+                    response = await simple_client.post(
+                        "/api/v1/generate",
+                        json={"description": "Create a box 100x50x30mm"},
+                    )
         finally:
             app.dependency_overrides.pop(get_settings, None)
 
@@ -104,7 +114,7 @@ class TestGenerateEndpoint:
         assert "stl" in data["downloads"]
 
     @pytest.mark.asyncio
-    async def test_generate_no_ai_provider(self, client: AsyncClient) -> None:
+    async def test_generate_no_ai_provider(self, simple_client: AsyncClient) -> None:
         """Test error when AI provider not configured."""
         from app.main import app
 
@@ -118,7 +128,7 @@ class TestGenerateEndpoint:
             with patch("app.ai.providers.get_ai_provider") as mock_provider:
                 mock_provider.side_effect = ValueError("No AI provider configured")
 
-                response = await client.post(
+                response = await simple_client.post(
                     "/api/v1/generate",
                     json={"description": "Create a box"},
                 )
@@ -129,7 +139,7 @@ class TestGenerateEndpoint:
         assert "configured" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_generate_invalid_quality(self, client: AsyncClient) -> None:
+    async def test_generate_invalid_quality(self, simple_client: AsyncClient) -> None:
         """Test error for invalid STL quality."""
         from app.main import app
 
@@ -137,13 +147,16 @@ class TestGenerateEndpoint:
         app.dependency_overrides[get_settings] = lambda: test_settings
 
         try:
-            response = await client.post(
-                "/api/v1/generate",
-                json={
-                    "description": "Create a box",
-                    "stl_quality": "invalid_quality",
-                },
-            )
+            with patch("app.ai.providers.get_ai_provider") as mock_provider:
+                mock_provider.return_value = MagicMock(is_configured=True, name="anthropic")
+
+                response = await simple_client.post(
+                    "/api/v1/generate",
+                    json={
+                        "description": "Create a box",
+                        "stl_quality": "invalid_quality",
+                    },
+                )
         finally:
             app.dependency_overrides.pop(get_settings, None)
 
@@ -151,9 +164,9 @@ class TestGenerateEndpoint:
         assert "quality" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_generate_empty_description(self, client: AsyncClient):
+    async def test_generate_empty_description(self, simple_client: AsyncClient) -> None:
         """Test validation error for empty description."""
-        response = await client.post(
+        response = await simple_client.post(
             "/api/v1/generate",
             json={"description": ""},
         )
@@ -162,9 +175,9 @@ class TestGenerateEndpoint:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_generate_short_description(self, client: AsyncClient):
+    async def test_generate_short_description(self, simple_client: AsyncClient) -> None:
         """Test validation error for too-short description."""
-        response = await client.post(
+        response = await simple_client.post(
             "/api/v1/generate",
             json={"description": "ab"},  # Less than min_length=3
         )
@@ -181,7 +194,7 @@ class TestParseEndpoint:
     """Tests for POST /api/v1/generate/parse endpoint."""
 
     @pytest.mark.asyncio
-    async def test_parse_success(self, client: AsyncClient) -> None:
+    async def test_parse_success(self, simple_client: AsyncClient) -> None:
         """Test successful description parsing."""
         from app.main import app
 
@@ -206,7 +219,7 @@ class TestParseEndpoint:
             ) as mock_parse:
                 mock_parse.return_value = mock_result
 
-                response = await client.post(
+                response = await simple_client.post(
                     "/api/v1/generate/parse",
                     json={"description": "Create a cylinder 50mm diameter, 100mm tall"},
                 )

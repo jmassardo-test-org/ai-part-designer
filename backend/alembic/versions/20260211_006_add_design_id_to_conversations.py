@@ -1,7 +1,7 @@
 """Add design_id to conversations
 
 Revision ID: 006_add_design_id_to_conversations
-Revises: 20260126_220302_add_notifications_dismissed_at
+Revises: 019b_notif_dismissed
 Create Date: 2026-02-11
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '006_add_design_id_to_conversations'
-down_revision = '20260126_220302_add_notifications_dismissed_at'
+down_revision = '019b_notif_dismissed'
 branch_labels = None
 depends_on = None
 
