@@ -96,3 +96,25 @@ class ImportError(CADError):
     - Corrupted file data
     - Unsupported features
     """
+
+
+class ThreadDataError(CADError):
+    """
+    Thread data lookup failed.
+
+    Raised when:
+    - Unknown thread family requested
+    - Unknown thread size requested
+    - Invalid pitch series for family
+    """
+
+
+class ThreadGenerationError(CADError):
+    """
+    Thread geometry generation failed.
+
+    Raised when:
+    - Thread parameters are invalid
+    - Helix generation fails
+    - Thread profile cannot be constructed
+    """

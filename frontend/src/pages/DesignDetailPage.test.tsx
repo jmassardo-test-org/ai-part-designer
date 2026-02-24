@@ -28,6 +28,16 @@ vi.mock('@/components/viewer/ModelViewer', () => ({
   ),
 }));
 
+// Mock the VersionHistoryPanel component
+vi.mock('@/pages/VersionHistoryPanel', () => ({
+  VersionHistoryPanel: ({ designId, designName, onClose }: { designId: string; designName: string; onClose: () => void }) => (
+    <div data-testid="version-history-panel">
+      <span>Version History: {designName}</span>
+      <button onClick={onClose}>Close Panel</button>
+    </div>
+  ),
+}));
+
 // Mock design API
 vi.mock('@/lib/designs', () => ({
   getDesign: vi.fn(),
@@ -271,6 +281,62 @@ describe('DesignDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('No preview available')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('version history', () => {
+    it('shows versions button', async () => {
+      vi.mocked(designs.getDesign).mockResolvedValue(mockDesign);
+      vi.mocked(generate.getPreviewData).mockResolvedValue(new ArrayBuffer(8));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /versions/i })).toBeInTheDocument();
+      });
+    });
+
+    it('opens version history panel when versions button is clicked', async () => {
+      vi.mocked(designs.getDesign).mockResolvedValue(mockDesign);
+      vi.mocked(generate.getPreviewData).mockResolvedValue(new ArrayBuffer(8));
+
+      renderPage();
+      const user = userEvent.setup();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /versions/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /versions/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('version-history-panel')).toBeInTheDocument();
+        expect(screen.getByText('Version History: Test Design')).toBeInTheDocument();
+      });
+    });
+
+    it('closes version history panel when close is clicked', async () => {
+      vi.mocked(designs.getDesign).mockResolvedValue(mockDesign);
+      vi.mocked(generate.getPreviewData).mockResolvedValue(new ArrayBuffer(8));
+
+      renderPage();
+      const user = userEvent.setup();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /versions/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /versions/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('version-history-panel')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Close Panel'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('version-history-panel')).not.toBeInTheDocument();
       });
     });
   });

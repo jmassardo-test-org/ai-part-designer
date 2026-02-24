@@ -15,13 +15,15 @@ import {
   Calendar,
   Folder,
   GitFork,
+  History,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ModelViewer } from '@/components/viewer/ModelViewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDesign, type Design } from '@/lib/designs';
 import { getPreviewData, downloadGeneratedFile } from '@/lib/generate';
+import { VersionHistoryPanel } from '@/pages/VersionHistoryPanel';
 
 export function DesignDetailPage() {
   const { designId } = useParams<{ designId: string }>();
@@ -33,41 +35,48 @@ export function DesignDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [stlData, setStlData] = useState<ArrayBuffer | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   // Get extra_data from design
   const extraData = design?.extra_data || null;
 
+  /**
+   * Load design data and STL preview.
+   * Extracted as a callback so it can be re-invoked after version restore.
+   */
+  const loadDesign = useCallback(async () => {
+    if (!designId || !token) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await getDesign(designId, token);
+      setDesign(data);
+
+      // Load STL preview if job_id exists
+      if (data.extra_data?.job_id) {
+        try {
+          const preview = await getPreviewData(String(data.extra_data.job_id), token);
+          setStlData(preview);
+        } catch {
+          console.log('No preview available');
+        }
+      } else {
+        setStlData(null);
+      }
+    } catch (err) {
+      console.error('Failed to load design:', err);
+      setError('Failed to load design. It may not exist or you do not have access.');
+    } finally {
+      setLoading(false);
+    }
+  }, [designId, token]);
+
   // Fetch design details
   useEffect(() => {
-    async function loadDesign() {
-      if (!designId || !token) return;
-      
-      setLoading(true);
-      setError(null);
-
-      try {
-        const data = await getDesign(designId, token);
-        setDesign(data);
-        
-        // Load STL preview if job_id exists
-        if (data.extra_data?.job_id) {
-          try {
-            const preview = await getPreviewData(data.extra_data.job_id, token);
-            setStlData(preview);
-          } catch {
-            console.log('No preview available');
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load design:', err);
-        setError('Failed to load design. It may not exist or you do not have access.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     loadDesign();
-  }, [designId, token]);
+  }, [loadDesign]);
 
   const handleDownload = async (format: 'step' | 'stl') => {
     if (!extraData?.job_id || !token) return;
@@ -198,6 +207,13 @@ export function DesignDetailPage() {
               </button>
             )}
             <button
+              onClick={() => setShowVersionHistory(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <History className="w-4 h-4" />
+              Versions
+            </button>
+            <button
               onClick={handleRemix}
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
@@ -318,6 +334,18 @@ export function DesignDetailPage() {
           )}
         </div>
       </div>
+      {/* Version History Panel */}
+      {showVersionHistory && design && (
+        <VersionHistoryPanel
+          designId={design.id}
+          designName={design.name}
+          onClose={() => setShowVersionHistory(false)}
+          onVersionRestore={() => {
+            // Reload design to reflect restored version
+            loadDesign();
+          }}
+        />
+      )}
     </div>
   );
 }
