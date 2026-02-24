@@ -20,11 +20,14 @@ import {
   ZoomOut,
   Maximize2,
   Minimize2,
+  Wrench,
 } from 'lucide-react';
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three-stdlib';
 // Import tools
+import { ThreadWizard } from '@/components/threads/ThreadWizard';
+import type { ThreadGenerateResponse } from '@/types/threads';
 import {
   AnnotationListPanel,
   AnnotationMarkers,
@@ -87,6 +90,10 @@ interface AdvancedCADViewerProps {
   showScreenshotTool?: boolean;
   /** CSS class for container */
   className?: string;
+  /** Show thread tool */
+  showThreadTool?: boolean;
+  /** Callback when thread generation completes */
+  onThreadGenerate?: (result: ThreadGenerateResponse) => void;
 }
 
 /**
@@ -217,6 +224,8 @@ export function AdvancedCADViewer({
   showRenderModeTool = true,
   showAnnotations = true,
   showScreenshotTool = true,
+  showThreadTool = true,
+  onThreadGenerate,
   className = '',
 }: AdvancedCADViewerProps) {
   const controlsRef = useRef<typeof OrbitControls | null>(null);
@@ -224,6 +233,7 @@ export function AdvancedCADViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [threadWizardOpen, setThreadWizardOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Tool hooks
@@ -458,9 +468,18 @@ export function AdvancedCADViewer({
             onConfigChange={renderMode.updateConfig}
           />
         )}
-      </div>
 
-      {/* Screenshot tool - Top right */}
+        {showThreadTool && (
+          <button
+            onClick={() => setThreadWizardOpen(true)}
+            className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            title="Add Thread"
+            data-testid="thread-tool-button"
+          >
+            <Wrench className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+          </button>
+        )}
+      </div>
       {showScreenshotTool && (
         <div className="absolute top-4 right-4">
           <ScreenshotToolbar
@@ -539,6 +558,18 @@ export function AdvancedCADViewer({
             <span>Loading model...</span>
           </div>
         </div>
+      )}
+
+      {/* Thread wizard dialog */}
+      {showThreadTool && (
+        <ThreadWizard
+          isOpen={threadWizardOpen}
+          onClose={() => setThreadWizardOpen(false)}
+          onGenerate={(result) => {
+            setThreadWizardOpen(false);
+            onThreadGenerate?.(result);
+          }}
+        />
       )}
     </div>
   );
