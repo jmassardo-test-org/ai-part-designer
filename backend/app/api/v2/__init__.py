@@ -16,6 +16,7 @@ from app.api.v2.lists import router as lists_router
 from app.api.v2.marketplace import router as marketplace_router
 from app.api.v2.saves import router as saves_router
 from app.api.v2.starters import router as starters_router
+from app.api.v2.threads import router as threads_router
 
 api_router = APIRouter(prefix="/api/v2")
 
@@ -31,5 +32,6 @@ api_router.include_router(marketplace_router, prefix="/marketplace", tags=["v2-m
 api_router.include_router(lists_router, prefix="/lists", tags=["v2-lists"])
 api_router.include_router(saves_router, prefix="/saves", tags=["v2-saves"])
 api_router.include_router(starters_router, prefix="/starters", tags=["v2-starters"])
+api_router.include_router(threads_router, prefix="/threads", tags=["v2-threads"])
 
 __all__ = ["api_router"]
