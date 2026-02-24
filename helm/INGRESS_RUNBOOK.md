@@ -448,6 +448,10 @@ groups:
 
 ## Disaster Recovery
 
+> **📖 Unified DR Runbook:** Ingress recovery is part of the full disaster recovery sequence.
+> See [Disaster Recovery Runbook](../docs/operations/disaster-recovery-runbook.md) for the
+> end-to-end procedure, escalation matrix, and DR test plan.
+
 ### Scenario: Complete Ingress Controller Failure
 
 **RTO:** 15 minutes  

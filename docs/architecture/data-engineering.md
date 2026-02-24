@@ -337,6 +337,9 @@ pg_restore --target-time="2026-01-24 10:30:00" ...
 | Accidental deletion | 1 hour | 15 minutes |
 | Full disaster | 4 hours | 24 hours |
 
+> **📖 Unified DR Runbook:** For complete recovery procedures, escalation paths, and DR test plans, see the
+> [Disaster Recovery Runbook](../operations/disaster-recovery-runbook.md).
+
 ---
 
 ## 8. Data Governance

@@ -189,6 +189,20 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         nullable=True,
     )
 
+    # Archival tracking
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+        doc="When the design was archived to cold storage",
+    )
+    archive_location: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        default=None,
+        doc="Object storage key for the archived design data",
+    )
+
     # Enclosure specification (CAD v2)
     enclosure_spec: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
@@ -288,6 +302,11 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
             "enclosure_spec",
             postgresql_using="gin",
             postgresql_where="enclosure_spec IS NOT NULL",
+        ),
+        Index(
+            "idx_designs_archived",
+            "archived_at",
+            postgresql_where="archived_at IS NOT NULL",
         ),
     )
 

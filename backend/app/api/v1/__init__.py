@@ -10,6 +10,7 @@ from app.api.v1.abuse import router as abuse_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.alignment import router as alignment_router
 from app.api.v1.annotations import router as annotations_router
+from app.api.v1.archives import router as archives_router
 from app.api.v1.assemblies import router as assemblies_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.bom import router as bom_router
@@ -98,5 +99,6 @@ api_router.include_router(ratings_router, tags=["ratings"])
 api_router.include_router(template_comments_router, tags=["template-comments"])
 api_router.include_router(moderation_router, tags=["moderation"])
 api_router.include_router(users_router, tags=["users"])
+api_router.include_router(archives_router, prefix="/admin", tags=["admin-archives"])
 
 __all__ = ["api_router"]
