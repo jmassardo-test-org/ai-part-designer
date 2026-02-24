@@ -3,7 +3,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -113,6 +113,35 @@ vi.mock('@/hooks/useThreads', () => ({
     error: null,
     reset: vi.fn(),
   })),
+  useGeneratePrintOptimized: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    data: null,
+    error: null,
+    reset: vi.fn(),
+  })),
+  usePrintRecommendation: vi.fn(() => ({
+    data: null,
+    isLoading: false,
+    error: null,
+  })),
+}));
+
+// Captured props ref for PrintOptimizationForm mock
+let capturedPrintOptProps: Record<string, any> = {};
+
+// Mock sub-components to keep tests focused
+vi.mock('@/components/threads/PrintOptimizationForm', () => ({
+  PrintOptimizationForm: (props: any) => {
+    capturedPrintOptProps = props;
+    return <div data-testid="print-optimization-form" data-enabled={props.enabled} />;
+  },
+}));
+
+vi.mock('@/components/threads/ThreadPreview3D', () => ({
+  ThreadPreview3D: (props: any) => <div data-testid="thread-preview-3d" data-thread-type={props.threadType} />,
 }));
 
 // Mock AuthContext
@@ -311,6 +340,125 @@ describe('ThreadWizard', () => {
     fireEvent.click(screen.getByTestId('generate-button'));
 
     expect(mockMutate).toHaveBeenCalledTimes(1);
+    expect(onGenerate).toHaveBeenCalledWith(mockGenerateResult);
+  });
+
+  it('shows PrintOptimizationForm on the configure step', async () => {
+    renderWizard();
+
+    // Navigate to configure step
+    fireEvent.click(screen.getByTestId('family-iso_metric'));
+    fireEvent.click(screen.getByTestId('wizard-next'));
+    await waitFor(() => { expect(screen.getByTestId('size-list')).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('size-M8'));
+    fireEvent.click(screen.getByTestId('wizard-next'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('configure-step')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('print-optimization-form')).toBeInTheDocument();
+  });
+
+  it('shows pitch series toggle for ISO Metric family on the size step', async () => {
+    renderWizard();
+
+    // Select ISO Metric family and navigate to size step
+    fireEvent.click(screen.getByTestId('family-iso_metric'));
+    fireEvent.click(screen.getByTestId('wizard-next'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('size-list')).toBeInTheDocument();
+    });
+
+    // Pitch series toggle buttons should be visible
+    expect(screen.getByRole('button', { name: 'Coarse' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fine' })).toBeInTheDocument();
+  });
+
+  it('shows ThreadPreview3D on the generate step', async () => {
+    renderWizard();
+
+    // Navigate all the way to generate step
+    fireEvent.click(screen.getByTestId('family-iso_metric'));
+    fireEvent.click(screen.getByTestId('wizard-next'));
+    await waitFor(() => { expect(screen.getByTestId('size-list')).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('size-M8'));
+    fireEvent.click(screen.getByTestId('wizard-next'));
+    await waitFor(() => { expect(screen.getByTestId('configure-step')).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('wizard-next'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('generate-step')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('thread-preview-3d')).toBeInTheDocument();
+  });
+
+  it('calls print-optimized endpoint when print optimization is enabled', async () => {
+    const mockPrintOptMutate = vi.fn((_, options) => {
+      options?.onSuccess?.({
+        success: true,
+        message: 'Print-optimized thread generated',
+        generation_result: mockGenerateResult,
+      });
+    });
+
+    const { useGeneratePrintOptimized } = await import('@/hooks/useThreads');
+    (useGeneratePrintOptimized as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: mockPrintOptMutate,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      data: null,
+      error: null,
+      reset: vi.fn(),
+    });
+
+    const { useGenerateThread } = await import('@/hooks/useThreads');
+    const mockStandardMutate = vi.fn();
+    (useGenerateThread as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: mockStandardMutate,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      data: null,
+      error: null,
+      reset: vi.fn(),
+    });
+
+    const { onGenerate } = renderWizard();
+
+    // Navigate to configure step
+    fireEvent.click(screen.getByTestId('family-iso_metric'));
+    fireEvent.click(screen.getByTestId('wizard-next'));
+    await waitFor(() => { expect(screen.getByTestId('size-list')).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('size-M8'));
+    fireEvent.click(screen.getByTestId('wizard-next'));
+    await waitFor(() => { expect(screen.getByTestId('configure-step')).toBeInTheDocument(); });
+
+    // Enable print optimization by calling the captured callback from
+    // the mocked PrintOptimizationForm
+    expect(capturedPrintOptProps.onEnabledChange).toBeDefined();
+    act(() => {
+      capturedPrintOptProps.onEnabledChange(true);
+    });
+
+    // Verify the form now reflects enabled state
+    await waitFor(() => {
+      expect(screen.getByTestId('print-optimization-form').getAttribute('data-enabled')).toBe('true');
+    });
+
+    // Proceed to generate step
+    fireEvent.click(screen.getByTestId('wizard-next'));
+    await waitFor(() => { expect(screen.getByTestId('generate-step')).toBeInTheDocument(); });
+
+    // Click generate
+    fireEvent.click(screen.getByTestId('generate-button'));
+
+    // Print-optimized mutation should have been called, NOT the standard one
+    expect(mockPrintOptMutate).toHaveBeenCalledTimes(1);
+    expect(mockStandardMutate).not.toHaveBeenCalled();
     expect(onGenerate).toHaveBeenCalledWith(mockGenerateResult);
   });
 });

@@ -7,7 +7,9 @@
 
 import { ChevronLeft, ChevronRight, Loader2, Wrench } from 'lucide-react';
 import { useCallback, useState } from 'react';
-
+import { PrintOptimizationForm } from '@/components/threads/PrintOptimizationForm';
+import { TapDrillReference } from '@/components/threads/TapDrillReference';
+import { ThreadPreview3D } from '@/components/threads/ThreadPreview3D';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,17 +29,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TapDrillReference } from '@/components/threads/TapDrillReference';
 import {
   useThreadFamilies,
   useThreadSizes,
   useThreadSpec,
   useGenerateThread,
+  useGeneratePrintOptimized,
 } from '@/hooks/useThreads';
 import type {
   ThreadType,
   ThreadHand,
   ThreadGenerateResponse,
+  PrintProcess,
+  ToleranceClass,
+  PitchSeries,
 } from '@/types/threads';
 
 // =============================================================================
@@ -99,11 +104,24 @@ export function ThreadWizard({ isOpen, onClose, onGenerate }: ThreadWizardProps)
   const [lengthMm, setLengthMm] = useState<number>(20);
   const [addChamfer, setAddChamfer] = useState<boolean>(true);
 
+  // Print optimization state
+  const [printOptEnabled, setPrintOptEnabled] = useState<boolean>(false);
+  const [printProcess, setPrintProcess] = useState<PrintProcess>('fdm');
+  const [printTolerance, setPrintTolerance] = useState<ToleranceClass>('standard');
+  const [nozzleDiameterMm, setNozzleDiameterMm] = useState<number>(0.4);
+  const [layerHeightMm, setLayerHeightMm] = useState<number>(0.2);
+  const [useFlatBottom, setUseFlatBottom] = useState<boolean>(false);
+  const [customClearanceMm, setCustomClearanceMm] = useState<number | null>(null);
+
+  // Pitch series (for metric families)
+  const [pitchSeries, setPitchSeries] = useState<PitchSeries | null>(null);
+
   // Data hooks
   const familiesQuery = useThreadFamilies();
-  const sizesQuery = useThreadSizes(selectedFamily);
+  const sizesQuery = useThreadSizes(selectedFamily, pitchSeries ?? undefined);
   const specQuery = useThreadSpec(selectedFamily, selectedSize);
   const generateMutation = useGenerateThread();
+  const printOptMutation = useGeneratePrintOptimized();
 
   /** Reset wizard to initial state. */
   const resetWizard = useCallback(() => {
@@ -114,8 +132,17 @@ export function ThreadWizard({ isOpen, onClose, onGenerate }: ThreadWizardProps)
     setThreadHand('right');
     setLengthMm(20);
     setAddChamfer(true);
+    setPrintOptEnabled(false);
+    setPrintProcess('fdm');
+    setPrintTolerance('standard');
+    setNozzleDiameterMm(0.4);
+    setLayerHeightMm(0.2);
+    setUseFlatBottom(false);
+    setCustomClearanceMm(null);
+    setPitchSeries(null);
     generateMutation.reset();
-  }, [generateMutation]);
+    printOptMutation.reset();
+  }, [generateMutation, printOptMutation]);
 
   /** Handle dialog close with reset. */
   const handleClose = useCallback(() => {
@@ -143,6 +170,7 @@ export function ThreadWizard({ isOpen, onClose, onGenerate }: ThreadWizardProps)
   const handleFamilySelect = useCallback((family: string) => {
     setSelectedFamily(family);
     setSelectedSize(null);
+    setPitchSeries(null);
   }, []);
 
   /** Handle size selection. */
@@ -154,22 +182,55 @@ export function ThreadWizard({ isOpen, onClose, onGenerate }: ThreadWizardProps)
   const handleGenerate = useCallback(() => {
     if (!selectedFamily || !selectedSize) return;
 
-    generateMutation.mutate(
-      {
-        family: selectedFamily,
-        size: selectedSize,
-        thread_type: threadType,
-        hand: threadHand,
-        length_mm: lengthMm,
-        add_chamfer: addChamfer,
-      },
-      {
-        onSuccess: (result) => {
-          onGenerate?.(result);
+    if (printOptEnabled) {
+      printOptMutation.mutate(
+        {
+          family: selectedFamily,
+          size: selectedSize,
+          thread_type: threadType,
+          hand: threadHand,
+          length_mm: lengthMm,
+          add_chamfer: addChamfer,
+          process: printProcess,
+          tolerance_class: printTolerance,
+          nozzle_diameter_mm: nozzleDiameterMm,
+          layer_height_mm: layerHeightMm,
+          use_flat_bottom: useFlatBottom,
+          custom_clearance_mm: customClearanceMm,
         },
-      },
-    );
-  }, [selectedFamily, selectedSize, threadType, threadHand, lengthMm, addChamfer, generateMutation, onGenerate]);
+        {
+          onSuccess: (result) => {
+            onGenerate?.(result.generation_result ?? {
+              success: result.success,
+              message: result.message,
+              generation_time_ms: 0,
+              estimated_face_count: 0,
+            } as ThreadGenerateResponse);
+          },
+        },
+      );
+    } else {
+      generateMutation.mutate(
+        {
+          family: selectedFamily,
+          size: selectedSize,
+          thread_type: threadType,
+          hand: threadHand,
+          length_mm: lengthMm,
+          add_chamfer: addChamfer,
+        },
+        {
+          onSuccess: (result) => {
+            onGenerate?.(result);
+          },
+        },
+      );
+    }
+  }, [
+    selectedFamily, selectedSize, threadType, threadHand, lengthMm, addChamfer,
+    printOptEnabled, printProcess, printTolerance, nozzleDiameterMm, layerHeightMm,
+    useFlatBottom, customClearanceMm, generateMutation, printOptMutation, onGenerate,
+  ]);
 
   /** Determine if the Next button should be enabled. */
   const canProceed = (): boolean => {
@@ -230,6 +291,8 @@ export function ThreadWizard({ isOpen, onClose, onGenerate }: ThreadWizardProps)
               selected={selectedSize}
               family={selectedFamily!}
               onSelect={handleSizeSelect}
+              pitchSeries={pitchSeries}
+              onPitchSeriesChange={setPitchSeries}
             />
           )}
 
@@ -247,6 +310,20 @@ export function ThreadWizard({ isOpen, onClose, onGenerate }: ThreadWizardProps)
               size={selectedSize}
               spec={specQuery.data ?? null}
               specLoading={specQuery.isLoading}
+              printOptEnabled={printOptEnabled}
+              onPrintOptEnabledChange={setPrintOptEnabled}
+              printProcess={printProcess}
+              onPrintProcessChange={setPrintProcess}
+              printTolerance={printTolerance}
+              onPrintToleranceChange={setPrintTolerance}
+              nozzleDiameterMm={nozzleDiameterMm}
+              onNozzleDiameterChange={setNozzleDiameterMm}
+              layerHeightMm={layerHeightMm}
+              onLayerHeightChange={setLayerHeightMm}
+              useFlatBottom={useFlatBottom}
+              onFlatBottomChange={setUseFlatBottom}
+              customClearanceMm={customClearanceMm}
+              onCustomClearanceChange={setCustomClearanceMm}
             />
           )}
 
@@ -258,12 +335,13 @@ export function ThreadWizard({ isOpen, onClose, onGenerate }: ThreadWizardProps)
               threadHand={threadHand}
               lengthMm={lengthMm}
               addChamfer={addChamfer}
-              isPending={generateMutation.isPending}
-              isSuccess={generateMutation.isSuccess}
-              isError={generateMutation.isError}
-              result={generateMutation.data ?? null}
-              error={generateMutation.error}
+              isPending={generateMutation.isPending || printOptMutation.isPending}
+              isSuccess={generateMutation.isSuccess || printOptMutation.isSuccess}
+              isError={generateMutation.isError || printOptMutation.isError}
+              result={generateMutation.data ?? printOptMutation.data?.generation_result ?? null}
+              error={generateMutation.error ?? printOptMutation.error}
               onGenerate={handleGenerate}
+              spec={specQuery.data ?? null}
             />
           )}
         </div>
@@ -356,10 +434,12 @@ interface StepSizeProps {
   selected: string | null;
   family: string;
   onSelect: (size: string) => void;
+  pitchSeries: PitchSeries | null;
+  onPitchSeriesChange: (series: PitchSeries | null) => void;
 }
 
 /** Step 2: Select thread size. */
-function StepSize({ sizes, isLoading, selected, family, onSelect }: StepSizeProps) {
+function StepSize({ sizes, isLoading, selected, family, onSelect, pitchSeries, onPitchSeriesChange }: StepSizeProps) {
   if (isLoading) {
     return (
       <div className="space-y-2" data-testid="sizes-loading">
@@ -372,6 +452,12 @@ function StepSize({ sizes, isLoading, selected, family, onSelect }: StepSizeProp
 
   return (
     <div className="space-y-4">
+      {family === 'iso_metric' && (
+        <div className="flex gap-2 mb-3">
+          <Button variant={pitchSeries !== 'fine' ? 'default' : 'outline'} size="sm" onClick={() => onPitchSeriesChange(null)}>Coarse</Button>
+          <Button variant={pitchSeries === 'fine' ? 'default' : 'outline'} size="sm" onClick={() => onPitchSeriesChange('fine')}>Fine</Button>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2 max-h-[250px] overflow-y-auto" data-testid="size-list">
         {sizes.map((size) => (
           <button
@@ -412,6 +498,20 @@ interface StepConfigureProps {
   size: string | null;
   spec: import('@/types/threads').ThreadSpec | null;
   specLoading: boolean;
+  printOptEnabled: boolean;
+  onPrintOptEnabledChange: (enabled: boolean) => void;
+  printProcess: PrintProcess;
+  onPrintProcessChange: (process: PrintProcess) => void;
+  printTolerance: ToleranceClass;
+  onPrintToleranceChange: (tc: ToleranceClass) => void;
+  nozzleDiameterMm: number;
+  onNozzleDiameterChange: (val: number) => void;
+  layerHeightMm: number;
+  onLayerHeightChange: (val: number) => void;
+  useFlatBottom: boolean;
+  onFlatBottomChange: (val: boolean) => void;
+  customClearanceMm: number | null;
+  onCustomClearanceChange: (val: number | null) => void;
 }
 
 /** Step 3: Configure generation options. */
@@ -424,8 +524,24 @@ function StepConfigure({
   onLengthChange,
   addChamfer,
   onChamferChange,
+  family,
+  size,
   spec,
   specLoading,
+  printOptEnabled,
+  onPrintOptEnabledChange,
+  printProcess,
+  onPrintProcessChange,
+  printTolerance,
+  onPrintToleranceChange,
+  nozzleDiameterMm,
+  onNozzleDiameterChange,
+  layerHeightMm,
+  onLayerHeightChange,
+  useFlatBottom,
+  onFlatBottomChange,
+  customClearanceMm,
+  onCustomClearanceChange,
 }: StepConfigureProps) {
   return (
     <div className="space-y-4" data-testid="configure-step">
@@ -502,6 +618,26 @@ function StepConfigure({
         />
         <label className="text-sm" htmlFor="add-chamfer">Add entry chamfer</label>
       </div>
+
+      {/* Print optimization */}
+      <PrintOptimizationForm
+        enabled={printOptEnabled}
+        onEnabledChange={onPrintOptEnabledChange}
+        process={printProcess}
+        onProcessChange={onPrintProcessChange}
+        toleranceClass={printTolerance}
+        onToleranceClassChange={onPrintToleranceChange}
+        nozzleDiameterMm={nozzleDiameterMm}
+        onNozzleDiameterChange={onNozzleDiameterChange}
+        layerHeightMm={layerHeightMm}
+        onLayerHeightChange={onLayerHeightChange}
+        useFlatBottom={useFlatBottom}
+        onFlatBottomChange={onFlatBottomChange}
+        customClearanceMm={customClearanceMm}
+        onCustomClearanceChange={onCustomClearanceChange}
+        family={family}
+        size={size}
+      />
     </div>
   );
 }
@@ -519,6 +655,7 @@ interface StepGenerateProps {
   result: ThreadGenerateResponse | null;
   error: Error | null;
   onGenerate: () => void;
+  spec: import('@/types/threads').ThreadSpec | null;
 }
 
 /** Step 4: Generate thread and show result. */
@@ -535,9 +672,18 @@ function StepGenerate({
   result,
   error,
   onGenerate,
+  spec,
 }: StepGenerateProps) {
   return (
     <div className="space-y-4" data-testid="generate-step">
+      {/* Thread preview */}
+      <ThreadPreview3D
+        spec={spec}
+        threadType={threadType}
+        lengthMm={lengthMm}
+        className="h-48 mb-4"
+      />
+
       {/* Summary */}
       <div className="rounded-md border p-4 space-y-2">
         <h4 className="font-medium">Generation Summary</h4>
