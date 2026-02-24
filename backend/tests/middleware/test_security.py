@@ -158,7 +158,9 @@ class TestSecurityLoggingMiddleware:
         app = create_test_app()
 
         with caplog.at_level(logging.INFO, logger="security"):
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 await client.get("/test/ok")
 
         # Check that request was logged
@@ -177,7 +179,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(return_value=1)
 
             with caplog.at_level(logging.WARNING, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/unauthorized")
 
             # Verify increment_counter was called
@@ -195,7 +199,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(return_value=11)
 
             with caplog.at_level(logging.WARNING, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/unauthorized")
 
             # Check for warning log
@@ -212,7 +218,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(return_value=1)
 
             with caplog.at_level(logging.WARNING, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/forbidden")
 
             # Verify increment_counter was called at least once (for IP)
@@ -235,7 +243,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(return_value=1)
 
             with caplog.at_level(logging.WARNING, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/forbidden-with-user")
 
             # Should be called twice: once for IP, once for user
@@ -262,7 +272,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(return_value=10)
 
             with caplog.at_level(logging.WARNING, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/forbidden")
 
             # Check for warning log
@@ -279,7 +291,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(return_value=20)
 
             with caplog.at_level(logging.ERROR, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/forbidden")
 
             # Check for error log
@@ -298,7 +312,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(side_effect=[5, 20])
 
             with caplog.at_level(logging.ERROR, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/forbidden-with-user")
 
             # Check for error log mentioning privilege escalation
@@ -315,7 +331,9 @@ class TestSecurityLoggingMiddleware:
             mock_redis.increment_counter = AsyncMock(return_value=1)
 
             with caplog.at_level(logging.WARNING, logger="security"):
-                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
                     await client.get("/test/forbidden")
 
             # Should log the request but not trigger security alerts
@@ -336,7 +354,9 @@ class TestSecurityLoggingMiddleware:
             return JSONResponse({"status": "healthy"})
 
         with caplog.at_level(logging.INFO, logger="security"):
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 await client.get("/health")
 
         # Should not log health check requests (filter to only security logger)
@@ -355,7 +375,9 @@ class TestSecurityLoggingMiddleware:
         ]
 
         with caplog.at_level(logging.WARNING, logger="security"):
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 for path in suspicious_paths:
                     await client.get(path)
 

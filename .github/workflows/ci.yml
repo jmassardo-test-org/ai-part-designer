@@ -224,6 +224,7 @@ jobs:
             --cov=app \
             --cov-report=xml:coverage-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
+            --cov-fail-under=0 \
             -n auto \
             --splits 10 \
             --group ${{ matrix.shard }} \

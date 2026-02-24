@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -22,9 +22,10 @@ from app.worker.tasks.maintenance import archive_old_audit_logs
 def run_async_task_sync(coro):
     """Helper to run coroutine in existing event loop (for tests) or new one."""
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
         # In an async test, we need to schedule it in the current loop
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as pool:
             return pool.submit(asyncio.run, coro).result()
     except RuntimeError:
@@ -35,19 +36,20 @@ def run_async_task_sync(coro):
 def mock_asyncio_run():
     """Patch asyncio.run to work in async test contexts."""
     original_run = asyncio.run
-    
+
     def patched_run(coro):
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # Run in a separate thread to avoid nested loop issues
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 future = pool.submit(original_run, coro)
                 return future.result(timeout=60)
         except RuntimeError:
             return original_run(coro)
-    
-    with patch('asyncio.run', side_effect=patched_run):
+
+    with patch("asyncio.run", side_effect=patched_run):
         yield
 
 
@@ -55,7 +57,9 @@ def mock_asyncio_run():
 class TestArchiveOldAuditLogs:
     """Tests for audit log archival task."""
 
-    async def test_archive_no_old_logs_returns_empty_summary(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_no_old_logs_returns_empty_summary(
+        self, db_session, test_user, mock_asyncio_run
+    ):
         """Test that archival with no old logs returns empty summary."""
         # Create recent audit log (within retention period)
         recent_log = AuditLog(
@@ -82,7 +86,9 @@ class TestArchiveOldAuditLogs:
             assert result["archive_files_created"] == 0
             mock_storage.upload_file.assert_not_called()
 
-    async def test_archive_old_logs_creates_archive_files(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_old_logs_creates_archive_files(
+        self, db_session, test_user, mock_asyncio_run
+    ):
         """Test that old logs are archived to storage."""
         # Create old audit logs (beyond retention period)
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 10)
@@ -252,7 +258,9 @@ class TestArchiveOldAuditLogs:
             # Summary file should also be uploaded
             assert mock_storage.upload_file.call_count >= 4  # 3 batches + summary
 
-    async def test_archive_handles_storage_upload_errors(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_handles_storage_upload_errors(
+        self, db_session, test_user, mock_asyncio_run
+    ):
         """Test that storage upload errors are handled gracefully."""
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 1)
 

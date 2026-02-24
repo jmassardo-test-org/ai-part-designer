@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.organization import Organization
+    from app.models.team import Team, TeamMember
     from app.models.user import User
 
 
@@ -33,7 +34,7 @@ async def create_team(
     name: str = "Engineering",
     slug: str | None = None,
     created_by: User | None = None,
-) -> "Team":
+) -> Team:
     """Create a team for testing."""
     from app.models.team import Team
 
@@ -53,10 +54,10 @@ async def create_team(
 
 async def add_team_member(
     db_session: AsyncSession,
-    team: "Team",
+    team: Team,
     user: User,
     role: TeamRole = TeamRole.MEMBER,
-) -> "TeamMember":
+) -> TeamMember:
     """Add a member to a team."""
     from app.models.team import TeamMember
 

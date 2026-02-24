@@ -5,33 +5,30 @@ Provides fixtures specifically for API endpoint tests including
 subscription tiers and organization setup.
 """
 
-from uuid import uuid4
-
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.features import OrgFeature
-from app.models.organization import Organization, OrganizationMember, OrganizationRole
 from app.models.subscription import SubscriptionTier
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def seed_subscription_tiers_api(db_session: AsyncSession) -> None:
     """Seed subscription tiers with all features enabled.
-    
+
     API tests need tier-level feature checks to pass so that
     org-level and endpoint-level tests can work properly.
     This fixture creates a free tier with every feature enabled.
     """
     # Check if already seeded (avoid duplicates)
     from sqlalchemy import select
+
     result = await db_session.execute(
         select(SubscriptionTier).where(SubscriptionTier.slug == "free")
     )
     existing = result.scalar_one_or_none()
     if existing:
         return
-    
+
     tier = SubscriptionTier(
         slug="free",
         name="Free",

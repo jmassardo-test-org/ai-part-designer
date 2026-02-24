@@ -224,7 +224,6 @@ class TestMigrationSmokeTest:
 
         return os.environ.get("TEST_DATABASE_URL")
 
-    @pytest.mark.skip(reason="Requires database - run manually or in CI")
     def test_migrations_run_twice_without_errors(self, db_url: str | None) -> None:
         """Migrations should be idempotent - running twice should not fail.
 
@@ -277,7 +276,6 @@ class TestMigrationSmokeTest:
             f"Second upgrade failed (migration not idempotent): {result.stderr}"
         )
 
-    @pytest.mark.skip(reason="Requires database - run manually or in CI")
     def test_full_upgrade_downgrade_cycle(self, db_url: str | None) -> None:
         """Test full migration upgrade/downgrade cycle.
 

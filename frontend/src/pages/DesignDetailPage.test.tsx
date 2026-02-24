@@ -30,7 +30,7 @@ vi.mock('@/components/viewer/ModelViewer', () => ({
 
 // Mock the VersionHistoryPanel component
 vi.mock('@/pages/VersionHistoryPanel', () => ({
-  VersionHistoryPanel: ({ designId, designName, onClose }: { designId: string; designName: string; onClose: () => void }) => (
+  VersionHistoryPanel: ({ designId: _designId, designName, onClose }: { designId: string; designName: string; onClose: () => void }) => (
     <div data-testid="version-history-panel">
       <span>Version History: {designName}</span>
       <button onClick={onClose}>Close Panel</button>

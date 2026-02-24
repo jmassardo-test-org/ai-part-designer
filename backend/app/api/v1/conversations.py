@@ -601,9 +601,7 @@ async def send_message(
     conversation.messages.append(user_msg)
 
     # --- Abuse / content moderation check ---
-    request_ip = (
-        http_request.client.host if http_request.client else "unknown"
-    )
+    request_ip = http_request.client.host if http_request.client else "unknown"
     moderation = await moderate_conversation_message(
         message=request.content,
         user_id=current_user.id,
@@ -612,8 +610,7 @@ async def send_message(
     )
     if not moderation.allowed:
         rejection_text = (
-            moderation.rejection_message
-            or "Your message was flagged by our content policy."
+            moderation.rejection_message or "Your message was flagged by our content policy."
         )
         assistant_msg = ConversationMessage(
             conversation_id=conversation.id,
@@ -647,9 +644,7 @@ async def send_message(
         if conversation.design_id:
             from app.services.model_context import get_design_by_id
 
-            linked_design = await get_design_by_id(
-                conversation.design_id, current_user.id, db
-            )
+            linked_design = await get_design_by_id(conversation.design_id, current_user.id, db)
             if linked_design:
                 design_extra = linked_design.extra_data
 
