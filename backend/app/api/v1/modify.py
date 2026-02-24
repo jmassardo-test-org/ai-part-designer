@@ -7,10 +7,8 @@ Provides REST API for modifying uploaded CAD files.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -24,6 +22,9 @@ from app.core.database import get_db
 from app.models.file import File as FileModel
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from uuid import UUID
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User

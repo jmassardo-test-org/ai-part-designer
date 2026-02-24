@@ -59,7 +59,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         if not request_id:
             # Generate new request ID (22-char URL-safe base64 string)
             request_id = secrets.token_urlsafe(16)
-        
+
         # Always store request_id on request.state for access by handlers
         request.state.request_id = request_id
 

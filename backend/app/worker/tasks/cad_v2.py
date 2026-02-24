@@ -199,6 +199,17 @@ def compile_enclosure_v2(
                 if user_id:
                     send_job_complete(user_id, job_id, result)
 
+                    # Persist notification for offline users
+                    from app.services.notification_service import notify_job_completed
+
+                    await notify_job_completed(
+                        db=session,
+                        user_id=UUID(user_id),
+                        job_id=UUID(job_id),
+                        job_type="enclosure compile",
+                        design_name="enclosure",
+                    )
+
                 logger.info(f"CAD v2 job {job_id} completed successfully")
                 return result
 
@@ -229,6 +240,18 @@ async def _fail_job(
 
     if user_id:
         send_job_failed(user_id, job_id, error_message)
+
+        # Persist notification for offline users
+        from app.services.notification_service import notify_job_failed
+
+        await notify_job_failed(
+            db=session,
+            user_id=UUID(user_id),
+            job_id=UUID(job_id),
+            job_type="CAD v2",
+            design_name="design",
+            error_message=error_message,
+        )
 
     logger.error(f"CAD v2 job {job_id} failed: {error_message}")
 
@@ -452,6 +475,17 @@ def generate_from_description_v2(
 
                 if user_id:
                     send_job_complete(user_id, job_id, job_result)
+
+                    # Persist notification for offline users
+                    from app.services.notification_service import notify_job_completed
+
+                    await notify_job_completed(
+                        db=session,
+                        user_id=UUID(user_id),
+                        job_id=UUID(job_id),
+                        job_type="AI enclosure generation",
+                        design_name=description[:50] if description else "design",
+                    )
 
                 logger.info(f"CAD v2 generate job {job_id} completed successfully")
                 return job_result

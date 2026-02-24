@@ -15,7 +15,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 # Set test environment before importing app modules
 os.environ["TESTING"] = "true"
@@ -47,6 +49,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
 
     from app.models import User
+    from app.models.project import Project
 
 
 # =============================================================================
@@ -84,19 +87,26 @@ def get_database_url():
     return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="session")
 async def db_engine():
-    """Create test database engine using PostgreSQL."""
+    """Create test database engine (one per xdist worker process)."""
     database_url = get_database_url()
 
     engine = create_async_engine(
         database_url,
         echo=False,
+        poolclass=NullPool,
     )
 
-    # Create tables if they don't exist
+    # Serialize schema bootstrap across xdist workers to avoid concurrent
+    # CREATE TYPE/CREATE TABLE races against the same PostgreSQL database.
+    lock_id = 871234561
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+        try:
+            await conn.run_sync(Base.metadata.create_all)
+        finally:
+            await conn.execute(text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id})
 
     yield engine
 
@@ -105,41 +115,29 @@ async def db_engine():
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create isolated database session for each test."""
-    from sqlalchemy import text
+    """Create isolated database session for each test using nested transactions.
 
-    async_session_factory = async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autoflush=False,
-    )
+    Uses the connection-level transaction pattern:
+    1. Get a connection from the engine
+    2. Begin an outer transaction (will be rolled back at end)
+    3. Create a session bound to this connection
+    4. Tests can commit/rollback freely (operates on savepoints)
+    5. After the test, rollback the outer transaction to undo everything
+    """
+    async with db_engine.connect() as conn:
+        trans = await conn.begin()
 
-    async with async_session_factory() as session:
-        # Clean up any existing data before the test
-        # Get all table names and truncate them (excluding alembic)
-        try:
-            await session.execute(
-                text("""
-                DO $$
-                DECLARE
-                    r RECORD;
-                BEGIN
-                    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != 'alembic_version') LOOP
-                        EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
-                    END LOOP;
-                END $$;
-            """)
-            )
-            await session.commit()
-        except Exception:
-            # If truncate fails (e.g., first run), that's ok
-            await session.rollback()
+        session = AsyncSession(
+            bind=conn,
+            expire_on_commit=False,
+            autoflush=False,
+            join_transaction_mode="create_savepoint",
+        )
 
         yield session
 
-        # Clean up after the test
-        await session.rollback()
+        await session.close()
+        await trans.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -202,7 +200,7 @@ async def async_client(client: AsyncClient) -> AsyncClient:
 @pytest.fixture
 def mock_current_user():
     """Create a mock user for testing.
-    
+
     Note: This fixture alone doesn't inject auth into the client.
     Use it with `mock_auth_client` or manually override the dependency.
     """
@@ -226,15 +224,15 @@ async def mock_auth_client(
     mock_current_user,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client with mocked authentication.
-    
+
     This client overrides get_current_user to return mock_current_user,
     allowing tests to bypass real authentication while still testing
     authorization and business logic.
-    
+
     Also mocks require_org_feature to skip feature checks for unit tests.
     """
     from unittest.mock import patch
-    
+
     from httpx import ASGITransport
 
     from app.core.auth import get_current_user
@@ -250,6 +248,7 @@ async def mock_auth_client(
     def mock_require_org_feature(feature_name: str):
         async def no_op(*args, **kwargs):
             return None
+
         return no_op
 
     app.dependency_overrides[get_db] = override_get_db
@@ -292,7 +291,7 @@ async def test_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def test_user_2(db_session: AsyncSession) -> "User":
+async def test_user_2(db_session: AsyncSession) -> User:
     """Create a second test user for access control tests."""
     from datetime import datetime
 
@@ -335,7 +334,7 @@ async def test_admin(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def test_project(db_session: AsyncSession, test_user: "User") -> "Project":
+async def test_project(db_session: AsyncSession, test_user: User) -> Project:
     """Create a test project."""
     from app.models.project import Project
 
@@ -364,7 +363,7 @@ def auth_headers(test_user: User) -> dict[str, str]:
 
 
 @pytest.fixture
-def auth_headers_2(test_user_2: "User") -> dict[str, str]:
+def auth_headers_2(test_user_2: User) -> dict[str, str]:
     """Generate authentication headers for second test user."""
     from app.core.security import create_access_token
 

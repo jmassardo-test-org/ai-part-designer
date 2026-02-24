@@ -285,6 +285,35 @@ async def upload_file(
 
     logger.info(f"File uploaded: {file_record.id} by user {current_user.id}")
 
+    # Check if storage is at 90%+ and send warning notification (max once per day)
+    updated_quota = await get_storage_quota(current_user, db, settings)
+    if updated_quota.usage_percent >= 90:
+        from datetime import timedelta
+
+        from app.models.notification import Notification, NotificationType
+        from app.services.notification_service import notify_storage_warning
+
+        # Only send if no storage warning was sent in the last 24 hours
+        one_day_ago = datetime.now() - timedelta(days=1)
+        recent_warning = await db.execute(
+            select(Notification.id)
+            .where(
+                and_(
+                    Notification.user_id == current_user.id,
+                    Notification.type == NotificationType.SYSTEM_ANNOUNCEMENT,
+                    Notification.created_at >= one_day_ago,
+                    Notification.data["kind"].astext == "storage_warning",
+                )
+            )
+            .limit(1)
+        )
+        if not recent_warning.scalar_one_or_none():
+            await notify_storage_warning(
+                db=db,
+                user_id=current_user.id,
+                usage_percent=updated_quota.usage_percent,
+            )
+
     return FileResponse(
         id=str(file_record.id),
         filename=file_record.filename,

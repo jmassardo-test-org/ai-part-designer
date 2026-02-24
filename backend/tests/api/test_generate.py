@@ -1,20 +1,55 @@
 """
 Tests for generation API endpoints.
+
+Refactored to use FastAPI's app.dependency_overrides for proper
+dependency injection mocking instead of unittest.mock.patch.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 
 from app.ai.generator import GenerationResult
 from app.ai.parser import CADParameters, ParseResult, ShapeType
+from app.core.config import Settings, get_settings
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def seed_subscription_tiers_api() -> None:
+    """Override API autouse DB seeding fixture for this module's DB-free tests."""
+    return None
+
+
+def _make_test_settings(**overrides: Any) -> Settings:
+    """Create a test Settings instance with v1 pipeline defaults.
+
+    By default routes through the v1 pipeline (CAD_V2 disabled)
+    and provides a fake API key so AI-configured checks pass.
+
+    Args:
+        **overrides: Any Settings field to override.
+
+    Returns:
+        A Settings instance configured for testing.
+    """
+    defaults: dict[str, Any] = {
+        "CAD_V2_ENABLED": False,
+        "CAD_V2_AS_DEFAULT": False,
+        "ANTHROPIC_API_KEY": "test-key",
+        "SECRET_KEY": "test-secret-key-for-unit-tests",
+        "POSTGRES_HOST": "localhost",
+    }
+    defaults.update(overrides)
+    return Settings(**defaults)
+
 
 # =============================================================================
 # Generate Endpoint Tests
@@ -25,9 +60,10 @@ class TestGenerateEndpoint:
     """Tests for POST /api/v1/generate endpoint."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires FastAPI dependency override for proper mocking. See CAD v2 migration.")
-    async def test_generate_success(self, client: AsyncClient):
-        """Test successful CAD generation."""
+    async def test_generate_success(self, simple_client: AsyncClient) -> None:
+        """Test successful CAD generation via v1 pipeline."""
+        from app.main import app
+
         mock_result = GenerationResult(
             description="Create a box 100x50x30mm",
             shape_type="box",
@@ -46,21 +82,25 @@ class TestGenerateEndpoint:
             warnings=["Assumed millimeters"],
         )
 
-        with patch(
-            "app.api.v1.generate.generate_from_description", new_callable=AsyncMock
-        ) as mock_gen:
-            mock_gen.return_value = mock_result
+        test_settings = _make_test_settings()
+        app.dependency_overrides[get_settings] = lambda: test_settings
 
-            with patch("app.api.v1.generate.get_settings") as mock_settings:
-                mock_settings.return_value.ANTHROPIC_API_KEY = "test-key"
-                # Route through v1 pipeline for this test
-                mock_settings.return_value.CAD_V2_ENABLED = False
-                mock_settings.return_value.CAD_V2_AS_DEFAULT = False
+        try:
+            with patch("app.ai.providers.get_ai_provider") as mock_provider:
+                mock_provider.return_value = MagicMock(is_configured=True, name="anthropic")
 
-                response = await client.post(
-                    "/api/v1/generate",
-                    json={"description": "Create a box 100x50x30mm"},
-                )
+                with patch(
+                    "app.api.v1.generate.generate_from_description",
+                    new_callable=AsyncMock,
+                ) as mock_gen:
+                    mock_gen.return_value = mock_result
+
+                    response = await simple_client.post(
+                        "/api/v1/generate",
+                        json={"description": "Create a box 100x50x30mm"},
+                    )
+        finally:
+            app.dependency_overrides.pop(get_settings, None)
 
         assert response.status_code == 201
         data = response.json()
@@ -74,52 +114,59 @@ class TestGenerateEndpoint:
         assert "stl" in data["downloads"]
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires FastAPI dependency override for proper mocking. See CAD v2 migration.")
-    async def test_generate_no_ai_provider(self, client: AsyncClient):
+    async def test_generate_no_ai_provider(self, simple_client: AsyncClient) -> None:
         """Test error when AI provider not configured."""
-        with patch("app.api.v1.generate.get_settings") as mock_settings:
-            # Route through v1 pipeline
-            mock_settings.return_value.CAD_V2_ENABLED = False
-            mock_settings.return_value.CAD_V2_AS_DEFAULT = False
-            mock_settings.return_value.ANTHROPIC_API_KEY = None
-            mock_settings.return_value.OPENAI_API_KEY = None
-            
+        from app.main import app
+
+        test_settings = _make_test_settings(
+            ANTHROPIC_API_KEY=None,
+            OPENAI_API_KEY=None,
+        )
+        app.dependency_overrides[get_settings] = lambda: test_settings
+
+        try:
             with patch("app.ai.providers.get_ai_provider") as mock_provider:
                 mock_provider.side_effect = ValueError("No AI provider configured")
 
-                response = await client.post(
+                response = await simple_client.post(
                     "/api/v1/generate",
                     json={"description": "Create a box"},
                 )
+        finally:
+            app.dependency_overrides.pop(get_settings, None)
 
         assert response.status_code == 503
         assert "configured" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires FastAPI dependency override for proper mocking. See CAD v2 migration.")
-    async def test_generate_invalid_quality(self, client: AsyncClient):
+    async def test_generate_invalid_quality(self, simple_client: AsyncClient) -> None:
         """Test error for invalid STL quality."""
-        with patch("app.api.v1.generate.get_settings") as mock_settings:
-            mock_settings.return_value.ANTHROPIC_API_KEY = "test-key"
-            # Route through v1 pipeline for quality validation
-            mock_settings.return_value.CAD_V2_ENABLED = False
-            mock_settings.return_value.CAD_V2_AS_DEFAULT = False
+        from app.main import app
 
-            response = await client.post(
-                "/api/v1/generate",
-                json={
-                    "description": "Create a box",
-                    "stl_quality": "invalid_quality",
-                },
-            )
+        test_settings = _make_test_settings()
+        app.dependency_overrides[get_settings] = lambda: test_settings
+
+        try:
+            with patch("app.ai.providers.get_ai_provider") as mock_provider:
+                mock_provider.return_value = MagicMock(is_configured=True, name="anthropic")
+
+                response = await simple_client.post(
+                    "/api/v1/generate",
+                    json={
+                        "description": "Create a box",
+                        "stl_quality": "invalid_quality",
+                    },
+                )
+        finally:
+            app.dependency_overrides.pop(get_settings, None)
 
         assert response.status_code == 400
         assert "quality" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_generate_empty_description(self, client: AsyncClient):
+    async def test_generate_empty_description(self, simple_client: AsyncClient) -> None:
         """Test validation error for empty description."""
-        response = await client.post(
+        response = await simple_client.post(
             "/api/v1/generate",
             json={"description": ""},
         )
@@ -128,9 +175,9 @@ class TestGenerateEndpoint:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_generate_short_description(self, client: AsyncClient):
+    async def test_generate_short_description(self, simple_client: AsyncClient) -> None:
         """Test validation error for too-short description."""
-        response = await client.post(
+        response = await simple_client.post(
             "/api/v1/generate",
             json={"description": "ab"},  # Less than min_length=3
         )
@@ -147,9 +194,10 @@ class TestParseEndpoint:
     """Tests for POST /api/v1/generate/parse endpoint."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires FastAPI dependency override for proper mocking. See CAD v2 migration.")
-    async def test_parse_success(self, client: AsyncClient):
+    async def test_parse_success(self, simple_client: AsyncClient) -> None:
         """Test successful description parsing."""
+        from app.main import app
+
         mock_result = ParseResult(
             parameters=CADParameters(
                 shape=ShapeType.CYLINDER,
@@ -161,17 +209,22 @@ class TestParseEndpoint:
             parse_time_ms=80,
         )
 
-        # Mock the parse_description in the correct location (app.ai.parser)
-        with patch("app.ai.parser.parse_description", new_callable=AsyncMock) as mock_parse:
-            mock_parse.return_value = mock_result
+        test_settings = _make_test_settings()
+        app.dependency_overrides[get_settings] = lambda: test_settings
 
-            with patch("app.api.v1.generate.get_settings") as mock_settings:
-                mock_settings.return_value.ANTHROPIC_API_KEY = "test-key"
+        try:
+            with patch(
+                "app.ai.parser.parse_description",
+                new_callable=AsyncMock,
+            ) as mock_parse:
+                mock_parse.return_value = mock_result
 
-                response = await client.post(
+                response = await simple_client.post(
                     "/api/v1/generate/parse",
                     json={"description": "Create a cylinder 50mm diameter, 100mm tall"},
                 )
+        finally:
+            app.dependency_overrides.pop(get_settings, None)
 
         assert response.status_code == 200
         data = response.json()
@@ -375,9 +428,7 @@ class TestAssemblyPartDownloadSecurity:
         ]
 
         for pattern in invalid_patterns:
-            response = await simple_client.get(
-                f"/api/v1/generate/{job_id}/download/step/{pattern}"
-            )
+            response = await simple_client.get(f"/api/v1/generate/{job_id}/download/step/{pattern}")
             # Should be rejected as 400 (invalid part name) or 422 (validation error)
             assert response.status_code in (400, 422), f"Pattern {pattern} should be rejected"
 

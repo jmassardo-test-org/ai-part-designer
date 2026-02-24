@@ -22,11 +22,11 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { DesignActionsMenu, RenameModal } from '@/components/designs/DesignActionsMenu';
 import { CopyModal } from '@/components/designs/CopyModal';
-import { MoveModal } from '@/components/designs/MoveModal';
 import { DeleteModal } from '@/components/designs/DeleteModal';
+import { DesignActionsMenu, RenameModal } from '@/components/designs/DesignActionsMenu';
+import { MoveModal } from '@/components/designs/MoveModal';
+import { useAuth } from '@/contexts/AuthContext';
 import { useDesignManagement } from '@/hooks/useDesignManagement';
 import type { Design as FullDesign, Project as LibProject } from '@/lib/designs';
 

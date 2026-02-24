@@ -29,37 +29,21 @@ logger = logging.getLogger(__name__)
 # Patterns that indicate a user is asking about dimensions / geometry
 _GEOMETRY_QUERY_PATTERNS: list[re.Pattern[str]] = [
     # Specific dimension questions
-    re.compile(
-        r"\b(what|how)\b.{0,20}\b(height|tall|high)\b", re.IGNORECASE
-    ),
-    re.compile(
-        r"\b(what|how)\b.{0,20}\b(width|wide)\b", re.IGNORECASE
-    ),
-    re.compile(
-        r"\b(what|how)\b.{0,20}\b(length|long|depth|deep)\b", re.IGNORECASE
-    ),
-    re.compile(
-        r"\b(what|how)\b.{0,20}\b(diameter|radius)\b", re.IGNORECASE
-    ),
-    re.compile(
-        r"\b(what|how)\b.{0,20}\b(thick|thickness)\b", re.IGNORECASE
-    ),
+    re.compile(r"\b(what|how)\b.{0,20}\b(height|tall|high)\b", re.IGNORECASE),
+    re.compile(r"\b(what|how)\b.{0,20}\b(width|wide)\b", re.IGNORECASE),
+    re.compile(r"\b(what|how)\b.{0,20}\b(length|long|depth|deep)\b", re.IGNORECASE),
+    re.compile(r"\b(what|how)\b.{0,20}\b(diameter|radius)\b", re.IGNORECASE),
+    re.compile(r"\b(what|how)\b.{0,20}\b(thick|thickness)\b", re.IGNORECASE),
     # General dimension / size queries
     re.compile(
         r"\b(what|tell me|show me|list)\b.{0,20}\b(dimensions?|measurements?|size)\b",
         re.IGNORECASE,
     ),
-    re.compile(
-        r"\b(how big|overall size|bounding box)\b", re.IGNORECASE
-    ),
+    re.compile(r"\b(how big|overall size|bounding box)\b", re.IGNORECASE),
     # Volume / area queries
-    re.compile(
-        r"\b(what|how).{0,15}\b(volume|surface area)\b", re.IGNORECASE
-    ),
+    re.compile(r"\b(what|how).{0,15}\b(volume|surface area)\b", re.IGNORECASE),
     # Weight estimate (from volume)
-    re.compile(
-        r"\b(what|how).{0,15}\b(weigh[ts]?|mass)\b", re.IGNORECASE
-    ),
+    re.compile(r"\b(what|how).{0,15}\b(weigh[ts]?|mass)\b", re.IGNORECASE),
     # Direct "is it … mm?" style
     re.compile(
         r"\b(is it|is the)\b.{0,20}\b(mm|cm|inch|inches|meters?)\b",
@@ -154,9 +138,7 @@ def answer_geometry_query(
     elif design_extra_data:
         dims = design_extra_data.get("dimensions", {})
         if not dims:
-            dims = _extract_dims_from_params(
-                design_extra_data.get("parameters", {})
-            )
+            dims = _extract_dims_from_params(design_extra_data.get("parameters", {}))
         source = "design_extra_data"
 
     if not dims:
@@ -178,9 +160,7 @@ def answer_geometry_query(
     requested_dim = _detect_requested_dimension(msg_lower)
 
     if requested_dim:
-        return _answer_specific_dimension(
-            requested_dim, dims, stats, source
-        )
+        return _answer_specific_dimension(requested_dim, dims, stats, source)
 
     # Check for volume / surface area
     if _mentions(msg_lower, ["volume"]):
@@ -235,8 +215,16 @@ def _detect_requested_dimension(msg_lower: str) -> str | None:
 def _extract_dims_from_params(params: dict[str, Any]) -> dict[str, Any]:
     """Pull dimension-like keys out of a generic parameters dict."""
     dim_keys = {
-        "length", "width", "height", "x", "y", "z",
-        "diameter", "radius", "thickness", "depth",
+        "length",
+        "width",
+        "height",
+        "x",
+        "y",
+        "z",
+        "diameter",
+        "radius",
+        "thickness",
+        "depth",
     }
     result = {k: v for k, v in params.items() if k in dim_keys}
     if result and "unit" not in result:
@@ -257,7 +245,7 @@ def _fmt_value(value: Any, unit: str = "mm") -> str:
 def _answer_specific_dimension(
     requested: str,
     dims: dict[str, Any],
-    stats: dict[str, Any],
+    _stats: dict[str, Any],
     source: str,
 ) -> GeometryAnswer:
     """Answer a question about a single specific dimension."""
@@ -270,8 +258,7 @@ def _answer_specific_dimension(
             return GeometryAnswer(
                 answered=True,
                 response_text=(
-                    f"The **{requested}** of the model is "
-                    f"**{_fmt_value(dims[key], unit)}**."
+                    f"The **{requested}** of the model is **{_fmt_value(dims[key], unit)}**."
                 ),
                 dimensions=dims,
                 source=source,
@@ -288,8 +275,7 @@ def _answer_specific_dimension(
             answered=False,
             response_text=(
                 f"I don't have a specific **{requested}** measurement, "
-                f"but here are the available dimensions:\n"
-                + "\n".join(f"- {a}" for a in available)
+                f"but here are the available dimensions:\n" + "\n".join(f"- {a}" for a in available)
             ),
             dimensions=dims,
             source=source,
@@ -297,9 +283,7 @@ def _answer_specific_dimension(
 
     return GeometryAnswer(
         answered=False,
-        response_text=(
-            f"I don't have a **{requested}** measurement for this model."
-        ),
+        response_text=(f"I don't have a **{requested}** measurement for this model."),
         dimensions=dims,
         source=source,
     )
@@ -393,8 +377,7 @@ def _answer_weight_estimate(
         return GeometryAnswer(
             answered=False,
             response_text=(
-                "I can't estimate weight without volume data. "
-                "Please generate the part first."
+                "I can't estimate weight without volume data. Please generate the part first."
             ),
             source=source,
         )

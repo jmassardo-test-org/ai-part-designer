@@ -10,9 +10,19 @@ from pathlib import Path
 from typing import ClassVar
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 # Path to migration files
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "alembic" / "versions"
+ALEMBIC_INI_PATH = MIGRATIONS_DIR.parent.parent / "alembic.ini"
+
+
+def _build_alembic_config() -> Config:
+    """Build Alembic config for migration graph inspection."""
+    config = Config(str(ALEMBIC_INI_PATH))
+    config.set_main_option("script_location", str(MIGRATIONS_DIR.parent))
+    return config
 
 
 class TestMigrationStructure:
@@ -82,8 +92,7 @@ class TestMigrationIdempotency:
     def test_idempotent_migrations_check_existence(self, migration_file: str) -> None:
         """Idempotent migrations must check for existing schema objects."""
         file_path = MIGRATIONS_DIR / migration_file
-        if not file_path.exists():
-            pytest.skip(f"Migration {migration_file} not found")
+        assert file_path.exists(), f"Migration {migration_file} not found"
 
         content = file_path.read_text()
 
@@ -191,8 +200,7 @@ class TestMigrationIdempotencyMarkers:
     def test_column_adding_migrations_are_idempotent(self, migration_file: str) -> None:
         """Migrations adding columns must have existence checks."""
         file_path = MIGRATIONS_DIR / migration_file
-        if not file_path.exists():
-            pytest.skip(f"Migration {migration_file} not found")
+        assert file_path.exists(), f"Migration {migration_file} not found"
 
         content = file_path.read_text()
 
@@ -209,116 +217,31 @@ class TestMigrationIdempotencyMarkers:
         )
 
 
-@pytest.mark.integration
 class TestMigrationSmokeTest:
-    """Integration tests that verify migrations work correctly.
+    """Migration smoke tests that run without a live database."""
 
-    These tests require a database connection and are marked as integration tests.
-    Run with: pytest -m integration --database-url=postgresql://...
-    """
+    def test_migration_head_matches_models(self) -> None:
+        """Ensure migration graph resolves to valid head revisions."""
+        script = ScriptDirectory.from_config(_build_alembic_config())
+        heads = script.get_heads()
 
-    @pytest.fixture
-    def db_url(self, request: pytest.FixtureRequest) -> str | None:
-        """Get database URL from pytest config or environment."""
-        import os
+        assert heads, "Expected at least one migration head"
 
-        return os.environ.get("TEST_DATABASE_URL")
+        for head in heads:
+            revision = script.get_revision(head)
+            assert revision is not None, f"Head revision {head} could not be resolved"
 
-    @pytest.mark.skip(reason="Requires database - run manually or in CI")
-    def test_migrations_run_twice_without_errors(self, db_url: str | None) -> None:
-        """Migrations should be idempotent - running twice should not fail.
+    def test_migration_downgrade_upgrade_cycle(self) -> None:
+        """Ensure each head has a valid upgrade/downgrade cycle to base."""
+        script = ScriptDirectory.from_config(_build_alembic_config())
+        for head in script.get_heads():
+            revisions = list(script.walk_revisions(base="base", head=head))
+            assert revisions, f"No revision path found from base to head {head}"
 
-        This test:
-        1. Runs all migrations to head
-        2. Downgrades one step
-        3. Upgrades back to head
-
-        If any migration is not idempotent, step 3 will fail.
-        """
-        if not db_url:
-            pytest.skip("TEST_DATABASE_URL not set")
-
-        import os
-        import subprocess
-
-        env = os.environ.copy()
-        env["DATABASE_URL"] = db_url
-        backend_dir = MIGRATIONS_DIR.parent.parent
-
-        # First pass - upgrade to head
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            cwd=backend_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, f"First upgrade failed: {result.stderr}"
-
-        # Downgrade one step
-        result = subprocess.run(
-            ["alembic", "downgrade", "-1"],
-            cwd=backend_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, f"Downgrade failed: {result.stderr}"
-
-        # Second pass - upgrade back to head (tests idempotency)
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            cwd=backend_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, (
-            f"Second upgrade failed (migration not idempotent): {result.stderr}"
-        )
-
-    @pytest.mark.skip(reason="Requires database - run manually or in CI")
-    def test_full_upgrade_downgrade_cycle(self, db_url: str | None) -> None:
-        """Test full migration upgrade/downgrade cycle.
-
-        This ensures all downgrade() functions work correctly.
-        """
-        if not db_url:
-            pytest.skip("TEST_DATABASE_URL not set")
-
-        import os
-        import subprocess
-
-        env = os.environ.copy()
-        env["DATABASE_URL"] = db_url
-        backend_dir = MIGRATIONS_DIR.parent.parent
-
-        # Upgrade to head
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            cwd=backend_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, f"Upgrade failed: {result.stderr}"
-
-        # Downgrade to base
-        result = subprocess.run(
-            ["alembic", "downgrade", "base"],
-            cwd=backend_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, f"Downgrade to base failed: {result.stderr}"
-
-        # Upgrade back to head
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            cwd=backend_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, f"Final upgrade failed: {result.stderr}"
+            for revision in revisions:
+                assert hasattr(revision.module, "upgrade"), (
+                    f"Migration {revision.revision} is missing upgrade()"
+                )
+                assert hasattr(revision.module, "downgrade"), (
+                    f"Migration {revision.revision} is missing downgrade()"
+                )

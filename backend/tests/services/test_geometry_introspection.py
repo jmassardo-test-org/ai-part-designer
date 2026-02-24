@@ -15,7 +15,6 @@ from app.services.geometry_introspection import (
     is_geometry_query,
 )
 
-
 # =============================================================================
 # Fixtures / helpers
 # =============================================================================
@@ -29,7 +28,9 @@ def _result_data(
 ) -> dict:
     """Build a minimal ``conversation.result_data`` dict."""
     return {
-        "dimensions": dims if dims is not None else {"length": 100, "width": 50, "height": 30, "unit": "mm"},
+        "dimensions": dims
+        if dims is not None
+        else {"length": 100, "width": 50, "height": 30, "unit": "mm"},
         "stats": stats if stats is not None else {"volume": 150000.0, "surfaceArea": 31000.0},
         "shape": shape,
         "status": "completed",
@@ -39,7 +40,9 @@ def _result_data(
 def _design_extra(*, dims: dict | None = None) -> dict:
     """Build a minimal ``design.extra_data`` dict."""
     return {
-        "dimensions": dims if dims is not None else {"length": 80, "width": 40, "height": 20, "unit": "mm"},
+        "dimensions": dims
+        if dims is not None
+        else {"length": 80, "width": 40, "height": 20, "unit": "mm"},
     }
 
 

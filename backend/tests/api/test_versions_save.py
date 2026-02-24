@@ -120,9 +120,7 @@ class TestCreateVersionFromEdit:
         design = await design_factory.create(db=db_session, project=project)
 
         # Create an initial version
-        await version_factory.create(
-            db=db_session, design=design, version_number=1
-        )
+        await version_factory.create(db=db_session, design=design, version_number=1)
 
         response = await client.post(
             f"/api/v1/designs/{design.id}/versions",

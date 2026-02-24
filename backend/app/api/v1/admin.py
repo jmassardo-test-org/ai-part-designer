@@ -5226,9 +5226,7 @@ async def list_cad_v2_components(
     # Get database records for these components (lookup by notes field which stores registry ID)
     component_ids = [c.id for c in components]
     db_components = await db.execute(
-        select(ReferenceComponent).where(
-            ReferenceComponent.notes.in_(component_ids)
-        )
+        select(ReferenceComponent).where(ReferenceComponent.notes.in_(component_ids))
     )
     db_comp_map: dict[str, ReferenceComponent] = {
         str(c.notes): c for c in db_components.scalars().all()

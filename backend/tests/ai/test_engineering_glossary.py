@@ -18,7 +18,6 @@ from app.ai.engineering_glossary import (
     search_glossary,
 )
 
-
 # =============================================================================
 # Glossary Content Tests
 # =============================================================================
@@ -89,17 +88,14 @@ class TestGlossaryContent:
         required_keys = {"term", "definition", "category", "aliases", "keywords"}
         for entry in ENGINEERING_GLOSSARY:
             missing = required_keys - set(entry.keys())
-            assert not missing, (
-                f"Entry '{entry.get('term', '?')}' missing keys: {missing}"
-            )
+            assert not missing, f"Entry '{entry.get('term', '?')}' missing keys: {missing}"
 
     def test_every_entry_has_valid_category(self) -> None:
         """All entries must use a valid GlossaryCategory value."""
         valid = {c.value for c in GlossaryCategory}
         for entry in ENGINEERING_GLOSSARY:
             assert entry["category"] in valid, (
-                f"Entry '{entry['term']}' has invalid category "
-                f"'{entry['category']}'"
+                f"Entry '{entry['term']}' has invalid category '{entry['category']}'"
             )
 
     def test_every_category_has_entries(self) -> None:
@@ -191,9 +187,7 @@ class TestSearchGlossary:
 
     def test_search_what_do_you_call_strips_prefix(self) -> None:
         """'what do you call shaving off an edge' should find chamfer."""
-        results = search_glossary(
-            "what do you call shaving off an edge"
-        )
+        results = search_glossary("what do you call shaving off an edge")
         terms = [r["term"] for r in results]
         assert "chamfer" in terms
 
@@ -208,10 +202,9 @@ class TestSearchGlossary:
         """Query about 'tight fit' should find interference/press fit."""
         results = search_glossary("tight fit")
         terms = [r["term"] for r in results]
-        assert any(
-            t in terms
-            for t in ("interference fit", "press fit")
-        ), f"Expected interference/press fit in {terms}"
+        assert any(t in terms for t in ("interference fit", "press fit")), (
+            f"Expected interference/press fit in {terms}"
+        )
 
     def test_search_max_results_limits_output(self) -> None:
         """max_results should cap the returned list length."""

@@ -11,7 +11,6 @@ import logging
 import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -30,8 +29,11 @@ from app.models.organization import (
     OrganizationRole,
 )
 from app.models.user import User
+from app.services.notification_service import notify_org_invite
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -735,7 +737,7 @@ async def remove_member(
     Cannot remove owner.
     """
     await get_org_or_404(db, org_id)
-    
+
     # Get the member to be removed
     result = await db.execute(
         select(OrganizationMember).where(
@@ -946,6 +948,18 @@ async def invite_member(
 
     await db.commit()
     await db.refresh(invite)
+
+    # Send in-app notification to existing users
+    if existing_user:
+        await notify_org_invite(
+            db=db,
+            recipient_id=existing_user.id,
+            actor_id=current_user.id,
+            actor_name=current_user.display_name or current_user.email,
+            org_id=org_id,
+            org_name=org.name,
+            role=request.role,
+        )
 
     # TODO: Implement background email sending for invitation notifications
 

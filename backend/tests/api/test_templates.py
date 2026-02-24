@@ -217,11 +217,11 @@ class TestGetTemplate:
         assert data["name"] == "Test Box"
         assert data["slug"] == "test-box"
         assert data["category"] == "mechanical"
-        
+
         # Parameters are returned as a list
         param_names = [p["name"] for p in data["parameters"]]
         assert "length" in param_names
-        
+
         # Find the length parameter
         length_param = next((p for p in data["parameters"] if p["name"] == "length"), None)
         assert length_param is not None
