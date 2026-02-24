@@ -15,7 +15,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 # Set test environment before importing app modules
 os.environ["TESTING"] = "true"
@@ -93,11 +95,18 @@ async def db_engine():
     engine = create_async_engine(
         database_url,
         echo=False,
+        poolclass=NullPool,
     )
 
-    # Create tables once per worker process
+    # Serialize schema bootstrap across xdist workers to avoid concurrent
+    # CREATE TYPE/CREATE TABLE races against the same PostgreSQL database.
+    lock_id = 871234561
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+        try:
+            await conn.run_sync(Base.metadata.create_all)
+        finally:
+            await conn.execute(text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id})
 
     yield engine
 

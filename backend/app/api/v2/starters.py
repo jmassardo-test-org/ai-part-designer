@@ -365,6 +365,20 @@ async def remix_design(
     await db.commit()
     await db.refresh(remix)
 
+    # Notify original design owner (if different from remixer and if enabled)
+    if starter.user_id != current_user.id:
+        from app.services.notification_service import notify_design_remixed
+
+        await notify_design_remixed(
+            db=db,
+            recipient_id=starter.user_id,
+            actor_id=current_user.id,
+            actor_name=current_user.display_name or current_user.email,
+            design_id=starter.id,
+            design_name=starter.name,
+            remix_name=remix_name,
+        )
+
     logger.info(f"User {current_user.id} remixed starter {design_id} -> {remix.id}")
 
     return RemixResponse(

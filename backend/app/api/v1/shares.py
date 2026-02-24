@@ -30,6 +30,10 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models import Design, DesignShare, User
 from app.models.audit import AuditActions
+from app.services.notification_service import (
+    notify_design_shared,
+    notify_share_permission_changed,
+)
 
 # Emit deprecation warning when this module is imported
 warnings.warn(
@@ -231,6 +235,17 @@ async def share_design(
         await db.commit()
         await db.refresh(existing_share)
 
+        # Notify recipient of permission change
+        await notify_share_permission_changed(
+            db=db,
+            recipient_id=share_with_user.id,
+            actor_id=current_user.id,
+            actor_name=current_user.display_name or current_user.email,  # type: ignore[attr-defined]
+            design_id=design_id,
+            design_name=design.name,  # type: ignore[attr-defined]
+            new_permission=request.permission,
+        )
+
         return ShareResponse(
             id=existing_share.id,
             design_id=existing_share.design_id,  # type: ignore[attr-defined]
@@ -252,7 +267,16 @@ async def share_design(
     await db.commit()
     await db.refresh(share)
 
-    # TODO: Send notification email with request.message
+    # Send in-app notification to recipient
+    await notify_design_shared(
+        db=db,
+        recipient_id=share_with_user.id,
+        actor_id=current_user.id,
+        actor_name=current_user.display_name or current_user.email,  # type: ignore[attr-defined]
+        design_id=design_id,
+        design_name=design.name,  # type: ignore[attr-defined]
+        permission=request.permission,
+    )
 
     return ShareResponse(
         id=share.id,
@@ -476,6 +500,17 @@ async def update_share(
     share.updated_at = datetime.now(tz=UTC)
     await db.commit()
     await db.refresh(share)
+
+    # Notify recipient of permission change
+    await notify_share_permission_changed(
+        db=db,
+        recipient_id=shared_with_user.id,
+        actor_id=current_user.id,
+        actor_name=current_user.display_name or current_user.email,
+        design_id=share.design_id,
+        design_name=design.name,
+        new_permission=request.permission,
+    )
 
     return ShareResponse(
         id=share.id,

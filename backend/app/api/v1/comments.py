@@ -4,20 +4,29 @@ Comments API endpoints.
 Handles design comments with threading and mentions.
 """
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models import Design, DesignShare, User
+from app.services.notification_service import (
+    notify_comment_added,
+    notify_comment_mention,
+    notify_comment_reply,
+)
 
 router = APIRouter(prefix="/comments", tags=["comments"])
+
+# Regex to match @mentions (alphanumeric, underscores, hyphens)
+MENTION_PATTERN = re.compile(r"@([a-zA-Z0-9_-]+)")
 
 
 # =============================================================================
@@ -90,6 +99,34 @@ _comments: dict[str, dict[str, Any]] = {}
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
+
+async def _resolve_mentions_to_user_ids(
+    db: AsyncSession, mention_slugs: list[str], exclude_user_id: UUID
+) -> list[UUID]:
+    """Resolve @mention slugs to user IDs. Matches display_name (no spaces) or email prefix."""
+    if not mention_slugs:
+        return []
+
+    from sqlalchemy import func
+
+    from app.models import User
+
+    # For each slug: match display_name (lowercase, no spaces) OR email prefix
+    slug_conditions = []
+    for slug in mention_slugs:
+        slug_lower = slug.lower()
+        slug_conditions.append(
+            or_(
+                func.lower(func.replace(User.display_name, " ", "")) == slug_lower,
+                User.email.ilike(f"{slug_lower}%"),
+            )
+        )
+
+    result = await db.execute(
+        select(User.id).where(and_(User.id != exclude_user_id, or_(*slug_conditions))).distinct()
+    )
+    return [row[0] for row in result.all()]
 
 
 async def check_design_access(
@@ -177,10 +214,11 @@ async def create_comment(
     - Replies (using parent_id)
     - 3D annotations (with position and camera data)
     """
-    # Check access
-    await check_design_access(design_id, current_user, db, require_comment_permission=True)
+    # Check access and get design
+    design = await check_design_access(design_id, current_user, db, require_comment_permission=True)
 
     # Validate parent if provided
+    parent = None
     if request.parent_id:
         parent_key = str(request.parent_id)
         if parent_key not in _comments:
@@ -221,8 +259,58 @@ async def create_comment(
     # Count replies
     reply_count = sum(1 for c in _comments.values() if c.get("parent_id") == comment_id)
 
-    # TODO: Send notification for mentions (@username in content)
-    # TODO: Send notification to design owner and other commenters
+    # Send notifications
+    actor_name = current_user.display_name or current_user.email
+    design_name = design.name
+    comment_preview = request.content[:200]
+
+    # 1. Parse @mentions and notify mentioned users
+    mention_slugs = list(set(MENTION_PATTERN.findall(request.content)))
+    mentioned_user_ids = await _resolve_mentions_to_user_ids(db, mention_slugs, current_user.id)
+    for recipient_id in mentioned_user_ids:
+        await notify_comment_mention(
+            db=db,
+            recipient_id=recipient_id,
+            actor_id=current_user.id,
+            actor_name=actor_name,
+            design_id=design_id,
+            design_name=design_name,
+            comment_preview=comment_preview,
+        )
+
+    # 2. Notify design owner on new comments (if not the commenter)
+    from app.models import Project
+
+    result = await db.execute(select(Project).where(Project.id == design.project_id))
+    project = result.scalar_one_or_none()
+    if project and project.user_id != current_user.id:
+        await notify_comment_added(
+            db=db,
+            recipient_id=project.user_id,
+            actor_id=current_user.id,
+            actor_name=actor_name,
+            design_id=design_id,
+            design_name=design_name,
+            comment_preview=comment_preview,
+        )
+
+    # 3. Notify thread participants on replies (parent author + other repliers)
+    if parent:
+        thread_participant_ids = {parent["author_id"]}
+        for c in _comments.values():
+            if c.get("parent_id") == request.parent_id and c.get("author_id"):
+                thread_participant_ids.add(c["author_id"])
+        for recipient_id in thread_participant_ids:
+            if recipient_id != current_user.id:
+                await notify_comment_reply(
+                    db=db,
+                    recipient_id=recipient_id,
+                    actor_id=current_user.id,
+                    actor_name=actor_name,
+                    design_id=design_id,
+                    design_name=design_name,
+                    comment_preview=comment_preview,
+                )
 
     return CommentResponse(
         id=comment_id,

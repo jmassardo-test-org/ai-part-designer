@@ -29,6 +29,7 @@ from app.models.organization import (
     OrganizationRole,
 )
 from app.models.user import User
+from app.services.notification_service import notify_org_invite
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -947,6 +948,18 @@ async def invite_member(
 
     await db.commit()
     await db.refresh(invite)
+
+    # Send in-app notification to existing users
+    if existing_user:
+        await notify_org_invite(
+            db=db,
+            recipient_id=existing_user.id,
+            actor_id=current_user.id,
+            actor_name=current_user.display_name or current_user.email,
+            org_id=org_id,
+            org_name=org.name,
+            role=request.role,
+        )
 
     # TODO: Implement background email sending for invitation notifications
 
