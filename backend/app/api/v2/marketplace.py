@@ -9,14 +9,17 @@ from __future__ import annotations
 import logging
 from datetime import UTC
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user_optional
+from app.api.deps import get_current_user, get_current_user_optional
 from app.core.database import get_db
 from app.models.design import Design
 from app.models.marketplace import DesignSave
+from app.models.project import Project
 from app.models.user import User
 from app.schemas.marketplace import (
     CategoryResponse,
@@ -25,12 +28,28 @@ from app.schemas.marketplace import (
     PaginatedDesignResponse,
     PublishDesignRequest,
     PublishDesignResponse,
+    RemixRequest,
+    RemixResponse,
 )
+from app.schemas.rating import (
+    DesignCommentCreate,
+    DesignCommentResponse,
+    DesignCommentThread,
+    DesignCommentUpdate,
+    DesignRatingCreate,
+    DesignRatingResponse,
+    DesignRatingSummary,
+    DesignRatingWithUser,
+    DesignReportCreate,
+    DesignReportResponse,
+    DesignReportStatus,
+)
+from app.services.design_comment_service import DesignCommentService
+from app.services.design_rating_service import DesignRatingService
+from app.services.design_report_service import DesignReportService
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
-    from sqlalchemy.ext.asyncio import AsyncSession
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -455,3 +474,331 @@ async def unpublish_design(
     logger.info(f"Design {design_id} unpublished by user {current_user.id}")
 
     return {"message": "Design unpublished successfully"}
+
+
+# =============================================================================
+# Rating Endpoints
+# =============================================================================
+
+
+@router.put(
+    "/designs/{design_id}/ratings",
+    response_model=DesignRatingResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def rate_design(
+    design_id: UUID,
+    data: DesignRatingCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DesignRatingResponse:
+    """Create or update a rating for a marketplace design.
+
+    Authenticated users can rate any public design they don't own.
+    If the user has already rated this design, their rating is updated.
+    """
+    service = DesignRatingService(db)
+    try:
+        return await service.create_or_update_rating(design_id, current_user, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete(
+    "/designs/{design_id}/ratings",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_design_rating(
+    design_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Delete the current user's rating for a design."""
+    service = DesignRatingService(db)
+    try:
+        await service.delete_rating(design_id, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/designs/{design_id}/ratings",
+    response_model=dict,
+)
+async def get_design_ratings(
+    design_id: UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get paginated ratings for a design with user information."""
+    service = DesignRatingService(db)
+    ratings, total = await service.get_design_ratings(design_id, page, page_size)
+    return {
+        "ratings": ratings,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get(
+    "/designs/{design_id}/ratings/summary",
+    response_model=DesignRatingSummary,
+)
+async def get_design_rating_summary(
+    design_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> DesignRatingSummary:
+    """Get aggregate rating summary for a design."""
+    service = DesignRatingService(db)
+    return await service.get_rating_summary(design_id)
+
+
+@router.get(
+    "/designs/{design_id}/ratings/me",
+    response_model=DesignRatingResponse | None,
+)
+async def get_my_design_rating(
+    design_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DesignRatingResponse | None:
+    """Get the current user's rating for a design."""
+    service = DesignRatingService(db)
+    return await service.get_user_rating(design_id, current_user.id)
+
+
+# =============================================================================
+# Comment Endpoints
+# =============================================================================
+
+
+@router.post(
+    "/designs/{design_id}/comments",
+    response_model=DesignCommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_design_comment(
+    design_id: UUID,
+    data: DesignCommentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DesignCommentResponse:
+    """Create a comment on a marketplace design.
+
+    Supports threaded replies via parent_id.
+    """
+    service = DesignCommentService(db)
+    try:
+        return await service.create_comment(design_id, current_user, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.put(
+    "/designs/comments/{comment_id}",
+    response_model=DesignCommentResponse,
+)
+async def update_design_comment(
+    comment_id: UUID,
+    data: DesignCommentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DesignCommentResponse:
+    """Update a comment. Only the comment owner can edit."""
+    service = DesignCommentService(db)
+    try:
+        return await service.update_comment(comment_id, current_user, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete(
+    "/designs/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_design_comment(
+    comment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Delete a comment. Soft-deletes if it has replies."""
+    service = DesignCommentService(db)
+    try:
+        await service.delete_comment(comment_id, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/designs/{design_id}/comments",
+    response_model=dict,
+)
+async def get_design_comments(
+    design_id: UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get threaded comments for a design."""
+    service = DesignCommentService(db)
+    comments, total = await service.get_design_comments(design_id, page, page_size)
+    return {
+        "comments": comments,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+# =============================================================================
+# Remix Endpoint
+# =============================================================================
+
+
+@router.post(
+    "/designs/{design_id}/remix",
+    response_model=RemixResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def remix_marketplace_design(
+    design_id: UUID,
+    data: RemixRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RemixResponse:
+    """Remix (fork) a public marketplace design.
+
+    Creates a copy of the design in the user's default project.
+    Increments the original design's remix_count.
+    """
+    # Get the design
+    design_stmt = select(Design).where(
+        Design.id == design_id,
+        Design.is_public == True,  # noqa: E712
+        Design.deleted_at.is_(None),
+    )
+    result = await db.execute(design_stmt)
+    design = result.scalar_one_or_none()
+
+    if not design:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Design not found or not public",
+        )
+
+    # Get or create default project
+    project_stmt = select(Project).where(
+        Project.user_id == current_user.id,
+        Project.name == "My Designs",
+    )
+    project_result = await db.execute(project_stmt)
+    project = project_result.scalar_one_or_none()
+
+    if not project:
+        project = Project(
+            name="My Designs",
+            user_id=current_user.id,
+            description="Default project for remixed designs",
+        )
+        db.add(project)
+        await db.flush()
+
+    # Create the remix
+    remix_name = data.name if data and data.name else f"{design.name} (Remix)"
+    remix = Design(
+        name=remix_name,
+        description=design.description,
+        user_id=current_user.id,
+        project_id=project.id,
+        template_id=design.template_id,
+        extra_data=dict(design.extra_data) if design.extra_data else {},
+        remixed_from_id=design.id,
+        category=design.category,
+        tags=design.tags,
+        is_public=False,
+        enclosure_spec=design.enclosure_spec,
+        source_type=design.source_type,
+    )
+    db.add(remix)
+
+    # Increment remix count on original
+    design.remix_count = (design.remix_count or 0) + 1
+
+    await db.commit()
+    await db.refresh(remix)
+
+    return RemixResponse(
+        id=remix.id,
+        name=remix.name,
+        remixed_from_id=design.id,
+        remixed_from_name=design.name,
+        enclosure_spec=remix.enclosure_spec or {},
+        created_at=remix.created_at,
+    )
+
+
+# =============================================================================
+# Report Endpoint
+# =============================================================================
+
+
+@router.post(
+    "/designs/{design_id}/report",
+    response_model=DesignReportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def report_design(
+    design_id: UUID,
+    data: DesignReportCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DesignReportResponse:
+    """Report a marketplace design for content moderation.
+
+    Each user can only report a design once.
+    """
+    service = DesignReportService(db)
+    try:
+        return await service.create_report(design_id, current_user, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/designs/{design_id}/report/status",
+    response_model=DesignReportStatus,
+)
+async def get_report_status(
+    design_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DesignReportStatus:
+    """Check if the current user has already reported a design."""
+    service = DesignReportService(db)
+    return await service.check_report_status(design_id, current_user.id)
+
+
+# =============================================================================
+# View Tracking Endpoint
+# =============================================================================
+
+
+@router.post(
+    "/designs/{design_id}/view",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def track_design_view(
+    design_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Increment the view count for a marketplace design.
+
+    This is a fire-and-forget endpoint for analytics.
+    No authentication required.
+    """
+    design = await db.get(Design, design_id)
+    if design and design.is_public:
+        design.view_count = (design.view_count or 0) + 1
+        await db.commit()

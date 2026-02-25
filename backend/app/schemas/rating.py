@@ -52,6 +52,117 @@ class TemplateRatingSummary(BaseModel):
 
 
 # =============================================================================
+# Design Rating Schemas
+# =============================================================================
+
+
+class DesignRatingCreate(BaseModel):
+    """Schema for creating/updating a design rating."""
+
+    rating: Annotated[int, Field(ge=1, le=5, description="Rating from 1-5 stars")]
+    review: Annotated[str | None, Field(max_length=2000, default=None)]
+
+
+class DesignRatingResponse(BaseModel):
+    """Schema for design rating response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    design_id: UUID
+    user_id: UUID
+    rating: int
+    review: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class DesignRatingWithUser(DesignRatingResponse):
+    """Design rating with user information."""
+
+    user_name: str
+
+
+class DesignRatingSummary(BaseModel):
+    """Aggregate rating summary for a design."""
+
+    design_id: UUID
+    average_rating: float
+    total_ratings: int
+    rating_distribution: dict[int, int]
+
+
+# =============================================================================
+# Design Comment Schemas
+# =============================================================================
+
+
+class DesignCommentCreate(BaseModel):
+    """Schema for creating a design comment."""
+
+    content: Annotated[str, Field(min_length=1, max_length=5000)]
+    parent_id: UUID | None = None
+
+
+class DesignCommentUpdate(BaseModel):
+    """Schema for updating a design comment."""
+
+    content: Annotated[str, Field(min_length=1, max_length=5000)]
+
+
+class DesignCommentResponse(BaseModel):
+    """Schema for design comment response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    design_id: UUID
+    user_id: UUID
+    parent_id: UUID | None
+    content: str
+    is_hidden: bool
+    is_edited: bool
+    edited_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    user_name: str | None = None
+    reply_count: int = 0
+
+
+class DesignCommentThread(DesignCommentResponse):
+    """Design comment with nested replies."""
+
+    replies: list["DesignCommentThread"] = []
+
+
+# Design report schema (simplified wrapper)
+
+
+class DesignReportCreate(BaseModel):
+    """Schema for reporting a marketplace design."""
+
+    reason: Annotated[
+        str,
+        Field(pattern="^(spam|inappropriate|copyright|misleading|offensive|other)$"),
+    ]
+    description: Annotated[str | None, Field(max_length=1000, default=None)]
+
+
+class DesignReportResponse(BaseModel):
+    """Response after reporting a design."""
+
+    id: UUID
+    status: str
+    created_at: datetime
+
+
+class DesignReportStatus(BaseModel):
+    """Check if user already reported a design."""
+
+    already_reported: bool
+
+
+# =============================================================================
 # Template Feedback Schemas (Thumbs Up/Down)
 # =============================================================================
 
@@ -291,3 +402,7 @@ class ModerationQueue(BaseModel):
     total: int
     page: int
     per_page: int
+
+
+# Rebuild forward references for self-referential models
+DesignCommentThread.model_rebuild()

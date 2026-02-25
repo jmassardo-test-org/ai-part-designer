@@ -116,6 +116,8 @@ export interface DesignSummary {
   published_at: string | null;
   author_id: string;
   author_name: string;
+  avg_rating: number | null;
+  total_ratings: number;
 }
 
 export interface MarketplaceDesign extends DesignSummary {
@@ -126,6 +128,7 @@ export interface MarketplaceDesign extends DesignSummary {
   featured_at: string | null;
   has_step: boolean;
   has_stl: boolean;
+  view_count: number;
 }
 
 export interface PaginatedDesigns {
@@ -204,6 +207,89 @@ export interface RemixResponse {
   remixed_from_name: string;
   enclosure_spec: Record<string, unknown>;
   created_at: string;
+}
+
+// =============================================================================
+// Rating Types
+// =============================================================================
+
+export interface DesignRating {
+  id: string;
+  design_id: string;
+  user_id: string;
+  rating: number;
+  review: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DesignRatingWithUser extends DesignRating {
+  user_name: string;
+}
+
+export interface RatingSummary {
+  design_id: string;
+  average_rating: number;
+  total_ratings: number;
+  rating_distribution: Record<number, number>;
+}
+
+export interface PaginatedRatings {
+  ratings: DesignRatingWithUser[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+// =============================================================================
+// Comment Types
+// =============================================================================
+
+export interface DesignComment {
+  id: string;
+  design_id: string;
+  user_id: string;
+  parent_id: string | null;
+  content: string;
+  is_hidden: boolean;
+  is_edited: boolean;
+  edited_at: string | null;
+  created_at: string;
+  updated_at: string;
+  user_name: string | null;
+  reply_count: number;
+}
+
+export interface DesignCommentThread extends DesignComment {
+  replies: DesignCommentThread[];
+}
+
+export interface PaginatedComments {
+  comments: DesignCommentThread[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+// =============================================================================
+// Report Types
+// =============================================================================
+
+export type ReportReason = 'spam' | 'inappropriate' | 'copyright' | 'misleading' | 'offensive' | 'other';
+
+export interface ReportCreate {
+  reason: ReportReason;
+  description?: string;
+}
+
+export interface ReportResponse {
+  id: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ReportStatus {
+  already_reported: boolean;
 }
 
 // =============================================================================

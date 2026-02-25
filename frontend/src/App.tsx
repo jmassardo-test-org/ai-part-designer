@@ -28,6 +28,7 @@ import { FilesPage } from './pages/FilesPage';
 import { GeneratePageV2 } from './pages/GeneratePageV2';
 import { LandingPage } from './pages/LandingPage';
 import { ListsPage } from './pages/ListsPage';
+import { MarketplaceDesignDetailPage } from './pages/MarketplaceDesignDetailPage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import PricingPage from './pages/PricingPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -86,6 +87,7 @@ function App() {
               <Route path="/starters" element={<StartersPage />} />
               <Route path="/starters/:starterId" element={<StarterDetailPage />} />
               <Route path="/marketplace" element={<MarketplacePage />} />
+              <Route path="/marketplace/:designId" element={<MarketplaceDesignDetailPage />} />
               <Route path="/lists" element={<ListsPage />} />
               <Route path="/files" element={<FilesPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
