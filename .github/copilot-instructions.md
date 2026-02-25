@@ -215,6 +215,20 @@ raise Exception("Not found")
 - Validate and sanitize all user inputs
 - Use parameterized queries (SQLAlchemy handles this)
 - Apply proper authorization checks on all endpoints
+- **NEVER use `/tmp`, `/var/tmp`, or hardcoded system temp directory paths** — use secure alternatives instead
+
+### Temporary File Handling
+
+**NEVER write to `/tmp` or any hardcoded system temporary directory.** This is a security and reliability requirement.
+
+| Context | Use Instead |
+|---------|-------------|
+| Python code | `tempfile.mkdtemp()`, `tempfile.NamedTemporaryFile()` |
+| pytest tests | `tmp_path` or `tmp_path_factory` fixtures |
+| TypeScript/Node | `os.tmpdir()` with unique subdirs, or `fs.mkdtemp()` |
+| Shell scripts | `mktemp -d` for unique directories |
+| CI/CD pipelines | Runner workspace dirs or `$RUNNER_TEMP` |
+| Build artifacts | Project-local dirs (`build/`, `dist/`, `.cache/`) |
 
 ---
 

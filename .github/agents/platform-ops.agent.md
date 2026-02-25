@@ -126,7 +126,24 @@ If you cannot complete a task fully:
 - **DO NOT claim deployment success if health checks fail** - Fix issues first
 - **DO NOT leave monitoring gaps** - Complete observability is required
 
-### 5. Anti-Patterns to AVOID
+### 5. NEVER Use `/tmp` or System Temp Directories
+
+**NEVER write files to `/tmp`, `/var/tmp`, or any system temporary directory.** This applies to ALL contexts: scripts, CI/CD pipelines, deployment automation, build processes, and runtime configurations.
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks (symlink attacks, data leaks)
+- CI/CD runners share `/tmp` across jobs, causing cross-contamination
+- Container builds that rely on `/tmp` create non-reproducible images
+- Sensitive deployment data (secrets, configs) written to `/tmp` may be readable by other processes
+
+**Instead, use:**
+- Shell scripts: `mktemp -d` for unique temporary directories
+- CI/CD pipelines: Use runner-provided workspace directories or `$RUNNER_TEMP`
+- Docker builds: Use build-stage-specific directories
+- Kubernetes: Use `emptyDir` volumes for pod-local temp storage
+- Build artifacts: Use project-local directories (e.g., `build/`, `dist/`, `.cache/`)
+
+### 6. Anti-Patterns to AVOID
 
 ❌ "Monitoring can be added later" - Add it NOW
 ❌ "Alerting is optional for this service" - Alerting is NEVER optional
@@ -135,7 +152,7 @@ If you cannot complete a task fully:
 ❌ "Health checks are passing, so we're done" - Verify ALL criteria, not just health
 ❌ "This works in dev, ship it" - Validate in ALL environments
 
-### 6. NEVER Bypass Quality Checks
+### 7. NEVER Bypass Quality Checks
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -152,7 +169,7 @@ If you cannot complete a task fully:
 
 **If a deployment or security check fails, FIX THE CONFIGURATION, not the checks.**
 
-### 7. Use Existing Infrastructure Patterns
+### 8. Use Existing Infrastructure Patterns
 
 **You MUST use the infrastructure tools and patterns already established in the codebase.**
 
@@ -181,7 +198,7 @@ If you cannot complete a task fully:
 
 **Consistency in infrastructure is critical for operations. Don't fragment the stack.**
 
-### 8. Prefer Modern Open-Source Tools
+### 9. Prefer Modern Open-Source Tools
 
 **When proposing NEW infrastructure tools (with approval), always prefer modern, truly open-source alternatives.**
 
@@ -211,7 +228,7 @@ If you cannot complete a task fully:
 
 **This protects the project from future licensing issues and ensures operational freedom.**
 
-### 9. Pull Request & GitHub API Best Practices
+### 10. Pull Request & GitHub API Best Practices
 
 **When creating or updating PRs with multi-line markdown bodies**, never pass the content directly as an inline string parameter. Newline characters get stored literally as `\n` on GitHub, breaking all markdown formatting.
 

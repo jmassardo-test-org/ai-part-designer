@@ -99,7 +99,24 @@ If you cannot complete a task fully:
 - **DO NOT work around issues with hacks** - Escalate for proper resolution
 - **DO NOT claim completion if verification fails** - Fix the issues first
 
-### 5. NEVER Bypass Quality Checks
+### 5. NEVER Use `/tmp` or System Temp Directories
+
+**NEVER write files to `/tmp`, `/var/tmp`, or any system temporary directory.** This applies to ALL contexts: scripts, tests, CI/CD pipelines, build processes, and runtime code.
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks (symlink attacks, data leaks)
+- Files in `/tmp` may persist across runs, causing flaky tests and non-reproducible builds
+- CI/CD runners share `/tmp` across jobs, causing cross-contamination
+- Sensitive data written to `/tmp` may be readable by other processes
+
+**Instead, use:**
+- Python: `tempfile.mkdtemp()` or `tempfile.NamedTemporaryFile()` for auto-cleanup
+- Tests: Use pytest `tmp_path` / `tmp_path_factory` fixtures
+- TypeScript/Node: `os.tmpdir()` with unique subdirectories, or `fs.mkdtemp()`
+- Shell scripts: `mktemp -d` for unique temporary directories
+- Build artifacts: Use project-local directories (e.g., `build/`, `dist/`, `.cache/`)
+
+### 6. NEVER Bypass Quality Checks
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -113,7 +130,7 @@ If you cannot complete a task fully:
 
 **If a check fails, FIX THE ARCHITECTURE, not the rules.**
 
-### 6. Use Existing Technology Choices
+### 7. Use Existing Technology Choices
 
 **You MUST work within the established technology stack unless explicitly asked to change it.**
 
@@ -141,7 +158,7 @@ If you cannot complete a task fully:
 
 **The existing ADRs represent deliberate decisions. Respect them.**
 
-### 7. Prefer Modern Open-Source Tools
+### 8. Prefer Modern Open-Source Tools
 
 **When proposing NEW tools or infrastructure (with approval), always prefer modern, truly open-source alternatives.**
 

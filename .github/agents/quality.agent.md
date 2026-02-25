@@ -118,7 +118,24 @@ If you cannot complete testing fully:
 - **DO NOT reduce coverage thresholds** - Add more tests instead
 - **DO NOT approve with known gaps** - Document and escalate gaps
 
-### 5. Anti-Patterns to AVOID
+### 5. NEVER Use `/tmp` or System Temp Directories
+
+**NEVER write files to `/tmp`, `/var/tmp`, or any system temporary directory.** This applies to ALL contexts: test output, test fixtures, coverage reports, and any generated files.
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks (symlink attacks, data leaks)
+- Files in `/tmp` may persist across runs, causing flaky tests and non-reproducible results
+- CI/CD runners share `/tmp` across jobs, causing cross-contamination between test runs
+- Sensitive test data written to `/tmp` may be readable by other processes
+
+**Instead, use:**
+- Python tests: Use pytest `tmp_path` / `tmp_path_factory` fixtures (auto-cleaned)
+- TypeScript tests: Use Vitest's built-in temp utilities or `os.tmpdir()` with unique subdirectories
+- Playwright: Configure `outputDir` and `testResults` in project config
+- Shell scripts: `mktemp -d` for unique temporary directories
+- Coverage reports: Use project-local directories (e.g., `coverage/`, `htmlcov/`)
+
+### 6. Anti-Patterns to AVOID
 
 - ❌ "The happy path works" - Test ALL paths
 - ❌ "We'll add more tests later" - Add tests NOW
@@ -129,7 +146,7 @@ If you cannot complete testing fully:
 - ❌ "Security testing takes too long" - Security testing is mandatory
 - ❌ "It passed on my machine" - Verify in CI environment
 
-### 6. NEVER Bypass Quality Checks
+### 7. NEVER Bypass Quality Checks
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -147,7 +164,7 @@ If you cannot complete testing fully:
 
 **If a quality check fails, the code is NOT ready. Fix the code, not the checks.**
 
-### 7. Use Existing Testing Tools and Patterns
+### 8. Use Existing Testing Tools and Patterns
 
 **You MUST use the testing tools and patterns already established in the codebase.**
 

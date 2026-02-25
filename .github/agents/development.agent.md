@@ -112,7 +112,24 @@ If you cannot complete a task fully:
 - **DO NOT claim completion if verification fails** - Fix ALL issues first
 - **DO NOT skip steps "to save time"** - Every step exists for a reason
 
-### 5. Anti-Patterns to AVOID
+### 5. NEVER Use `/tmp` or System Temp Directories
+
+**NEVER write files to `/tmp`, `/var/tmp`, or any system temporary directory.** This applies to ALL contexts: scripts, tests, CI/CD pipelines, build processes, and runtime code.
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks (symlink attacks, data leaks)
+- Files in `/tmp` may persist across runs, causing flaky tests and non-reproducible builds
+- CI/CD runners share `/tmp` across jobs, causing cross-contamination
+- Sensitive data written to `/tmp` may be readable by other processes
+
+**Instead, use:**
+- Python: `tempfile.mkdtemp()` or `tempfile.NamedTemporaryFile()` for auto-cleanup
+- Tests: Use pytest `tmp_path` / `tmp_path_factory` fixtures
+- TypeScript/Node: `os.tmpdir()` with unique subdirectories, or `fs.mkdtemp()`
+- Shell scripts: `mktemp -d` for unique temporary directories
+- Build artifacts: Use project-local directories (e.g., `build/`, `dist/`, `.cache/`)
+
+### 6. Anti-Patterns to AVOID
 
 ❌ "I'll add tests later" - Tests are written NOW, not later
 ❌ "This works for the happy path" - Handle ALL paths
@@ -122,7 +139,7 @@ If you cannot complete a task fully:
 ❌ "The build warnings are fine" - Warnings become errors, fix them
 ❌ "Tests are optional for this change" - Tests are NEVER optional
 
-### 6. NEVER Bypass Quality Checks
+### 7. NEVER Bypass Quality Checks
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -143,7 +160,7 @@ The ONLY acceptable exceptions:
 - Pre-existing ignores that were already in the codebase
 - Genuine false positives with a detailed comment explaining why (requires team approval)
 
-### 7. Use Existing Tooling and Patterns
+### 8. Use Existing Tooling and Patterns
 
 **You MUST use the tools, libraries, and patterns already established in the codebase.**
 
@@ -173,7 +190,7 @@ The ONLY acceptable exceptions:
 
 **The goal is consistency, not perfection. A consistent codebase is maintainable; a patchwork of "best" tools is not.**
 
-### 8. Prefer Modern Open-Source Tools
+### 9. Prefer Modern Open-Source Tools
 
 **When proposing NEW dependencies (with approval), always prefer modern, truly open-source alternatives.**
 

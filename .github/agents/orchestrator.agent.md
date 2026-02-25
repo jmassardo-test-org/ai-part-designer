@@ -150,6 +150,21 @@ You should:
 6. Spawn Architecture & Security with Strategy output + original request
 7. Continue through the pipeline...
 
+## Global Rules to Enforce Across All Phases
+
+These rules apply to ALL sub-agents in every phase. Ensure each sub-agent is reminded of these when spawned:
+
+### NEVER Use `/tmp` or System Temp Directories
+
+**No agent may write files to `/tmp`, `/var/tmp`, or any hardcoded system temporary directory.** This applies to scripts, tests, CI/CD pipelines, build processes, and runtime code.
+
+- Python: Use `tempfile.mkdtemp()` or pytest `tmp_path` fixtures
+- TypeScript/Node: Use `os.tmpdir()` with unique subdirs, or `fs.mkdtemp()`
+- Shell: Use `mktemp -d` for unique temporary directories
+- CI/CD: Use runner workspace directories or `$RUNNER_TEMP`
+
+If you see any sub-agent output referencing `/tmp` paths, flag it as a defect and send it back for correction.
+
 ## What You Do NOT Do
 
 - **DO NOT write code yourself** - That's the Development agent's job
