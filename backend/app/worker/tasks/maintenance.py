@@ -10,6 +10,24 @@ from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
+# Prometheus metrics for backup operations (optional dependency)
+try:
+    from prometheus_client import Counter, Histogram
+
+    BACKUP_OPERATIONS_TOTAL = Counter(
+        "backup_operations_total",
+        "Total number of backup operations",
+        ["backup_type", "status"],
+    )
+    BACKUP_DURATION_SECONDS = Histogram(
+        "backup_duration_seconds",
+        "Duration of backup operations in seconds",
+        ["backup_type"],
+    )
+except ImportError:
+    BACKUP_OPERATIONS_TOTAL = None  # type: ignore[assignment]
+    BACKUP_DURATION_SECONDS = None  # type: ignore[assignment]
+
 
 @shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.maintenance.send_subscription_expiry_reminders",
@@ -537,23 +555,110 @@ def backup_database(backup_type: Literal["full", "schema", "data"] = "full") -> 
     Runs daily to ensure data durability.
     """
     import asyncio
+    import time
 
     from app.core.backup import db_backup
 
     async def run() -> dict[str, Any]:
-        backup_info = await db_backup.create_backup(
-            backup_type=backup_type,
-            compress=True,
-            upload_to_storage=True,
-        )
+        start_time = time.monotonic()
+        try:
+            backup_info = await db_backup.create_backup(
+                backup_type=backup_type,
+                compress=True,
+                upload_to_storage=True,
+            )
 
-        # Clean up old backups
-        removed = await db_backup.cleanup_old_backups()
+            # Clean up old backups
+            removed = await db_backup.cleanup_old_backups()
 
-        backup_info["old_backups_removed"] = removed
+            backup_info["old_backups_removed"] = removed
 
-        logger.info(f"Database backup completed: {backup_info['filename']}")
-        return backup_info
+            logger.info(
+                "Database backup completed",
+                extra={"filename": backup_info["filename"], "backup_type": backup_type},
+            )
+
+            if BACKUP_OPERATIONS_TOTAL is not None:
+                BACKUP_OPERATIONS_TOTAL.labels(
+                    backup_type=backup_type, status="success"
+                ).inc()
+
+            return backup_info
+
+        except Exception as e:
+            logger.error(
+                "Database backup failed",
+                extra={"backup_type": backup_type, "error": str(e)},
+            )
+            if BACKUP_OPERATIONS_TOTAL is not None:
+                BACKUP_OPERATIONS_TOTAL.labels(
+                    backup_type=backup_type, status="failure"
+                ).inc()
+            raise
+
+        finally:
+            if BACKUP_DURATION_SECONDS is not None:
+                BACKUP_DURATION_SECONDS.labels(backup_type=backup_type).observe(
+                    time.monotonic() - start_time
+                )
+
+    return asyncio.run(run())
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="app.worker.tasks.maintenance.weekly_full_backup",
+)
+def weekly_full_backup() -> dict[str, Any]:
+    """
+    Create a weekly full backup using BackupService.
+
+    Performs a complete backup of both database and file storage.
+    Runs weekly (Sunday 3 AM) via Celery beat.
+    """
+    import asyncio
+    import time
+
+    from app.services.backup import BackupService, BackupType
+
+    async def run() -> dict[str, Any]:
+        start_time = time.monotonic()
+        try:
+            service = BackupService()
+            record = await service.create_backup(
+                backup_type=BackupType.FULL,
+                description="Weekly full backup",
+            )
+
+            result = record.to_dict()
+
+            logger.info(
+                "Weekly full backup completed",
+                extra={"backup_id": result["id"], "status": result["status"]},
+            )
+
+            if BACKUP_OPERATIONS_TOTAL is not None:
+                BACKUP_OPERATIONS_TOTAL.labels(
+                    backup_type="full", status="success"
+                ).inc()
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                "Weekly full backup failed",
+                extra={"error": str(e)},
+            )
+            if BACKUP_OPERATIONS_TOTAL is not None:
+                BACKUP_OPERATIONS_TOTAL.labels(
+                    backup_type="full", status="failure"
+                ).inc()
+            raise
+
+        finally:
+            if BACKUP_DURATION_SECONDS is not None:
+                BACKUP_DURATION_SECONDS.labels(backup_type="full").observe(
+                    time.monotonic() - start_time
+                )
 
     return asyncio.run(run())
 
@@ -659,36 +764,91 @@ def generate_missing_thumbnails() -> dict[str, Any]:
     return asyncio.run(run())
 
 
+# Prometheus gauge for storage health (optional dependency)
+try:
+    from prometheus_client import Gauge
+
+    STORAGE_HEALTH_GAUGE = Gauge(
+        "storage_health_status",
+        "Storage health status (1=healthy, 0=degraded)",
+    )
+except ImportError:
+    STORAGE_HEALTH_GAUGE = None  # type: ignore[assignment]
+
+# Buckets that require versioning
+_VERSIONED_BUCKET_VALUES = {"designs", "uploads", "exports"}
+
+
 @shared_task(  # type: ignore[untyped-decorator]
     name="app.worker.tasks.maintenance.check_storage_health",
 )
 def check_storage_health() -> dict[str, Any]:
     """
     Check storage bucket health and report issues.
+
+    Verifies:
+    - Bucket accessibility (can list objects)
+    - Versioning status on critical buckets (DESIGNS, UPLOADS, EXPORTS)
+
+    Emits a Prometheus gauge metric for overall storage health.
     """
     import asyncio
 
     from app.core.storage import StorageBucket, storage_client
 
     async def run() -> dict[str, Any]:
-        results = {}
+        results: dict[str, dict[str, Any]] = {}
 
         for bucket in StorageBucket:
+            bucket_result: dict[str, Any] = {
+                "status": "healthy",
+                "accessible": True,
+            }
+
+            # Check accessibility
             try:
                 await storage_client.list_files(bucket, max_keys=1)
-                results[bucket.value] = {
-                    "status": "healthy",
-                    "accessible": True,
-                }
             except Exception as e:
-                results[bucket.value] = {
-                    "status": "error",
-                    "accessible": False,
-                    "error": str(e),
-                }
-                logger.error(f"Storage bucket {bucket.value} health check failed: {e}")
+                bucket_result["status"] = "error"
+                bucket_result["accessible"] = False
+                bucket_result["error"] = str(e)
+                logger.error(
+                    f"Storage bucket {bucket.value} health check failed: {e}"
+                )
+                results[bucket.value] = bucket_result
+                continue
 
-        all_healthy = all(r["status"] == "healthy" for r in results.values())
+            # Check versioning on critical buckets
+            if bucket.value in _VERSIONED_BUCKET_VALUES:
+                try:
+                    bucket_name = storage_client._get_bucket_name(bucket)
+                    async with storage_client._get_client() as client:
+                        response = await client.get_bucket_versioning(
+                            Bucket=bucket_name,
+                        )
+                    versioning_status = response.get("Status", "Disabled")
+                    bucket_result["versioning_status"] = versioning_status
+                    if versioning_status != "Enabled":
+                        bucket_result["status"] = "warning"
+                        logger.warning(
+                            f"Bucket {bucket.value} versioning is "
+                            f"{versioning_status}, expected Enabled"
+                        )
+                except Exception as e:
+                    bucket_result["versioning_status"] = "unknown"
+                    logger.error(
+                        f"Failed to check versioning on {bucket.value}: {e}"
+                    )
+
+            results[bucket.value] = bucket_result
+
+        all_healthy = all(
+            r["status"] == "healthy" for r in results.values()
+        )
+
+        # Emit Prometheus gauge
+        if STORAGE_HEALTH_GAUGE is not None:
+            STORAGE_HEALTH_GAUGE.set(1.0 if all_healthy else 0.0)
 
         return {
             "overall_status": "healthy" if all_healthy else "degraded",
@@ -1054,6 +1214,79 @@ def archive_old_audit_logs() -> dict[str, Any]:
                 f"Successfully archived {archive_summary['logs_archived']} audit logs "
                 f"in {archive_summary['archive_files_created']} files "
                 f"({archive_summary['total_size_bytes']} bytes)"
+            )
+
+        return archive_summary
+
+    return asyncio.run(run())
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="app.worker.tasks.maintenance.archive_old_designs",
+)
+def archive_old_designs() -> dict[str, Any]:
+    """
+    Archive designs that have been inactive for longer than the retention period.
+
+    This task:
+    1. Queries designs that haven't been updated within the configured threshold
+    2. Archives each eligible design's files to cold storage (ARCHIVES bucket)
+    3. Updates design status and timestamps
+    4. Returns summary of archived designs
+
+    Runs weekly via Celery beat.
+    """
+    import asyncio
+
+    from app.core.config import settings
+    from app.core.database import async_session_maker
+    from app.services.design_archive import DesignArchiveService
+
+    async def run() -> dict[str, Any]:
+        archive_summary: dict[str, Any] = {
+            "designs_found": 0,
+            "designs_archived": 0,
+            "errors": [],
+        }
+
+        async with async_session_maker() as session:
+            service = DesignArchiveService(session)
+
+            # Find designs eligible for archival
+            designs = await service.find_archivable_designs(
+                days_inactive=settings.DESIGN_ARCHIVE_AFTER_DAYS,
+                limit=100,
+            )
+            archive_summary["designs_found"] = len(designs)
+
+            if not designs:
+                logger.info("No designs eligible for archival")
+                return archive_summary
+
+            logger.info(
+                f"Found {len(designs)} designs eligible for archival "
+                f"(inactive > {settings.DESIGN_ARCHIVE_AFTER_DAYS} days)"
+            )
+
+            for design in designs:
+                try:
+                    await service.archive_design(design)
+                    archive_summary["designs_archived"] += 1
+                except Exception as e:
+                    archive_summary["errors"].append(
+                        f"Failed to archive design {design.id}: {e}"
+                    )
+                    logger.error(f"Error archiving design {design.id}: {e}")
+
+        # Log final summary
+        if archive_summary["errors"]:
+            logger.warning(
+                f"Design archival completed with {len(archive_summary['errors'])} errors. "
+                f"Archived {archive_summary['designs_archived']}/{archive_summary['designs_found']} designs"
+            )
+        else:
+            logger.info(
+                f"Successfully archived {archive_summary['designs_archived']} designs"
             )
 
         return archive_summary

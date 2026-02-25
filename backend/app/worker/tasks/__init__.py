@@ -29,6 +29,7 @@ from app.worker.tasks.extraction import (
 )
 from app.worker.tasks.maintenance import (
     archive_old_audit_logs,
+    archive_old_designs,
     backup_database,
     check_data_integrity,
     check_stale_jobs,
@@ -37,11 +38,13 @@ from app.worker.tasks.maintenance import (
     purge_expired_trash,
     send_trash_deletion_warnings,
     verify_backups,
+    weekly_full_backup,
 )
 
 __all__ = [
     # Maintenance tasks
     "archive_old_audit_logs",
+    "archive_old_designs",
     "backup_database",
     "batch_export",
     "batch_extract_task",
@@ -68,4 +71,5 @@ __all__ = [
     "send_trash_deletion_warnings",
     "suggest_modifications",
     "verify_backups",
+    "weekly_full_backup",
 ]

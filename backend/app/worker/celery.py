@@ -9,6 +9,7 @@ Provides async task processing for:
 """
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 
@@ -127,6 +128,16 @@ celery_app.conf.update(
         "archive-old-audit-logs": {
             "task": "app.worker.tasks.maintenance.archive_old_audit_logs",
             "schedule": 604800.0,  # Weekly (7 days)
+            "options": {"queue": "maintenance"},
+        },
+        "archive-old-designs": {
+            "task": "app.worker.tasks.maintenance.archive_old_designs",
+            "schedule": 604800.0,  # Weekly (7 days)
+            "options": {"queue": "maintenance"},
+        },
+        "weekly-full-backup": {
+            "task": "app.worker.tasks.maintenance.weekly_full_backup",
+            "schedule": crontab(hour=3, minute=0, day_of_week="sunday"),
             "options": {"queue": "maintenance"},
         },
     },

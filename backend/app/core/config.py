@@ -68,6 +68,18 @@ class Settings(BaseSettings):
         description="Number of days to retain audit logs before archival",
     )
 
+    # Backup retention
+    BACKUP_RETENTION_DAYS: int = Field(
+        default=30,
+        description="Number of days to retain database backups before cleanup",
+    )
+
+    # Design archival
+    DESIGN_ARCHIVE_AFTER_DAYS: int = Field(
+        default=365,
+        description="Number of days of inactivity before designs are auto-archived to cold storage",
+    )
+
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     CORS_ALLOW_CREDENTIALS: bool = True
