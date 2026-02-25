@@ -65,6 +65,8 @@ from app.models.payment import (
 from app.models.project import Project
 from app.models.rating import (
     ContentReport,
+    DesignComment,
+    DesignRating,
     FeedbackType,
     ReportReason,
     ReportStatus,
@@ -133,11 +135,15 @@ __all__ = [
     "Design",
     # Annotations
     "DesignAnnotation",
+    # Design Comments
+    "DesignComment",
     # Design Context
     "DesignContext",
     # Marketplace
     "DesignList",
     "DesignListItem",
+    # Design Ratings
+    "DesignRating",
     "DesignRefinementJob",
     "DesignSave",
     "DesignShare",

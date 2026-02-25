@@ -26,6 +26,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.design import Design
     from app.models.template import Template
     from app.models.user import User
 
@@ -102,6 +103,164 @@ class TemplateRating(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<TemplateRating(template_id={self.template_id}, user_id={self.user_id}, rating={self.rating})>"
+
+
+class DesignRating(Base, TimestampMixin):
+    """
+    Design star rating (1-5) with optional review text.
+
+    Users can rate marketplace designs to help others find quality content.
+    Each user can only rate a design once (can update rating).
+    """
+
+    __tablename__ = "design_ratings"
+
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    design_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("designs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    rating: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+    review: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # Relationships
+    design: Mapped["Design"] = relationship(
+        "Design",
+        back_populates="ratings",
+    )
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="design_ratings",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("design_id", "user_id", name="uq_design_rating_user"),
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_design_rating_range"),
+        Index("idx_design_ratings_design", "design_id"),
+        Index("idx_design_ratings_user", "user_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<DesignRating(design_id={self.design_id}, user_id={self.user_id}, rating={self.rating})>"
+
+
+class DesignComment(Base, TimestampMixin):
+    """
+    Design comments with threading support.
+
+    Users can leave comments on marketplace designs.
+    Supports threaded replies via parent_id.
+    """
+
+    __tablename__ = "design_comments"
+
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    design_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("designs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    parent_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("design_comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    is_hidden: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    hidden_by_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    hidden_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    hidden_reason: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    is_edited: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    edited_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Relationships
+    design: Mapped["Design"] = relationship(
+        "Design",
+        back_populates="comments",
+    )
+    user: Mapped["User"] = relationship(
+        "User",
+        foreign_keys=[user_id],
+        back_populates="design_comments",
+    )
+    parent: Mapped["DesignComment | None"] = relationship(
+        "DesignComment",
+        remote_side=[id],
+        back_populates="replies",
+    )
+    replies: Mapped[list["DesignComment"]] = relationship(
+        "DesignComment",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+    )
+    hidden_by: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[hidden_by_id],
+    )
+
+    __table_args__ = (
+        Index("idx_design_comments_design", "design_id"),
+        Index("idx_design_comments_user", "user_id"),
+        Index("idx_design_comments_parent", "parent_id"),
+        Index("idx_design_comments_design_created", "design_id", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<DesignComment(id={self.id}, design_id={self.design_id})>"
 
 
 class TemplateFeedback(Base, TimestampMixin):

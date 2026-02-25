@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from app.models.job import Job
     from app.models.marketplace import DesignSave
     from app.models.project import Project
+    from app.models.rating import DesignComment, DesignRating
     from app.models.template import Template
     from app.models.user import User
 
@@ -160,6 +162,18 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         default=0,
     )
 
+    # Marketplace rating aggregates
+    avg_rating: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        default=None,
+    )
+    total_ratings: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
     # Marketplace discoverability
     category: Mapped[str | None] = mapped_column(
         String(50),
@@ -263,6 +277,18 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="design",
         lazy="dynamic",
     )
+    ratings: Mapped[list["DesignRating"]] = relationship(
+        "DesignRating",
+        back_populates="design",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    comments: Mapped[list["DesignComment"]] = relationship(
+        "DesignComment",
+        back_populates="design",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
     annotations: Mapped[list["DesignAnnotation"]] = relationship(
         "DesignAnnotation",
         back_populates="design",
@@ -307,6 +333,11 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
             "idx_designs_archived",
             "archived_at",
             postgresql_where="archived_at IS NOT NULL",
+        ),
+        Index(
+            "idx_designs_marketplace_rating",
+            "avg_rating",
+            postgresql_where="deleted_at IS NULL AND is_public = TRUE AND published_at IS NOT NULL",
         ),
     )
 

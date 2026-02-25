@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from app.models.project import Project
     from app.models.rating import (
         ContentReport,
+        DesignComment,
+        DesignRating,
         TemplateComment,
         TemplateFeedback,
         TemplateRating,
@@ -252,6 +254,17 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="user",
         lazy="dynamic",
         foreign_keys="TemplateComment.user_id",
+    )
+    design_ratings: Mapped[list["DesignRating"]] = relationship(
+        "DesignRating",
+        back_populates="user",
+        lazy="dynamic",
+    )
+    design_comments: Mapped[list["DesignComment"]] = relationship(
+        "DesignComment",
+        back_populates="user",
+        lazy="dynamic",
+        foreign_keys="DesignComment.user_id",
     )
     reports_filed: Mapped[list["ContentReport"]] = relationship(
         "ContentReport",
