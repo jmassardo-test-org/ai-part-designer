@@ -8,7 +8,9 @@ import pytest
 
 from app.cad.exceptions import ValidationError
 from app.cad.export import (
+    ExportFormat,
     ExportQuality,
+    export_solidworks,
     export_step,
     export_stl,
     export_to_file,
@@ -489,3 +491,105 @@ class TestConvertCadFormat:
 
         assert result.exists()
         assert result.parent.exists()
+
+
+# =============================================================================
+# SolidWorks Export Tests
+# =============================================================================
+
+
+class TestExportSolidworks:
+    """Tests for SolidWorks-compatible STEP AP214 export."""
+
+    def test_export_solidworks_returns_bytes(self):
+        """Test that export_solidworks returns bytes."""
+        box = create_box(50, 50, 50)
+
+        result = export_solidworks(box)
+
+        assert isinstance(result, bytes)
+        assert len(result) > 0
+
+    def test_export_solidworks_valid_step_format(self):
+        """Test that SolidWorks output is valid STEP format."""
+        box = create_box(50, 50, 50)
+
+        result = export_solidworks(box)
+
+        content = result.decode("utf-8", errors="ignore")
+        assert "ISO-10303" in content or "STEP" in content
+
+    def test_export_solidworks_with_metadata(self):
+        """Test SolidWorks export with metadata."""
+        box = create_box(50, 50, 50)
+
+        result = export_solidworks(box, author="Test Author", product_name="Bracket")
+
+        assert len(result) > 0
+
+    def test_export_solidworks_complex_shape(self):
+        """Test SolidWorks export with complex geometry."""
+        from app.cad.operations import difference
+
+        box = create_box(100, 100, 50)
+        hole = create_cylinder(radius=20, height=60)
+        shape = difference(box, hole)
+
+        result = export_solidworks(shape)
+
+        assert len(result) > 1000
+
+    def test_export_format_enum_has_solidworks(self):
+        """Test that ExportFormat enum includes SOLIDWORKS."""
+        assert ExportFormat.SOLIDWORKS == "SOLIDWORKS"
+
+    def test_export_to_file_sldprt_extension(self, tmp_path):
+        """Test exporting to .sldprt file (maps to STEP AP214)."""
+        box = create_box(50, 50, 50)
+        output_path = tmp_path / "part.sldprt"
+
+        result = export_to_file(box, output_path)
+
+        assert result.exists()
+        assert result.suffix == ".sldprt"
+        assert result.stat().st_size > 0
+
+    def test_export_to_file_sldprt_valid_step_content(self, tmp_path):
+        """Test that .sldprt export contains valid STEP content."""
+        box = create_box(50, 50, 50)
+        output_path = tmp_path / "part.sldprt"
+
+        result = export_to_file(box, output_path)
+
+        content = result.read_bytes().decode("utf-8", errors="ignore")
+        assert "ISO-10303" in content or "STEP" in content
+
+    def test_convert_step_to_solidworks(self, tmp_path):
+        """Test converting STEP file to SolidWorks format."""
+        from app.cad.export import convert_cad_format
+
+        box = create_box(50, 50, 50)
+        source_path = tmp_path / "source.step"
+        export_to_file(box, source_path)
+
+        output_path = tmp_path / "output.step"
+
+        result = convert_cad_format(source_path, output_path, "solidworks")
+
+        assert result.exists()
+        assert result.stat().st_size > 0
+
+    def test_convert_step_to_sldprt_alias(self, tmp_path):
+        """Test converting with sldprt as target format alias."""
+        from app.cad.export import convert_cad_format
+
+        box = create_box(50, 50, 50)
+        source_path = tmp_path / "source.step"
+        export_to_file(box, source_path)
+
+        output_path = tmp_path / "output.step"
+
+        result = convert_cad_format(source_path, output_path, "sldprt")
+
+        assert result.exists()
+        assert result.stat().st_size > 0
