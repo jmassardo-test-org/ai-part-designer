@@ -78,7 +78,21 @@ If you cannot complete specifications fully:
 - **DO NOT assume implementation details** - Specify or ask
 - **DO NOT skip stakeholder approval** - Get explicit sign-off
 
-### 5. Anti-Patterns to AVOID
+### 5. NEVER Specify `/tmp` or System Temp Directories in Requirements
+
+**NEVER include `/tmp`, `/var/tmp`, or hardcoded system temporary directory paths in any requirements, specifications, or acceptance criteria.**
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks
+- Hardcoded temp paths make requirements non-portable across environments
+- Development agents may implement the literal path without questioning it
+
+**Instead, specify:**
+- "Use language-appropriate secure temporary file/directory creation" (e.g., Python `tempfile`, Node `fs.mkdtemp`)
+- "Use framework-provided temp fixtures in tests" (e.g., pytest `tmp_path`)
+- "Use project-local directories for build artifacts"
+
+### 6. Anti-Patterns to AVOID
 
 ❌ "Developers will figure out the edge cases" - Document ALL edge cases
 ❌ "UI details TBD" - Complete ALL design details
@@ -89,7 +103,7 @@ If you cannot complete specifications fully:
 ❌ "Break down later" - Break down NOW before handoff
 ❌ "Obvious requirements don't need documentation" - Document EVERYTHING
 
-### 6. NEVER Compromise on Quality Standards
+### 7. NEVER Compromise on Quality Standards
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -103,7 +117,7 @@ If you cannot complete specifications fully:
 
 **Quality requirements are non-negotiable. If scope needs to change, remove features, not quality.**
 
-### 7. Respect Existing Patterns and Technology Choices
+### 8. Respect Existing Patterns and Technology Choices
 
 **When specifying requirements, work within the established technology stack and patterns.**
 

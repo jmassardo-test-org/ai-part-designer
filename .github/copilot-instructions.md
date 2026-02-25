@@ -215,26 +215,42 @@ raise Exception("Not found")
 - Validate and sanitize all user inputs
 - Use parameterized queries (SQLAlchemy handles this)
 - Apply proper authorization checks on all endpoints
+- **NEVER use `/tmp`, `/var/tmp`, or hardcoded system temp directory paths** — use secure alternatives instead
+
+### Temporary File Handling
+
+**NEVER write to `/tmp` or any hardcoded system temporary directory.** This is a security and reliability requirement.
+
+| Context | Use Instead |
+|---------|-------------|
+| Python code | `tempfile.mkdtemp()`, `tempfile.NamedTemporaryFile()` |
+| pytest tests | `tmp_path` or `tmp_path_factory` fixtures |
+| TypeScript/Node | `os.tmpdir()` with unique subdirs, or `fs.mkdtemp()` |
+| Shell scripts | `mktemp -d` for unique directories |
+| CI/CD pipelines | Runner workspace dirs or `$RUNNER_TEMP` |
+| Build artifacts | Project-local dirs (`build/`, `dist/`, `.cache/`) |
 
 ---
 
 ## Before Submitting Code
 
-Run these checks (or ensure they pass):
+Run these checks (or ensure they pass). **ALL checks must pass across the ENTIRE codebase — not just for files you changed:**
 
 ```bash
-# Backend
+# Backend — run the FULL suite
 cd backend
-ruff check .
-mypy .
-pytest --cov=app --cov-report=term-missing
+ruff check .                    # ALL lint rules, entire codebase
+mypy .                          # ALL type checks, entire codebase
+pytest --cov=app --cov-report=term-missing  # ALL tests, entire suite
 
-# Frontend
+# Frontend — run the FULL suite
 cd frontend
-npm run lint
-npm run test
-npm run test:e2e
+npm run lint                    # ALL lint rules, entire codebase
+npm run test                    # ALL unit tests, entire suite
+npm run test:e2e                # ALL E2E tests
 ```
+
+> **"All tests pass" means every test in every module — not just tests related to your change.** CI runs the complete suite on every PR. A single failure anywhere blocks the entire PR. If your change breaks a test in an unrelated module, it is your responsibility to fix it.
 
 ---
 

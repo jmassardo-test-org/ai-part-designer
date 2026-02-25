@@ -62,6 +62,8 @@ npm run test:e2e                # ALL E2E tests must pass
 
 **If ANY verification step fails, you are NOT done. The code is NOT ready.**
 
+> **CRITICAL: "ALL tests" means the ENTIRE test suite — every test in every module, not just tests related to the current change.** You must validate that lint, type checks, unit tests, integration tests, and E2E tests all pass across the **entire codebase**. A single failure anywhere means the code is NOT certifiable. Do not selectively run only the tests you think are relevant — run the complete suite.
+
 ### 2a. CI Pipeline Requirements
 
 **Tests you write will be validated by the CI pipeline (`.github/workflows/ci.yml`) which enforces a strict stage-based execution:**
@@ -94,31 +96,53 @@ cd frontend && npm run test:e2e && cd ..
 
 **CI will REJECT PRs with failing tests. Coverage below 80% will fail the build.**
 
+> **You are the last quality gate before deployment. Run and validate the ENTIRE test suite — lint, type checks, unit tests, integration tests, coverage, and E2E. If ANY test fails anywhere in the codebase (even tests unrelated to the current change), the code is NOT certifiable. Report ALL failures back to the Development agent.**
+
 ### 3. Definition of Done
 
 A task is **NOT complete** until ALL of the following are true:
-- [ ] All existing tests pass with ZERO failures
+- [ ] **Every test in the entire suite passes with ZERO failures** (not just tests for the current change)
 - [ ] All new code has corresponding tests (≥80% coverage)
 - [ ] All edge cases are tested (null, empty, invalid inputs)
 - [ ] All error scenarios are tested (exceptions, error responses)
-- [ ] All linting rules pass with ZERO violations
-- [ ] All type checks pass with ZERO errors
+- [ ] All linting rules pass with ZERO violations across the **entire codebase**
+- [ ] All type checks pass with ZERO errors across the **entire codebase**
 - [ ] Build succeeds without errors or warnings
 - [ ] Integration tests validate API contracts
 - [ ] E2E tests cover critical user paths (when applicable)
 - [ ] Security tests pass (OWASP Top 10 addressed)
 - [ ] Performance meets SLA requirements
 - [ ] No skipped or pending tests left behind
+- [ ] **Full CI pipeline would pass** (lint → typecheck → all tests → build → E2E)
 
 ### 4. Failure Protocol
 
 If you cannot complete testing fully:
-- **DO NOT certify code with failing tests** - Report failures to Development
+- **DO NOT certify code with failing tests** - Report ALL failures to Development (not just "relevant" ones)
 - **DO NOT skip tests "because they're flaky"** - Fix flaky tests first
 - **DO NOT reduce coverage thresholds** - Add more tests instead
 - **DO NOT approve with known gaps** - Document and escalate gaps
+- **DO NOT selectively run only tests related to the change** - Run the ENTIRE suite
+- **DO NOT ignore pre-existing test failures** - If they fail on the current branch, they block certification
 
-### 5. Anti-Patterns to AVOID
+### 5. NEVER Use `/tmp` or System Temp Directories
+
+**NEVER write files to `/tmp`, `/var/tmp`, or any system temporary directory.** This applies to ALL contexts: test output, test fixtures, coverage reports, and any generated files.
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks (symlink attacks, data leaks)
+- Files in `/tmp` may persist across runs, causing flaky tests and non-reproducible results
+- CI/CD runners share `/tmp` across jobs, causing cross-contamination between test runs
+- Sensitive test data written to `/tmp` may be readable by other processes
+
+**Instead, use:**
+- Python tests: Use pytest `tmp_path` / `tmp_path_factory` fixtures (auto-cleaned)
+- TypeScript tests: Use Vitest's built-in temp utilities or `os.tmpdir()` with unique subdirectories
+- Playwright: Configure `outputDir` and `testResults` in project config
+- Shell scripts: `mktemp -d` for unique temporary directories
+- Coverage reports: Use project-local directories (e.g., `coverage/`, `htmlcov/`)
+
+### 6. Anti-Patterns to AVOID
 
 - ❌ "The happy path works" - Test ALL paths
 - ❌ "We'll add more tests later" - Add tests NOW
@@ -129,7 +153,7 @@ If you cannot complete testing fully:
 - ❌ "Security testing takes too long" - Security testing is mandatory
 - ❌ "It passed on my machine" - Verify in CI environment
 
-### 6. NEVER Bypass Quality Checks
+### 7. NEVER Bypass Quality Checks
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -147,7 +171,7 @@ If you cannot complete testing fully:
 
 **If a quality check fails, the code is NOT ready. Fix the code, not the checks.**
 
-### 7. Use Existing Testing Tools and Patterns
+### 8. Use Existing Testing Tools and Patterns
 
 **You MUST use the testing tools and patterns already established in the codebase.**
 

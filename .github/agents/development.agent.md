@@ -58,6 +58,8 @@ npm run test                    # ALL tests must pass
 
 **If ANY verification step fails, you are NOT done. Fix it before proceeding.**
 
+> **CRITICAL: "ALL tests" means the ENTIRE test suite — not just tests related to your change.** If your change causes a pre-existing test in a completely different module to fail, **that is YOUR responsibility to fix before declaring done.** CI runs every lint rule, every type check, every unit test, every integration test, and every E2E test across the entire codebase. If any single one fails, the PR is rejected. There is no concept of "only my tests need to pass."
+
 ### 2a. CI Pipeline Requirements
 
 **Your code will be validated by the CI pipeline (`.github/workflows/ci.yml`) which runs in stages:**
@@ -89,20 +91,23 @@ cd frontend && npm run build && cd ..
 
 **CI will REJECT your PR if any stage fails. Builds will NOT run if tests fail. Tests will NOT run if lint fails.**
 
+> **You are responsible for the ENTIRE CI pipeline passing, not just the tests related to your change.** If your code change causes a failure in any test, lint rule, or type check anywhere in the codebase, you must fix it. "It was already broken" is not an acceptable excuse — if it passes on the base branch but fails with your changes, it's your problem to solve.
+
 ### 3. Definition of Done
 
 A task is **NOT complete** until ALL of the following are true:
 - [ ] All acceptance criteria are fully implemented (not partially)
 - [ ] All code compiles/builds without errors or warnings
-- [ ] All linting rules pass with ZERO violations  
-- [ ] All type checks pass with ZERO errors
-- [ ] All existing tests continue to pass
+- [ ] All linting rules pass with ZERO violations across the **entire codebase**
+- [ ] All type checks pass with ZERO errors across the **entire codebase**
+- [ ] **Every existing test in the entire suite continues to pass** (not just tests related to your change)
 - [ ] New tests written for ALL new code (≥80% coverage)
 - [ ] All edge cases handled with proper error messages
 - [ ] Documentation updated (docstrings, JSDoc, README if needed)
 - [ ] No TODO/FIXME/HACK comments left in code
 - [ ] Code is clean, readable, and follows project patterns
 - [ ] Security best practices implemented (no hardcoded secrets, input validation, etc.)
+- [ ] **Full CI pipeline would pass** (lint → typecheck → all tests → build → E2E)
 
 ### 4. Failure Protocol
 
@@ -112,7 +117,24 @@ If you cannot complete a task fully:
 - **DO NOT claim completion if verification fails** - Fix ALL issues first
 - **DO NOT skip steps "to save time"** - Every step exists for a reason
 
-### 5. Anti-Patterns to AVOID
+### 5. NEVER Use `/tmp` or System Temp Directories
+
+**NEVER write files to `/tmp`, `/var/tmp`, or any system temporary directory.** This applies to ALL contexts: scripts, tests, CI/CD pipelines, build processes, and runtime code.
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks (symlink attacks, data leaks)
+- Files in `/tmp` may persist across runs, causing flaky tests and non-reproducible builds
+- CI/CD runners share `/tmp` across jobs, causing cross-contamination
+- Sensitive data written to `/tmp` may be readable by other processes
+
+**Instead, use:**
+- Python: `tempfile.mkdtemp()` or `tempfile.NamedTemporaryFile()` for auto-cleanup
+- Tests: Use pytest `tmp_path` / `tmp_path_factory` fixtures
+- TypeScript/Node: `os.tmpdir()` with unique subdirectories, or `fs.mkdtemp()`
+- Shell scripts: `mktemp -d` for unique temporary directories
+- Build artifacts: Use project-local directories (e.g., `build/`, `dist/`, `.cache/`)
+
+### 6. Anti-Patterns to AVOID
 
 ❌ "I'll add tests later" - Tests are written NOW, not later
 ❌ "This works for the happy path" - Handle ALL paths
@@ -122,7 +144,7 @@ If you cannot complete a task fully:
 ❌ "The build warnings are fine" - Warnings become errors, fix them
 ❌ "Tests are optional for this change" - Tests are NEVER optional
 
-### 6. NEVER Bypass Quality Checks
+### 7. NEVER Bypass Quality Checks
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -143,7 +165,7 @@ The ONLY acceptable exceptions:
 - Pre-existing ignores that were already in the codebase
 - Genuine false positives with a detailed comment explaining why (requires team approval)
 
-### 7. Use Existing Tooling and Patterns
+### 8. Use Existing Tooling and Patterns
 
 **You MUST use the tools, libraries, and patterns already established in the codebase.**
 
@@ -173,7 +195,7 @@ The ONLY acceptable exceptions:
 
 **The goal is consistency, not perfection. A consistent codebase is maintainable; a patchwork of "best" tools is not.**
 
-### 8. Prefer Modern Open-Source Tools
+### 9. Prefer Modern Open-Source Tools
 
 **When proposing NEW dependencies (with approval), always prefer modern, truly open-source alternatives.**
 

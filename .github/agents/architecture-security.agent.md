@@ -39,7 +39,7 @@ cd backend
 ruff check .                    # Linting must pass with zero errors
 ruff format --check .           # Formatting must be correct
 mypy .                          # Type checking must pass
-pytest                          # ALL tests must pass
+pytest                          # ALL tests must pass — the ENTIRE suite, not just related tests
 pytest --cov=app --cov-fail-under=80  # Coverage must be ≥80%
 
 # Frontend verification (run ALL of these)  
@@ -47,8 +47,10 @@ cd frontend
 npm run lint                    # ESLint must pass with zero errors
 npx tsc --noEmit                # TypeScript must compile with zero errors
 npm run build                   # Build must succeed
-npm run test                    # ALL tests must pass
+npm run test                    # ALL tests must pass — the ENTIRE suite, not just related tests
 ```
+
+> **"ALL tests" means every test in the entire codebase, not just tests related to the current change.** Architectural changes can have wide-reaching impacts. A schema change, migration, or API contract modification can break tests in unrelated modules. You must verify the full suite passes.
 
 ### 2a. CI Pipeline Requirements
 
@@ -84,13 +86,14 @@ alembic current                 # Verify current state
 A task is **NOT complete** until:
 - [ ] All acceptance criteria are fully implemented (not partially)
 - [ ] All code compiles/builds without errors or warnings
-- [ ] All linting rules pass with ZERO violations
-- [ ] All type checks pass with ZERO errors
-- [ ] All existing tests continue to pass
+- [ ] All linting rules pass with ZERO violations across the **entire codebase**
+- [ ] All type checks pass with ZERO errors across the **entire codebase**
+- [ ] **Every existing test in the entire suite continues to pass** (not just tests related to your change)
 - [ ] New tests are written for all new code (≥80% coverage)
 - [ ] Documentation is updated where applicable
 - [ ] No TODO/FIXME/HACK comments left in code
 - [ ] Code review checklist is complete
+- [ ] **Full CI pipeline would pass** (lint → typecheck → all tests → build → E2E)
 
 ### 4. Failure Protocol
 
@@ -99,7 +102,24 @@ If you cannot complete a task fully:
 - **DO NOT work around issues with hacks** - Escalate for proper resolution
 - **DO NOT claim completion if verification fails** - Fix the issues first
 
-### 5. NEVER Bypass Quality Checks
+### 5. NEVER Use `/tmp` or System Temp Directories
+
+**NEVER write files to `/tmp`, `/var/tmp`, or any system temporary directory.** This applies to ALL contexts: scripts, tests, CI/CD pipelines, build processes, and runtime code.
+
+**Why:**
+- `/tmp` is shared across all users and processes — creates security risks (symlink attacks, data leaks)
+- Files in `/tmp` may persist across runs, causing flaky tests and non-reproducible builds
+- CI/CD runners share `/tmp` across jobs, causing cross-contamination
+- Sensitive data written to `/tmp` may be readable by other processes
+
+**Instead, use:**
+- Python: `tempfile.mkdtemp()` or `tempfile.NamedTemporaryFile()` for auto-cleanup
+- Tests: Use pytest `tmp_path` / `tmp_path_factory` fixtures
+- TypeScript/Node: `os.tmpdir()` with unique subdirectories, or `fs.mkdtemp()`
+- Shell scripts: `mktemp -d` for unique temporary directories
+- Build artifacts: Use project-local directories (e.g., `build/`, `dist/`, `.cache/`)
+
+### 6. NEVER Bypass Quality Checks
 
 **The following are STRICTLY FORBIDDEN:**
 
@@ -113,7 +133,7 @@ If you cannot complete a task fully:
 
 **If a check fails, FIX THE ARCHITECTURE, not the rules.**
 
-### 6. Use Existing Technology Choices
+### 7. Use Existing Technology Choices
 
 **You MUST work within the established technology stack unless explicitly asked to change it.**
 
@@ -141,7 +161,7 @@ If you cannot complete a task fully:
 
 **The existing ADRs represent deliberate decisions. Respect them.**
 
-### 7. Prefer Modern Open-Source Tools
+### 8. Prefer Modern Open-Source Tools
 
 **When proposing NEW tools or infrastructure (with approval), always prefer modern, truly open-source alternatives.**
 
