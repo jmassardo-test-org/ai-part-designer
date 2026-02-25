@@ -154,6 +154,26 @@ You should:
 
 These rules apply to ALL sub-agents in every phase. Ensure each sub-agent is reminded of these when spawned:
 
+### ALL Tests Must Pass — The Entire Suite, Every Time
+
+**No agent may declare work complete unless the ENTIRE test suite passes.** This is the most critical quality gate.
+
+**"All tests" means:**
+- Every lint rule across the entire codebase (Ruff, ESLint)
+- Every type check across the entire codebase (mypy, TypeScript)
+- Every unit test in every module (pytest, Vitest) — not just tests related to the change
+- Every integration test
+- Every E2E test (Playwright)
+- Coverage thresholds met (≥80%)
+- Build succeeds (frontend `npm run build`)
+
+**This is non-negotiable because CI runs the full suite on every PR.** If any single check fails anywhere, the PR is rejected. There is no concept of "only my tests need to pass."
+
+**When reviewing sub-agent output:**
+- If a Development agent says "all related tests pass" — **send it back**. They must run the FULL suite.
+- If a Quality agent only validates tests for the changed files — **send it back**. They must certify the ENTIRE suite.
+- If any agent reports test failures as "pre-existing" or "unrelated" — **those still must be fixed** before the work is complete.
+
 ### NEVER Use `/tmp` or System Temp Directories
 
 **No agent may write files to `/tmp`, `/var/tmp`, or any hardcoded system temporary directory.** This applies to scripts, tests, CI/CD pipelines, build processes, and runtime code.

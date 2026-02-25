@@ -58,6 +58,8 @@ npm run test                    # ALL tests must pass
 
 **If ANY verification step fails, you are NOT done. Fix it before proceeding.**
 
+> **CRITICAL: "ALL tests" means the ENTIRE test suite — not just tests related to your change.** If your change causes a pre-existing test in a completely different module to fail, **that is YOUR responsibility to fix before declaring done.** CI runs every lint rule, every type check, every unit test, every integration test, and every E2E test across the entire codebase. If any single one fails, the PR is rejected. There is no concept of "only my tests need to pass."
+
 ### 2a. CI Pipeline Requirements
 
 **Your code will be validated by the CI pipeline (`.github/workflows/ci.yml`) which runs in stages:**
@@ -89,20 +91,23 @@ cd frontend && npm run build && cd ..
 
 **CI will REJECT your PR if any stage fails. Builds will NOT run if tests fail. Tests will NOT run if lint fails.**
 
+> **You are responsible for the ENTIRE CI pipeline passing, not just the tests related to your change.** If your code change causes a failure in any test, lint rule, or type check anywhere in the codebase, you must fix it. "It was already broken" is not an acceptable excuse — if it passes on the base branch but fails with your changes, it's your problem to solve.
+
 ### 3. Definition of Done
 
 A task is **NOT complete** until ALL of the following are true:
 - [ ] All acceptance criteria are fully implemented (not partially)
 - [ ] All code compiles/builds without errors or warnings
-- [ ] All linting rules pass with ZERO violations  
-- [ ] All type checks pass with ZERO errors
-- [ ] All existing tests continue to pass
+- [ ] All linting rules pass with ZERO violations across the **entire codebase**
+- [ ] All type checks pass with ZERO errors across the **entire codebase**
+- [ ] **Every existing test in the entire suite continues to pass** (not just tests related to your change)
 - [ ] New tests written for ALL new code (≥80% coverage)
 - [ ] All edge cases handled with proper error messages
 - [ ] Documentation updated (docstrings, JSDoc, README if needed)
 - [ ] No TODO/FIXME/HACK comments left in code
 - [ ] Code is clean, readable, and follows project patterns
 - [ ] Security best practices implemented (no hardcoded secrets, input validation, etc.)
+- [ ] **Full CI pipeline would pass** (lint → typecheck → all tests → build → E2E)
 
 ### 4. Failure Protocol
 
