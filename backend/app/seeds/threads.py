@@ -104,9 +104,7 @@ async def _do_seed(db: AsyncSession) -> int:
 
             if row is not None:
                 row.name = f"{family_name} {size}"  # type: ignore[assignment]
-                row.description = (  # type: ignore[assignment]
-                    f"{family_name} thread, size {size}, pitch {spec.pitch_mm} mm"
-                )
+                row.description = f"{family_name} thread, size {size}, pitch {spec.pitch_mm} mm"  # type: ignore[assignment]
                 row.subcategory = family.value  # type: ignore[assignment]
                 row.dimensions = dimensions  # type: ignore[assignment]
                 row.tags = tags  # type: ignore[assignment]

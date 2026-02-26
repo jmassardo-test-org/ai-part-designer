@@ -366,7 +366,7 @@ def _build_external_thread(
         body: Part = Cylinder(
             radius=avg_major / 2,
             height=length,
-            align=None,
+            align=None,  # type: ignore[arg-type]
         )
 
         # Cut helical grooves using a series of thin ring cuts along the
@@ -387,15 +387,15 @@ def _build_external_thread(
             groove_ring: Part = Cylinder(
                 radius=avg_major / 2 + 0.01,  # slightly oversize to ensure cut
                 height=groove_width,
-                align=None,
+                align=None,  # type: ignore[arg-type]
             )
             inner_keep: Part = Cylinder(
                 radius=avg_major / 2 - groove_depth,
                 height=groove_width + 0.02,
-                align=None,
+                align=None,  # type: ignore[arg-type]
             )
             groove_cutter = groove_ring.cut(inner_keep)  # type: ignore[assignment]
-            groove_cutter = groove_cutter.moved(  # type: ignore[assignment]
+            groove_cutter = groove_cutter.moved(  # type: ignore[assignment, union-attr]
                 Location((0, 0, z_offset)),
             )
             body = body.cut(groove_cutter)  # type: ignore[assignment]
@@ -452,7 +452,7 @@ def _build_internal_thread(
         bore: Part = Cylinder(
             radius=avg_minor / 2,
             height=length,
-            align=None,
+            align=None,  # type: ignore[arg-type]
         )
 
         # Add helical relief rings at major diameter for thread crests
@@ -468,12 +468,12 @@ def _build_internal_thread(
             crest_ring: Part = Cylinder(
                 radius=avg_major / 2,
                 height=groove_width,
-                align=None,
+                align=None,  # type: ignore[arg-type]
             )
             inner_cut: Part = Cylinder(
                 radius=avg_minor / 2 - 0.01,
                 height=groove_width + 0.02,
-                align=None,
+                align=None,  # type: ignore[arg-type]
             )
             crest_ring = crest_ring.cut(inner_cut)  # type: ignore[assignment]
             crest_ring = crest_ring.moved(  # type: ignore[assignment]
@@ -519,16 +519,16 @@ def _add_chamfer_lead_in(part: Part, diameter: float, pitch: float) -> Part:
         chamfer_body: Part = Cylinder(
             radius=outer_radius,
             height=chamfer_height,
-            align=None,
+            align=None,  # type: ignore[arg-type]
         )
         # Smaller cylinder to keep the core
         chamfer_keep: Part = Cylinder(
             radius=diameter / 2 - chamfer_height * 0.5,
             height=chamfer_height + 0.02,
-            align=None,
+            align=None,  # type: ignore[arg-type]
         )
         chamfer_tool = chamfer_body.cut(chamfer_keep)  # type: ignore[assignment]
-        part = part.cut(chamfer_tool)  # type: ignore[assignment]
+        part = part.cut(chamfer_tool)  # type: ignore[assignment, arg-type]
     except Exception:
         # Chamfer is cosmetic; log and return original part on failure
         logger.warning("Failed to apply chamfer lead-in; returning unchamfered part.")

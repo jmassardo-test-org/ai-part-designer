@@ -107,7 +107,7 @@ def _resolve_enum(
     try:
         return enum_cls(value)
     except ValueError:
-        valid = [e.value for e in enum_cls]
+        valid = [e.value for e in enum_cls]  # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(f"Invalid {label}: '{value}'. Valid values: {', '.join(valid)}"),
