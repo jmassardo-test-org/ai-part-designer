@@ -255,7 +255,18 @@ class TestAPIPerformance:
     @pytest.fixture
     def client(self):
         """Create async test client."""
+        import prometheus_client
         from httpx import ASGITransport, AsyncClient
+
+        # Clear any previously registered Prometheus collectors to avoid
+        # "Duplicated timeseries" errors when app.main is re-imported
+        # across pytest-xdist workers or repeated test runs.
+        collectors = list(prometheus_client.REGISTRY._names_to_collectors.values())
+        for collector in collectors:
+            try:
+                prometheus_client.REGISTRY.unregister(collector)
+            except Exception:
+                pass
 
         from app.main import app
 

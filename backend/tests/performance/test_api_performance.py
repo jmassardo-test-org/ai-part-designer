@@ -25,7 +25,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_password
+from app.core.security import create_access_token, hash_password
 from app.main import app
 from app.models.user import User
 
@@ -96,16 +96,12 @@ async def perf_auth_client(
     await db_session.commit()
     await db_session.refresh(user)
 
-    # Login to get token
-    response = await perf_client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": user.email,
-            "password": "PerfTest123!",
-        },
+    # Generate token directly to avoid session visibility issues with savepoints
+    token = create_access_token(
+        user_id=user.id,
+        email=user.email,
+        role=user.role,
     )
-    assert response.status_code == 200
-    token = response.json()["access_token"]
 
     # Set auth header
     perf_client.headers["Authorization"] = f"Bearer {token}"
