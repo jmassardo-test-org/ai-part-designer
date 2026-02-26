@@ -17,6 +17,7 @@ import asyncio
 import statistics
 import time
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -62,7 +63,7 @@ def perf_user_data() -> dict[str, str]:
     return {
         "email": f"perf-test-{unique_id}@example.com",
         "password": "PerfTest123!",
-        "full_name": "Performance Test User",
+        "display_name": "Performance Test User",
     }
 
 
@@ -86,10 +87,10 @@ async def perf_auth_client(
         id=user_id,
         email=f"perf-auth-{user_id}@example.com",
         password_hash=hash_password("PerfTest123!"),
-        full_name="Perf Auth User",
+        display_name="Perf Auth User",
         role="user",
-        is_active=True,
-        email_verified=True,
+        status="active",
+        email_verified_at=datetime.now(UTC),
     )
     db_session.add(user)
     await db_session.commit()
@@ -237,10 +238,10 @@ class TestAuthPerformance:
             id=uuid4(),
             email=f"login-perf-{uuid4()}@example.com",
             password_hash=hash_password("LoginTest123!"),
-            full_name="Login Perf User",
+            display_name="Login Perf User",
             role="user",
-            is_active=True,
-            email_verified=True,
+            status="active",
+            email_verified_at=datetime.now(UTC),
         )
         db_session.add(user)
         await db_session.commit()

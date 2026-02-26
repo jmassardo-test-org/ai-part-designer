@@ -257,9 +257,8 @@ class TestAPIPerformance:
         """Create async test client."""
         from httpx import ASGITransport, AsyncClient
 
-        from app.main import create_app
+        from app.main import app
 
-        app = create_app()
         return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
     @pytest.mark.asyncio
