@@ -85,7 +85,7 @@ async def perf_auth_client(
     user = User(
         id=user_id,
         email=f"perf-auth-{user_id}@example.com",
-        hashed_password=hash_password("PerfTest123!"),
+        password_hash=hash_password("PerfTest123!"),
         full_name="Perf Auth User",
         role="user",
         is_active=True,
@@ -236,7 +236,7 @@ class TestAuthPerformance:
         user = User(
             id=uuid4(),
             email=f"login-perf-{uuid4()}@example.com",
-            hashed_password=hash_password("LoginTest123!"),
+            password_hash=hash_password("LoginTest123!"),
             full_name="Login Perf User",
             role="user",
             is_active=True,

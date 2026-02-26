@@ -255,12 +255,12 @@ class TestAPIPerformance:
     @pytest.fixture
     def client(self):
         """Create async test client."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         from app.main import create_app
 
         app = create_app()
-        return AsyncClient(app=app, base_url="http://test")
+        return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
     @pytest.mark.asyncio
     async def test_compile_endpoint_performance(self, client) -> None:
