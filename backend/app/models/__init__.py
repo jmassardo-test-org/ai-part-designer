@@ -68,6 +68,7 @@ from app.models.rating import (
     DesignComment,
     DesignRating,
     FeedbackType,
+    LicenseViolationType,
     ReportReason,
     ReportStatus,
     ReportTargetType,
@@ -154,6 +155,7 @@ __all__ = [
     "InviteStatus",
     # Job domain
     "Job",
+    "LicenseViolationType",
     "MessageRole",
     "MessageType",
     # Moderation

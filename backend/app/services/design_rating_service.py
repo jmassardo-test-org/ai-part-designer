@@ -3,7 +3,7 @@
 Provides business logic for creating, updating, and querying design ratings.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
@@ -77,7 +77,7 @@ class DesignRatingService:
         if existing:
             existing.rating = data.rating
             existing.review = data.review
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
             rating_obj = existing
         else:
             rating_obj = DesignRating(
@@ -110,15 +110,13 @@ class DesignRatingService:
             DesignRating.user_id == user.id,
         )
         result = await self.db.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError("Rating not found")
 
         await self._update_design_aggregates(design_id)
         await self.db.commit()
 
-    async def get_user_rating(
-        self, design_id: UUID, user_id: UUID
-    ) -> DesignRatingResponse | None:
+    async def get_user_rating(self, design_id: UUID, user_id: UUID) -> DesignRatingResponse | None:
         """Get a specific user's rating for a design.
 
         Args:
@@ -216,7 +214,7 @@ class DesignRatingService:
             .group_by(DesignRating.rating)
         )
         dist_result = await self.db.execute(dist_stmt)
-        distribution = {i: 0 for i in range(1, 6)}
+        distribution = dict.fromkeys(range(1, 6), 0)
         for rating_val, count in dist_result.all():
             distribution[rating_val] = count
 
@@ -243,7 +241,5 @@ class DesignRatingService:
         total = row[1] or 0
 
         await self.db.execute(
-            update(Design)
-            .where(Design.id == design_id)
-            .values(avg_rating=avg, total_ratings=total)
+            update(Design).where(Design.id == design_id).values(avg_rating=avg, total_ratings=total)
         )

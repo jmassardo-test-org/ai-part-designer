@@ -17,6 +17,7 @@ import asyncio
 import statistics
 import time
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -24,7 +25,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_password
+from app.core.security import create_access_token, hash_password
 from app.main import app
 from app.models.user import User
 
@@ -62,7 +63,7 @@ def perf_user_data() -> dict[str, str]:
     return {
         "email": f"perf-test-{unique_id}@example.com",
         "password": "PerfTest123!",
-        "full_name": "Performance Test User",
+        "display_name": "Performance Test User",
     }
 
 
@@ -77,7 +78,7 @@ async def perf_client() -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture
 async def perf_auth_client(
     perf_client: AsyncClient,
-    async_session: AsyncSession,
+    db_session: AsyncSession,
 ) -> AsyncGenerator[tuple[AsyncClient, User], None]:
     """Create an authenticated client with test user for performance testing."""
     # Create a test user directly in the database
@@ -85,26 +86,22 @@ async def perf_auth_client(
     user = User(
         id=user_id,
         email=f"perf-auth-{user_id}@example.com",
-        hashed_password=hash_password("PerfTest123!"),
-        full_name="Perf Auth User",
+        password_hash=hash_password("PerfTest123!"),
+        display_name="Perf Auth User",
         role="user",
-        is_active=True,
-        email_verified=True,
+        status="active",
+        email_verified_at=datetime.now(UTC),
     )
-    async_session.add(user)
-    await async_session.commit()
-    await async_session.refresh(user)
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
 
-    # Login to get token
-    response = await perf_client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": user.email,
-            "password": "PerfTest123!",
-        },
+    # Generate token directly to avoid session visibility issues with savepoints
+    token = create_access_token(
+        user_id=user.id,
+        email=user.email,
+        role=user.role,
     )
-    assert response.status_code == 200
-    token = response.json()["access_token"]
 
     # Set auth header
     perf_client.headers["Authorization"] = f"Bearer {token}"
@@ -112,8 +109,8 @@ async def perf_auth_client(
     yield perf_client, user
 
     # Cleanup
-    await async_session.delete(user)
-    await async_session.commit()
+    await db_session.delete(user)
+    await db_session.commit()
 
 
 # =============================================================================
@@ -229,21 +226,21 @@ class TestAuthPerformance:
     async def test_login_performance(
         self,
         perf_client: AsyncClient,
-        async_session: AsyncSession,
+        db_session: AsyncSession,
     ) -> None:
         """Login should complete within threshold."""
         # Create a user for login testing
         user = User(
             id=uuid4(),
             email=f"login-perf-{uuid4()}@example.com",
-            hashed_password=hash_password("LoginTest123!"),
-            full_name="Login Perf User",
+            password_hash=hash_password("LoginTest123!"),
+            display_name="Login Perf User",
             role="user",
-            is_active=True,
-            email_verified=True,
+            status="active",
+            email_verified_at=datetime.now(UTC),
         )
-        async_session.add(user)
-        await async_session.commit()
+        db_session.add(user)
+        await db_session.commit()
 
         try:
             stats = await measure_request(
@@ -263,8 +260,8 @@ class TestAuthPerformance:
             print(f"  Min: {stats['min'] * 1000:.2f}ms")
             print(f"  Max: {stats['max'] * 1000:.2f}ms")
         finally:
-            await async_session.delete(user)
-            await async_session.commit()
+            await db_session.delete(user)
+            await db_session.commit()
 
 
 class TestDesignsPerformance:

@@ -27,14 +27,12 @@ from app.cad.threads import (
     ThreadFamily,
     ThreadForm,
     ThreadHand,
-    ThreadSpec,
     ThreadType,
     get_tap_drill_info,
     get_thread_spec,
     list_thread_families,
     list_thread_sizes,
 )
-
 
 # =============================================================================
 # Enum Tests
@@ -52,8 +50,14 @@ class TestThreadEnums:
     def test_thread_family_has_all_families(self) -> None:
         """ThreadFamily should contain all eight standard families."""
         expected = {
-            "iso_metric", "unc", "unf", "npt",
-            "bspp", "bspt", "acme", "trapezoidal",
+            "iso_metric",
+            "unc",
+            "unf",
+            "npt",
+            "bspp",
+            "bspt",
+            "acme",
+            "trapezoidal",
         }
         assert {m.value for m in ThreadFamily} == expected
 
@@ -71,8 +75,12 @@ class TestThreadEnums:
     def test_thread_form_has_all_profiles(self) -> None:
         """ThreadForm should contain all six profile shapes."""
         expected = {
-            "triangular", "truncated_triangular", "trapezoidal",
-            "acme", "npt", "square",
+            "triangular",
+            "truncated_triangular",
+            "trapezoidal",
+            "acme",
+            "npt",
+            "square",
         }
         assert {m.value for m in ThreadForm} == expected
 
@@ -151,8 +159,7 @@ class TestISOMetricCoarse:
         """Major diameter must exceed minor diameter for all sizes."""
         for size, spec in ISO_METRIC_COARSE.items():
             assert spec.major_diameter > spec.minor_diameter_ext, (
-                f"{size}: major {spec.major_diameter} "
-                f"<= minor {spec.minor_diameter_ext}"
+                f"{size}: major {spec.major_diameter} <= minor {spec.minor_diameter_ext}"
             )
 
     def test_all_sizes_have_tap_drill(self) -> None:
@@ -163,15 +170,23 @@ class TestISOMetricCoarse:
     def test_pitch_series_is_coarse(self) -> None:
         """All ISO metric coarse entries should have COARSE pitch series."""
         for size, spec in ISO_METRIC_COARSE.items():
-            assert spec.pitch_series == PitchSeries.COARSE, (
-                f"{size} has wrong pitch series"
-            )
+            assert spec.pitch_series == PitchSeries.COARSE, f"{size} has wrong pitch series"
 
     def test_minimum_sizes_present(self) -> None:
         """Should contain at least the 12 required sizes."""
         required = {
-            "M2", "M2.5", "M3", "M4", "M5", "M6",
-            "M8", "M10", "M12", "M16", "M20", "M24",
+            "M2",
+            "M2.5",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "M8",
+            "M10",
+            "M12",
+            "M16",
+            "M20",
+            "M24",
         }
         assert required.issubset(ISO_METRIC_COARSE.keys())
 
@@ -191,15 +206,17 @@ class TestISOMetricFine:
     def test_pitch_series_is_fine(self) -> None:
         """All fine entries should have FINE pitch series."""
         for size, spec in ISO_METRIC_FINE.items():
-            assert spec.pitch_series == PitchSeries.FINE, (
-                f"{size} has wrong pitch series"
-            )
+            assert spec.pitch_series == PitchSeries.FINE, f"{size} has wrong pitch series"
 
     def test_minimum_sizes_present(self) -> None:
         """Should contain at least the 6 required sizes."""
         required = {
-            "M8x1.0", "M10x1.0", "M10x1.25",
-            "M12x1.25", "M12x1.5", "M16x1.5",
+            "M8x1.0",
+            "M10x1.0",
+            "M10x1.25",
+            "M12x1.25",
+            "M12x1.5",
+            "M16x1.5",
         }
         assert required.issubset(ISO_METRIC_FINE.keys())
 
@@ -223,16 +240,12 @@ class TestUNCThreads:
     def test_all_have_tpi(self) -> None:
         """All UNC entries must have a tpi value."""
         for size, spec in UNC_THREADS.items():
-            assert spec.tpi is not None and spec.tpi > 0, (
-                f"{size} missing tpi"
-            )
+            assert spec.tpi is not None and spec.tpi > 0, f"{size} missing tpi"  # noqa: PT018
 
     def test_all_have_nominal_size_inch(self) -> None:
         """All UNC entries must have a nominal inch size."""
         for size, spec in UNC_THREADS.items():
-            assert spec.nominal_size_inch is not None, (
-                f"{size} missing nominal_size_inch"
-            )
+            assert spec.nominal_size_inch is not None, f"{size} missing nominal_size_inch"
 
 
 # =============================================================================
@@ -250,16 +263,12 @@ class TestUNFThreads:
     def test_all_have_tpi(self) -> None:
         """All UNF entries must have a tpi value."""
         for size, spec in UNF_THREADS.items():
-            assert spec.tpi is not None and spec.tpi > 0, (
-                f"{size} missing tpi"
-            )
+            assert spec.tpi is not None and spec.tpi > 0, f"{size} missing tpi"  # noqa: PT018
 
     def test_all_have_nominal_size_inch(self) -> None:
         """All UNF entries must have a nominal inch size."""
         for size, spec in UNF_THREADS.items():
-            assert spec.nominal_size_inch is not None, (
-                f"{size} missing nominal_size_inch"
-            )
+            assert spec.nominal_size_inch is not None, f"{size} missing nominal_size_inch"
 
 
 # =============================================================================
@@ -277,23 +286,17 @@ class TestNPTThreads:
     def test_all_have_engagement_length(self) -> None:
         """All NPT entries must have a positive engagement length."""
         for size, spec in NPT_THREADS.items():
-            assert spec.engagement_length_mm > 0, (
-                f"{size} missing engagement length"
-            )
+            assert spec.engagement_length_mm > 0, f"{size} missing engagement length"
 
     def test_profile_angle_is_60(self) -> None:
         """All NPT entries should have 60° profile angle."""
         for size, spec in NPT_THREADS.items():
-            assert spec.profile_angle_deg == 60.0, (
-                f"{size} has wrong profile angle"
-            )
+            assert spec.profile_angle_deg == 60.0, f"{size} has wrong profile angle"
 
     def test_form_is_npt(self) -> None:
         """All NPT entries should have NPT thread form."""
         for size, spec in NPT_THREADS.items():
-            assert spec.form == ThreadForm.NPT, (
-                f"{size} has wrong thread form"
-            )
+            assert spec.form == ThreadForm.NPT, f"{size} has wrong thread form"
 
 
 # =============================================================================
@@ -307,16 +310,12 @@ class TestBSPPThreads:
     def test_profile_angle_is_55(self) -> None:
         """All BSPP entries should have 55° profile angle."""
         for size, spec in BSPP_THREADS.items():
-            assert spec.profile_angle_deg == 55.0, (
-                f"{size} has wrong profile angle"
-            )
+            assert spec.profile_angle_deg == 55.0, f"{size} has wrong profile angle"
 
     def test_taper_is_zero(self) -> None:
         """BSPP threads are parallel — taper should be 0."""
         for size, spec in BSPP_THREADS.items():
-            assert spec.taper_per_mm == 0.0, (
-                f"{size} has non-zero taper"
-            )
+            assert spec.taper_per_mm == 0.0, f"{size} has non-zero taper"
 
 
 # =============================================================================
@@ -330,16 +329,12 @@ class TestBSPTThreads:
     def test_profile_angle_is_55(self) -> None:
         """All BSPT entries should have 55° profile angle."""
         for size, spec in BSPT_THREADS.items():
-            assert spec.profile_angle_deg == 55.0, (
-                f"{size} has wrong profile angle"
-            )
+            assert spec.profile_angle_deg == 55.0, f"{size} has wrong profile angle"
 
     def test_all_have_taper(self) -> None:
         """All BSPT entries should have non-zero taper."""
         for size, spec in BSPT_THREADS.items():
-            assert spec.taper_per_mm > 0, (
-                f"{size} missing taper"
-            )
+            assert spec.taper_per_mm > 0, f"{size} missing taper"
 
 
 # =============================================================================
@@ -353,23 +348,17 @@ class TestACMEThreads:
     def test_profile_angle_is_29(self) -> None:
         """All ACME entries should have 29° profile angle."""
         for size, spec in ACME_THREADS.items():
-            assert spec.profile_angle_deg == 29.0, (
-                f"{size} has wrong profile angle"
-            )
+            assert spec.profile_angle_deg == 29.0, f"{size} has wrong profile angle"
 
     def test_all_have_tpi(self) -> None:
         """All ACME entries must have a tpi value."""
         for size, spec in ACME_THREADS.items():
-            assert spec.tpi is not None and spec.tpi > 0, (
-                f"{size} missing tpi"
-            )
+            assert spec.tpi is not None and spec.tpi > 0, f"{size} missing tpi"  # noqa: PT018
 
     def test_form_is_acme(self) -> None:
         """All ACME entries should have ACME thread form."""
         for size, spec in ACME_THREADS.items():
-            assert spec.form == ThreadForm.ACME, (
-                f"{size} has wrong thread form"
-            )
+            assert spec.form == ThreadForm.ACME, f"{size} has wrong thread form"
 
 
 # =============================================================================
@@ -383,22 +372,22 @@ class TestTrapezoidalThreads:
     def test_profile_angle_is_30(self) -> None:
         """All Trapezoidal entries should have 30° profile angle."""
         for size, spec in TRAPEZOIDAL_THREADS.items():
-            assert spec.profile_angle_deg == 30.0, (
-                f"{size} has wrong profile angle"
-            )
+            assert spec.profile_angle_deg == 30.0, f"{size} has wrong profile angle"
 
     def test_form_is_trapezoidal(self) -> None:
         """All Trapezoidal entries should have TRAPEZOIDAL thread form."""
         for size, spec in TRAPEZOIDAL_THREADS.items():
-            assert spec.form == ThreadForm.TRAPEZOIDAL, (
-                f"{size} has wrong thread form"
-            )
+            assert spec.form == ThreadForm.TRAPEZOIDAL, f"{size} has wrong thread form"
 
     def test_minimum_sizes_present(self) -> None:
         """Should contain at least the 6 required sizes."""
         required = {
-            "Tr8x1.5", "Tr10x2", "Tr12x3",
-            "Tr16x4", "Tr20x4", "Tr24x5",
+            "Tr8x1.5",
+            "Tr10x2",
+            "Tr12x3",
+            "Tr16x4",
+            "Tr20x4",
+            "Tr24x5",
         }
         assert required.issubset(TRAPEZOIDAL_THREADS.keys())
 
@@ -437,7 +426,8 @@ class TestGetThreadSpec:
         """Requesting wrong pitch series for a size should raise."""
         with pytest.raises(ThreadDataError):
             get_thread_spec(
-                ThreadFamily.ISO_METRIC, "M8",
+                ThreadFamily.ISO_METRIC,
+                "M8",
                 pitch_series=PitchSeries.FINE,
             )
 
@@ -563,16 +553,12 @@ class TestRegistryConsistency:
     def test_registry_has_all_families(self) -> None:
         """THREAD_REGISTRY should have an entry for every ThreadFamily."""
         for family in ThreadFamily:
-            assert family in THREAD_REGISTRY, (
-                f"{family} missing from THREAD_REGISTRY"
-            )
+            assert family in THREAD_REGISTRY, f"{family} missing from THREAD_REGISTRY"
 
     def test_family_info_has_all_families(self) -> None:
         """THREAD_FAMILY_INFO should have metadata for every ThreadFamily."""
         for family in ThreadFamily:
-            assert family in THREAD_FAMILY_INFO, (
-                f"{family} missing from THREAD_FAMILY_INFO"
-            )
+            assert family in THREAD_FAMILY_INFO, f"{family} missing from THREAD_FAMILY_INFO"
 
     def test_family_info_has_required_keys(self) -> None:
         """Each family info entry should have name, description, standard_ref."""

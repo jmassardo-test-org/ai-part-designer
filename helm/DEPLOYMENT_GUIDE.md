@@ -206,6 +206,19 @@ helm upgrade ai-part-designer ./helm/ai-part-designer \
   --wait
 ```
 
+### Migration Notes
+
+#### Epic 13: Model Licensing (v1.2.0)
+
+Migrations `029_design_license_columns` and `030_content_report_evidence_url` are included and run automatically via `alembic upgrade head` in the migration Job. Both migrations are idempotent. No new environment variables, secrets, or ConfigMap entries are required.
+
+**What changes:**
+- `designs` table gains `license_type`, `custom_license_text`, `custom_allows_remix` columns
+- `content_reports` table gains `evidence_url` column
+- New API endpoints under `/api/v2/licenses/`, `/api/v2/admin/`, and `/api/v2/marketplace/`
+
+**No action required** beyond deploying the new backend image — the existing migration Job handles schema changes automatically.
+
 ### Update Configuration
 
 ```bash

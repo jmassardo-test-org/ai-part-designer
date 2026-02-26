@@ -6,7 +6,6 @@
  */
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-
 import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchThreadFamilies,

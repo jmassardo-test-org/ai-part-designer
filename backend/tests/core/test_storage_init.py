@@ -13,7 +13,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-
 # =============================================================================
 # Helpers
 # =============================================================================
@@ -60,9 +59,7 @@ class TestInitializeStorage:
         """Test that missing buckets are created during initialization."""
         client = _build_mock_client()
         # All buckets are missing (head_bucket raises 404)
-        client.head_bucket = AsyncMock(
-            side_effect=_make_client_error("404")
-        )
+        client.head_bucket = AsyncMock(side_effect=_make_client_error("404"))
 
         with patch("app.core.storage_init.aioboto3") as mock_aio:
             mock_aio.Session.return_value = _mock_session(client)
@@ -109,7 +106,7 @@ class TestInitializeStorage:
 
             from app.core.storage_init import initialize_storage
 
-            result = await initialize_storage()
+            await initialize_storage()
 
         # Find the temp lifecycle config in put_bucket_lifecycle_configuration calls
         temp_calls = [
@@ -135,7 +132,7 @@ class TestInitializeStorage:
 
             from app.core.storage_init import initialize_storage
 
-            result = await initialize_storage()
+            await initialize_storage()
 
         designs_calls = [
             c
@@ -154,14 +151,14 @@ class TestInitializeStorage:
         client = _build_mock_client()
         # First call: all buckets missing
         call_count = 0
-        original_head = AsyncMock(side_effect=_make_client_error("404"))
+        AsyncMock(side_effect=_make_client_error("404"))
 
         async def head_bucket_effect(**kwargs: Any) -> None:
             nonlocal call_count
             call_count += 1
             # Simulate buckets existing on second full pass
             if call_count > 6:
-                return None
+                return
             raise _make_client_error("404")
 
         client.head_bucket = AsyncMock(side_effect=head_bucket_effect)
@@ -171,7 +168,7 @@ class TestInitializeStorage:
 
             from app.core.storage_init import initialize_storage
 
-            result1 = await initialize_storage()
+            await initialize_storage()
             result2 = await initialize_storage()
 
         # Second run should report buckets as already existing
@@ -291,9 +288,7 @@ class TestEnsureBucketExists:
     async def test_ensure_bucket_exists_creates_when_missing(self) -> None:
         """Test that a missing bucket is created and True is returned."""
         client = _build_mock_client()
-        client.head_bucket = AsyncMock(
-            side_effect=_make_client_error("404")
-        )
+        client.head_bucket = AsyncMock(side_effect=_make_client_error("404"))
 
         from app.core.storage_init import _ensure_bucket_exists
 
@@ -321,9 +316,7 @@ class TestEnsureBucketExists:
     ) -> None:
         """Test that unexpected ClientErrors are re-raised."""
         client = _build_mock_client()
-        client.head_bucket = AsyncMock(
-            side_effect=_make_client_error("403", "Forbidden")
-        )
+        client.head_bucket = AsyncMock(side_effect=_make_client_error("403", "Forbidden"))
 
         from app.core.storage_init import _ensure_bucket_exists
 

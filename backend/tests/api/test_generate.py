@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 @pytest_asyncio.fixture(autouse=True)
 async def seed_subscription_tiers_api() -> None:
     """Override API autouse DB seeding fixture for this module's DB-free tests."""
-    return None
+    return
 
 
 def _make_test_settings(**overrides: Any) -> Settings:

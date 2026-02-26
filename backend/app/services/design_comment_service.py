@@ -4,7 +4,7 @@ Provides business logic for creating, updating, deleting, and
 querying design comments with threading support.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -118,8 +118,8 @@ class DesignCommentService:
 
         comment.content = data.content
         comment.is_edited = True
-        comment.edited_at = datetime.now(timezone.utc)
-        comment.updated_at = datetime.now(timezone.utc)
+        comment.edited_at = datetime.now(UTC)
+        comment.updated_at = datetime.now(UTC)
 
         await self.db.commit()
         await self.db.refresh(comment)
@@ -165,7 +165,7 @@ class DesignCommentService:
         if reply_count > 0:
             # Soft-delete: hide the comment but keep for thread context
             comment.is_hidden = True
-            comment.hidden_at = datetime.now(timezone.utc)
+            comment.hidden_at = datetime.now(UTC)
             comment.hidden_by_id = user.id
             comment.hidden_reason = "Deleted by user"
         else:
@@ -305,7 +305,7 @@ class DesignCommentService:
         if action == "hide":
             comment.is_hidden = True
             comment.hidden_by_id = admin_user.id
-            comment.hidden_at = datetime.now(timezone.utc)
+            comment.hidden_at = datetime.now(UTC)
             comment.hidden_reason = reason
         elif action == "unhide":
             comment.is_hidden = False

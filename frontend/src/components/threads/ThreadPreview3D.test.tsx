@@ -7,9 +7,7 @@
 
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 import type { ThreadSpec } from '@/types/threads';
-
 import { ThreadPreview3D, type ThreadPreview3DProps } from './ThreadPreview3D';
 
 // ---------------------------------------------------------------------------

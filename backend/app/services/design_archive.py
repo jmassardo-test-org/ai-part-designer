@@ -9,13 +9,11 @@ import gzip
 import json
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.storage import StorageBucket, storage_client
 from app.models.design import Design
 
@@ -103,9 +101,7 @@ class DesignArchiveService:
                     dest_key=dest_key,
                 )
         except Exception as e:
-            logger.warning(
-                f"Could not copy files for design {design.id}: {e}"
-            )
+            logger.warning(f"Could not copy files for design {design.id}: {e}")
 
         # 2. Serialize design metadata to JSON, gzip, upload to ARCHIVES
         metadata = {
@@ -173,9 +169,7 @@ class DesignArchiveService:
         Raises:
             ValueError: If design not found or not archived.
         """
-        result = await self.db.execute(
-            select(Design).where(Design.id == design_id)
-        )
+        result = await self.db.execute(select(Design).where(Design.id == design_id))
         design = result.scalar_one_or_none()
 
         if design is None:
@@ -196,9 +190,7 @@ class DesignArchiveService:
                 for file_info in files:
                     source_key = file_info["key"]
                     # Strip the archive prefix/files/ to get original key
-                    original_key = source_key.replace(
-                        f"{archive_prefix}/files/", "", 1
-                    )
+                    original_key = source_key.replace(f"{archive_prefix}/files/", "", 1)
                     await storage_client.copy_file(
                         source_bucket=StorageBucket.ARCHIVES,
                         source_key=source_key,
@@ -206,9 +198,7 @@ class DesignArchiveService:
                         dest_key=original_key,
                     )
             except Exception as e:
-                logger.warning(
-                    f"Could not restore files for design {design_id}: {e}"
-                )
+                logger.warning(f"Could not restore files for design {design_id}: {e}")
 
         # 2. Update design record
         design.status = "ready"
@@ -236,9 +226,7 @@ class DesignArchiveService:
         Raises:
             ValueError: If design not found or not archived.
         """
-        result = await self.db.execute(
-            select(Design).where(Design.id == design_id)
-        )
+        result = await self.db.execute(select(Design).where(Design.id == design_id))
         design = result.scalar_one_or_none()
 
         if design is None:
@@ -259,9 +247,7 @@ class DesignArchiveService:
                     keys = [f["key"] for f in files]
                     await storage_client.delete_files(StorageBucket.ARCHIVES, keys)
             except Exception as e:
-                logger.warning(
-                    f"Could not delete archive files for design {design_id}: {e}"
-                )
+                logger.warning(f"Could not delete archive files for design {design_id}: {e}")
 
         # Delete the database record
         await self.db.delete(design)

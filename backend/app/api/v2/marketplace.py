@@ -9,18 +9,27 @@ from __future__ import annotations
 import logging
 from datetime import UTC
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID  # noqa: TC003 — FastAPI needs UUID at runtime for path params
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_current_user_optional
 from app.core.database import get_db
+from app.core.licenses import (
+    LICENSE_METADATA,
+    LicenseType,
+    is_valid_license_type,
+)
+from app.core.rate_limiter import RateLimiter
 from app.models.design import Design
 from app.models.marketplace import DesignSave
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.license import (
+    LicenseViolationReportCreate,
+    LicenseViolationReportResponse,
+)
 from app.schemas.marketplace import (
     CategoryResponse,
     DesignSummaryResponse,
@@ -34,12 +43,10 @@ from app.schemas.marketplace import (
 from app.schemas.rating import (
     DesignCommentCreate,
     DesignCommentResponse,
-    DesignCommentThread,
     DesignCommentUpdate,
     DesignRatingCreate,
     DesignRatingResponse,
     DesignRatingSummary,
-    DesignRatingWithUser,
     DesignReportCreate,
     DesignReportResponse,
     DesignReportStatus,
@@ -47,9 +54,10 @@ from app.schemas.rating import (
 from app.services.design_comment_service import DesignCommentService
 from app.services.design_rating_service import DesignRatingService
 from app.services.design_report_service import DesignReportService
+from app.services.license_service import LicenseService
 
 if TYPE_CHECKING:
-    pass
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +104,7 @@ def _design_to_summary(design: Design, author_name: str) -> DesignSummaryRespons
         published_at=design.published_at,
         author_id=design.user_id,
         author_name=author_name,
+        license_type=design.license_type,
     )
 
 
@@ -114,6 +123,16 @@ async def browse_designs(
         pattern="^(popular|recent|trending|saves)$",
     ),
     search: str | None = Query(None, description="Search in name/description"),
+    license_type: str | None = Query(None, description="Filter by exact license type"),
+    allows_remix_filter: bool | None = Query(
+        None,
+        alias="allows_remix",
+        description="Filter: only designs that allow remix",
+    ),
+    allows_commercial: bool | None = Query(
+        None,
+        description="Filter: only designs that allow commercial use",
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
@@ -149,6 +168,39 @@ async def browse_designs(
             or_(
                 func.lower(Design.name).like(search_pattern),
                 func.lower(Design.description).like(search_pattern),
+            )
+        )
+
+    # Apply license filters (Epic 13)
+    if license_type:
+        if not is_valid_license_type(license_type):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid license_type filter value",
+            )
+        query = query.where(Design.license_type == license_type)
+
+    if allows_remix_filter is True:
+        remix_types = [lt.value for lt, meta in LICENSE_METADATA.items() if meta.allows_remix]
+        query = query.where(
+            or_(
+                Design.license_type.in_(remix_types),
+                and_(
+                    Design.license_type == LicenseType.CUSTOM,
+                    Design.custom_allows_remix == True,  # noqa: E712
+                ),
+                Design.license_type.is_(None),  # Legacy designs
+            )
+        )
+
+    if allows_commercial is True:
+        commercial_types = [
+            lt.value for lt, meta in LICENSE_METADATA.items() if meta.allows_commercial
+        ]
+        query = query.where(
+            or_(
+                Design.license_type.in_(commercial_types),
+                Design.license_type.is_(None),  # Legacy designs
             )
         )
 
@@ -330,6 +382,11 @@ async def get_design_detail(
         parent_name = parent_result.scalar_one_or_none()
         remixed_from_name = parent_name
 
+    # Build license detail (Epic 13)
+    license_service = LicenseService(db)
+    license_info = license_service.get_license_detail(design) if design.license_type else None
+    attribution = design.extra_data.get("attribution") if design.extra_data else None
+
     return MarketplaceDesignResponse(
         id=design.id,
         name=design.name,
@@ -356,6 +413,9 @@ async def get_design_detail(
         has_stl=bool(
             design.extra_data.get("downloads", {}).get("stl") if design.extra_data else False
         ),
+        license_type=design.license_type,
+        license_info=license_info,
+        attribution=attribution,
     )
 
 
@@ -369,18 +429,13 @@ async def publish_design(
     design_id: UUID,
     request: PublishDesignRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ) -> PublishDesignResponse:
     """
     Publish a design to the marketplace.
 
     Makes the design publicly visible and searchable.
     """
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
 
     query = select(Design).where(
         and_(
@@ -405,6 +460,21 @@ async def publish_design(
             detail=f"Invalid category. Must be one of: {', '.join(VALID_CATEGORIES)}",
         )
 
+    # Validate license (Epic 13)
+    license_service = LicenseService(db)
+    try:
+        await license_service.validate_license_for_publish(
+            design=design,
+            license_type=request.license_type,
+            custom_license_text=request.custom_license_text,
+            custom_allows_remix=request.custom_allows_remix,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
     # Update design
     from datetime import datetime
 
@@ -413,6 +483,12 @@ async def publish_design(
     design.category = request.category
     if request.tags:
         design.tags = request.tags
+
+    # Persist license fields (Epic 13)
+    if request.license_type is not None:
+        design.license_type = request.license_type
+        design.custom_license_text = request.custom_license_text
+        design.custom_allows_remix = request.custom_allows_remix
 
     # Only admins can set is_starter
     if request.is_starter:
@@ -430,6 +506,7 @@ async def publish_design(
         published_at=design.published_at,
         category=design.category,
         is_starter=design.is_starter,
+        license_type=design.license_type,
     )
 
 
@@ -437,18 +514,13 @@ async def publish_design(
 async def unpublish_design(
     design_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Unpublish a design from the marketplace.
 
     The design becomes private again.
     """
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
 
     query = select(Design).where(
         and_(
@@ -688,6 +760,15 @@ async def remix_marketplace_design(
             detail="Design not found or not public",
         )
 
+    # Check license allows remixing (Epic 13)
+    license_service = LicenseService(db)
+    allowed, reason = await license_service.check_remix_allowed(design, current_user)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=reason or "This design's license does not allow remixing.",
+        )
+
     # Get or create default project
     project_stmt = select(Project).where(
         Project.user_id == current_user.id,
@@ -705,6 +786,16 @@ async def remix_marketplace_design(
         db.add(project)
         await db.flush()
 
+    # Build attribution if license requires it (Epic 13)
+    remix_extra_data = dict(design.extra_data) if design.extra_data else {}
+    if design.license_type:
+        author_stmt = select(User).where(User.id == design.user_id)
+        author_result = await db.execute(author_stmt)
+        parent_author = author_result.scalar_one_or_none()
+        if parent_author:
+            attribution = await license_service.build_attribution(design, parent_author)
+            remix_extra_data["attribution"] = attribution
+
     # Create the remix
     remix_name = data.name if data and data.name else f"{design.name} (Remix)"
     remix = Design(
@@ -713,7 +804,7 @@ async def remix_marketplace_design(
         user_id=current_user.id,
         project_id=project.id,
         template_id=design.template_id,
-        extra_data=dict(design.extra_data) if design.extra_data else {},
+        extra_data=remix_extra_data,
         remixed_from_id=design.id,
         category=design.category,
         tags=design.tags,
@@ -802,3 +893,45 @@ async def track_design_view(
     if design and design.is_public:
         design.view_count = (design.view_count or 0) + 1
         await db.commit()
+
+
+# =============================================================================
+# License Violation Report Endpoint (Epic 13)
+# =============================================================================
+
+# Strict rate limit for violation reports (5 per user per hour)
+violation_report_limit = RateLimiter(
+    max_requests=5,
+    window_seconds=3600,
+    key_prefix="rate_limit:violation_report",
+)
+
+
+@router.post(
+    "/designs/{design_id}/report-violation",
+    response_model=LicenseViolationReportResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(violation_report_limit)],
+)
+async def report_license_violation(
+    design_id: UUID,
+    data: LicenseViolationReportCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> LicenseViolationReportResponse:
+    """Report a license violation on a marketplace design.
+
+    Each user can only report a design for license violation once.
+    Rate limited to 5 reports per hour per user to prevent abuse.
+    """
+    service = LicenseService(db)
+    try:
+        return await service.report_violation(
+            design_id=design_id,
+            reporter=current_user,
+            violation_type=data.violation_type,
+            description=data.description,
+            evidence_url=data.evidence_url,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

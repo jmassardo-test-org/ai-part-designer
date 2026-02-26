@@ -8,13 +8,13 @@ WebSocket push and DB persist happen together.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import (
     DEFAULT_PREFERENCES,
@@ -24,11 +24,12 @@ from app.models.notification import (
     NotificationType,
 )
 from app.services.notification_service import (
-    NotificationService,
     notify_job_completed,
     notify_job_failed,
 )
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
 # Fixtures

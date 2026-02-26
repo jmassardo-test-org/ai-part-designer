@@ -8,7 +8,11 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.schemas.license import (
+    LicenseDetailResponse,  # noqa: TC001 — Pydantic resolves string annotations at runtime
+)
 
 # =============================================================================
 # Category & Tag Schemas
@@ -185,6 +189,8 @@ class DesignSummaryResponse(BaseModel):
     # Author info
     author_id: UUID
     author_name: str
+    # License (Epic 13)
+    license_type: str | None = None
 
 
 class MarketplaceDesignResponse(DesignSummaryResponse):
@@ -199,6 +205,9 @@ class MarketplaceDesignResponse(DesignSummaryResponse):
     # Files available
     has_step: bool = False
     has_stl: bool = False
+    # License detail (Epic 13)
+    license_info: "LicenseDetailResponse | None" = None
+    attribution: dict[str, Any] | None = None
 
 
 class PaginatedDesignResponse(BaseModel):
@@ -233,6 +242,24 @@ class PublishDesignRequest(BaseModel):
     category: Annotated[str | None, Field(max_length=50, default=None)]
     tags: list[str] = []
     is_starter: bool = False  # Admin only
+    # License fields (Epic 13)
+    license_type: Annotated[str | None, Field(max_length=30, default=None)]
+    custom_license_text: Annotated[str | None, Field(max_length=5000, default=None)]
+    custom_allows_remix: bool = False
+
+    @model_validator(mode="after")
+    def validate_custom_license(self) -> "PublishDesignRequest":
+        """Validate that custom license text is provided when license_type is CUSTOM."""
+        if self.license_type == "CUSTOM":
+            if not self.custom_license_text or not self.custom_license_text.strip():
+                msg = "custom_license_text is required when license_type is CUSTOM"
+                raise ValueError(msg)
+        elif self.license_type is not None:
+            # Non-custom licenses should not have custom text
+            if self.custom_license_text:
+                msg = "custom_license_text should only be set when license_type is CUSTOM"
+                raise ValueError(msg)
+        return self
 
 
 class PublishDesignResponse(BaseModel):
@@ -244,6 +271,7 @@ class PublishDesignResponse(BaseModel):
     published_at: datetime
     category: str | None
     is_starter: bool
+    license_type: str | None = None
 
 
 # =============================================================================
@@ -309,3 +337,4 @@ class RemixResponse(BaseModel):
 # Forward reference resolution
 ListWithItems.model_rebuild()
 ListItemWithDesign.model_rebuild()
+MarketplaceDesignResponse.model_rebuild()

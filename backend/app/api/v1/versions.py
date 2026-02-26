@@ -408,17 +408,33 @@ async def create_version_from_edit(
     current_user: User = Depends(get_current_user),
 ) -> CreateVersionFromEditResponse:
     """Create a new version of a design from edited data."""
-    from app.services.design_service import DesignService
+    from app.services.design_service import (
+        DesignNotFoundError,
+        DesignPermissionError,
+        DesignService,
+    )
 
     service = DesignService(db)
-    new_version = await service.save_edit_as_version(
-        design_id=design_id,
-        user=current_user,
-        job_id=request.job_id,
-        change_description=request.change_description,
-        parameters=request.parameters,
-        file_url=request.file_url,
-    )
+
+    try:
+        new_version = await service.save_edit_as_version(
+            design_id=design_id,
+            user=current_user,
+            job_id=request.job_id,
+            change_description=request.change_description,
+            parameters=request.parameters,
+            file_url=request.file_url,
+        )
+    except DesignNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Design not found",
+        )
+    except DesignPermissionError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this design",
+        )
 
     return CreateVersionFromEditResponse(
         version_id=new_version.id,

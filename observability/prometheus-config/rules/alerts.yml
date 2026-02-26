@@ -96,3 +96,27 @@ groups:
       summary: AI token consumption is high
       description: 'Consuming {{ $value }} tokens/hour (threshold: 150k/hr). Monitor
         for cost implications.'
+- name: marketplace_licensing_monitoring
+  interval: 30s
+  rules:
+  - alert: LicenseViolationRateHigh
+    expr: sum(increase(http_requests_total{handler=~"/api/v2/marketplace/designs/.*/report-violation",status=~"2..",job="part-designer-api"}[1h])) > 20
+    for: 5m
+    labels:
+      severity: warning
+      component: marketplace
+    annotations:
+      summary: High rate of license violation reports
+      description: '{{ $value }} successful license violation reports filed in the
+        last hour (threshold: 20). Investigate for potential coordinated abuse or
+        a widespread licensing issue requiring admin attention.'
+  - alert: LicenseAdminTakedownRateHigh
+    expr: sum(increase(http_requests_total{handler=~"/api/v2/admin/designs/.*/takedown",status=~"2..",job="part-designer-api"}[1h])) > 10
+    for: 5m
+    labels:
+      severity: warning
+      component: marketplace
+    annotations:
+      summary: Elevated admin takedown activity
+      description: '{{ $value }} design takedowns executed in the last hour (threshold:
+        10). Verify this is expected enforcement activity.'

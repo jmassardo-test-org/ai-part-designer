@@ -8,15 +8,16 @@ print recommendations.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
 
 from app.cad.thread_generator import ThreadGenerationResult
 from app.cad.threads import ThreadFamily
 
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 # =============================================================================
 # Helpers
@@ -45,7 +46,8 @@ class TestListFamilies:
 
     @pytest.mark.asyncio
     async def test_returns_all_families(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return every registered thread family."""
         resp = await client.get(f"{API_PREFIX}/families")
@@ -57,7 +59,8 @@ class TestListFamilies:
 
     @pytest.mark.asyncio
     async def test_response_has_total(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Total field should match the families list length."""
         resp = await client.get(f"{API_PREFIX}/families")
@@ -66,7 +69,8 @@ class TestListFamilies:
 
     @pytest.mark.asyncio
     async def test_each_family_has_required_fields(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Every family object should contain the expected keys."""
         resp = await client.get(f"{API_PREFIX}/families")
@@ -90,7 +94,8 @@ class TestListSizes:
 
     @pytest.mark.asyncio
     async def test_valid_family_returns_sizes(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return sizes for a valid family."""
         resp = await client.get(f"{API_PREFIX}/standards/iso_metric")
@@ -103,7 +108,8 @@ class TestListSizes:
 
     @pytest.mark.asyncio
     async def test_unknown_family_returns_404(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return 404 for a non-existent family."""
         resp = await client.get(f"{API_PREFIX}/standards/bogus_family")
@@ -111,7 +117,8 @@ class TestListSizes:
 
     @pytest.mark.asyncio
     async def test_metric_coarse_filter(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Filtering by coarse pitch series should narrow results."""
         all_resp = await client.get(f"{API_PREFIX}/standards/iso_metric")
@@ -138,7 +145,8 @@ class TestGetSpec:
 
     @pytest.mark.asyncio
     async def test_valid_spec_returns_data(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return the full specification for a known size."""
         resp = await client.get(f"{API_PREFIX}/standards/iso_metric/M8")
@@ -152,7 +160,8 @@ class TestGetSpec:
 
     @pytest.mark.asyncio
     async def test_unknown_family_returns_404(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return 404 for a non-existent family."""
         resp = await client.get(f"{API_PREFIX}/standards/bogus/M8")
@@ -160,7 +169,8 @@ class TestGetSpec:
 
     @pytest.mark.asyncio
     async def test_unknown_size_returns_404(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return 404 for a non-existent size."""
         resp = await client.get(f"{API_PREFIX}/standards/iso_metric/M999")
@@ -168,7 +178,8 @@ class TestGetSpec:
 
     @pytest.mark.asyncio
     async def test_size_with_slash_works(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Sizes containing slashes (e.g. 1/4-20) should be routed."""
         resp = await client.get(f"{API_PREFIX}/standards/unc/1/4-20")
@@ -188,7 +199,8 @@ class TestGetTapDrill:
 
     @pytest.mark.asyncio
     async def test_valid_returns_drill_info(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return positive drill dimensions."""
         resp = await client.get(f"{API_PREFIX}/tap-drill/iso_metric/M8")
@@ -202,7 +214,8 @@ class TestGetTapDrill:
 
     @pytest.mark.asyncio
     async def test_unknown_size_returns_404(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return 404 for a non-existent size."""
         resp = await client.get(f"{API_PREFIX}/tap-drill/iso_metric/M999")
@@ -219,7 +232,8 @@ class TestGenerate:
 
     @pytest.mark.asyncio
     async def test_unauthenticated_returns_401(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should reject unauthenticated requests."""
         resp = await client.post(
@@ -318,7 +332,8 @@ class TestGeneratePrintOptimized:
 
     @pytest.mark.asyncio
     async def test_unauthenticated_returns_401(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should reject unauthenticated requests."""
         resp = await client.post(
@@ -406,7 +421,8 @@ class TestGetPrintRecommendation:
 
     @pytest.mark.asyncio
     async def test_valid_returns_recommendation(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return recommendation for a valid family/size."""
         resp = await client.get(
@@ -427,12 +443,12 @@ class TestGetPrintRecommendation:
 
     @pytest.mark.asyncio
     async def test_fdm_small_thread_shows_warning(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Small threads on FDM should return a warning or lower rating."""
         resp = await client.get(
-            f"{API_PREFIX}/print-recommendations/iso_metric/M3"
-            "?process=fdm&nozzle_diameter_mm=0.4",
+            f"{API_PREFIX}/print-recommendations/iso_metric/M3?process=fdm&nozzle_diameter_mm=0.4",
         )
         assert resp.status_code == 200
 
@@ -442,7 +458,8 @@ class TestGetPrintRecommendation:
 
     @pytest.mark.asyncio
     async def test_unknown_family_returns_404(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return 404 for a non-existent family."""
         resp = await client.get(
@@ -452,11 +469,11 @@ class TestGetPrintRecommendation:
 
     @pytest.mark.asyncio
     async def test_invalid_process_returns_400(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ) -> None:
         """Should return 400 for an unsupported print process."""
         resp = await client.get(
-            f"{API_PREFIX}/print-recommendations/iso_metric/M8"
-            "?process=magic_printer",
+            f"{API_PREFIX}/print-recommendations/iso_metric/M8?process=magic_printer",
         )
         assert resp.status_code == 400

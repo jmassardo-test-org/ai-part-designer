@@ -6,7 +6,6 @@
  */
 
 import { Loader2 } from 'lucide-react';
-
 import {
   Table,
   TableBody,

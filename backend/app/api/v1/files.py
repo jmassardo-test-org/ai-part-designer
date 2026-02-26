@@ -7,7 +7,7 @@ Provides REST API for uploading, downloading, and managing files.
 import hashlib
 import logging
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -294,7 +294,7 @@ async def upload_file(
         from app.services.notification_service import notify_storage_warning
 
         # Only send if no storage warning was sent in the last 24 hours
-        one_day_ago = datetime.now() - timedelta(days=1)
+        one_day_ago = datetime.now(tz=UTC) - timedelta(days=1)
         recent_warning = await db.execute(
             select(Notification.id)
             .where(

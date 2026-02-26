@@ -7,7 +7,9 @@ Provides REST API for tracking async job status and results.
 from __future__ import annotations
 
 import logging
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any
+from uuid import UUID  # noqa: TC003
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -21,9 +23,6 @@ from app.models.project import Project
 from app.worker.celery import celery_app
 
 if TYPE_CHECKING:
-    from datetime import datetime
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User

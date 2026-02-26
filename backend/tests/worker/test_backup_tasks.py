@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # =============================================================================
 # backup_database Task Tests
 # =============================================================================
@@ -34,12 +33,8 @@ class TestBackupDatabaseTask:
         }
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None
-            ),
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None
-            ),
+            patch("app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None),
+            patch("app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None),
             patch("app.core.backup.db_backup") as mock_db_backup,
         ):
             mock_db_backup.create_backup = AsyncMock(return_value=mock_backup_info)
@@ -47,7 +42,7 @@ class TestBackupDatabaseTask:
 
             from app.worker.tasks.maintenance import backup_database
 
-            result = backup_database("full")
+            backup_database("full")
 
             mock_db_backup.create_backup.assert_called_once_with(
                 backup_type="full",
@@ -69,12 +64,8 @@ class TestBackupDatabaseTask:
         }
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None
-            ),
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None
-            ),
+            patch("app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None),
+            patch("app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None),
             patch("app.core.backup.db_backup") as mock_db_backup,
         ):
             mock_db_backup.create_backup = AsyncMock(return_value=mock_backup_info)
@@ -92,12 +83,8 @@ class TestBackupDatabaseTask:
     def test_backup_database_task_handles_failure(self) -> None:
         """Test that backup_database task propagates exceptions."""
         with (
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None
-            ),
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None
-            ),
+            patch("app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None),
+            patch("app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None),
             patch("app.core.backup.db_backup") as mock_db_backup,
         ):
             mock_db_backup.create_backup = AsyncMock(
@@ -131,15 +118,9 @@ class TestWeeklyFullBackupTask:
         }
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None
-            ),
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None
-            ),
-            patch(
-                "app.services.backup.BackupService"
-            ) as MockBackupService,
+            patch("app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None),
+            patch("app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None),
+            patch("app.services.backup.BackupService") as MockBackupService,
         ):
             mock_service_instance = MagicMock()
             mock_service_instance.create_backup = AsyncMock(return_value=mock_record)
@@ -147,7 +128,7 @@ class TestWeeklyFullBackupTask:
 
             from app.worker.tasks.maintenance import weekly_full_backup
 
-            result = weekly_full_backup()
+            weekly_full_backup()
 
             mock_service_instance.create_backup.assert_called_once()
             call_kwargs = mock_service_instance.create_backup.call_args
@@ -170,15 +151,9 @@ class TestWeeklyFullBackupTask:
         mock_record.to_dict.return_value = expected_result
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None
-            ),
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None
-            ),
-            patch(
-                "app.services.backup.BackupService"
-            ) as MockBackupService,
+            patch("app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None),
+            patch("app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None),
+            patch("app.services.backup.BackupService") as MockBackupService,
         ):
             mock_service_instance = MagicMock()
             mock_service_instance.create_backup = AsyncMock(return_value=mock_record)
@@ -196,20 +171,12 @@ class TestWeeklyFullBackupTask:
     def test_weekly_full_backup_task_handles_failure(self) -> None:
         """Test that weekly_full_backup task propagates exceptions on failure."""
         with (
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None
-            ),
-            patch(
-                "app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None
-            ),
-            patch(
-                "app.services.backup.BackupService"
-            ) as MockBackupService,
+            patch("app.worker.tasks.maintenance.BACKUP_OPERATIONS_TOTAL", None),
+            patch("app.worker.tasks.maintenance.BACKUP_DURATION_SECONDS", None),
+            patch("app.services.backup.BackupService") as MockBackupService,
         ):
             mock_service_instance = MagicMock()
-            mock_service_instance.create_backup = AsyncMock(
-                side_effect=OSError("Disk full")
-            )
+            mock_service_instance.create_backup = AsyncMock(side_effect=OSError("Disk full"))
             MockBackupService.return_value = mock_service_instance
 
             from app.worker.tasks.maintenance import weekly_full_backup

@@ -10,14 +10,15 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Notification, NotificationPreference
 from app.models.notification import NotificationType
 
 if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from app.models.project import Project
     from app.models.user import User
 
@@ -111,9 +112,9 @@ class TestShareDesignNotifications:
         self,
         client: AsyncClient,
         db_session: AsyncSession,
-        test_user: "User",
-        test_user_2: "User",
-        test_project: "Project",
+        test_user: User,
+        test_user_2: User,
+        test_project: Project,
         design_factory,
         auth_headers: dict[str, str],
     ) -> None:
@@ -155,9 +156,9 @@ class TestShareDesignNotifications:
         self,
         client: AsyncClient,
         db_session: AsyncSession,
-        test_user: "User",
-        test_user_2: "User",
-        test_project: "Project",
+        test_user: User,
+        test_user_2: User,
+        test_project: Project,
         design_factory,
         auth_headers: dict[str, str],
     ) -> None:

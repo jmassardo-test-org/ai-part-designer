@@ -20,7 +20,9 @@ export type NotificationType =
   | 'org_invite'
   | 'org_role_changed'
   | 'org_member_joined'
-  | 'system_announcement';
+  | 'system_announcement'
+  | 'storage_limit'
+  | 'credit_low';
 
 /** Notification entity. */
 export interface Notification {

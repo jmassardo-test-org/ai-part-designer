@@ -17,7 +17,6 @@ import pytest
 from app.cad.exceptions import ThreadGenerationError, ValidationError
 from app.cad.thread_generator import (
     DEFAULT_SEGMENTS_PER_REVOLUTION,
-    MAX_REVOLUTIONS,
     MAX_THREAD_LENGTH_MM,
     ThreadGenerationResult,
     ThreadGeneratorConfig,
@@ -33,9 +32,7 @@ from app.cad.threads import (
     ThreadHand,
     ThreadSpec,
     ThreadType,
-    get_thread_spec,
 )
-
 
 # =============================================================================
 # Helpers
@@ -165,9 +162,7 @@ class TestValidateConfig:
     def test_exceeds_max_length_raises(self) -> None:
         """Length above MAX_THREAD_LENGTH_MM must be rejected."""
         with pytest.raises(ValidationError, match="exceeds maximum"):
-            _validate_config(
-                _make_config(length_mm=MAX_THREAD_LENGTH_MM + 1.0)
-            )
+            _validate_config(_make_config(length_mm=MAX_THREAD_LENGTH_MM + 1.0))
 
     def test_exceeds_max_revolutions_raises(self) -> None:
         """Config whose length/pitch exceeds MAX_REVOLUTIONS is rejected."""
@@ -230,7 +225,7 @@ class TestGetEffectiveDimensions:
     def test_uses_spec_values_by_default_internal(self) -> None:
         """For internal threads, internal spec diameters are used."""
         cfg = _make_config(thread_type=ThreadType.INTERNAL)
-        pitch, major, minor = _get_effective_dimensions(cfg)
+        _pitch, major, minor = _get_effective_dimensions(cfg)
         assert major == cfg.spec.major_diameter_int
         assert minor == cfg.spec.minor_diameter_int
 
@@ -281,16 +276,21 @@ class TestGenerateExternalThread:
         assert result.part is not None
 
     @patch("app.cad.thread_generator.Cylinder")
-    def test_external_metadata_has_expected_keys(
-        self, mock_cyl: MagicMock
-    ) -> None:
+    def test_external_metadata_has_expected_keys(self, mock_cyl: MagicMock) -> None:
         """Metadata must contain standard keys."""
         mock_cyl.return_value = _mock_part()
         result = generate_thread(_make_config())
         expected_keys = {
-            "family", "size", "thread_type", "hand",
-            "pitch_mm", "major_diameter_mm", "revolutions",
-            "length_mm", "form", "generation_time_ms",
+            "family",
+            "size",
+            "thread_type",
+            "hand",
+            "pitch_mm",
+            "major_diameter_mm",
+            "revolutions",
+            "length_mm",
+            "form",
+            "generation_time_ms",
         }
         assert expected_keys.issubset(result.metadata.keys())
 
@@ -306,18 +306,14 @@ class TestGenerateExternalThread:
         assert result.metadata["pitch_mm"] == 1.25
 
     @patch("app.cad.thread_generator.Cylinder")
-    def test_external_generation_time_is_non_negative(
-        self, mock_cyl: MagicMock
-    ) -> None:
+    def test_external_generation_time_is_non_negative(self, mock_cyl: MagicMock) -> None:
         """generation_time_ms must be ≥ 0."""
         mock_cyl.return_value = _mock_part()
         result = generate_thread(_make_config())
         assert result.generation_time_ms >= 0
 
     @patch("app.cad.thread_generator.Cylinder")
-    def test_external_estimated_faces_positive(
-        self, mock_cyl: MagicMock
-    ) -> None:
+    def test_external_estimated_faces_positive(self, mock_cyl: MagicMock) -> None:
         """Face count estimate must be positive for non-trivial threads."""
         mock_cyl.return_value = _mock_part()
         result = generate_thread(_make_config())
@@ -341,9 +337,7 @@ class TestGenerateInternalThread:
         assert isinstance(result, ThreadGenerationResult)
 
     @patch("app.cad.thread_generator.Cylinder")
-    def test_internal_metadata_type_is_internal(
-        self, mock_cyl: MagicMock
-    ) -> None:
+    def test_internal_metadata_type_is_internal(self, mock_cyl: MagicMock) -> None:
         """Metadata thread_type must be 'internal'."""
         mock_cyl.return_value = _mock_part()
         cfg = _make_config(thread_type=ThreadType.INTERNAL)
@@ -367,9 +361,7 @@ class TestGenerateThreadMetadata:
         assert result.metadata["family"] == "iso_metric"
 
     @patch("app.cad.thread_generator.Cylinder")
-    def test_metadata_includes_generation_time(
-        self, mock_cyl: MagicMock
-    ) -> None:
+    def test_metadata_includes_generation_time(self, mock_cyl: MagicMock) -> None:
         """generation_time_ms must be a non-negative int in metadata."""
         mock_cyl.return_value = _mock_part()
         result = generate_thread(_make_config())
@@ -377,9 +369,7 @@ class TestGenerateThreadMetadata:
         assert result.metadata["generation_time_ms"] >= 0
 
     @patch("app.cad.thread_generator.Cylinder")
-    def test_metadata_includes_revolutions(
-        self, mock_cyl: MagicMock
-    ) -> None:
+    def test_metadata_includes_revolutions(self, mock_cyl: MagicMock) -> None:
         """Revolutions field should equal length / pitch."""
         mock_cyl.return_value = _mock_part()
         cfg = _make_config(length_mm=10.0)
@@ -400,9 +390,7 @@ class TestGenerateThreadMetadata:
     def test_metadata_custom_flags(self, mock_cyl: MagicMock) -> None:
         """Custom override flags should be set correctly."""
         mock_cyl.return_value = _mock_part()
-        result = generate_thread(
-            _make_config(custom_pitch_mm=2.0, custom_diameter_mm=10.0)
-        )
+        result = generate_thread(_make_config(custom_pitch_mm=2.0, custom_diameter_mm=10.0))
         assert result.metadata["custom_pitch_applied"] is True
         assert result.metadata["custom_diameter_applied"] is True
 
@@ -497,9 +485,7 @@ class TestGenerateThreadEdgeCases:
         assert result.generation_time_ms >= 0
 
     @patch("app.cad.thread_generator.Cylinder")
-    def test_geometry_exception_wraps_in_thread_error(
-        self, mock_cyl: MagicMock
-    ) -> None:
+    def test_geometry_exception_wraps_in_thread_error(self, mock_cyl: MagicMock) -> None:
         """Unexpected Build123d errors should be wrapped in ThreadGenerationError."""
         mock_cyl.side_effect = RuntimeError("OCCT kernel panic")
         with pytest.raises(ThreadGenerationError, match="build failed"):

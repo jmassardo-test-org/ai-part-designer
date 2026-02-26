@@ -12,17 +12,16 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from tests.factories import DesignFactory, ProjectFactory, UserFactory
 
-from app.models.design import Design
-from app.models.project import Project
-from app.models.rating import DesignRating
-from app.models.user import User
 from app.schemas.rating import DesignRatingCreate
 from app.services.design_rating_service import DesignRatingService
-from tests.factories import DesignFactory, ProjectFactory, UserFactory
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.design import Design
+    from app.models.user import User
 
 
 # =============================================================================
@@ -151,9 +150,7 @@ class TestCreateOrUpdateRating:
         data = DesignRatingCreate(rating=3)
 
         with pytest.raises(ValueError, match="Design not found or not public"):
-            await rating_service.create_or_update_rating(
-                design_id=uuid4(), user=rater, data=data
-            )
+            await rating_service.create_or_update_rating(design_id=uuid4(), user=rater, data=data)
 
     @pytest.mark.asyncio
     async def test_create_rating_on_private_design_raises_error(

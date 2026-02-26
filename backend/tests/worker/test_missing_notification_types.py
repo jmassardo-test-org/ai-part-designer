@@ -12,12 +12,12 @@ create notifications with the expected content/data, and that edge cases
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import (
     Notification,
@@ -29,6 +29,8 @@ from app.services.notification_service import (
     notify_subscription_expiring,
 )
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # =============================================================================
 # Fixtures
@@ -330,7 +332,7 @@ class TestDesignRemixNotification:
         helper).  We verify the call-site guard separately.
         """
         # Arrange — simulate the call-site guard
-        design_id = uuid4()
+        uuid4()
         original_owner_id = user_id
         remixer_id = user_id  # same user
 
@@ -437,7 +439,7 @@ class TestStorageWarningDeduplication:
         # Act — simulate the deduplication query from files.py
         from sqlalchemy import and_
 
-        one_day_ago = datetime.now() - timedelta(days=1)
+        one_day_ago = datetime.now(tz=UTC) - timedelta(days=1)
         result = await db_session.execute(
             select(Notification.id)
             .where(

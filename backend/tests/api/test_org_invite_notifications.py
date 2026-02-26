@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.notification import Notification, NotificationPriority, NotificationType
 from app.models.organization import Organization, OrganizationMember, OrganizationRole
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================

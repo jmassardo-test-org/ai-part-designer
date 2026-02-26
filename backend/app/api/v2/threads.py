@@ -9,7 +9,7 @@ public; mutation endpoints require authentication.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -23,24 +23,21 @@ from app.cad.thread_print_optimizer import (
     PrintProcess,
     PrintThreadConfig,
     ToleranceClass,
-    get_orientation_advice,
     get_print_recommendation,
     optimize_thread_for_print,
 )
 from app.cad.threads import (
+    THREAD_FAMILY_INFO,
     PitchSeries,
     ThreadFamily,
     ThreadHand,
     ThreadType,
-    THREAD_FAMILY_INFO,
-    THREAD_REGISTRY,
     get_tap_drill_info,
     get_thread_spec,
     list_thread_families,
     list_thread_sizes,
 )
 from app.core.auth import get_current_user
-from app.models.user import User
 from app.schemas.threads import (
     PrintOptimizedGenerateRequest,
     PrintOptimizedGenerateResponse,
@@ -53,6 +50,9 @@ from app.schemas.threads import (
     ThreadSizeListResponse,
     ThreadSpecResponse,
 )
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +82,7 @@ def _resolve_family(family: str) -> ThreadFamily:
         valid = [f.value for f in ThreadFamily]
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                f"Unknown thread family: '{family}'. "
-                f"Valid families: {', '.join(valid)}"
-            ),
+            detail=(f"Unknown thread family: '{family}'. Valid families: {', '.join(valid)}"),
         )
 
 
@@ -110,13 +107,10 @@ def _resolve_enum(
     try:
         return enum_cls(value)
     except ValueError:
-        valid = [e.value for e in enum_cls]
+        valid = [e.value for e in enum_cls]  # type: ignore[attr-defined]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Invalid {label}: '{value}'. "
-                f"Valid values: {', '.join(valid)}"
-            ),
+            detail=(f"Invalid {label}: '{value}'. Valid values: {', '.join(valid)}"),
         )
 
 
@@ -330,14 +324,18 @@ async def generate(
     """
     fam_enum = _resolve_family(request.family)
     thread_type = _resolve_enum(
-        request.thread_type, ThreadType, "thread_type",
+        request.thread_type,
+        ThreadType,
+        "thread_type",
     )
     hand = _resolve_enum(request.hand, ThreadHand, "hand")
 
     ps_enum: PitchSeries | None = None
     if request.pitch_series is not None:
         ps_enum = _resolve_enum(
-            request.pitch_series, PitchSeries, "pitch_series",
+            request.pitch_series,
+            PitchSeries,
+            "pitch_series",
         )
 
     try:
@@ -412,18 +410,24 @@ async def generate_print_optimized(
     """
     fam_enum = _resolve_family(request.family)
     thread_type = _resolve_enum(
-        request.thread_type, ThreadType, "thread_type",
+        request.thread_type,
+        ThreadType,
+        "thread_type",
     )
     hand = _resolve_enum(request.hand, ThreadHand, "hand")
     process = _resolve_enum(request.process, PrintProcess, "process")
     tol_class = _resolve_enum(
-        request.tolerance_class, ToleranceClass, "tolerance_class",
+        request.tolerance_class,
+        ToleranceClass,
+        "tolerance_class",
     )
 
     ps_enum: PitchSeries | None = None
     if request.pitch_series is not None:
         ps_enum = _resolve_enum(
-            request.pitch_series, PitchSeries, "pitch_series",
+            request.pitch_series,
+            PitchSeries,
+            "pitch_series",
         )
 
     try:
@@ -481,8 +485,7 @@ async def generate_print_optimized(
             metadata=gen_result.metadata,
             generation_time_ms=gen_result.generation_time_ms,
             estimated_face_count=gen_result.estimated_face_count,
-            message=f"Generated print-optimized {thread_type.value} "
-            f"{spec.size} thread",
+            message=f"Generated print-optimized {thread_type.value} {spec.size} thread",
         )
     except ThreadGenerationError as exc:
         logger.warning(

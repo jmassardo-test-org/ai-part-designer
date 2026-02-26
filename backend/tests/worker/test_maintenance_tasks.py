@@ -6,7 +6,6 @@ Tests audit log archival, cleanup, and retention policies.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -16,50 +15,14 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.models.audit import AuditLog
-from app.worker.tasks.maintenance import archive_old_audit_logs
-
-
-def run_async_task_sync(coro):
-    """Helper to run coroutine in existing event loop (for tests) or new one."""
-    try:
-        asyncio.get_running_loop()
-        # In an async test, we need to schedule it in the current loop
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            return pool.submit(asyncio.run, coro).result()
-    except RuntimeError:
-        return asyncio.run(coro)
-
-
-@pytest.fixture
-def mock_asyncio_run():
-    """Patch asyncio.run to work in async test contexts."""
-    original_run = asyncio.run
-
-    def patched_run(coro):
-        try:
-            asyncio.get_running_loop()
-            # Run in a separate thread to avoid nested loop issues
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(original_run, coro)
-                return future.result(timeout=60)
-        except RuntimeError:
-            return original_run(coro)
-
-    with patch("asyncio.run", side_effect=patched_run):
-        yield
+from app.worker.tasks.maintenance import _archive_audit_logs_impl
 
 
 @pytest.mark.asyncio
 class TestArchiveOldAuditLogs:
     """Tests for audit log archival task."""
 
-    async def test_archive_no_old_logs_returns_empty_summary(
-        self, db_session, test_user, mock_asyncio_run
-    ):
+    async def test_archive_no_old_logs_returns_empty_summary(self, db_session, test_user):
         """Test that archival with no old logs returns empty summary."""
         # Create recent audit log (within retention period)
         recent_log = AuditLog(
@@ -79,16 +42,14 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock()
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             assert result["logs_archived"] == 0
             assert result["logs_deleted"] == 0
             assert result["archive_files_created"] == 0
             mock_storage.upload_file.assert_not_called()
 
-    async def test_archive_old_logs_creates_archive_files(
-        self, db_session, test_user, mock_asyncio_run
-    ):
+    async def test_archive_old_logs_creates_archive_files(self, db_session, test_user):
         """Test that old logs are archived to storage."""
         # Create old audit logs (beyond retention period)
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 10)
@@ -114,7 +75,7 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock()
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             assert result["logs_archived"] == 5
             assert result["logs_deleted"] == 5
@@ -131,7 +92,7 @@ class TestArchiveOldAuditLogs:
             )
             assert len(remaining_logs.scalars().all()) == 0
 
-    async def test_archive_preserves_recent_logs(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_preserves_recent_logs(self, db_session, test_user):
         """Test that recent logs are not archived."""
         # Create mix of old and recent logs
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS)
@@ -168,7 +129,7 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock()
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             assert result["logs_archived"] == 1
             assert result["logs_deleted"] == 1
@@ -179,7 +140,7 @@ class TestArchiveOldAuditLogs:
             )
             assert recent_check.scalar_one_or_none() is not None
 
-    async def test_archive_generates_summary_stats(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_generates_summary_stats(self, db_session, test_user):
         """Test that archival generates summary statistics."""
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 5)
 
@@ -207,7 +168,7 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock()
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             # Verify summary stats are generated
             assert "summary_stats" in result
@@ -224,7 +185,7 @@ class TestArchiveOldAuditLogs:
             assert "by_status" in summary
             assert len(summary["by_status"]) == 2
 
-    async def test_archive_batches_large_datasets(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_batches_large_datasets(self, db_session, test_user):
         """Test that large datasets are batched into multiple files."""
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 1)
 
@@ -250,7 +211,7 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock()
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             assert result["logs_archived"] == 2500
             # Should create 3 batch files + 1 summary file
@@ -258,9 +219,7 @@ class TestArchiveOldAuditLogs:
             # Summary file should also be uploaded
             assert mock_storage.upload_file.call_count >= 4  # 3 batches + summary
 
-    async def test_archive_handles_storage_upload_errors(
-        self, db_session, test_user, mock_asyncio_run
-    ):
+    async def test_archive_handles_storage_upload_errors(self, db_session, test_user):
         """Test that storage upload errors are handled gracefully."""
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 1)
 
@@ -281,13 +240,13 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock(side_effect=Exception("Storage error"))
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             # Task should complete but report errors
             assert len(result["errors"]) > 0
             assert any("Storage error" in str(err) for err in result["errors"])
 
-    async def test_archive_includes_all_log_fields(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_includes_all_log_fields(self, db_session, test_user):
         """Test that archived data includes all log fields."""
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 1)
 
@@ -317,14 +276,14 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock(side_effect=capture_upload)
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             assert result["logs_archived"] == 1
 
             # Verify at least one file was uploaded (batch file)
             assert len(uploaded_data) > 0
 
-    async def test_archive_uses_correct_bucket(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_uses_correct_bucket(self, db_session, test_user):
         """Test that archives are stored in the ARCHIVES bucket."""
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS + 1)
 
@@ -344,7 +303,7 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock()
 
-            archive_old_audit_logs()
+            await _archive_audit_logs_impl(db_session)
 
             # Check that ARCHIVES bucket was used
             from app.core.storage import StorageBucket
@@ -353,7 +312,7 @@ class TestArchiveOldAuditLogs:
                 bucket_arg = call[1]["bucket"]
                 assert bucket_arg == StorageBucket.ARCHIVES
 
-    async def test_archive_compresses_data(self, db_session, test_user, mock_asyncio_run):
+    async def test_archive_compresses_data(self, db_session, test_user):
         """Test that archived data is gzip compressed."""
         import gzip
         import json
@@ -381,7 +340,7 @@ class TestArchiveOldAuditLogs:
         with patch("app.core.storage.storage_client") as mock_storage:
             mock_storage.upload_file = AsyncMock(side_effect=capture_file)
 
-            result = archive_old_audit_logs()
+            result = await _archive_audit_logs_impl(db_session)
 
             assert result["logs_archived"] == 1
             assert len(captured_files) > 0

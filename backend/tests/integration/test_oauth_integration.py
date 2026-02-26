@@ -10,9 +10,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import unquote_plus
 from uuid import uuid4
 
 import pytest
+
+from app.core.config import Settings, get_settings
+from app.main import app as fastapi_app
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -42,11 +46,12 @@ class TestOAuthLoginInitiation:
             )
             mock_oauth.create_client.return_value = mock_client
 
-            with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                mock_settings.return_value.GOOGLE_CLIENT_ID = "test-client-id"
-                mock_settings.return_value.GOOGLE_CLIENT_SECRET = "test-secret"
-                mock_settings.return_value.OAUTH_REDIRECT_BASE = "http://localhost:5173"
-
+            mock_settings_obj = MagicMock(spec=Settings)
+            mock_settings_obj.GOOGLE_CLIENT_ID = "test-client-id"
+            mock_settings_obj.GOOGLE_CLIENT_SECRET = "test-secret"
+            mock_settings_obj.OAUTH_REDIRECT_BASE = "http://localhost:5173"
+            fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+            try:
                 response = await client.get("/api/v1/auth/oauth/google/login")
 
                 assert response.status_code == 200
@@ -54,6 +59,8 @@ class TestOAuthLoginInitiation:
                 assert "authorization_url" in data
                 assert "state" in data
                 assert "accounts.google.com" in data["authorization_url"]
+            finally:
+                fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_github_oauth_login_with_valid_config(
@@ -70,11 +77,12 @@ class TestOAuthLoginInitiation:
             )
             mock_oauth.create_client.return_value = mock_client
 
-            with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                mock_settings.return_value.GITHUB_CLIENT_ID = "test-client-id"
-                mock_settings.return_value.GITHUB_CLIENT_SECRET = "test-secret"
-                mock_settings.return_value.OAUTH_REDIRECT_BASE = "http://localhost:5173"
-
+            mock_settings_obj = MagicMock(spec=Settings)
+            mock_settings_obj.GITHUB_CLIENT_ID = "test-client-id"
+            mock_settings_obj.GITHUB_CLIENT_SECRET = "test-secret"
+            mock_settings_obj.OAUTH_REDIRECT_BASE = "http://localhost:5173"
+            fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+            try:
                 response = await client.get("/api/v1/auth/oauth/github/login")
 
                 assert response.status_code == 200
@@ -82,6 +90,8 @@ class TestOAuthLoginInitiation:
                 assert "authorization_url" in data
                 assert "state" in data
                 assert "github.com" in data["authorization_url"]
+            finally:
+                fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_oauth_login_without_configuration(
@@ -89,16 +99,19 @@ class TestOAuthLoginInitiation:
         client: AsyncClient,
     ) -> None:
         """Test OAuth login fails gracefully when not configured."""
-        with patch("app.api.v1.oauth.get_settings") as mock_settings:
-            mock_settings.return_value.GOOGLE_CLIENT_ID = None
-            mock_settings.return_value.GOOGLE_CLIENT_SECRET = None
-
+        mock_settings_obj = MagicMock(spec=Settings)
+        mock_settings_obj.GOOGLE_CLIENT_ID = None
+        mock_settings_obj.GOOGLE_CLIENT_SECRET = None
+        fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+        try:
             response = await client.get("/api/v1/auth/oauth/google/login")
 
             assert response.status_code == 503
             data = response.json()
             assert "detail" in data
             assert "not configured" in data["detail"].lower()
+        finally:
+            fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_oauth_redirect_uri_includes_callback_path(
@@ -118,15 +131,18 @@ class TestOAuthLoginInitiation:
             mock_client.create_authorization_url = capture_callback_url
             mock_oauth.create_client.return_value = mock_client
 
-            with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                mock_settings.return_value.GOOGLE_CLIENT_ID = "test-client-id"
-                mock_settings.return_value.GOOGLE_CLIENT_SECRET = "test-secret"
-                mock_settings.return_value.OAUTH_REDIRECT_BASE = "https://example.com"
-
+            mock_settings_obj = MagicMock(spec=Settings)
+            mock_settings_obj.GOOGLE_CLIENT_ID = "test-client-id"
+            mock_settings_obj.GOOGLE_CLIENT_SECRET = "test-secret"
+            mock_settings_obj.OAUTH_REDIRECT_BASE = "https://example.com"
+            fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+            try:
                 response = await client.get("/api/v1/auth/oauth/google/login")
 
                 assert response.status_code == 200
                 assert authorization_url == "https://example.com/api/v1/auth/oauth/google/callback"
+            finally:
+                fastapi_app.dependency_overrides.pop(get_settings, None)
 
 
 # =============================================================================
@@ -165,10 +181,11 @@ class TestOAuthCallback:
                     "picture": "https://example.com/photo.jpg",
                 }
 
-                with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                    mock_settings.return_value.FRONTEND_URL = "http://localhost:5173"
-                    mock_settings.return_value.OAUTH_REDIRECT_BASE = "http://localhost:5173"
-
+                mock_settings_obj = MagicMock(spec=Settings)
+                mock_settings_obj.FRONTEND_URL = "http://localhost:5173"
+                mock_settings_obj.OAUTH_REDIRECT_BASE = "http://localhost:5173"
+                fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+                try:
                     response = await client.get(
                         "/api/v1/auth/oauth/google/callback",
                         params={"code": "test_code"},
@@ -189,6 +206,8 @@ class TestOAuthCallback:
                     assert user.email == test_email.lower()
                     assert user.status == "active"
                     assert user.email_verified_at is not None
+                finally:
+                    fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_github_oauth_callback_creates_new_user(
@@ -218,10 +237,11 @@ class TestOAuthCallback:
                     "username": "githubuser",
                 }
 
-                with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                    mock_settings.return_value.FRONTEND_URL = "http://localhost:5173"
-                    mock_settings.return_value.OAUTH_REDIRECT_BASE = "http://localhost:5173"
-
+                mock_settings_obj = MagicMock(spec=Settings)
+                mock_settings_obj.FRONTEND_URL = "http://localhost:5173"
+                mock_settings_obj.OAUTH_REDIRECT_BASE = "http://localhost:5173"
+                fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+                try:
                     response = await client.get(
                         "/api/v1/auth/oauth/github/callback",
                         params={"code": "test_code"},
@@ -238,6 +258,8 @@ class TestOAuthCallback:
                     user = await user_repo.get_by_email(test_email.lower())
                     assert user is not None
                     assert user.email == test_email.lower()
+                finally:
+                    fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_oauth_callback_links_to_existing_user(
@@ -279,10 +301,11 @@ class TestOAuthCallback:
                     "name": "Test User",
                 }
 
-                with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                    mock_settings.return_value.FRONTEND_URL = "http://localhost:5173"
-                    mock_settings.return_value.OAUTH_REDIRECT_BASE = "http://localhost:5173"
-
+                mock_settings_obj = MagicMock(spec=Settings)
+                mock_settings_obj.FRONTEND_URL = "http://localhost:5173"
+                mock_settings_obj.OAUTH_REDIRECT_BASE = "http://localhost:5173"
+                fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+                try:
                     response = await client.get(
                         "/api/v1/auth/oauth/google/callback",
                         params={"code": "test_code"},
@@ -292,6 +315,8 @@ class TestOAuthCallback:
                     assert response.status_code == 307
                     # Should NOT be a new user since email exists
                     assert "is_new_user=false" in response.headers["location"]
+                finally:
+                    fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_oauth_callback_handles_error_from_provider(
@@ -299,9 +324,10 @@ class TestOAuthCallback:
         client: AsyncClient,
     ) -> None:
         """Test OAuth callback handles errors from provider."""
-        with patch("app.api.v1.oauth.get_settings") as mock_settings:
-            mock_settings.return_value.FRONTEND_URL = "http://localhost:5173"
-
+        mock_settings_obj = MagicMock(spec=Settings)
+        mock_settings_obj.FRONTEND_URL = "http://localhost:5173"
+        fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+        try:
             response = await client.get(
                 "/api/v1/auth/oauth/google/callback",
                 params={
@@ -313,7 +339,9 @@ class TestOAuthCallback:
 
             assert response.status_code == 307
             assert "error=oauth_error" in response.headers["location"]
-            assert "User denied access" in response.headers["location"]
+            assert "User denied access" in unquote_plus(response.headers["location"])
+        finally:
+            fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_oauth_callback_validates_state_csrf(
@@ -327,10 +355,11 @@ class TestOAuthCallback:
             mock_client.authorize_access_token = AsyncMock(side_effect=Exception("State mismatch"))
             mock_oauth.create_client.return_value = mock_client
 
-            with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                mock_settings.return_value.FRONTEND_URL = "http://localhost:5173"
-                mock_settings.return_value.OAUTH_REDIRECT_BASE = "http://localhost:5173"
-
+            mock_settings_obj = MagicMock(spec=Settings)
+            mock_settings_obj.FRONTEND_URL = "http://localhost:5173"
+            mock_settings_obj.OAUTH_REDIRECT_BASE = "http://localhost:5173"
+            fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+            try:
                 response = await client.get(
                     "/api/v1/auth/oauth/google/callback",
                     params={"code": "test_code", "state": "invalid_state"},
@@ -340,6 +369,8 @@ class TestOAuthCallback:
                 # Should redirect with error
                 assert response.status_code == 307
                 assert "error=server_error" in response.headers["location"]
+            finally:
+                fastapi_app.dependency_overrides.pop(get_settings, None)
 
 
 # =============================================================================
@@ -489,17 +520,20 @@ class TestOAuthRedirectURIConfiguration:
             mock_client.create_authorization_url = capture_url
             mock_oauth.create_client.return_value = mock_client
 
-            with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                mock_settings.return_value.GOOGLE_CLIENT_ID = "test"
-                mock_settings.return_value.GOOGLE_CLIENT_SECRET = "test"
-                # Test production URL
-                mock_settings.return_value.OAUTH_REDIRECT_BASE = "https://assemblematic.ai"
-
+            mock_settings_obj = MagicMock(spec=Settings)
+            mock_settings_obj.GOOGLE_CLIENT_ID = "test"
+            mock_settings_obj.GOOGLE_CLIENT_SECRET = "test"
+            # Test production URL
+            mock_settings_obj.OAUTH_REDIRECT_BASE = "https://assemblematic.ai"
+            fastapi_app.dependency_overrides[get_settings] = lambda: mock_settings_obj
+            try:
                 await client.get("/api/v1/auth/oauth/google/login")
 
                 assert captured_callback_url is not None
                 assert captured_callback_url.startswith("https://assemblematic.ai")
                 assert "/api/v1/auth/oauth/google/callback" in captured_callback_url
+            finally:
+                fastapi_app.dependency_overrides.pop(get_settings, None)
 
     @pytest.mark.asyncio
     async def test_redirect_uri_for_different_environments(
@@ -526,12 +560,18 @@ class TestOAuthRedirectURIConfiguration:
                 mock_client.create_authorization_url = capture
                 mock_oauth.create_client.return_value = mock_client
 
-                with patch("app.api.v1.oauth.get_settings") as mock_settings:
-                    mock_settings.return_value.GOOGLE_CLIENT_ID = "test"
-                    mock_settings.return_value.GOOGLE_CLIENT_SECRET = "test"
-                    mock_settings.return_value.OAUTH_REDIRECT_BASE = base_url
-
+                mock_settings_obj = MagicMock(spec=Settings)
+                mock_settings_obj.GOOGLE_CLIENT_ID = "test"
+                mock_settings_obj.GOOGLE_CLIENT_SECRET = "test"
+                mock_settings_obj.OAUTH_REDIRECT_BASE = base_url
+                # Prevent Pydantic/Starlette from deep-copying the mock
+                # (which loses set attributes and creates nested mock chains)
+                mock_settings_obj.__deepcopy__ = lambda _memo, _s=mock_settings_obj: _s
+                fastapi_app.dependency_overrides[get_settings] = lambda s=mock_settings_obj: s
+                try:
                     await client.get("/api/v1/auth/oauth/google/login")
 
                     assert captured_url is not None
                     assert captured_url.startswith(base_url), f"Failed for {env_name}"
+                finally:
+                    fastapi_app.dependency_overrides.pop(get_settings, None)

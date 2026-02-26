@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import gzip
 import hashlib
-import json
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, mock_open, patch
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -25,6 +23,8 @@ from app.services.backup import (
     BackupType,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # =============================================================================
 # Fixtures
@@ -108,7 +108,7 @@ class TestCreateBackup:
             patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec,
             patch(
                 "app.services.backup.settings",
-                **{"FILE_STORAGE_PATH": str(uploads_dir)},
+                FILE_STORAGE_PATH=str(uploads_dir),
             ),
         ):
             record = await backup_service.create_backup(
@@ -117,9 +117,7 @@ class TestCreateBackup:
             )
 
             # FILES backup should invoke tar
-            tar_called = any(
-                call[0][0] == "tar" for call in mock_exec.call_args_list if call[0]
-            )
+            tar_called = any(call[0][0] == "tar" for call in mock_exec.call_args_list if call[0])
             assert tar_called or record.metadata.get("files_backup") is not None
 
     @pytest.mark.asyncio
@@ -141,9 +139,7 @@ class TestCreateBackup:
             assert record.backup_type == BackupType.FULL
 
     @pytest.mark.asyncio
-    async def test_create_backup_incremental_type(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_create_backup_incremental_type(self, backup_service: BackupService) -> None:
         """Test that INCREMENTAL backup uses last full as base."""
         # First create a full backup to serve as base
         mock_process = AsyncMock()
@@ -229,9 +225,7 @@ class TestVerifyBackup:
         assert any("checksum" in issue.lower() for issue in result.issues)
 
     @pytest.mark.asyncio
-    async def test_verify_backup_not_found(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_verify_backup_not_found(self, backup_service: BackupService) -> None:
         """Test that verifying a non-existent backup returns invalid."""
         result = await backup_service.verify_backup(uuid4())
 
@@ -248,9 +242,7 @@ class TestRestoreBackup:
     """Tests for BackupService.restore_backup."""
 
     @pytest.mark.asyncio
-    async def test_restore_backup_success(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_restore_backup_success(self, backup_service: BackupService) -> None:
         """Test successful backup restore."""
         record = BackupRecord(
             status=BackupStatus.COMPLETED,
@@ -290,9 +282,7 @@ class TestCleanupOldBackups:
     """Tests for BackupService.cleanup_old_backups."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_old_backups_removes_expired(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_cleanup_old_backups_removes_expired(self, backup_service: BackupService) -> None:
         """Test that old backups beyond retention are removed."""
         # Create old backups
         old_date = datetime.now(tz=UTC) - timedelta(days=60)
@@ -305,17 +295,13 @@ class TestCleanupOldBackups:
 
         backup_service._save_backup_index()
 
-        deleted = await backup_service.cleanup_old_backups(
-            retention_days=30, keep_minimum=1
-        )
+        deleted = await backup_service.cleanup_old_backups(retention_days=30, keep_minimum=1)
 
         # At least some should be deleted (keeping minimum of 1)
         assert deleted >= 1
 
     @pytest.mark.asyncio
-    async def test_cleanup_old_backups_keeps_recent(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_cleanup_old_backups_keeps_recent(self, backup_service: BackupService) -> None:
         """Test that recent backups are preserved during cleanup."""
         # Create recent backups
         now = datetime.now(tz=UTC)
@@ -328,9 +314,7 @@ class TestCleanupOldBackups:
 
         backup_service._save_backup_index()
 
-        deleted = await backup_service.cleanup_old_backups(
-            retention_days=30, keep_minimum=3
-        )
+        deleted = await backup_service.cleanup_old_backups(retention_days=30, keep_minimum=3)
 
         assert deleted == 0
         assert len(backup_service._backup_index) == 3
@@ -345,9 +329,7 @@ class TestListBackups:
     """Tests for BackupService.list_backups."""
 
     @pytest.mark.asyncio
-    async def test_list_backups_returns_all(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_list_backups_returns_all(self, backup_service: BackupService) -> None:
         """Test that list_backups returns all backup records."""
         for i in range(5):
             record = BackupRecord(
@@ -364,9 +346,7 @@ class TestListBackups:
         assert len(backups) == 5
 
     @pytest.mark.asyncio
-    async def test_list_backups_filters_by_type(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_list_backups_filters_by_type(self, backup_service: BackupService) -> None:
         """Test that list_backups can filter by backup type."""
         # Add mixed types
         for btype in [BackupType.FULL, BackupType.DATABASE, BackupType.FULL]:
@@ -385,9 +365,7 @@ class TestListBackups:
         assert len(db_backups) == 1
 
     @pytest.mark.asyncio
-    async def test_list_backups_filters_by_status(
-        self, backup_service: BackupService
-    ) -> None:
+    async def test_list_backups_filters_by_status(self, backup_service: BackupService) -> None:
         """Test that list_backups can filter by status."""
         statuses = [BackupStatus.COMPLETED, BackupStatus.FAILED, BackupStatus.COMPLETED]
         for status in statuses:

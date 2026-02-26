@@ -36,6 +36,24 @@ if "DATABASE_URL" not in os.environ:
     password = os.environ.get("POSTGRES_PASSWORD", "postgres")
     db = os.environ.get("POSTGRES_DB", "test_db")
     os.environ["DATABASE_URL"] = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
+else:
+    # Back-fill individual POSTGRES_* env vars from DATABASE_URL so that
+    # Settings.DATABASE_URL (a computed_field) resolves to the same credentials.
+    # Without this, Settings defaults to user="postgres" even when CI sets
+    # DATABASE_URL=postgresql+asyncpg://test:test@localhost:5432/test_db.
+    from urllib.parse import urlparse
+
+    _parsed = urlparse(os.environ["DATABASE_URL"].replace("+asyncpg", ""))
+    if _parsed.username:
+        os.environ.setdefault("POSTGRES_USER", _parsed.username)
+    if _parsed.password:
+        os.environ.setdefault("POSTGRES_PASSWORD", _parsed.password)
+    if _parsed.hostname:
+        os.environ.setdefault("POSTGRES_HOST", _parsed.hostname)
+    if _parsed.port:
+        os.environ.setdefault("POSTGRES_PORT", str(_parsed.port))
+    if _parsed.path and _parsed.path.strip("/"):
+        os.environ.setdefault("POSTGRES_DB", _parsed.path.strip("/"))
 if "REDIS_URL" not in os.environ:
     os.environ["REDIS_URL"] = "redis://localhost:6379/0"
 

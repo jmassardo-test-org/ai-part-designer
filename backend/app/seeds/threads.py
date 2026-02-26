@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.cad.threads import (
     THREAD_FAMILY_INFO,
     THREAD_REGISTRY,
-    ThreadFamily,
 )
 from app.core.database import async_session_maker
 from app.models.reference_component import ReferenceComponent
@@ -48,7 +47,7 @@ async def seed_thread_standards(
         Number of records upserted (created + updated).
     """
     own_session = db is None
-    if own_session:
+    if own_session:  # noqa: SIM108
         session = async_session_maker()
     else:
         session = db  # type: ignore[assignment]
@@ -79,7 +78,7 @@ async def _do_seed(db: AsyncSession) -> int:
     for family, specs in THREAD_REGISTRY.items():
         info = THREAD_FAMILY_INFO.get(family, {})
         family_name = info.get("name", family.value)
-        standard_ref = info.get("standard_ref", "")
+        info.get("standard_ref", "")
 
         for size, spec in specs.items():
             slug = f"{family.value}:{size}"
@@ -105,10 +104,7 @@ async def _do_seed(db: AsyncSession) -> int:
 
             if row is not None:
                 row.name = f"{family_name} {size}"  # type: ignore[assignment]
-                row.description = (  # type: ignore[assignment]
-                    f"{family_name} thread, size {size}, "
-                    f"pitch {spec.pitch_mm} mm"
-                )
+                row.description = f"{family_name} thread, size {size}, pitch {spec.pitch_mm} mm"  # type: ignore[assignment]
                 row.subcategory = family.value  # type: ignore[assignment]
                 row.dimensions = dimensions  # type: ignore[assignment]
                 row.tags = tags  # type: ignore[assignment]
@@ -118,8 +114,7 @@ async def _do_seed(db: AsyncSession) -> int:
                         id=uuid4(),
                         name=f"{family_name} {size}",
                         description=(
-                            f"{family_name} thread, size {size}, "
-                            f"pitch {spec.pitch_mm} mm"
+                            f"{family_name} thread, size {size}, pitch {spec.pitch_mm} mm"
                         ),
                         category="thread_standard",
                         subcategory=family.value,
@@ -136,7 +131,8 @@ async def _do_seed(db: AsyncSession) -> int:
             upserted += 1
 
     logger.info(
-        "Thread standards seed complete: %d records upserted", upserted,
+        "Thread standards seed complete: %d records upserted",
+        upserted,
     )
     return upserted
 

@@ -66,17 +66,11 @@ class DesignReportService:
 
         return DesignReportResponse(
             id=report.id,
-            status=(
-                report.status.value
-                if hasattr(report.status, "value")
-                else str(report.status)
-            ),
+            status=(report.status.value if hasattr(report.status, "value") else str(report.status)),
             created_at=report.created_at,
         )
 
-    async def check_report_status(
-        self, design_id: UUID, user_id: UUID
-    ) -> DesignReportStatus:
+    async def check_report_status(self, design_id: UUID, user_id: UUID) -> DesignReportStatus:
         """Check if a user has already reported a design.
 
         Args:
@@ -89,9 +83,7 @@ class DesignReportService:
         existing = await self._get_existing_report(design_id, user_id)
         return DesignReportStatus(already_reported=existing is not None)
 
-    async def _get_existing_report(
-        self, design_id: UUID, user_id: UUID
-    ) -> ContentReport | None:
+    async def _get_existing_report(self, design_id: UUID, user_id: UUID) -> ContentReport | None:
         """Get existing report by user for a design.
 
         Args:

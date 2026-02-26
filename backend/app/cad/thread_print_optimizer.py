@@ -15,7 +15,6 @@ from enum import StrEnum
 
 from app.cad.threads import ThreadSpec, ThreadType
 
-
 # =============================================================================
 # Enums
 # =============================================================================
@@ -24,26 +23,26 @@ from app.cad.threads import ThreadSpec, ThreadType
 class PrintProcess(StrEnum):
     """3D printing process types."""
 
-    FDM = "fdm"   # Fused Deposition Modeling
-    SLA = "sla"   # Stereolithography
-    SLS = "sls"   # Selective Laser Sintering
-    MJF = "mjf"   # Multi Jet Fusion
+    FDM = "fdm"  # Fused Deposition Modeling
+    SLA = "sla"  # Stereolithography
+    SLS = "sls"  # Selective Laser Sintering
+    MJF = "mjf"  # Multi Jet Fusion
 
 
 class ToleranceClass(StrEnum):
     """Thread tolerance/fit classes for printing."""
 
-    TIGHT = "tight"        # Close fit, may need post-processing
+    TIGHT = "tight"  # Close fit, may need post-processing
     STANDARD = "standard"  # Good balance for most prints
-    LOOSE = "loose"        # Easy assembly, forgiving tolerances
+    LOOSE = "loose"  # Easy assembly, forgiving tolerances
 
 
 class PrintFeasibility(StrEnum):
     """Feasibility rating for printing a thread."""
 
-    EXCELLENT = "excellent"              # Will print well
-    GOOD = "good"                        # Reasonable results expected
-    MARGINAL = "marginal"                # May need tuning/post-processing
+    EXCELLENT = "excellent"  # Will print well
+    GOOD = "good"  # Reasonable results expected
+    MARGINAL = "marginal"  # May need tuning/post-processing
     NOT_RECOMMENDED = "not_recommended"  # Too small / too fine
 
 
@@ -148,8 +147,8 @@ CLEARANCE_DEFAULTS: dict[PrintProcess, dict[ToleranceClass, float]] = {
 """Radial clearance (mm) added to dimensions per process and tolerance."""
 
 MIN_PRINTABLE_PITCH_MM: dict[PrintProcess, float] = {
-    PrintProcess.FDM: 1.0,   # ~M6 coarse pitch
-    PrintProcess.SLA: 0.5,   # ~M3 coarse pitch
+    PrintProcess.FDM: 1.0,  # ~M6 coarse pitch
+    PrintProcess.SLA: 0.5,  # ~M3 coarse pitch
     PrintProcess.SLS: 0.75,  # ~M5
     PrintProcess.MJF: 0.75,  # ~M5
 }
@@ -244,9 +243,7 @@ def get_print_recommendation(
             f"recommended ({min_pitch} mm) for {process.value.upper()}."
         )
     elif feasibility == PrintFeasibility.MARGINAL:
-        notes.append(
-            "Thread may require post-processing or careful tuning."
-        )
+        notes.append("Thread may require post-processing or careful tuning.")
 
     # --- Strength estimate (midpoint of range) ---
     strength_lo, strength_hi = _STRENGTH_ESTIMATES[process]
@@ -308,10 +305,7 @@ def optimize_thread_for_print(
     adjustments: dict[str, float] = {}
 
     # Apply clearance depending on thread type
-    if config.thread_type == ThreadType.EXTERNAL:
-        sign = -1.0
-    else:
-        sign = 1.0
+    sign = -1.0 if config.thread_type == ThreadType.EXTERNAL else 1.0
 
     new_major = config.spec.major_diameter + sign * clearance
     new_minor_ext = config.spec.minor_diameter_ext + sign * clearance
@@ -358,7 +352,7 @@ def optimize_thread_for_print(
 
 
 def get_orientation_advice(
-    spec: ThreadSpec,
+    spec: ThreadSpec,  # noqa: ARG001
     process: PrintProcess,
 ) -> str:
     """Get print orientation advice for a thread.

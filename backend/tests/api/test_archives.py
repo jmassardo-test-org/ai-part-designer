@@ -8,14 +8,17 @@ with proper authentication and authorization checks.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.factories import Counter, DesignFactory, ProjectFactory, UserFactory
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture(autouse=True)
@@ -149,9 +152,7 @@ class TestArchiveEndpoints:
         )
         assert response.status_code == 404
 
-    async def test_regular_user_gets_403(
-        self, client: AsyncClient, auth_headers: dict
-    ) -> None:
+    async def test_regular_user_gets_403(self, client: AsyncClient, auth_headers: dict) -> None:
         """Regular user gets 403 on all archive endpoints."""
         fake_id = uuid4()
 
