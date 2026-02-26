@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 import { ThreadWizard } from './ThreadWizard';
 
 // ---------------------------------------------------------------------------
@@ -130,18 +129,18 @@ vi.mock('@/hooks/useThreads', () => ({
 }));
 
 // Captured props ref for PrintOptimizationForm mock
-let capturedPrintOptProps: Record<string, any> = {};
+let capturedPrintOptProps: Record<string, unknown> = {};
 
 // Mock sub-components to keep tests focused
 vi.mock('@/components/threads/PrintOptimizationForm', () => ({
-  PrintOptimizationForm: (props: any) => {
+  PrintOptimizationForm: (props: Record<string, unknown>) => {
     capturedPrintOptProps = props;
-    return <div data-testid="print-optimization-form" data-enabled={props.enabled} />;
+    return <div data-testid="print-optimization-form" data-enabled={props.enabled as boolean} />;
   },
 }));
 
 vi.mock('@/components/threads/ThreadPreview3D', () => ({
-  ThreadPreview3D: (props: any) => <div data-testid="thread-preview-3d" data-thread-type={props.threadType} />,
+  ThreadPreview3D: (props: Record<string, unknown>) => <div data-testid="thread-preview-3d" data-thread-type={props.threadType as string} />,
 }));
 
 // Mock AuthContext
@@ -441,7 +440,7 @@ describe('ThreadWizard', () => {
     // the mocked PrintOptimizationForm
     expect(capturedPrintOptProps.onEnabledChange).toBeDefined();
     act(() => {
-      capturedPrintOptProps.onEnabledChange(true);
+      (capturedPrintOptProps.onEnabledChange as (v: boolean) => void)(true);
     });
 
     // Verify the form now reflects enabled state

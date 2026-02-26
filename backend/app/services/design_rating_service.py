@@ -110,7 +110,7 @@ class DesignRatingService:
             DesignRating.user_id == user.id,
         )
         result = await self.db.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError("Rating not found")
 
         await self._update_design_aggregates(design_id)

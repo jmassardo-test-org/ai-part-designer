@@ -57,13 +57,13 @@ const mockAuthOwner = {
 
 // Unauthenticated mock
 const mockAuthAnonymous = {
-  token: null,
-  user: null,
+  token: null as string | null,
+  user: null as { id: string; email: string } | null,
   isLoading: false,
   isAuthenticated: false,
 };
 
-let currentAuthMock = mockAuthNonOwner;
+let currentAuthMock: typeof mockAuthNonOwner | typeof mockAuthAnonymous = mockAuthNonOwner;
 
 vi.mock('@/contexts/AuthContext', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/contexts/AuthContext')>();

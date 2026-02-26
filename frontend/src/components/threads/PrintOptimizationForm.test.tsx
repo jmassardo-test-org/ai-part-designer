@@ -5,9 +5,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 import type { PrintRecommendation } from '@/types/threads';
-
 import { PrintOptimizationForm, type PrintOptimizationFormProps } from './PrintOptimizationForm';
 
 // ---------------------------------------------------------------------------

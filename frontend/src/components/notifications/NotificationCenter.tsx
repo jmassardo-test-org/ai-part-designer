@@ -69,7 +69,7 @@ function NotificationItem({
   onDismiss,
   onClick,
 }: NotificationItemProps) {
-  const Icon = NOTIFICATION_ICONS[notification.type] || Bell;
+  const Icon = NOTIFICATION_ICONS[notification.type as NotificationType] || Bell;
   const isUrgent = notification.priority === 'urgent' || notification.priority === 'high';
 
   const handleClick = () => {
