@@ -85,13 +85,9 @@ class LicenseService:
 
         if license_type == LicenseType.CUSTOM:
             if not custom_license_text or not custom_license_text.strip():
-                raise ValueError(
-                    "Custom license text is required when license_type is CUSTOM"
-                )
+                raise ValueError("Custom license text is required when license_type is CUSTOM")
             if len(custom_license_text) > 5000:
-                raise ValueError(
-                    "Custom license text must be 5000 characters or fewer"
-                )
+                raise ValueError("Custom license text must be 5000 characters or fewer")
 
         # Check share-alike constraints from parent design
         if design.remixed_from_id is not None:
@@ -299,9 +295,7 @@ class LicenseService:
             id=report.id,
             design_id=design_id,
             violation_type=violation_type,
-            status=report.status
-            if isinstance(report.status, str)
-            else report.status.value,
+            status=report.status if isinstance(report.status, str) else report.status.value,
             created_at=report.created_at,
         )
 
@@ -363,9 +357,7 @@ class LicenseService:
             user_id=admin_user.id,
             context={
                 "reason": reason,
-                "violation_report_id": str(violation_report_id)
-                if violation_report_id
-                else None,
+                "violation_report_id": str(violation_report_id) if violation_report_id else None,
                 "previous_license": design.license_type,
             },
         )
@@ -404,15 +396,11 @@ class LicenseService:
             Design.published_at.is_not(None),
             Design.deleted_at.is_(None),
         )
-        count_query = select(func.count()).select_from(
-            base_query.subquery()
-        )
+        count_query = select(func.count()).select_from(base_query.subquery())
 
         if license_type_filter:
             base_query = base_query.where(Design.license_type == license_type_filter)
-            count_query = select(func.count()).select_from(
-                base_query.subquery()
-            )
+            count_query = select(func.count()).select_from(base_query.subquery())
 
         total_result = await self.db.execute(count_query)
         total = total_result.scalar() or 0
@@ -420,9 +408,7 @@ class LicenseService:
 
         offset = (page - 1) * page_size
         items_query = (
-            base_query.order_by(Design.published_at.desc())
-            .offset(offset)
-            .limit(page_size)
+            base_query.order_by(Design.published_at.desc()).offset(offset).limit(page_size)
         )
         result = await self.db.execute(items_query)
         designs = result.scalars().all()
@@ -491,11 +477,7 @@ class LicenseService:
         total_pages = max(1, math.ceil(total / page_size))
 
         offset = (page - 1) * page_size
-        items_query = (
-            base_query.order_by(Design.created_at.desc())
-            .offset(offset)
-            .limit(page_size)
-        )
+        items_query = base_query.order_by(Design.created_at.desc()).offset(offset).limit(page_size)
         result = await self.db.execute(items_query)
         designs = result.scalars().all()
 
@@ -561,9 +543,7 @@ class LicenseService:
             allows_commercial=info.allows_commercial,
             requires_share_alike=info.requires_share_alike,
             custom_license_text=(
-                design.custom_license_text
-                if design.license_type == LicenseType.CUSTOM
-                else None
+                design.custom_license_text if design.license_type == LicenseType.CUSTOM else None
             ),
             icon=info.icon,
         )

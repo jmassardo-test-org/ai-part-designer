@@ -122,13 +122,9 @@ async def initialize_storage() -> dict[str, Any]:
                 summary["lifecycle_configured"].append(
                     {"bucket": bucket_name, "policy": "expire_7_days"}
                 )
-                logger.info(
-                    "Configured temp lifecycle on bucket: %s", bucket_name
-                )
+                logger.info("Configured temp lifecycle on bucket: %s", bucket_name)
             except Exception as e:
-                error_msg = (
-                    f"Failed to configure temp lifecycle on {bucket_name}: {e}"
-                )
+                error_msg = f"Failed to configure temp lifecycle on {bucket_name}: {e}"
                 summary["errors"].append(error_msg)
                 logger.error(error_msg)
 
@@ -144,10 +140,7 @@ async def initialize_storage() -> dict[str, Any]:
                 designs_bucket_name,
             )
         except Exception as e:
-            error_msg = (
-                f"Failed to configure designs lifecycle on "
-                f"{designs_bucket_name}: {e}"
-            )
+            error_msg = f"Failed to configure designs lifecycle on {designs_bucket_name}: {e}"
             summary["errors"].append(error_msg)
             logger.error(error_msg)
 

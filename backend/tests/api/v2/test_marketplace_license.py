@@ -60,9 +60,7 @@ async def other_user_project(db_session: AsyncSession, test_user_2) -> Project:
 
 
 @pytest_asyncio.fixture
-async def unpublished_design(
-    db_session: AsyncSession, license_project: Project
-) -> Design:
+async def unpublished_design(db_session: AsyncSession, license_project: Project) -> Design:
     """Create a private design ready to be published."""
     design = Design(
         project_id=license_project.id,
@@ -80,9 +78,7 @@ async def unpublished_design(
 
 
 @pytest_asyncio.fixture
-async def cc_by_design(
-    db_session: AsyncSession, other_user_project: Project
-) -> Design:
+async def cc_by_design(db_session: AsyncSession, other_user_project: Project) -> Design:
     """Create a public CC-BY licensed design owned by OTHER user."""
     design = Design(
         project_id=other_user_project.id,
@@ -104,9 +100,7 @@ async def cc_by_design(
 
 
 @pytest_asyncio.fixture
-async def cc_by_nd_design(
-    db_session: AsyncSession, other_user_project: Project
-) -> Design:
+async def cc_by_nd_design(db_session: AsyncSession, other_user_project: Project) -> Design:
     """Create a public CC-BY-ND (no derivatives) design owned by OTHER user."""
     design = Design(
         project_id=other_user_project.id,
@@ -128,9 +122,7 @@ async def cc_by_nd_design(
 
 
 @pytest_asyncio.fixture
-async def all_rights_design(
-    db_session: AsyncSession, other_user_project: Project
-) -> Design:
+async def all_rights_design(db_session: AsyncSession, other_user_project: Project) -> Design:
     """Create a public ALL-RIGHTS-RESERVED design owned by OTHER user."""
     design = Design(
         project_id=other_user_project.id,
@@ -152,9 +144,7 @@ async def all_rights_design(
 
 
 @pytest_asyncio.fixture
-async def cc_by_nc_design(
-    db_session: AsyncSession, other_user_project: Project
-) -> Design:
+async def cc_by_nc_design(db_session: AsyncSession, other_user_project: Project) -> Design:
     """Create a public CC-BY-NC (non-commercial) design owned by OTHER user."""
     design = Design(
         project_id=other_user_project.id,
@@ -184,9 +174,7 @@ class TestLicenseCatalog:
     """Tests for the GET /licenses/types endpoint."""
 
     @pytest.mark.asyncio
-    async def test_list_license_types_returns_all_types(
-        self, auth_client: AsyncClient
-    ):
+    async def test_list_license_types_returns_all_types(self, auth_client: AsyncClient):
         """Test that the license catalog returns all supported types."""
         response = await auth_client.get("/api/v2/licenses/types")
 
@@ -208,9 +196,7 @@ class TestLicenseCatalog:
         assert "CUSTOM" in spdx_ids
 
     @pytest.mark.asyncio
-    async def test_license_types_have_required_fields(
-        self, auth_client: AsyncClient
-    ):
+    async def test_license_types_have_required_fields(self, auth_client: AsyncClient):
         """Test each license type has all required fields."""
         response = await auth_client.get("/api/v2/licenses/types")
 
@@ -227,9 +213,7 @@ class TestLicenseCatalog:
             assert "icon" in item
 
     @pytest.mark.asyncio
-    async def test_cc_by_allows_remix_and_commercial(
-        self, auth_client: AsyncClient
-    ):
+    async def test_cc_by_allows_remix_and_commercial(self, auth_client: AsyncClient):
         """Test CC-BY-4.0 metadata is correct."""
         response = await auth_client.get("/api/v2/licenses/types")
         data = response.json()
@@ -554,9 +538,7 @@ class TestDesignDetailLicenseInfo:
         cc_by_design: Design,
     ):
         """Test that design detail includes license_type and license_info."""
-        response = await auth_client.get(
-            f"/api/v2/marketplace/designs/{cc_by_design.id}"
-        )
+        response = await auth_client.get(f"/api/v2/marketplace/designs/{cc_by_design.id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -589,9 +571,7 @@ class TestDesignDetailLicenseInfo:
         await db_session.commit()
         await db_session.refresh(legacy)
 
-        response = await auth_client.get(
-            f"/api/v2/marketplace/designs/{legacy.id}"
-        )
+        response = await auth_client.get(f"/api/v2/marketplace/designs/{legacy.id}")
 
         assert response.status_code == 200
         data = response.json()

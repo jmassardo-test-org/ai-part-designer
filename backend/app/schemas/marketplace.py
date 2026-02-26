@@ -10,7 +10,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.schemas.license import LicenseDetailResponse
+from app.schemas.license import (
+    LicenseDetailResponse,  # noqa: TC001 — Pydantic resolves string annotations at runtime
+)
 
 # =============================================================================
 # Category & Tag Schemas

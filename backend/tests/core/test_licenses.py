@@ -109,15 +109,23 @@ class TestLicenseInfo:
     def test_license_info_equality(self) -> None:
         """Two LicenseInfo with same fields should be equal."""
         info1 = LicenseInfo(
-            spdx_id="X", name="X", url=None,
-            allows_remix=True, requires_attribution=False,
-            allows_commercial=True, requires_share_alike=False,
+            spdx_id="X",
+            name="X",
+            url=None,
+            allows_remix=True,
+            requires_attribution=False,
+            allows_commercial=True,
+            requires_share_alike=False,
             icon="x",
         )
         info2 = LicenseInfo(
-            spdx_id="X", name="X", url=None,
-            allows_remix=True, requires_attribution=False,
-            allows_commercial=True, requires_share_alike=False,
+            spdx_id="X",
+            name="X",
+            url=None,
+            allows_remix=True,
+            requires_attribution=False,
+            allows_commercial=True,
+            requires_share_alike=False,
             icon="x",
         )
         assert info1 == info2

@@ -15,7 +15,6 @@ from typing import Any
 
 from app.cad.exceptions import ThreadDataError
 
-
 # =============================================================================
 # Enums
 # =============================================================================
@@ -478,7 +477,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=3.8,
         clearance_hole_free_mm=4.1,
         tpi=32.0,
-        nominal_size_inch="#6 (0.138\")",
+        nominal_size_inch='#6 (0.138")',
         standard_ref="ASME B1.1",
     ),
     "#8-32": ThreadSpec(
@@ -494,7 +493,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=4.5,
         clearance_hole_free_mm=4.8,
         tpi=32.0,
-        nominal_size_inch="#8 (0.164\")",
+        nominal_size_inch='#8 (0.164")',
         standard_ref="ASME B1.1",
     ),
     "#10-24": ThreadSpec(
@@ -510,7 +509,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=5.3,
         clearance_hole_free_mm=5.6,
         tpi=24.0,
-        nominal_size_inch="#10 (0.190\")",
+        nominal_size_inch='#10 (0.190")',
         standard_ref="ASME B1.1",
     ),
     "#10-32": ThreadSpec(
@@ -526,7 +525,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=5.3,
         clearance_hole_free_mm=5.6,
         tpi=32.0,
-        nominal_size_inch="#10 (0.190\")",
+        nominal_size_inch='#10 (0.190")',
         standard_ref="ASME B1.1",
     ),
     "1/4-20": ThreadSpec(
@@ -542,7 +541,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=6.9,
         clearance_hole_free_mm=7.4,
         tpi=20.0,
-        nominal_size_inch="1/4\"",
+        nominal_size_inch='1/4"',
         standard_ref="ASME B1.1",
     ),
     "5/16-18": ThreadSpec(
@@ -558,7 +557,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=8.7,
         clearance_hole_free_mm=9.1,
         tpi=18.0,
-        nominal_size_inch="5/16\"",
+        nominal_size_inch='5/16"',
         standard_ref="ASME B1.1",
     ),
     "3/8-16": ThreadSpec(
@@ -574,7 +573,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=10.3,
         clearance_hole_free_mm=10.7,
         tpi=16.0,
-        nominal_size_inch="3/8\"",
+        nominal_size_inch='3/8"',
         standard_ref="ASME B1.1",
     ),
     "1/2-13": ThreadSpec(
@@ -590,7 +589,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=13.5,
         clearance_hole_free_mm=14.3,
         tpi=13.0,
-        nominal_size_inch="1/2\"",
+        nominal_size_inch='1/2"',
         standard_ref="ASME B1.1",
     ),
     "5/8-11": ThreadSpec(
@@ -606,7 +605,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=16.7,
         clearance_hole_free_mm=17.5,
         tpi=11.0,
-        nominal_size_inch="5/8\"",
+        nominal_size_inch='5/8"',
         standard_ref="ASME B1.1",
     ),
     "3/4-10": ThreadSpec(
@@ -622,7 +621,7 @@ UNC_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=20.0,
         clearance_hole_free_mm=21.0,
         tpi=10.0,
-        nominal_size_inch="3/4\"",
+        nominal_size_inch='3/4"',
         standard_ref="ASME B1.1",
     ),
 }
@@ -646,7 +645,7 @@ UNF_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=3.8,
         clearance_hole_free_mm=4.1,
         tpi=40.0,
-        nominal_size_inch="#6 (0.138\")",
+        nominal_size_inch='#6 (0.138")',
         standard_ref="ASME B1.1",
     ),
     "#8-36": ThreadSpec(
@@ -662,7 +661,7 @@ UNF_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=4.5,
         clearance_hole_free_mm=4.8,
         tpi=36.0,
-        nominal_size_inch="#8 (0.164\")",
+        nominal_size_inch='#8 (0.164")',
         standard_ref="ASME B1.1",
     ),
     "#10-32": ThreadSpec(
@@ -678,7 +677,7 @@ UNF_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=5.3,
         clearance_hole_free_mm=5.6,
         tpi=32.0,
-        nominal_size_inch="#10 (0.190\")",
+        nominal_size_inch='#10 (0.190")',
         standard_ref="ASME B1.1",
     ),
     "1/4-28": ThreadSpec(
@@ -694,7 +693,7 @@ UNF_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=6.9,
         clearance_hole_free_mm=7.4,
         tpi=28.0,
-        nominal_size_inch="1/4\"",
+        nominal_size_inch='1/4"',
         standard_ref="ASME B1.1",
     ),
     "5/16-24": ThreadSpec(
@@ -710,7 +709,7 @@ UNF_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=8.7,
         clearance_hole_free_mm=9.1,
         tpi=24.0,
-        nominal_size_inch="5/16\"",
+        nominal_size_inch='5/16"',
         standard_ref="ASME B1.1",
     ),
     "3/8-24": ThreadSpec(
@@ -726,7 +725,7 @@ UNF_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=10.3,
         clearance_hole_free_mm=10.7,
         tpi=24.0,
-        nominal_size_inch="3/8\"",
+        nominal_size_inch='3/8"',
         standard_ref="ASME B1.1",
     ),
     "1/2-20": ThreadSpec(
@@ -742,7 +741,7 @@ UNF_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=13.5,
         clearance_hole_free_mm=14.3,
         tpi=20.0,
-        nominal_size_inch="1/2\"",
+        nominal_size_inch='1/2"',
         standard_ref="ASME B1.1",
     ),
 }
@@ -767,7 +766,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=8.73,
         tpi=27.0,
-        nominal_size_inch="1/8\"",
+        nominal_size_inch='1/8"',
         engagement_length_mm=6.71,
         standard_ref="ASME B1.20.1",
     ),
@@ -783,7 +782,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=11.11,
         tpi=18.0,
-        nominal_size_inch="1/4\"",
+        nominal_size_inch='1/4"',
         engagement_length_mm=10.16,
         standard_ref="ASME B1.20.1",
     ),
@@ -799,7 +798,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=14.29,
         tpi=18.0,
-        nominal_size_inch="3/8\"",
+        nominal_size_inch='3/8"',
         engagement_length_mm=10.39,
         standard_ref="ASME B1.20.1",
     ),
@@ -815,7 +814,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=17.93,
         tpi=14.0,
-        nominal_size_inch="1/2\"",
+        nominal_size_inch='1/2"',
         engagement_length_mm=13.56,
         standard_ref="ASME B1.20.1",
     ),
@@ -831,7 +830,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=23.01,
         tpi=14.0,
-        nominal_size_inch="3/4\"",
+        nominal_size_inch='3/4"',
         engagement_length_mm=13.86,
         standard_ref="ASME B1.20.1",
     ),
@@ -847,7 +846,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=28.85,
         tpi=11.5,
-        nominal_size_inch="1\"",
+        nominal_size_inch='1"',
         engagement_length_mm=17.34,
         standard_ref="ASME B1.20.1",
     ),
@@ -863,7 +862,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=37.47,
         tpi=11.5,
-        nominal_size_inch="1-1/4\"",
+        nominal_size_inch='1-1/4"',
         engagement_length_mm=17.95,
         standard_ref="ASME B1.20.1",
     ),
@@ -879,7 +878,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=43.56,
         tpi=11.5,
-        nominal_size_inch="1-1/2\"",
+        nominal_size_inch='1-1/2"',
         engagement_length_mm=18.38,
         standard_ref="ASME B1.20.1",
     ),
@@ -895,7 +894,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=55.63,
         tpi=11.5,
-        nominal_size_inch="2\"",
+        nominal_size_inch='2"',
         engagement_length_mm=19.22,
         standard_ref="ASME B1.20.1",
     ),
@@ -903,7 +902,7 @@ NPT_THREADS: dict[str, ThreadSpec] = {
 
 
 # =============================================================================
-# BSPP Threads – ISO 228-1 (Parallel, 55° Whitworth)
+# BSPP Threads - ISO 228-1 (Parallel, 55° Whitworth)
 # =============================================================================
 
 BSPP_THREADS: dict[str, ThreadSpec] = {
@@ -921,7 +920,7 @@ BSPP_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=10.0,
         clearance_hole_free_mm=10.2,
         tpi=28.0,
-        nominal_size_inch="1/8\"",
+        nominal_size_inch='1/8"',
         standard_ref="ISO 228-1",
     ),
     "G1/4": ThreadSpec(
@@ -938,7 +937,7 @@ BSPP_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=13.5,
         clearance_hole_free_mm=13.8,
         tpi=19.0,
-        nominal_size_inch="1/4\"",
+        nominal_size_inch='1/4"',
         standard_ref="ISO 228-1",
     ),
     "G3/8": ThreadSpec(
@@ -955,7 +954,7 @@ BSPP_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=17.0,
         clearance_hole_free_mm=17.3,
         tpi=19.0,
-        nominal_size_inch="3/8\"",
+        nominal_size_inch='3/8"',
         standard_ref="ISO 228-1",
     ),
     "G1/2": ThreadSpec(
@@ -972,7 +971,7 @@ BSPP_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=21.3,
         clearance_hole_free_mm=21.7,
         tpi=14.0,
-        nominal_size_inch="1/2\"",
+        nominal_size_inch='1/2"',
         standard_ref="ISO 228-1",
     ),
     "G3/4": ThreadSpec(
@@ -989,7 +988,7 @@ BSPP_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=26.8,
         clearance_hole_free_mm=27.2,
         tpi=14.0,
-        nominal_size_inch="3/4\"",
+        nominal_size_inch='3/4"',
         standard_ref="ISO 228-1",
     ),
     "G1": ThreadSpec(
@@ -1006,14 +1005,14 @@ BSPP_THREADS: dict[str, ThreadSpec] = {
         clearance_hole_medium_mm=33.8,
         clearance_hole_free_mm=34.2,
         tpi=11.0,
-        nominal_size_inch="1\"",
+        nominal_size_inch='1"',
         standard_ref="ISO 228-1",
     ),
 }
 
 
 # =============================================================================
-# BSPT Threads – ISO 7-1 (Tapered, 55° Whitworth, 1:16 taper)
+# BSPT Threads - ISO 7-1 (Tapered, 55° Whitworth, 1:16 taper)
 # =============================================================================
 
 BSPT_THREADS: dict[str, ThreadSpec] = {
@@ -1029,7 +1028,7 @@ BSPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=8.57,
         tpi=28.0,
-        nominal_size_inch="1/8\"",
+        nominal_size_inch='1/8"',
         engagement_length_mm=6.5,
         standard_ref="ISO 7-1",
     ),
@@ -1045,7 +1044,7 @@ BSPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=11.45,
         tpi=19.0,
-        nominal_size_inch="1/4\"",
+        nominal_size_inch='1/4"',
         engagement_length_mm=9.7,
         standard_ref="ISO 7-1",
     ),
@@ -1061,7 +1060,7 @@ BSPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=14.95,
         tpi=19.0,
-        nominal_size_inch="3/8\"",
+        nominal_size_inch='3/8"',
         engagement_length_mm=10.1,
         standard_ref="ISO 7-1",
     ),
@@ -1077,7 +1076,7 @@ BSPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=18.63,
         tpi=14.0,
-        nominal_size_inch="1/2\"",
+        nominal_size_inch='1/2"',
         engagement_length_mm=13.2,
         standard_ref="ISO 7-1",
     ),
@@ -1093,7 +1092,7 @@ BSPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=24.12,
         tpi=14.0,
-        nominal_size_inch="3/4\"",
+        nominal_size_inch='3/4"',
         engagement_length_mm=14.5,
         standard_ref="ISO 7-1",
     ),
@@ -1109,7 +1108,7 @@ BSPT_THREADS: dict[str, ThreadSpec] = {
         taper_per_mm=0.0625,
         tap_drill_mm=30.29,
         tpi=11.0,
-        nominal_size_inch="1\"",
+        nominal_size_inch='1"',
         engagement_length_mm=16.8,
         standard_ref="ISO 7-1",
     ),
@@ -1131,7 +1130,7 @@ ACME_THREADS: dict[str, ThreadSpec] = {
         minor_diameter_ext=4.762,
         profile_angle_deg=29.0,
         tpi=16.0,
-        nominal_size_inch="1/4\"",
+        nominal_size_inch='1/4"',
         standard_ref="ASME B1.5",
     ),
     "3/8-12": ThreadSpec(
@@ -1144,7 +1143,7 @@ ACME_THREADS: dict[str, ThreadSpec] = {
         minor_diameter_ext=7.408,
         profile_angle_deg=29.0,
         tpi=12.0,
-        nominal_size_inch="3/8\"",
+        nominal_size_inch='3/8"',
         standard_ref="ASME B1.5",
     ),
     "1/2-10": ThreadSpec(
@@ -1157,7 +1156,7 @@ ACME_THREADS: dict[str, ThreadSpec] = {
         minor_diameter_ext=10.160,
         profile_angle_deg=29.0,
         tpi=10.0,
-        nominal_size_inch="1/2\"",
+        nominal_size_inch='1/2"',
         standard_ref="ASME B1.5",
     ),
     "5/8-8": ThreadSpec(
@@ -1170,7 +1169,7 @@ ACME_THREADS: dict[str, ThreadSpec] = {
         minor_diameter_ext=12.700,
         profile_angle_deg=29.0,
         tpi=8.0,
-        nominal_size_inch="5/8\"",
+        nominal_size_inch='5/8"',
         standard_ref="ASME B1.5",
     ),
     "3/4-6": ThreadSpec(
@@ -1183,7 +1182,7 @@ ACME_THREADS: dict[str, ThreadSpec] = {
         minor_diameter_ext=14.817,
         profile_angle_deg=29.0,
         tpi=6.0,
-        nominal_size_inch="3/4\"",
+        nominal_size_inch='3/4"',
         standard_ref="ASME B1.5",
     ),
     "1-5": ThreadSpec(
@@ -1196,7 +1195,7 @@ ACME_THREADS: dict[str, ThreadSpec] = {
         minor_diameter_ext=20.320,
         profile_angle_deg=29.0,
         tpi=5.0,
-        nominal_size_inch="1\"",
+        nominal_size_inch='1"',
         standard_ref="ASME B1.5",
     ),
 }
@@ -1400,8 +1399,7 @@ def get_thread_spec(
     if size not in family_specs:
         available = sorted(family_specs.keys())
         raise ThreadDataError(
-            f"Unknown size '{size}' for family '{family}'. "
-            f"Available: {', '.join(available)}",
+            f"Unknown size '{size}' for family '{family}'. Available: {', '.join(available)}",
             details={"family": str(family), "size": size},
         )
 
@@ -1409,8 +1407,7 @@ def get_thread_spec(
 
     if pitch_series is not None and spec.pitch_series != pitch_series:
         raise ThreadDataError(
-            f"Size '{size}' in family '{family}' does not match "
-            f"pitch series '{pitch_series}'.",
+            f"Size '{size}' in family '{family}' does not match pitch series '{pitch_series}'.",
             details={
                 "family": str(family),
                 "size": size,
@@ -1447,11 +1444,7 @@ def list_thread_sizes(
     specs = THREAD_REGISTRY[family]
 
     if pitch_series is not None:
-        sizes = [
-            size
-            for size, spec in specs.items()
-            if spec.pitch_series == pitch_series
-        ]
+        sizes = [size for size, spec in specs.items() if spec.pitch_series == pitch_series]
     else:
         sizes = list(specs.keys())
 

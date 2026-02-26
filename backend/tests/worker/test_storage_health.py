@@ -10,8 +10,6 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 
 def _make_mock_storage_client(
     *,
@@ -35,9 +33,7 @@ def _make_mock_storage_client(
         side_effect=lambda b: f"ai-part-designer-test-{b.value}"
     )
 
-    async def list_files_side_effect(
-        bucket: Any, *, max_keys: int = 1000
-    ) -> list[dict[str, Any]]:
+    async def list_files_side_effect(bucket: Any, *, max_keys: int = 1000) -> list[dict[str, Any]]:
         if bucket.value in failing:
             raise ConnectionError(f"Cannot reach bucket {bucket.value}")
         return []
@@ -78,12 +74,8 @@ class TestCheckStorageHealth:
         mock_client = _make_mock_storage_client()
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None
-            ),
-            patch(
-                "app.core.storage.storage_client", mock_client
-            ),
+            patch("app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None),
+            patch("app.core.storage.storage_client", mock_client),
         ):
             from app.worker.tasks.maintenance import check_storage_health
 
@@ -99,12 +91,8 @@ class TestCheckStorageHealth:
         mock_client = _make_mock_storage_client(failing_buckets={"exports"})
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None
-            ),
-            patch(
-                "app.core.storage.storage_client", mock_client
-            ),
+            patch("app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None),
+            patch("app.core.storage.storage_client", mock_client),
         ):
             from app.worker.tasks.maintenance import check_storage_health
 
@@ -123,12 +111,8 @@ class TestCheckStorageHealth:
         )
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None
-            ),
-            patch(
-                "app.core.storage.storage_client", mock_client
-            ),
+            patch("app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None),
+            patch("app.core.storage.storage_client", mock_client),
         ):
             from app.worker.tasks.maintenance import check_storage_health
 
@@ -145,12 +129,8 @@ class TestCheckStorageHealth:
         # list_files returns empty list by default — that's "empty but healthy"
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None
-            ),
-            patch(
-                "app.core.storage.storage_client", mock_client
-            ),
+            patch("app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", None),
+            patch("app.core.storage.storage_client", mock_client),
         ):
             from app.worker.tasks.maintenance import check_storage_health
 
@@ -167,15 +147,11 @@ class TestCheckStorageHealth:
         mock_gauge = MagicMock()
 
         with (
-            patch(
-                "app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", mock_gauge
-            ),
-            patch(
-                "app.core.storage.storage_client", mock_client
-            ),
+            patch("app.worker.tasks.maintenance.STORAGE_HEALTH_GAUGE", mock_gauge),
+            patch("app.core.storage.storage_client", mock_client),
         ):
             from app.worker.tasks.maintenance import check_storage_health
 
-            result = check_storage_health()
+            check_storage_health()
 
         mock_gauge.set.assert_called_once_with(1.0)

@@ -125,10 +125,13 @@ async def browse_designs(
     search: str | None = Query(None, description="Search in name/description"),
     license_type: str | None = Query(None, description="Filter by exact license type"),
     allows_remix_filter: bool | None = Query(
-        None, alias="allows_remix", description="Filter: only designs that allow remix",
+        None,
+        alias="allows_remix",
+        description="Filter: only designs that allow remix",
     ),
     allows_commercial: bool | None = Query(
-        None, description="Filter: only designs that allow commercial use",
+        None,
+        description="Filter: only designs that allow commercial use",
     ),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -178,9 +181,7 @@ async def browse_designs(
         query = query.where(Design.license_type == license_type)
 
     if allows_remix_filter is True:
-        remix_types = [
-            lt.value for lt, meta in LICENSE_METADATA.items() if meta.allows_remix
-        ]
+        remix_types = [lt.value for lt, meta in LICENSE_METADATA.items() if meta.allows_remix]
         query = query.where(
             or_(
                 Design.license_type.in_(remix_types),
@@ -384,11 +385,7 @@ async def get_design_detail(
     # Build license detail (Epic 13)
     license_service = LicenseService(db)
     license_info = license_service.get_license_detail(design) if design.license_type else None
-    attribution = (
-        design.extra_data.get("attribution")
-        if design.extra_data
-        else None
-    )
+    attribution = design.extra_data.get("attribution") if design.extra_data else None
 
     return MarketplaceDesignResponse(
         id=design.id,

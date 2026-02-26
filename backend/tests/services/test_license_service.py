@@ -331,9 +331,7 @@ class TestCheckRemixAllowed:
         other_user: User,
     ) -> None:
         """CC-BY-4.0 design allows remix by others."""
-        allowed, reason = await license_service.check_remix_allowed(
-            public_design, other_user
-        )
+        allowed, reason = await license_service.check_remix_allowed(public_design, other_user)
         assert allowed is True
         assert reason is None
 
@@ -345,9 +343,7 @@ class TestCheckRemixAllowed:
         other_user: User,
     ) -> None:
         """CC-BY-ND-4.0 design blocks remix by others."""
-        allowed, reason = await license_service.check_remix_allowed(
-            nd_design, other_user
-        )
+        allowed, reason = await license_service.check_remix_allowed(nd_design, other_user)
         assert allowed is False
         assert reason is not None
         assert "remixing" in reason.lower()
@@ -360,9 +356,7 @@ class TestCheckRemixAllowed:
         other_user: User,
     ) -> None:
         """Design with no license allows remix by default."""
-        allowed, reason = await license_service.check_remix_allowed(
-            unlicensed_design, other_user
-        )
+        allowed, reason = await license_service.check_remix_allowed(unlicensed_design, other_user)
         assert allowed is True
         assert reason is None
 
@@ -729,9 +723,7 @@ class TestGetUserPublishedLicenses:
         owner: User,
     ) -> None:
         """Pagination metadata is correct."""
-        result = await license_service.get_user_published_licenses(
-            owner, page=1, page_size=10
-        )
+        result = await license_service.get_user_published_licenses(owner, page=1, page_size=10)
         assert result.page == 1
         assert result.page_size == 10
         assert result.total_pages >= 1
@@ -794,9 +786,7 @@ class TestGetUserRemixedLicenses:
         other_user: User,
     ) -> None:
         """Pagination metadata is correct for empty results."""
-        result = await license_service.get_user_remixed_licenses(
-            other_user, page=1, page_size=10
-        )
+        result = await license_service.get_user_remixed_licenses(other_user, page=1, page_size=10)
         assert result.page == 1
         assert result.page_size == 10
         assert result.total_pages >= 1

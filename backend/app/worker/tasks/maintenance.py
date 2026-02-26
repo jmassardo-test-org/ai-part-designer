@@ -579,9 +579,7 @@ def backup_database(backup_type: Literal["full", "schema", "data"] = "full") -> 
             )
 
             if BACKUP_OPERATIONS_TOTAL is not None:
-                BACKUP_OPERATIONS_TOTAL.labels(
-                    backup_type=backup_type, status="success"
-                ).inc()
+                BACKUP_OPERATIONS_TOTAL.labels(backup_type=backup_type, status="success").inc()
 
             return backup_info
 
@@ -591,9 +589,7 @@ def backup_database(backup_type: Literal["full", "schema", "data"] = "full") -> 
                 extra={"backup_type": backup_type, "error": str(e)},
             )
             if BACKUP_OPERATIONS_TOTAL is not None:
-                BACKUP_OPERATIONS_TOTAL.labels(
-                    backup_type=backup_type, status="failure"
-                ).inc()
+                BACKUP_OPERATIONS_TOTAL.labels(backup_type=backup_type, status="failure").inc()
             raise
 
         finally:
@@ -637,9 +633,7 @@ def weekly_full_backup() -> dict[str, Any]:
             )
 
             if BACKUP_OPERATIONS_TOTAL is not None:
-                BACKUP_OPERATIONS_TOTAL.labels(
-                    backup_type="full", status="success"
-                ).inc()
+                BACKUP_OPERATIONS_TOTAL.labels(backup_type="full", status="success").inc()
 
             return result
 
@@ -649,9 +643,7 @@ def weekly_full_backup() -> dict[str, Any]:
                 extra={"error": str(e)},
             )
             if BACKUP_OPERATIONS_TOTAL is not None:
-                BACKUP_OPERATIONS_TOTAL.labels(
-                    backup_type="full", status="failure"
-                ).inc()
+                BACKUP_OPERATIONS_TOTAL.labels(backup_type="full", status="failure").inc()
             raise
 
         finally:
@@ -812,9 +804,7 @@ def check_storage_health() -> dict[str, Any]:
                 bucket_result["status"] = "error"
                 bucket_result["accessible"] = False
                 bucket_result["error"] = str(e)
-                logger.error(
-                    f"Storage bucket {bucket.value} health check failed: {e}"
-                )
+                logger.error(f"Storage bucket {bucket.value} health check failed: {e}")
                 results[bucket.value] = bucket_result
                 continue
 
@@ -836,15 +826,11 @@ def check_storage_health() -> dict[str, Any]:
                         )
                 except Exception as e:
                     bucket_result["versioning_status"] = "unknown"
-                    logger.error(
-                        f"Failed to check versioning on {bucket.value}: {e}"
-                    )
+                    logger.error(f"Failed to check versioning on {bucket.value}: {e}")
 
             results[bucket.value] = bucket_result
 
-        all_healthy = all(
-            r["status"] == "healthy" for r in results.values()
-        )
+        all_healthy = all(r["status"] == "healthy" for r in results.values())
 
         # Emit Prometheus gauge
         if STORAGE_HEALTH_GAUGE is not None:
@@ -1273,9 +1259,7 @@ def archive_old_designs() -> dict[str, Any]:
                     await service.archive_design(design)
                     archive_summary["designs_archived"] += 1
                 except Exception as e:
-                    archive_summary["errors"].append(
-                        f"Failed to archive design {design.id}: {e}"
-                    )
+                    archive_summary["errors"].append(f"Failed to archive design {design.id}: {e}")
                     logger.error(f"Error archiving design {design.id}: {e}")
 
         # Log final summary
@@ -1285,9 +1269,7 @@ def archive_old_designs() -> dict[str, Any]:
                 f"Archived {archive_summary['designs_archived']}/{archive_summary['designs_found']} designs"
             )
         else:
-            logger.info(
-                f"Successfully archived {archive_summary['designs_archived']} designs"
-            )
+            logger.info(f"Successfully archived {archive_summary['designs_archived']} designs")
 
         return archive_summary
 

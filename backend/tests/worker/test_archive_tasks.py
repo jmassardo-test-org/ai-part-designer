@@ -7,10 +7,7 @@ with mocked dependencies following backup task test patterns.
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 
 class TestArchiveOldDesignsTask:
@@ -40,9 +37,7 @@ class TestArchiveOldDesignsTask:
             patch("app.core.database.async_session_maker") as mock_session_maker,
         ):
             mock_session = AsyncMock()
-            mock_session_maker.return_value.__aenter__ = AsyncMock(
-                return_value=mock_session
-            )
+            mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
 
             from app.worker.tasks.maintenance import archive_old_designs
@@ -66,9 +61,7 @@ class TestArchiveOldDesignsTask:
             patch("app.core.database.async_session_maker") as mock_session_maker,
         ):
             mock_session = AsyncMock()
-            mock_session_maker.return_value.__aenter__ = AsyncMock(
-                return_value=mock_session
-            )
+            mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
 
             from app.worker.tasks.maintenance import archive_old_designs
@@ -93,9 +86,7 @@ class TestArchiveOldDesignsTask:
             patch("app.core.database.async_session_maker") as mock_session_maker,
         ):
             mock_session = AsyncMock()
-            mock_session_maker.return_value.__aenter__ = AsyncMock(
-                return_value=mock_session
-            )
+            mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
 
             from app.worker.tasks.maintenance import archive_old_designs
@@ -112,12 +103,8 @@ class TestArchiveOldDesignsTask:
         mock_design.id = "design-fail"
 
         mock_service = MagicMock()
-        mock_service.find_archivable_designs = AsyncMock(
-            return_value=[mock_design]
-        )
-        mock_service.archive_design = AsyncMock(
-            side_effect=RuntimeError("Storage failure")
-        )
+        mock_service.find_archivable_designs = AsyncMock(return_value=[mock_design])
+        mock_service.archive_design = AsyncMock(side_effect=RuntimeError("Storage failure"))
 
         with (
             patch(
@@ -127,9 +114,7 @@ class TestArchiveOldDesignsTask:
             patch("app.core.database.async_session_maker") as mock_session_maker,
         ):
             mock_session = AsyncMock()
-            mock_session_maker.return_value.__aenter__ = AsyncMock(
-                return_value=mock_session
-            )
+            mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
 
             from app.worker.tasks.maintenance import archive_old_designs

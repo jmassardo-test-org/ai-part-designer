@@ -38,8 +38,6 @@ api_router.include_router(threads_router, prefix="/threads", tags=["v2-threads"]
 
 # License & admin routers (Epic 13)
 api_router.include_router(licenses_router, prefix="/licenses", tags=["v2-licenses"])
-api_router.include_router(
-    admin_licenses_router, prefix="/admin", tags=["v2-admin-licenses"]
-)
+api_router.include_router(admin_licenses_router, prefix="/admin", tags=["v2-admin-licenses"])
 
 __all__ = ["api_router"]

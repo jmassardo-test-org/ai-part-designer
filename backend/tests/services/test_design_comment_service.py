@@ -12,17 +12,17 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from tests.factories import DesignFactory, ProjectFactory, UserFactory
 
-from app.models.design import Design
-from app.models.project import Project
 from app.models.rating import DesignComment
-from app.models.user import User
 from app.schemas.rating import DesignCommentCreate, DesignCommentUpdate
 from app.services.design_comment_service import DesignCommentService
-from tests.factories import DesignFactory, ProjectFactory, UserFactory
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.design import Design
+    from app.models.user import User
 
 
 # =============================================================================
@@ -176,9 +176,7 @@ class TestCreateComment:
         data = DesignCommentCreate(content="Lost comment")
 
         with pytest.raises(ValueError, match="Design not found or not public"):
-            await comment_service.create_comment(
-                design_id=uuid4(), user=commenter, data=data
-            )
+            await comment_service.create_comment(design_id=uuid4(), user=commenter, data=data)
 
     @pytest.mark.asyncio
     async def test_create_comment_on_private_design_raises_error(

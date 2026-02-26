@@ -8,20 +8,19 @@ marketplace design content moderation.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from tests.factories import DesignFactory, ProjectFactory, UserFactory
 
-from app.models.design import Design
-from app.models.project import Project
-from app.models.user import User
 from app.schemas.rating import DesignReportCreate
 from app.services.design_report_service import DesignReportService
-from tests.factories import DesignFactory, ProjectFactory, UserFactory
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.design import Design
+    from app.models.user import User
 
 
 # =============================================================================
@@ -38,9 +37,7 @@ async def owner(db_session: AsyncSession) -> User:
 @pytest_asyncio.fixture
 async def reporter(db_session: AsyncSession) -> User:
     """Create a user who reports designs."""
-    return await UserFactory.create(
-        db_session, email="reporter@test.com", display_name="Reporter"
-    )
+    return await UserFactory.create(db_session, email="reporter@test.com", display_name="Reporter")
 
 
 @pytest_asyncio.fixture
@@ -122,14 +119,10 @@ class TestCreateReport:
     ) -> None:
         """Reporting the same design twice by the same user raises ValueError."""
         data = DesignReportCreate(reason="copyright")
-        await report_service.create_report(
-            design_id=public_design.id, user=reporter, data=data
-        )
+        await report_service.create_report(design_id=public_design.id, user=reporter, data=data)
 
         with pytest.raises(ValueError, match="already reported"):
-            await report_service.create_report(
-                design_id=public_design.id, user=reporter, data=data
-            )
+            await report_service.create_report(design_id=public_design.id, user=reporter, data=data)
 
     @pytest.mark.asyncio
     async def test_different_users_can_report_same_design(

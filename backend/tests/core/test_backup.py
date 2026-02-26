@@ -227,9 +227,7 @@ class TestRestoreBackup:
 
         with (
             patch("app.core.backup.settings", mock_settings),
-            patch(
-                "asyncio.create_subprocess_exec", return_value=mock_process
-            ) as mock_exec,
+            patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec,
         ):
             result = await db_backup.restore_backup(str(backup_file))
 
@@ -278,7 +276,6 @@ class TestCleanupOldBackups:
     ) -> None:
         """Test that cleanup only removes backups past the retention period."""
         import os
-        import time
 
         # Create old backup files (modify timestamp to be old)
         old_cutoff = datetime.now(tz=UTC) - timedelta(days=db_backup.retention_days + 5)

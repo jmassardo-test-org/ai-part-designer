@@ -8,16 +8,19 @@ with mocked storage dependencies.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from tests.factories import Counter, DesignFactory, ProjectFactory, UserFactory
 
 from app.models.design import Design
 from app.services.design_archive import DesignArchiveService
-from tests.factories import Counter, DesignFactory, ProjectFactory, UserFactory
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture(autouse=True)
@@ -73,9 +76,7 @@ class TestDesignArchiveService:
             assert design.archived_at is not None
             assert design.archive_location == location
 
-    async def test_archive_design_creates_metadata_json(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_archive_design_creates_metadata_json(self, db_session: AsyncSession) -> None:
         """Test that archiving creates a gzipped metadata JSON in storage."""
         design = await DesignFactory.create(db_session, status="ready")
 
@@ -110,9 +111,7 @@ class TestDesignArchiveService:
             # copy_file should not have been called
             mock_storage.copy_file.assert_not_called()
 
-    async def test_restore_design_copies_files_back(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_restore_design_copies_files_back(self, db_session: AsyncSession) -> None:
         """Test that restoring copies files from ARCHIVES back to DESIGNS."""
         design = await DesignFactory.create(
             db_session,
@@ -140,9 +139,7 @@ class TestDesignArchiveService:
             assert call_kwargs["dest_bucket"] == StorageBucket.DESIGNS
             assert restored.status == "ready"
 
-    async def test_restore_design_clears_archive_fields(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_restore_design_clears_archive_fields(self, db_session: AsyncSession) -> None:
         """Test that restoring clears archived_at and archive_location."""
         design = await DesignFactory.create(
             db_session,
@@ -162,18 +159,14 @@ class TestDesignArchiveService:
             assert restored.archive_location is None
             assert restored.status == "ready"
 
-    async def test_restore_design_not_found_raises_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_restore_design_not_found_raises_error(self, db_session: AsyncSession) -> None:
         """Test that restoring a non-existent design raises ValueError."""
         service = DesignArchiveService(db_session)
 
         with pytest.raises(ValueError, match="not found"):
             await service.restore_design(uuid4())
 
-    async def test_restore_non_archived_design_raises_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_restore_non_archived_design_raises_error(self, db_session: AsyncSession) -> None:
         """Test that restoring a non-archived design raises ValueError."""
         design = await DesignFactory.create(db_session, status="ready")
 
@@ -206,17 +199,13 @@ class TestDesignArchiveService:
             await service.delete_archived_design(design_id)
 
             # Verify DB record is gone
-            result = await db_session.execute(
-                select(Design).where(Design.id == design_id)
-            )
+            result = await db_session.execute(select(Design).where(Design.id == design_id))
             assert result.scalar_one_or_none() is None
 
             # Verify storage files were deleted
             mock_storage.delete_files.assert_called_once()
 
-    async def test_delete_non_archived_design_raises_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_delete_non_archived_design_raises_error(self, db_session: AsyncSession) -> None:
         """Test that deleting a non-archived design raises ValueError."""
         design = await DesignFactory.create(db_session, status="ready")
 
@@ -225,9 +214,7 @@ class TestDesignArchiveService:
         with pytest.raises(ValueError, match="is not archived"):
             await service.delete_archived_design(design.id)
 
-    async def test_list_archived_designs_with_pagination(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_list_archived_designs_with_pagination(self, db_session: AsyncSession) -> None:
         """Test that listing archived designs returns paginated results."""
         user = await UserFactory.create(db_session)
         project = await ProjectFactory.create(db_session, user=user)
@@ -283,9 +270,7 @@ class TestDesignArchiveService:
         project = await ProjectFactory.create(db_session, user=user)
 
         # Recent design (should NOT be found)
-        await DesignFactory.create(
-            db_session, user=user, project=project, status="ready"
-        )
+        await DesignFactory.create(db_session, user=user, project=project, status="ready")
 
         service = DesignArchiveService(db_session)
         designs = await service.find_archivable_designs(days_inactive=365)

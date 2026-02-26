@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from build123d import (
-    Axis,
     Cylinder,
     Location,
     Part,
@@ -26,7 +25,6 @@ from build123d import (
 
 from app.cad.exceptions import ThreadGenerationError, ValidationError
 from app.cad.threads import (
-    ThreadForm,
     ThreadHand,
     ThreadSpec,
     ThreadType,
@@ -227,8 +225,7 @@ def _validate_config(config: ThreadGeneratorConfig) -> None:
         )
     if config.length_mm > MAX_THREAD_LENGTH_MM:
         raise ValidationError(
-            f"Thread length {config.length_mm} mm exceeds maximum "
-            f"{MAX_THREAD_LENGTH_MM} mm.",
+            f"Thread length {config.length_mm} mm exceeds maximum {MAX_THREAD_LENGTH_MM} mm.",
             details={
                 "length_mm": config.length_mm,
                 "max_length_mm": MAX_THREAD_LENGTH_MM,
@@ -267,8 +264,7 @@ def _validate_config(config: ThreadGeneratorConfig) -> None:
     revolutions = config.length_mm / effective_pitch
     if revolutions > MAX_REVOLUTIONS:
         raise ValidationError(
-            f"Computed revolutions ({revolutions:.0f}) exceed maximum "
-            f"({MAX_REVOLUTIONS}).",
+            f"Computed revolutions ({revolutions:.0f}) exceed maximum ({MAX_REVOLUTIONS}).",
             details={
                 "revolutions": revolutions,
                 "max_revolutions": MAX_REVOLUTIONS,
@@ -334,10 +330,10 @@ def _build_external_thread(
     major_dia: float,
     minor_dia: float,
     length: float,
-    profile_angle: float,
+    profile_angle: float,  # noqa: ARG001
     taper_per_mm: float,
     hand: ThreadHand,
-    segments: int,
+    segments: int,  # noqa: ARG001
 ) -> Part:
     """Build an external (bolt-style) thread Part.
 
@@ -378,7 +374,7 @@ def _build_external_thread(
         groove_depth = (avg_major - avg_minor) / 2
         groove_width = pitch * 0.5  # 50 % of pitch is groove
         revolutions = length / pitch
-        num_grooves = int(math.ceil(revolutions))
+        num_grooves = math.ceil(revolutions)
 
         for i in range(num_grooves):
             z_offset = i * pitch + pitch * 0.25
@@ -420,10 +416,10 @@ def _build_internal_thread(
     major_dia: float,
     minor_dia: float,
     length: float,
-    profile_angle: float,
+    profile_angle: float,  # noqa: ARG001
     taper_per_mm: float,
-    hand: ThreadHand,
-    segments: int,
+    hand: ThreadHand,  # noqa: ARG001
+    segments: int,  # noqa: ARG001
 ) -> Part:
     """Build an internal (nut-style) thread Part.
 
@@ -462,7 +458,7 @@ def _build_internal_thread(
         # Add helical relief rings at major diameter for thread crests
         groove_width = pitch * 0.5
         revolutions = length / pitch
-        num_grooves = int(math.ceil(revolutions))
+        num_grooves = math.ceil(revolutions)
 
         for i in range(num_grooves):
             z_offset = i * pitch + pitch * 0.25
