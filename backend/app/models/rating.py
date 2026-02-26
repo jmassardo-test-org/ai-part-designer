@@ -459,6 +459,17 @@ class ReportTargetType(StrEnum):
     COMMENT = "comment"
     DESIGN = "design"
     USER = "user"
+    LICENSE_VIOLATION = "license_violation"
+
+
+class LicenseViolationType(StrEnum):
+    """Type of license violation being reported."""
+
+    UNAUTHORIZED_REMIX = "unauthorized_remix"
+    MISSING_ATTRIBUTION = "missing_attribution"
+    COMMERCIAL_MISUSE = "commercial_misuse"
+    SHARE_ALIKE_VIOLATION = "share_alike_violation"
+    OTHER = "other"
 
 
 class ContentReport(Base, TimestampMixin):
@@ -504,6 +515,11 @@ class ContentReport(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+    evidence_url: Mapped[str | None] = mapped_column(
+        String(2048),
+        nullable=True,
+        doc="URL to evidence supporting the report",
     )
 
     # Status

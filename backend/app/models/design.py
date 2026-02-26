@@ -229,6 +229,25 @@ class Design(Base, TimestampMixin, SoftDeleteMixin):
         nullable=True,
     )
 
+    # License information (Epic 13)
+    license_type: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        index=True,
+        doc="SPDX-like license identifier",
+    )
+    custom_license_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        doc="Custom license terms when license_type is CUSTOM. Max 5000 chars enforced at schema level.",
+    )
+    custom_allows_remix: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether custom-licensed designs allow remixing.",
+    )
+
     # Relationships
     project: Mapped["Project"] = relationship(
         "Project",

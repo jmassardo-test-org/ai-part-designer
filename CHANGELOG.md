@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-02-26
+
+### 🛡️ Epic 13: Model Licensing & IP Protection
+
+Adds Creative Commons licensing, remix enforcement, and IP violation reporting to the marketplace.
+
+### ✨ Added
+
+#### License Management
+- **License catalog**: 9 standard license types (CC0, CC BY, CC BY-SA, CC BY-NC, CC BY-NC-SA, CC BY-ND, CC BY-NC-ND, All Rights Reserved, Custom)
+- **Publish with license**: Assign license type when publishing to marketplace
+- **Custom licenses**: Optional free-text license with configurable remix permission
+- **License filtering**: Browse marketplace by `license_type`, `allows_remix`, `allows_commercial`
+
+#### Remix Enforcement
+- Block remix for No-Derivatives and All-Rights-Reserved licenses
+- Auto-inject attribution metadata on remix
+
+#### IP Violation Reporting
+- **Report endpoint**: `POST /api/v2/marketplace/designs/{id}/report-violation` (rate limited: 5/hr)
+- **Admin takedown**: `POST /api/v2/admin/designs/{id}/takedown`
+- **Violation listing**: `GET /api/v2/admin/license-violations` (paginated, filterable)
+
+#### User Dashboard
+- `GET /api/v2/licenses/my/published` — View published designs with license info
+- `GET /api/v2/licenses/my/remixed` — View remixed designs with attribution
+
+### 🗃️ Database Migrations
+
+- `029_design_license_columns`: Adds `license_type`, `custom_license_text`, `custom_allows_remix` to `designs`
+- `030_content_report_evidence_url`: Adds `evidence_url` to `content_reports`
+
+### 📈 Observability
+
+- Prometheus alert: `LicenseViolationRateHigh` (>20 reports/hr)
+- Prometheus alert: `LicenseAdminTakedownRateHigh` (>10 takedowns/hr)
+- All new endpoints auto-instrumented via existing HTTP metrics
+
+### 🧪 Testing
+
+- 142 tests (all passing)
+- Unit, integration, and service-layer coverage
+- Rate limiter, remix enforcement, and admin authorization tests
+
+---
+
 ## [1.1.0] - 2026-01-30
 
 ### 🚀 CAD v2 Generation Engine
@@ -306,10 +352,11 @@ Versions prior to 0.4.0 were internal development releases.
 
 ---
 
-[1.0.0]: https://github.com/yourorg/ai-part-designer/releases/tag/v1.0.0
-[0.9.0]: https://github.com/yourorg/ai-part-designer/releases/tag/v0.9.0
-[0.8.0]: https://github.com/yourorg/ai-part-designer/releases/tag/v0.8.0
-[0.7.0]: https://github.com/yourorg/ai-part-designer/releases/tag/v0.7.0
-[0.6.0]: https://github.com/yourorg/ai-part-designer/releases/tag/v0.6.0
-[0.5.0]: https://github.com/yourorg/ai-part-designer/releases/tag/v0.5.0
-[0.4.0]: https://github.com/yourorg/ai-part-designer/releases/tag/v0.4.0
+[1.2.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v1.2.0
+[1.0.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v1.0.0
+[0.9.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v0.9.0
+[0.8.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v0.8.0
+[0.7.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v0.7.0
+[0.6.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v0.6.0
+[0.5.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v0.5.0
+[0.4.0]: https://github.com/jmassardo-test-org/ai-part-designer/releases/tag/v0.4.0

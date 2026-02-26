@@ -7,11 +7,13 @@ Includes marketplace, lists, saves, and starters for community features.
 
 from fastapi import APIRouter
 
+from app.api.v2.admin_licenses import router as admin_licenses_router
 from app.api.v2.components import router as components_router
 from app.api.v2.designs import router as designs_router
 from app.api.v2.downloads import router as downloads_router
 from app.api.v2.enclosures import router as enclosures_router
 from app.api.v2.generate import router as generate_router
+from app.api.v2.licenses import router as licenses_router
 from app.api.v2.lists import router as lists_router
 from app.api.v2.marketplace import router as marketplace_router
 from app.api.v2.saves import router as saves_router
@@ -33,5 +35,11 @@ api_router.include_router(lists_router, prefix="/lists", tags=["v2-lists"])
 api_router.include_router(saves_router, prefix="/saves", tags=["v2-saves"])
 api_router.include_router(starters_router, prefix="/starters", tags=["v2-starters"])
 api_router.include_router(threads_router, prefix="/threads", tags=["v2-threads"])
+
+# License & admin routers (Epic 13)
+api_router.include_router(licenses_router, prefix="/licenses", tags=["v2-licenses"])
+api_router.include_router(
+    admin_licenses_router, prefix="/admin", tags=["v2-admin-licenses"]
+)
 
 __all__ = ["api_router"]

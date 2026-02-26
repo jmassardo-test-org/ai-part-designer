@@ -272,3 +272,13 @@ class AuditActions:
     # Admin
     ADMIN_ACTION = "admin_action"
     IMPERSONATE = "impersonate"
+
+    # License (Epic 13)
+    LICENSE_SET = "license_set"
+    LICENSE_CHANGE = "license_change"
+    LICENSE_REMIX_BLOCKED = "license_remix_blocked"
+    LICENSE_REMIX_ALLOWED = "license_remix_allowed"
+    LICENSE_ATTRIBUTION_GENERATED = "license_attribution_generated"
+    LICENSE_VIOLATION_REPORT = "license_violation_report"
+    LICENSE_TAKEDOWN = "license_takedown"
+    LICENSE_SHARE_ALIKE_ENFORCED = "license_share_alike_enforced"
