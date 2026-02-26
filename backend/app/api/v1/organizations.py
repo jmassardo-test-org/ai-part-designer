@@ -11,6 +11,7 @@ import logging
 import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID  # noqa: TC003
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -32,8 +33,6 @@ from app.models.user import User
 from app.services.notification_service import notify_org_invite
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)

@@ -92,15 +92,20 @@ class TestFailJobHelper:
         mock_session.commit = AsyncMock()
 
         job_id = str(uuid4())
+        user_id = str(uuid4())
 
         with patch("app.worker.tasks.cad_v2.send_job_failed") as mock_send:
-            await _fail_job(
-                mock_job_repo,
-                mock_session,
-                job_id,
-                "user-123",
-                "Test error message",
-            )
+            with patch(
+                "app.services.notification_service.notify_job_failed",
+                new_callable=AsyncMock,
+            ):
+                await _fail_job(
+                    mock_job_repo,
+                    mock_session,
+                    job_id,
+                    user_id,
+                    "Test error message",
+                )
 
         # Verify job was updated
         mock_job_repo.update.assert_called_once()
@@ -112,7 +117,7 @@ class TestFailJobHelper:
         mock_session.commit.assert_called_once()
 
         # Verify WebSocket notification was sent
-        mock_send.assert_called_once_with("user-123", job_id, "Test error message")
+        mock_send.assert_called_once_with(user_id, job_id, "Test error message")
 
     @pytest.mark.asyncio
     async def test_fail_job_skips_ws_when_no_user(self):

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any
+from uuid import UUID  # noqa: TC003
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -21,8 +22,6 @@ from app.models.reference_component import ReferenceComponent
 from app.models.spatial_layout import ComponentPlacement, SpatialLayout
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User

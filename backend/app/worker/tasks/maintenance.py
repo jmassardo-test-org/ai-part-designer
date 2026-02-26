@@ -575,7 +575,7 @@ def backup_database(backup_type: Literal["full", "schema", "data"] = "full") -> 
 
             logger.info(
                 "Database backup completed",
-                extra={"filename": backup_info["filename"], "backup_type": backup_type},
+                extra={"backup_filename": backup_info["filename"], "backup_type": backup_type},
             )
 
             if BACKUP_OPERATIONS_TOTAL is not None:
