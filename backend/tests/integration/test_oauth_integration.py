@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import unquote_plus
 from uuid import uuid4
 
 import pytest
@@ -338,7 +339,7 @@ class TestOAuthCallback:
 
             assert response.status_code == 307
             assert "error=oauth_error" in response.headers["location"]
-            assert "User denied access" in response.headers["location"]
+            assert "User denied access" in unquote_plus(response.headers["location"])
         finally:
             fastapi_app.dependency_overrides.pop(get_settings, None)
 

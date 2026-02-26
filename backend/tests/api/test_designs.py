@@ -1220,7 +1220,10 @@ class TestDesignVersions:
         response = await client.post(
             f"/api/v1/designs/{uuid4()}/versions",
             headers=auth_headers,
-            json={"name": "v1.0"},
+            json={
+                "job_id": "compile-job-123",
+                "change_description": "Test version",
+            },
         )
 
         assert response.status_code == 404

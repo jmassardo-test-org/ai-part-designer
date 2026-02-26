@@ -77,7 +77,7 @@ async def perf_client() -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture
 async def perf_auth_client(
     perf_client: AsyncClient,
-    async_session: AsyncSession,
+    db_session: AsyncSession,
 ) -> AsyncGenerator[tuple[AsyncClient, User], None]:
     """Create an authenticated client with test user for performance testing."""
     # Create a test user directly in the database
@@ -91,9 +91,9 @@ async def perf_auth_client(
         is_active=True,
         email_verified=True,
     )
-    async_session.add(user)
-    await async_session.commit()
-    await async_session.refresh(user)
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
 
     # Login to get token
     response = await perf_client.post(
@@ -112,8 +112,8 @@ async def perf_auth_client(
     yield perf_client, user
 
     # Cleanup
-    await async_session.delete(user)
-    await async_session.commit()
+    await db_session.delete(user)
+    await db_session.commit()
 
 
 # =============================================================================
@@ -229,7 +229,7 @@ class TestAuthPerformance:
     async def test_login_performance(
         self,
         perf_client: AsyncClient,
-        async_session: AsyncSession,
+        db_session: AsyncSession,
     ) -> None:
         """Login should complete within threshold."""
         # Create a user for login testing
@@ -242,8 +242,8 @@ class TestAuthPerformance:
             is_active=True,
             email_verified=True,
         )
-        async_session.add(user)
-        await async_session.commit()
+        db_session.add(user)
+        await db_session.commit()
 
         try:
             stats = await measure_request(
@@ -263,8 +263,8 @@ class TestAuthPerformance:
             print(f"  Min: {stats['min'] * 1000:.2f}ms")
             print(f"  Max: {stats['max'] * 1000:.2f}ms")
         finally:
-            await async_session.delete(user)
-            await async_session.commit()
+            await db_session.delete(user)
+            await db_session.commit()
 
 
 class TestDesignsPerformance:
