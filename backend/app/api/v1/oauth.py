@@ -214,7 +214,9 @@ async def oauth_authorize(
 async def oauth_callback(
     request: Request,
     provider: Literal["google", "github"],
-    _code: str = Query(..., alias="code", description="Authorization code from OAuth provider"),
+    _code: str | None = Query(
+        None, alias="code", description="Authorization code from OAuth provider"
+    ),
     state: str | None = Query(None, description="CSRF state parameter"),
     error: str | None = Query(None, description="Error from OAuth provider"),
     error_description: str | None = Query(None),
@@ -246,6 +248,13 @@ async def oauth_callback(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid OAuth state - possible CSRF attack",
+        )
+
+    # Require authorization code when no error
+    if not _code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing authorization code",
         )
 
     try:
@@ -485,7 +494,7 @@ async def link_oauth_provider(
 async def link_oauth_callback(
     request: Request,
     provider: Literal["google", "github"],
-    _code: str = Query(..., alias="code"),
+    _code: str | None = Query(None, alias="code"),
     state: str | None = Query(None),
     error: str | None = Query(None),
     error_description: str | None = Query(None),

@@ -563,6 +563,9 @@ class TestOAuthRedirectURIConfiguration:
                 mock_settings_obj.GOOGLE_CLIENT_ID = "test"
                 mock_settings_obj.GOOGLE_CLIENT_SECRET = "test"
                 mock_settings_obj.OAUTH_REDIRECT_BASE = base_url
+                # Prevent Pydantic/Starlette from deep-copying the mock
+                # (which loses set attributes and creates nested mock chains)
+                mock_settings_obj.__deepcopy__ = lambda _memo, _s=mock_settings_obj: _s
                 fastapi_app.dependency_overrides[get_settings] = lambda s=mock_settings_obj: s
                 try:
                     await client.get("/api/v1/auth/oauth/google/login")
