@@ -18,6 +18,34 @@ from app.models.reference_component import ReferenceComponent
 from app.models.user import User
 
 # =============================================================================
+# Fixtures
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def ensure_cad_v2_registry_populated():
+    """Ensure CAD v2 registry has at least one component for tests."""
+    from app.cad_v2.components import get_registry
+    from app.cad_v2.schemas.base import BoundingBox, Dimension
+    from app.cad_v2.schemas.components import ComponentCategory, ComponentDefinition
+
+    registry = get_registry()
+    if registry.count == 0:
+        test_component = ComponentDefinition(
+            id="test-component-minimal",
+            name="Test Component",
+            category=ComponentCategory.BOARD,
+            aliases=["test"],
+            dimensions=BoundingBox(
+                width=Dimension(value=85.0),
+                depth=Dimension(value=56.0),
+                height=Dimension(value=17.0),
+            ),
+        )
+        registry.register(test_component)
+
+
+# =============================================================================
 # Component V2 Seeding Tests
 # =============================================================================
 
@@ -32,13 +60,10 @@ class TestComponentV2Seeding:
 
         registry = get_registry()
         initial_registry_count = registry.count
-
-        if initial_registry_count == 0:
-            pytest.skip("No components in registry")
+        assert initial_registry_count >= 1, "Registry should have components (ensure_cad_v2_registry_populated)"
 
         created, updated = await seed_components_v2(db_session)
 
-        # Should have created records
         assert created + updated == initial_registry_count
 
     async def test_seed_components_v2_is_idempotent(self, db_session: AsyncSession):
@@ -47,8 +72,7 @@ class TestComponentV2Seeding:
         from app.seeds.components_v2 import seed_components_v2
 
         registry = get_registry()
-        if registry.count == 0:
-            pytest.skip("No components in registry")
+        assert registry.count >= 1, "Registry should have components (ensure_cad_v2_registry_populated)"
 
         # First run
         created1, updated1 = await seed_components_v2(db_session)
@@ -56,7 +80,6 @@ class TestComponentV2Seeding:
         # Second run
         created2, updated2 = await seed_components_v2(db_session)
 
-        # Second run should only update, not create
         assert created2 == 0
         assert updated2 == created1 + updated1
 
@@ -97,9 +120,7 @@ class TestComponentV2Seeding:
 
         registry = get_registry()
         components = registry.list_all()
-
-        if not components:
-            pytest.skip("No components in registry")
+        assert len(components) >= 1, "Registry should have components (ensure_cad_v2_registry_populated)"
 
         comp = components[0]
         result = component_to_dict(comp)

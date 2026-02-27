@@ -585,6 +585,53 @@ class ConversationFactory:
 
 
 # =============================================================================
+# Reference Component Factory
+# =============================================================================
+
+
+class ReferenceComponentFactory:
+    """Factory for creating ReferenceComponent instances."""
+
+    @staticmethod
+    async def create(
+        db: AsyncSession,
+        *,
+        user: User | None = None,
+        user_id: UUID | None = None,
+        name: str | None = None,
+        category: str = "sbc",
+        source_type: str = "uploaded",
+        extraction_status: str = "pending",
+        **kwargs: Any,
+    ) -> "ReferenceComponent":
+        """Create and persist a ReferenceComponent instance."""
+        from app.models.reference_component import ReferenceComponent
+
+        if user is None and user_id is None:
+            user = await UserFactory.create(db)
+            user_id = user.id
+        elif user is not None:
+            user_id = user.id
+
+        n = Counter.next("reference_component")
+
+        component = ReferenceComponent(
+            id=kwargs.get("id", uuid4()),
+            user_id=user_id,
+            name=name or f"Test Component {n}",
+            category=category,
+            source_type=source_type,
+            extraction_status=extraction_status,
+            **{k: v for k, v in kwargs.items() if k != "id"},
+        )
+
+        db.add(component)
+        await db.commit()
+        await db.refresh(component)
+        return component
+
+
+# =============================================================================
 # Fixture for resetting counters
 # =============================================================================
 
@@ -599,3 +646,4 @@ if TYPE_CHECKING:
     from app.models import Design, File, Job, Project, Template, User
     from app.models.conversation import Conversation
     from app.models.design import DesignVersion
+    from app.models.reference_component import ReferenceComponent
