@@ -31,6 +31,33 @@ def reset_counters():
     Counter.reset()
 
 
+@pytest.fixture(autouse=True)
+def ensure_cad_v2_registry_populated():
+    """Ensure CAD v2 registry has at least one component for tests.
+
+    If the registry is empty (e.g. due to import order in test env),
+    register a minimal test component so tests never skip.
+    """
+    from app.cad_v2.components import get_registry
+    from app.cad_v2.schemas.base import BoundingBox, Dimension
+    from app.cad_v2.schemas.components import ComponentCategory, ComponentDefinition
+
+    registry = get_registry()
+    if registry.count == 0:
+        test_component = ComponentDefinition(
+            id="test-component-minimal",
+            name="Test Component",
+            category=ComponentCategory.BOARD,
+            aliases=["test"],
+            dimensions=BoundingBox(
+                width=Dimension(value=85.0),
+                depth=Dimension(value=56.0),
+                height=Dimension(value=17.0),
+            ),
+        )
+        registry.register(test_component)
+
+
 @pytest.fixture
 async def starter_design(db_session: AsyncSession):
     """Create a starter design for testing."""
@@ -120,13 +147,11 @@ class TestCADv2ComponentAdmin:
 
     async def test_get_cad_v2_component_details(self, client: AsyncClient, admin_headers: dict):
         """Admin can get detailed component info."""
-        # First get list to find a component ID
         list_response = await client.get("/api/v1/admin/cad-v2/components", headers=admin_headers)
-
-        if list_response.json()["total"] == 0:
-            pytest.skip("No components in registry")
-
-        component_id = list_response.json()["items"][0]["id"]
+        assert list_response.status_code == 200
+        data = list_response.json()
+        assert data["total"] >= 1, "Registry should have components (ensure_cad_v2_registry_populated)"
+        component_id = data["items"][0]["id"]
 
         response = await client.get(
             f"/api/v1/admin/cad-v2/components/{component_id}", headers=admin_headers
@@ -193,13 +218,11 @@ class TestCADv2ComponentAdminWithSync:
         self, client: AsyncClient, admin_headers: dict
     ):
         """Admin can verify a component after sync."""
-        # Get a component ID
         list_response = await client.get("/api/v1/admin/cad-v2/components", headers=admin_headers)
-
-        if list_response.json()["total"] == 0:
-            pytest.skip("No components in registry")
-
-        component_id = list_response.json()["items"][0]["id"]
+        assert list_response.status_code == 200
+        data = list_response.json()
+        assert data["total"] >= 1, "Registry should have components (ensure_cad_v2_registry_populated)"
+        component_id = data["items"][0]["id"]
 
         response = await client.post(
             f"/api/v1/admin/cad-v2/components/{component_id}/verify", headers=admin_headers
@@ -212,13 +235,11 @@ class TestCADv2ComponentAdminWithSync:
         self, client: AsyncClient, admin_headers: dict
     ):
         """Admin can feature a component after sync."""
-        # Get a component ID
         list_response = await client.get("/api/v1/admin/cad-v2/components", headers=admin_headers)
-
-        if list_response.json()["total"] == 0:
-            pytest.skip("No components in registry")
-
-        component_id = list_response.json()["items"][0]["id"]
+        assert list_response.status_code == 200
+        data = list_response.json()
+        assert data["total"] >= 1, "Registry should have components (ensure_cad_v2_registry_populated)"
+        component_id = data["items"][0]["id"]
 
         response = await client.post(
             f"/api/v1/admin/cad-v2/components/{component_id}/feature", headers=admin_headers

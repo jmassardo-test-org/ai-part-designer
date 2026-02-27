@@ -1,115 +1,156 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Subscriptions API client.
  *
- * Handles subscription management, plans, and billing.
+ * Handles subscription management, plans, checkout, and billing.
  */
 
-/** Subscription plan details. */
+/** Subscription plan details returned by GET /subscriptions/plans. */
 export interface SubscriptionPlan {
-  [key: string]: any;
-  id: string;
+  slug: string;
   name: string;
-  price: number;
-  interval: 'month' | 'year';
-  features: string[];
-  credits: number;
+  description: string | null;
+  monthly_credits: number;
+  max_concurrent_jobs: number;
+  max_storage_gb: number;
+  max_projects: number;
+  max_designs_per_project: number;
+  max_file_size_mb: number;
+  features: Record<string, boolean>;
+  price_monthly: number;
+  price_yearly: number;
+  stripe_price_id_monthly: string | null;
+  stripe_price_id_yearly: string | null;
 }
 
-/** Current subscription status. */
+/** Current subscription status returned by GET /subscriptions/current. */
 export interface SubscriptionStatus {
-  [key: string]: any;
-  plan: string;
-  status: 'active' | 'canceled' | 'past_due' | 'trialing' | 'inactive';
-  current_period_end: string;
+  tier: string;
+  status: string;
+  is_active: boolean;
+  is_premium: boolean;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
   cancel_at_period_end: boolean;
+}
+
+/** Usage statistics returned by GET /subscriptions/usage. */
+export interface UsageStats {
+  tier: string;
+  credits_used: number;
   credits_remaining: number;
   credits_total: number;
+  storage_used_gb: number;
+  storage_limit_gb: number;
+  generations_this_period: number;
+  generations_limit: number;
+  period_start: string | null;
+  period_end: string | null;
 }
 
-/** Usage statistics for the current billing period. */
-export interface UsageStats {
-  [key: string]: any;
-  generations: number;
-  downloads: number;
-  storage_used: number;
-  api_calls: number;
-}
-
-/** Payment history entry. */
+/** Payment history entry returned by GET /subscriptions/payments. */
 export interface PaymentHistoryItem {
-  [key: string]: any;
   id: string;
+  payment_type: string;
+  status: string;
   amount: number;
   currency: string;
-  status: string;
-  created_at: string;
-  invoice_url?: string;
+  description: string;
+  paid_at: string | null;
+  invoice_url: string | null;
 }
 
-/** Subscriptions API methods. */
-export const subscriptionsApi: any = {
-  async getStatus(token?: string): Promise<SubscriptionStatus> {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/status', { headers });
-    if (!resp.ok) throw new Error(`Failed to get subscription status: ${resp.status}`);
-    return resp.json();
+/** Stripe publishable key config. */
+export interface StripeConfig {
+  publishable_key: string;
+}
+
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const resp = await fetch(`/api/v1/subscriptions${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => resp.statusText);
+    throw new Error(detail || `Request failed: ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export const subscriptionsApi = {
+  /** Get Stripe publishable key for frontend initialization. */
+  async getStripeConfig(): Promise<StripeConfig> {
+    return apiFetch('/config');
   },
-  async listPlans(token?: string): Promise<SubscriptionPlan[]> {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/plans', { headers });
-    if (!resp.ok) throw new Error(`Failed to list plans: ${resp.status}`);
-    return resp.json();
+
+  /** List all available subscription plans. */
+  async getPlans(): Promise<SubscriptionPlan[]> {
+    return apiFetch('/plans');
   },
-  async createCheckout(planId: string, token?: string): Promise<{ url: string }> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/checkout', {
+
+  /** Get the current user's subscription status. */
+  async getCurrentSubscription(): Promise<SubscriptionStatus> {
+    return apiFetch('/current');
+  },
+
+  /** Get current usage statistics. */
+  async getUsage(): Promise<UsageStats> {
+    return apiFetch('/usage');
+  },
+
+  /** Get payment history. */
+  async getPaymentHistory(
+    limit = 20,
+    offset = 0
+  ): Promise<PaymentHistoryItem[]> {
+    return apiFetch(`/payments?limit=${limit}&offset=${offset}`);
+  },
+
+  /**
+   * Create a Stripe Checkout session and redirect the user.
+   * Returns the checkout URL (also redirects automatically).
+   */
+  async redirectToCheckout(
+    planSlug: string,
+    billingInterval: 'monthly' | 'yearly' = 'monthly',
+    successUrl?: string,
+    cancelUrl?: string
+  ): Promise<void> {
+    const data = await apiFetch<{ checkout_url: string; session_id: string }>(
+      '/checkout',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          plan_slug: planSlug,
+          billing_interval: billingInterval,
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+        }),
+      }
+    );
+    window.location.href = data.checkout_url;
+  },
+
+  /** Open the Stripe Billing Portal for payment method / invoice management. */
+  async redirectToBillingPortal(returnUrl?: string): Promise<void> {
+    const data = await apiFetch<{ portal_url: string }>('/portal', {
       method: 'POST',
-      headers,
-      body: JSON.stringify({ plan_id: planId }),
+      body: JSON.stringify({ return_url: returnUrl }),
     });
-    if (!resp.ok) throw new Error(`Failed to create checkout: ${resp.status}`);
-    return resp.json();
+    window.location.href = data.portal_url;
   },
-  async cancelSubscription(token?: string): Promise<void> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/cancel', { method: 'POST', headers });
-    if (!resp.ok) throw new Error(`Failed to cancel subscription: ${resp.status}`);
+
+  /** Cancel the current subscription. */
+  async cancelSubscription(immediately = false): Promise<SubscriptionStatus> {
+    return apiFetch(`/cancel?immediately=${immediately}`, { method: 'POST' });
   },
-  async getUsage(token?: string): Promise<UsageStats> {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/usage', { headers });
-    if (!resp.ok) throw new Error(`Failed to get usage: ${resp.status}`);
-    return resp.json();
-  },
-  async getPaymentHistory(token?: string): Promise<PaymentHistoryItem[]> {
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/payments', { headers });
-    if (!resp.ok) throw new Error(`Failed to get payment history: ${resp.status}`);
-    return resp.json();
-  },
-  async createPortalSession(token?: string): Promise<{ url: string }> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/portal', { method: 'POST', headers });
-    if (!resp.ok) throw new Error(`Failed to create portal session: ${resp.status}`);
-    return resp.json();
-  },
-  async verifyCheckout(sessionId: string, token?: string): Promise<SubscriptionStatus> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch('/api/v1/subscriptions/verify', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ session_id: sessionId }),
-    });
-    if (!resp.ok) throw new Error(`Failed to verify checkout: ${resp.status}`);
-    return resp.json();
+
+  /** Resume a subscription that was set to cancel at period end. */
+  async resumeSubscription(): Promise<SubscriptionStatus> {
+    return apiFetch('/resume', { method: 'POST' });
   },
 };

@@ -65,6 +65,11 @@ class ReferenceComponent(Base):
     )  # "uploaded", "library", "community"
 
     # Source files
+    files_metadata = Column(
+        JSONB,
+        nullable=True,
+        comment="File metadata: {cad_file: {...}, datasheet: {...}, thumbnail: {...}}",
+    )
     datasheet_file_id = Column(
         UUID(as_uuid=True),
         ForeignKey("files.id", ondelete="SET NULL"),

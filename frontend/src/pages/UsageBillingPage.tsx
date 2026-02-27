@@ -2,7 +2,7 @@
  * Usage & Billing Page
  *
  * Displays credit balance, usage statistics, quota usage,
- * and subscription management.
+ * subscription management, payment history, and tier upgrades.
  */
 
 import {
@@ -22,9 +22,15 @@ import {
   Sparkles,
   ExternalLink,
   XCircle,
+  Receipt,
+  FileText,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { subscriptionsApi, SubscriptionStatus } from '@/lib/api/subscriptions';
+import {
+  subscriptionsApi,
+  SubscriptionStatus,
+  PaymentHistoryItem,
+} from '@/lib/api/subscriptions';
 import {
   usageApi,
   UsageDashboard,
@@ -52,6 +58,10 @@ function formatDate(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatCurrency(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
 }
 
 function getTransactionIcon(type: string) {
@@ -182,14 +192,22 @@ function ProgressBar({
 interface TierCardProps {
   tier: SubscriptionTier;
   isCurrent: boolean;
+  billingInterval: 'monthly' | 'yearly';
+  isLoading: boolean;
   onSelect?: () => void;
 }
 
-function TierCard({ tier, isCurrent, onSelect }: TierCardProps) {
+function TierCard({ tier, isCurrent, billingInterval, isLoading, onSelect }: TierCardProps) {
+  const price = billingInterval === 'yearly' ? tier.price_yearly / 12 : tier.price_monthly;
+  const yearlyDiscount =
+    tier.price_monthly > 0
+      ? Math.round((1 - tier.price_yearly / 12 / tier.price_monthly) * 100)
+      : 0;
+
   return (
     <div
       className={cn(
-        'relative rounded-lg border p-6',
+        'relative flex flex-col rounded-lg border p-6',
         isCurrent
           ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
           : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
@@ -209,6 +227,8 @@ function TierCard({ tier, isCurrent, onSelect }: TierCardProps) {
               ? 'text-purple-500'
               : tier.slug === 'pro'
               ? 'text-yellow-500'
+              : tier.slug === 'starter'
+              ? 'text-blue-500'
               : 'text-gray-400'
           )}
         />
@@ -225,37 +245,70 @@ function TierCard({ tier, isCurrent, onSelect }: TierCardProps) {
       
       <div className="mt-4">
         <span className="text-3xl font-bold text-gray-900 dark:text-white">
-          ${tier.price_monthly}
+          ${price.toFixed(2)}
         </span>
         <span className="text-gray-500 dark:text-gray-400">/month</span>
+        {billingInterval === 'yearly' && yearlyDiscount > 0 && (
+          <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            Save {yearlyDiscount}%
+          </span>
+        )}
       </div>
       
-      <ul className="mt-4 space-y-2">
+      <ul className="mt-4 flex-1 space-y-2">
         <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <Check className="h-4 w-4 text-green-500" />
+          <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
           {tier.monthly_credits} credits/month
         </li>
         <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <Check className="h-4 w-4 text-green-500" />
-          {tier.max_concurrent_jobs} concurrent jobs
+          <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
+          {tier.max_concurrent_jobs} concurrent job{tier.max_concurrent_jobs !== 1 ? 's' : ''}
         </li>
         <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <Check className="h-4 w-4 text-green-500" />
+          <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
           {tier.max_storage_gb} GB storage
         </li>
         <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <Check className="h-4 w-4 text-green-500" />
+          <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
           {tier.max_projects} projects
         </li>
+        {tier.features?.collaboration && (
+          <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
+            Team collaboration
+          </li>
+        )}
+        {tier.features?.api_access && (
+          <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
+            API access
+          </li>
+        )}
+        {tier.features?.priority_queue && (
+          <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
+            Priority queue
+          </li>
+        )}
       </ul>
       
-      {!isCurrent && (
+      {!isCurrent && tier.price_monthly > 0 && (
         <button
           onClick={onSelect}
-          className="mt-6 w-full rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          disabled={isLoading}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {tier.price_monthly > 0 ? 'Upgrade' : 'Downgrade'}
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>Upgrade to {tier.name}</>
+          )}
         </button>
+      )}
+      {!isCurrent && tier.price_monthly === 0 && (
+        <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          Downgrade via billing portal
+        </p>
       )}
     </div>
   );
@@ -298,6 +351,55 @@ function TransactionRow({ transaction }: TransactionRowProps) {
   );
 }
 
+interface PaymentRowProps {
+  payment: PaymentHistoryItem;
+}
+
+function PaymentRow({ payment }: PaymentRowProps) {
+  return (
+    <div className="flex items-center justify-between border-b border-gray-100 py-3 last:border-0 dark:border-gray-700">
+      <div className="flex items-center gap-3">
+        <Receipt className="h-4 w-4 text-gray-400" />
+        <div>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            {payment.description}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {payment.paid_at ? formatDate(payment.paid_at) : 'Pending'}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="text-right">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            {formatCurrency(payment.amount)}
+          </p>
+          <p
+            className={cn('text-xs', {
+              'text-green-600': payment.status === 'paid',
+              'text-yellow-600': payment.status === 'pending',
+              'text-red-600': payment.status === 'failed',
+            })}
+          >
+            {payment.status}
+          </p>
+        </div>
+        {payment.invoice_url && (
+          <a
+            href={payment.invoice_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+            title="View invoice"
+          >
+            <FileText className="h-4 w-4" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // =============================================================================
 // Main Page Component
 // =============================================================================
@@ -306,11 +408,13 @@ export function UsageBillingPage() {
   const [dashboard, setDashboard] = useState<UsageDashboard | null>(null);
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'tiers' | 'billing'>('overview');
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     loadData();
@@ -335,6 +439,32 @@ export function UsageBillingPage() {
       setError('Failed to load usage data. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadPaymentHistory() {
+    try {
+      const data = await subscriptionsApi.getPaymentHistory(20, 0);
+      setPayments(data);
+    } catch (err) {
+      console.error('Failed to load payment history:', err);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'billing' && payments.length === 0) {
+      loadPaymentHistory();
+    }
+  }, [activeTab]);
+
+  async function handleUpgrade(tierSlug: string) {
+    setActionLoading(`upgrade-${tierSlug}`);
+    try {
+      await subscriptionsApi.redirectToCheckout(tierSlug, billingInterval);
+    } catch (err) {
+      console.error('Failed to start checkout:', err);
+      setError('Failed to start checkout. Please try again.');
+      setActionLoading(null);
     }
   }
 
@@ -510,6 +640,14 @@ export function UsageBillingPage() {
                   </p>
                 </div>
               </div>
+              {subscription && !subscription.is_premium && (
+                <button
+                  onClick={() => setActiveTab('tiers')}
+                  className="mt-4 w-full rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  Upgrade Plan
+                </button>
+              )}
             </div>
             
             <div className="rounded-lg border bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
@@ -582,18 +720,65 @@ export function UsageBillingPage() {
 
       {/* Tiers Tab */}
       {activeTab === 'tiers' && (
-        <div className="grid gap-6 md:grid-cols-3">
-          {tiers.map((tier) => (
-            <TierCard
-              key={tier.id}
-              tier={tier}
-              isCurrent={tier.is_current}
-              onSelect={() => {
-                // TODO: Implement tier change flow
-                console.log('Selected tier:', tier.slug);
-              }}
-            />
-          ))}
+        <div className="space-y-6">
+          {/* Billing Interval Toggle */}
+          <div className="flex items-center justify-center gap-3">
+            <span
+              className={cn(
+                'text-sm font-medium',
+                billingInterval === 'monthly'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400'
+              )}
+            >
+              Monthly
+            </span>
+            <button
+              onClick={() =>
+                setBillingInterval((prev) =>
+                  prev === 'monthly' ? 'yearly' : 'monthly'
+                )
+              }
+              className={cn(
+                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                billingInterval === 'yearly' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                  billingInterval === 'yearly' ? 'translate-x-5' : 'translate-x-0'
+                )}
+              />
+            </button>
+            <span
+              className={cn(
+                'text-sm font-medium',
+                billingInterval === 'yearly'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400'
+              )}
+            >
+              Yearly
+            </span>
+            <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              Save up to 17%
+            </span>
+          </div>
+
+          {/* Tier Cards */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {tiers.map((tier) => (
+              <TierCard
+                key={tier.id}
+                tier={tier}
+                isCurrent={tier.is_current}
+                billingInterval={billingInterval}
+                isLoading={actionLoading === `upgrade-${tier.slug}`}
+                onSelect={() => handleUpgrade(tier.slug)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -659,10 +844,10 @@ export function UsageBillingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">
-                    Payment Method
+                    Payment Method & Invoices
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Update your card or view payment history
+                    Update your card, view invoices, or manage payment details
                   </p>
                 </div>
                 <button
@@ -676,6 +861,25 @@ export function UsageBillingPage() {
                     <ExternalLink className="h-4 w-4" />
                   )}
                   Manage Payment
+                </button>
+              </div>
+
+              {/* Change Plan */}
+              <div className="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-gray-700">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Change Plan
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Upgrade or compare plans
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('tiers')}
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  <Crown className="h-4 w-4" />
+                  View Plans
                 </button>
               </div>
 
@@ -725,6 +929,22 @@ export function UsageBillingPage() {
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Payment History */}
+          <div className="rounded-lg border bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+              Payment History
+            </h2>
+            <div>
+              {payments.length === 0 ? (
+                <p className="py-8 text-center text-gray-500 dark:text-gray-400">
+                  No payments yet
+                </p>
+              ) : (
+                payments.map((p) => <PaymentRow key={p.id} payment={p} />)
               )}
             </div>
           </div>
