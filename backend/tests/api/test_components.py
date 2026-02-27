@@ -7,7 +7,23 @@ Tests reference component library operations, upload, and extraction.
 from io import BytesIO
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tests.factories import ReferenceComponentFactory
+
+
+@pytest_asyncio.fixture
+async def created_component(db_session: AsyncSession, test_user):
+    """Create a ReferenceComponent via factory for tests that need a component ID."""
+    return await ReferenceComponentFactory.create(
+        db_session,
+        user=test_user,
+        name="Test Component",
+        category="sbc",
+    )
+
 
 # =============================================================================
 # Component List Tests
@@ -119,38 +135,26 @@ class TestCreateComponent:
 class TestComponentUpload:
     """Tests for component file upload."""
 
-    async def test_upload_datasheet_pdf(self, client: AsyncClient, auth_headers: dict):
+    async def test_upload_datasheet_pdf(
+        self, client: AsyncClient, auth_headers: dict, created_component
+    ):
         """Should upload PDF datasheet."""
-        # First create a component
-        create_response = await client.post(
-            "/api/v1/components",
-            headers=auth_headers,
-            json={
-                "name": "Upload Test Component",
-                "category": "sbc",
-            },
-        )
-
-        if create_response.status_code not in [200, 201]:
-            pytest.skip("Component creation not implemented")
-
-        component_id = create_response.json().get("id")
-        if not component_id:
-            pytest.skip("No component ID returned")
+        component_id = created_component.id
 
         # Create fake PDF content
         pdf_content = b"%PDF-1.4 fake pdf content for testing"
 
-        # Upload datasheet
+        # Upload datasheet (API uses PUT for file updates)
         files = {"datasheet": ("datasheet.pdf", BytesIO(pdf_content), "application/pdf")}
-        response = await client.post(
+        response = await client.put(
             f"/api/v1/components/{component_id}/files",
             headers=auth_headers,
             files=files,
         )
 
-        # Could be various success codes or method not allowed
-        assert response.status_code in [200, 201, 204, 405, 422]
+        assert response.status_code in [200, 201, 204]
+        data = response.json()
+        assert "component_id" in data or "message" in data
 
 
 # =============================================================================
@@ -161,52 +165,34 @@ class TestComponentUpload:
 class TestComponentExtraction:
     """Tests for extraction triggering and status."""
 
-    async def test_trigger_extraction(self, client: AsyncClient, auth_headers: dict):
+    async def test_trigger_extraction(
+        self, client: AsyncClient, auth_headers: dict, created_component
+    ):
         """Should trigger extraction for component."""
-        # First create a component
-        create_response = await client.post(
-            "/api/v1/components",
-            headers=auth_headers,
-            json={
-                "name": "Extraction Test Component",
-                "category": "sbc",
-            },
-        )
+        component_id = created_component.id
 
-        if create_response.status_code not in [200, 201]:
-            pytest.skip("Component creation not implemented")
-
-        component_id = create_response.json().get("id")
-        if not component_id:
-            pytest.skip("No component ID returned")
-
-        # Trigger extraction
         response = await client.post(
             f"/api/v1/components/{component_id}/extract",
             headers=auth_headers,
         )
 
-        # Should return extraction job or error
-        assert response.status_code in [200, 201, 400, 404, 422]
+        assert response.status_code in [200, 201]
+        data = response.json()
+        assert "id" in data
+        assert data["status"] == "pending"
+        assert data["component_id"] == str(component_id)
 
-    async def test_get_extraction_status(self, client: AsyncClient, auth_headers: dict):
+    async def test_get_extraction_status(
+        self, client: AsyncClient, auth_headers: dict, created_component
+    ):
         """Should get extraction job status."""
-        # First create a component and trigger extraction
-        create_response = await client.post(
-            "/api/v1/components",
+        component_id = created_component.id
+
+        # First trigger extraction to create a job
+        await client.post(
+            f"/api/v1/components/{component_id}/extract",
             headers=auth_headers,
-            json={
-                "name": "Status Test Component",
-                "category": "sbc",
-            },
         )
-
-        if create_response.status_code not in [200, 201]:
-            pytest.skip("Component creation not implemented")
-
-        component_id = create_response.json().get("id")
-        if not component_id:
-            pytest.skip("No component ID returned")
 
         # Get extraction status
         response = await client.get(
@@ -214,8 +200,10 @@ class TestComponentExtraction:
             headers=auth_headers,
         )
 
-        # Could be 200 with status or 404 if no job
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data
+        assert data["component_id"] == str(component_id)
 
 
 # =============================================================================
@@ -249,27 +237,14 @@ class TestComponentLibrary:
 class TestComponentSpecifications:
     """Tests for component specification updates."""
 
-    async def test_update_component_specs(self, client: AsyncClient, auth_headers: dict):
+    async def test_update_component_specs(
+        self, client: AsyncClient, auth_headers: dict, created_component
+    ):
         """Should update component specifications."""
-        # First create a component
-        create_response = await client.post(
-            "/api/v1/components",
-            headers=auth_headers,
-            json={
-                "name": "Specs Test Component",
-                "category": "sbc",
-            },
-        )
+        component_id = created_component.id
 
-        if create_response.status_code not in [200, 201]:
-            pytest.skip("Component creation not implemented")
-
-        component_id = create_response.json().get("id")
-        if not component_id:
-            pytest.skip("No component ID returned")
-
-        # Update specifications
-        response = await client.patch(
+        # API uses PUT for specifications
+        response = await client.put(
             f"/api/v1/components/{component_id}/specifications",
             headers=auth_headers,
             json={
@@ -282,8 +257,11 @@ class TestComponentSpecifications:
             },
         )
 
-        # Could be various success codes or method not allowed
-        assert response.status_code in [200, 204, 404, 405, 422]
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(component_id)
+        assert data["dimensions"]["length"] == 85.0
+        assert data["extraction_status"] == "manual"
 
 
 # =============================================================================
