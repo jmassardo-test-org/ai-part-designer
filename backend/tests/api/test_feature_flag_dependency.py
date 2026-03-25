@@ -4,13 +4,12 @@ Tests for the require_feature_flag dependency.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
 import pytest
 import pytest_asyncio
 from fastapi import Depends, FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from app.api.deps import (
     get_current_user_optional,
@@ -21,7 +20,10 @@ from app.models.feature_flag import FeatureFlag, FlagTargetType
 from app.services.feature_flags import FeatureFlagService
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from sqlalchemy.ext.asyncio import AsyncSession
+
     from app.models.user import User
 
 
@@ -89,7 +91,9 @@ async def test_app(
     ) -> dict[str, str]:
         return {"status": "missing"}
 
-    async with AsyncClient(app=app, base_url="http://testserver") as client:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client, service, feature_flag, cache
 
 

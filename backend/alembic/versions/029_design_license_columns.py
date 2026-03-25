@@ -5,8 +5,9 @@ Revises: 18f5c96f8225
 Create Date: 2026-02-25
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "029_design_license_columns"
 down_revision = "18f5c96f8225"

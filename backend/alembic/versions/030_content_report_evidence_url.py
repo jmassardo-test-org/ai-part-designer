@@ -5,8 +5,9 @@ Revises: 029_design_license_columns
 Create Date: 2026-02-25
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "030_content_report_evidence_url"
 down_revision = "029_design_license_columns"

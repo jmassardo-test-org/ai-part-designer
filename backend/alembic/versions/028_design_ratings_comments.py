@@ -5,9 +5,10 @@ Revises: 027_design_archival_columns
 Create Date: 2026-02-25
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "028_design_ratings_comments"
 down_revision = "027_design_archival_columns"

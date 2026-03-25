@@ -5,11 +5,8 @@ Revises: 028_design_ratings_comments, 006_add_design_id_to_conversations
 Create Date: 2026-02-25 18:43:37.834172+00:00
 
 """
-from typing import Sequence, Union
-
-from alembic import op
-import sqlalchemy as sa
-
+from collections.abc import Sequence
+from typing import Union
 
 # revision identifiers, used by Alembic.
 revision: str = '18f5c96f8225'

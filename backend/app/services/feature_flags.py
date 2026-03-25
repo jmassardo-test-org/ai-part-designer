@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 from sqlalchemy import select
 
@@ -18,7 +18,6 @@ from app.models.feature_flag import FeatureFlag, FeatureFlagOverride, FlagTarget
 
 if TYPE_CHECKING:
     from uuid import UUID
-    from app.core.cache import RedisClient
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,13 +30,26 @@ class FeatureFlagNotFoundError(Exception):
     """Raised when a requested feature flag does not exist."""
 
 
+class CacheBackend(Protocol):
+    """Cache interface used by the feature flag service."""
+
+    async def get_json(self, key: str) -> Any | None:
+        """Fetch a JSON-serializable value."""
+
+    async def set_json(self, key: str, value: Any, *, ttl: int | None = None) -> None:
+        """Store a JSON-serializable value with optional TTL."""
+
+    async def invalidate_pattern(self, pattern: str) -> int:
+        """Invalidate keys matching the given pattern."""
+
+
 class FeatureFlagService:
     """Service for evaluating and managing feature flags."""
 
     def __init__(
         self,
         db: AsyncSession,
-        cache: RedisClient | None = None,
+        cache: CacheBackend | None = None,
         cache_ttl_seconds: int = 300,
     ):
         self.db = db

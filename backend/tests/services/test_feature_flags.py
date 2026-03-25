@@ -15,6 +15,7 @@ from app.services.feature_flags import FeatureFlagService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
     from app.models.user import User
 
 
