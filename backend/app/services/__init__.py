@@ -23,6 +23,10 @@ from app.services.email import (
     EmailTemplate,
     get_email_service,
 )
+from app.services.feature_flags import (
+    FeatureFlagNotFoundError,
+    FeatureFlagService,
+)
 from app.services.integrity import (
     DataIntegrityService,
     IntegrityCheckType,
@@ -39,31 +43,27 @@ from app.services.security_audit import (
 )
 
 __all__ = [
-    # Abuse Detection
     "AbuseDetectionService",
     "BanDuration",
-    # Content Moderation
     "ContentModerationService",
-    # Data Integrity
     "DataIntegrityService",
     "EmailMessage",
-    # Email
     "EmailService",
     "EmailTemplate",
+    "FeatureFlagNotFoundError",
+    "FeatureFlagService",
     "IntegrityCheckType",
     "IntegrityIssue",
     "IntegrityReport",
     "IntegritySeverity",
     "ModerationDecision",
     "ProhibitedCategory",
-    # Security Audit
     "SecurityAuditService",
     "SecurityEventType",
     "SecuritySeverity",
     "ViolationEvent",
     "ViolationType",
     "cad_extractor",
-    # Component Services
     "component_file_storage",
     "content_moderation",
     "datasheet_parser",

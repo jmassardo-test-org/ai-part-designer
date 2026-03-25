@@ -32,6 +32,7 @@ from app.models.design_context import (
     DesignContext,
     DesignRefinementJob,
 )
+from app.models.feature_flag import FeatureFlag, FeatureFlagOverride, FlagTargetType
 from app.models.file import File
 from app.models.job import Job
 from app.models.marketplace import (
@@ -149,9 +150,12 @@ __all__ = [
     "DesignSave",
     "DesignShare",
     "DesignVersion",
+    "FeatureFlag",
+    "FeatureFlagOverride",
     "FeedbackType",
     # File domain
     "File",
+    "FlagTargetType",
     "InviteStatus",
     # Job domain
     "Job",

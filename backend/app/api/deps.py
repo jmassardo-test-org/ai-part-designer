@@ -17,6 +17,7 @@ from app.core.auth import (
     require_admin,
     require_role,
 )
+from app.core.cache import RedisClient, get_redis
 from app.core.database import get_db
 from app.models.subscription import (
     SubscriptionTier,
@@ -28,6 +29,7 @@ from app.services.credits import (
     CreditService,
     QuotaService,
 )
+from app.services.feature_flags import FeatureFlagNotFoundError, FeatureFlagService
 
 # Re-export admin dependency (call the factory to get the actual dependency)
 get_current_admin_user = require_admin()
@@ -45,6 +47,14 @@ async def get_quota_service(
 ) -> QuotaService:
     """Get quota service dependency."""
     return QuotaService(db)
+
+
+async def get_feature_flag_service(
+    db: AsyncSession = Depends(get_db),
+    redis: RedisClient = Depends(get_redis),
+) -> FeatureFlagService:
+    """Get feature flag service dependency."""
+    return FeatureFlagService(db, redis)
 
 
 async def get_user_tier(
@@ -661,6 +671,54 @@ async def check_org_feature_for_design(
 get_optional_user = get_current_user_optional
 
 
+def require_feature_flag(
+    flag_key: str,
+    *,
+    environment: str = "production",
+) -> Callable[..., None]:
+    """
+    Dependency to require a feature flag to be enabled.
+
+    Supports optional user and organization context; raises 403 if the flag is disabled
+    for the resolved scope and 404 if the flag definition is missing.
+    """
+
+    async def dependency(
+        flag_service: FeatureFlagService = Depends(get_feature_flag_service),
+        current_user: User | None = Depends(get_current_user_optional),
+        organization_id: UUID | None = None,
+        org_id: UUID | None = None,
+    ) -> None:
+        resolved_org = organization_id or org_id
+        try:
+            is_enabled = await flag_service.evaluate_flag(
+                flag_key,
+                user_id=current_user.id if current_user else None,
+                organization_id=resolved_org,
+                environment=environment,
+            )
+        except FeatureFlagNotFoundError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": "feature_flag_not_found",
+                    "flag": flag_key,
+                },
+            ) from exc
+
+        if not is_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "feature_flag_disabled",
+                    "flag": flag_key,
+                    "environment": environment,
+                },
+            )
+
+    return dependency  # type: ignore[return-value]  # FastAPI handles coroutines
+
+
 __all__ = [
     # Utility functions
     "check_org_feature_for_design",
@@ -670,12 +728,14 @@ __all__ = [
     "get_current_user",
     "get_current_user_optional",
     "get_db",
+    "get_feature_flag_service",
     "get_optional_user",
     "get_quota_service",
     "get_user_tier",
     "require_admin",
     "require_credits",
     "require_feature",
+    "require_feature_flag",
     "require_job_slot",
     "require_org_feature",
     "require_org_feature_for_assembly",
