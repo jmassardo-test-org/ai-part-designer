@@ -362,7 +362,8 @@ class PaymentService:
 
         Creates or updates the user's subscription.
         """
-        user_id = (session.metadata or {}).get("user_id")
+        metadata = dict(session.metadata) if session.metadata else {}
+        user_id = metadata.get("user_id")
         if not user_id:
             logger.warning("Checkout session missing user_id metadata")
             return
@@ -376,7 +377,7 @@ class PaymentService:
 
         # Get subscription details from Stripe
         stripe_sub = self.stripe.get_subscription(session.subscription)
-        plan_slug = (session.metadata or {}).get("plan_slug", "pro")
+        plan_slug = metadata.get("plan_slug", "pro")
 
         # Update subscription
         if user.subscription:
