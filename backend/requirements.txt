@@ -382,7 +382,7 @@ redis==6.4.0
     # via
     #   ai-part-designer (pyproject.toml)
     #   kombu
-requests==2.32.5
+requests==2.33.0
     # via
     #   google-api-core
     #   stripe
