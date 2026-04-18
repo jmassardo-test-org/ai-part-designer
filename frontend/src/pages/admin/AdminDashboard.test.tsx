@@ -59,61 +59,61 @@ vi.mock('@/lib/api/admin', () => ({
   adminApi: {
     analytics: {
       getOverview: vi.fn(),
-      getTimeSeriesAnalytics: vi.fn(),
-      getUserAnalytics: vi.fn(),
-      getGenerationAnalytics: vi.fn(),
-      getJobAnalytics: vi.fn(),
-      getStorageAnalytics: vi.fn(),
+      getTimeSeries: vi.fn(),
+      getUsers: vi.fn(),
+      getGenerations: vi.fn(),
+      getJobs: vi.fn(),
+      getStorage: vi.fn(),
     },
     users: {
-      listUsers: vi.fn(),
-      getUser: vi.fn(),
-      updateUser: vi.fn(),
-      suspendUser: vi.fn(),
-      unsuspendUser: vi.fn(),
-      deleteUser: vi.fn(),
-      warnUser: vi.fn(),
+      list: vi.fn(),
+      get: vi.fn(),
+      update: vi.fn(),
+      suspend: vi.fn(),
+      unsuspend: vi.fn(),
+      delete: vi.fn(),
+      warn: vi.fn(),
     },
     projects: {
-      listProjects: vi.fn(),
-      getProject: vi.fn(),
-      deleteProject: vi.fn(),
-      transferProject: vi.fn(),
-      suspendProject: vi.fn(),
-      unsuspendProject: vi.fn(),
+      list: vi.fn(),
+      get: vi.fn(),
+      delete: vi.fn(),
+      transfer: vi.fn(),
+      suspend: vi.fn(),
+      unsuspend: vi.fn(),
     },
     designs: {
-      listDesigns: vi.fn(),
-      getDesign: vi.fn(),
-      deleteDesign: vi.fn(),
-      restoreDesign: vi.fn(),
-      setVisibility: vi.fn(),
+      list: vi.fn(),
+      get: vi.fn(),
+      delete: vi.fn(),
+      restore: vi.fn(),
+      changeVisibility: vi.fn(),
     },
     templates: {
-      listTemplates: vi.fn(),
-      getTemplate: vi.fn(),
-      createTemplate: vi.fn(),
-      updateTemplate: vi.fn(),
-      deleteTemplate: vi.fn(),
-      enableTemplate: vi.fn(),
-      disableTemplate: vi.fn(),
-      featureTemplate: vi.fn(),
-      unfeatureTemplate: vi.fn(),
-      cloneTemplate: vi.fn(),
+      list: vi.fn(),
+      get: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      enable: vi.fn(),
+      disable: vi.fn(),
+      feature: vi.fn(),
+      unfeature: vi.fn(),
+      clone: vi.fn(),
     },
     jobs: {
-      listJobs: vi.fn(),
-      getJob: vi.fn(),
-      cancelJob: vi.fn(),
-      retryJob: vi.fn(),
+      list: vi.fn(),
+      get: vi.fn(),
+      cancel: vi.fn(),
+      retry: vi.fn(),
     },
     moderation: {
       getQueue: vi.fn(),
       getStats: vi.fn(),
       getItem: vi.fn(),
-      approveItem: vi.fn(),
-      rejectItem: vi.fn(),
-      escalateItem: vi.fn(),
+      approve: vi.fn(),
+      reject: vi.fn(),
+      escalate: vi.fn(),
     },
   },
 }));
@@ -136,21 +136,26 @@ describe('AdminDashboard', () => {
     // Setup default mock responses
     mockAdminApi.analytics.getOverview.mockResolvedValue({
       total_users: 100,
-      active_users_today: 25,
-      active_users_week: 50,
-      active_users_month: 75,
+      active_users_daily: 25,
+      active_users_weekly: 50,
+      active_users_monthly: 75,
       total_projects: 200,
       total_designs: 500,
       total_templates: 20,
       total_jobs: 1000,
       pending_jobs: 5,
-      failed_jobs: 2,
+      failed_jobs_today: 2,
       storage_used_bytes: 1073741824, // 1 GB
       storage_limit_bytes: 10737418240, // 10 GB
+      new_signups_today: 10,
+      new_signups_week: 50,
+      total_generations_today: 100,
+      total_generations_week: 500,
+      total_storage_bytes: 1073741824,
     });
 
     // Setup mock time series data
-    mockAdminApi.analytics.getTimeSeriesAnalytics.mockResolvedValue({
+    mockAdminApi.analytics.getTimeSeries.mockResolvedValue({
       new_users: [
         { date: '2024-01-01', value: 5 },
         { date: '2024-01-02', value: 8 },
@@ -178,18 +183,19 @@ describe('AdminDashboard', () => {
       ],
     });
 
-    mockAdminApi.users.listUsers.mockResolvedValue({
+    mockAdminApi.users.list.mockResolvedValue({
       users: [
         {
           id: '1',
           email: 'user1@example.com',
-          full_name: 'Test User',
+          display_name: 'Test User',
           role: 'user',
+          status: 'active',
           is_active: true,
           is_suspended: false,
           suspension_reason: null,
           suspended_until: null,
-          email_verified: true,
+          email_verified_at: '2024-01-01T00:00:00Z',
           created_at: '2024-01-01T00:00:00Z',
           last_login_at: '2024-01-15T00:00:00Z',
           storage_used_bytes: 1048576,
@@ -204,28 +210,28 @@ describe('AdminDashboard', () => {
       page_size: 20,
     });
 
-    mockAdminApi.projects.listProjects.mockResolvedValue({
+    mockAdminApi.projects.list.mockResolvedValue({
       projects: [],
       total: 0,
       page: 1,
       page_size: 20,
     });
 
-    mockAdminApi.designs.listDesigns.mockResolvedValue({
+    mockAdminApi.designs.list.mockResolvedValue({
       designs: [],
       total: 0,
       page: 1,
       page_size: 20,
     });
 
-    mockAdminApi.templates.listTemplates.mockResolvedValue({
+    mockAdminApi.templates.list.mockResolvedValue({
       templates: [],
       total: 0,
       page: 1,
       page_size: 20,
     });
 
-    mockAdminApi.jobs.listJobs.mockResolvedValue({
+    mockAdminApi.jobs.list.mockResolvedValue({
       jobs: [],
       total: 0,
       page: 1,
@@ -235,6 +241,10 @@ describe('AdminDashboard', () => {
     mockAdminApi.moderation.getQueue.mockResolvedValue({
       items: [],
       total: 0,
+      page: 1,
+      page_size: 20,
+      pending_count: 0,
+      escalated_count: 0,
     });
 
     mockAdminApi.moderation.getStats.mockResolvedValue({
@@ -281,7 +291,7 @@ describe('AdminDashboard', () => {
       fireEvent.click(screen.getByRole('button', { name: /users/i }));
 
       await waitFor(() => {
-        expect(mockAdminApi.users.listUsers).toHaveBeenCalled();
+        expect(mockAdminApi.users.list).toHaveBeenCalled();
       });
     });
 
@@ -291,7 +301,7 @@ describe('AdminDashboard', () => {
       fireEvent.click(screen.getByRole('button', { name: /projects/i }));
 
       await waitFor(() => {
-        expect(mockAdminApi.projects.listProjects).toHaveBeenCalled();
+        expect(mockAdminApi.projects.list).toHaveBeenCalled();
       });
     });
   });
@@ -346,17 +356,22 @@ describe('AdminDashboard', () => {
       // Reset mock to succeed
       mockAdminApi.analytics.getOverview.mockResolvedValueOnce({
         total_users: 100,
-        active_users_today: 25,
-        active_users_week: 50,
-        active_users_month: 75,
+        active_users_daily: 25,
+        active_users_weekly: 50,
+        active_users_monthly: 75,
         total_projects: 200,
         total_designs: 500,
         total_templates: 20,
         total_jobs: 1000,
         pending_jobs: 5,
-        failed_jobs: 2,
+        failed_jobs_today: 2,
         storage_used_bytes: 1073741824,
         storage_limit_bytes: 10737418240,
+        new_signups_today: 10,
+        new_signups_week: 50,
+        total_generations_today: 100,
+        total_generations_week: 500,
+        total_storage_bytes: 1073741824,
       });
 
       fireEvent.click(screen.getByText('Retry'));
@@ -370,7 +385,7 @@ describe('AdminDashboard', () => {
       renderWithRouter(<AdminDashboard />);
 
       await waitFor(() => {
-        expect(mockAdminApi.analytics.getTimeSeriesAnalytics).toHaveBeenCalledWith(30); // Default 30 days
+        expect(mockAdminApi.analytics.getTimeSeries).toHaveBeenCalledWith({ days: 30 }); // Default 30 days
       });
     });
 
@@ -390,14 +405,14 @@ describe('AdminDashboard', () => {
       renderWithRouter(<AdminDashboard />);
 
       await waitFor(() => {
-        expect(mockAdminApi.analytics.getTimeSeriesAnalytics).toHaveBeenCalled();
+        expect(mockAdminApi.analytics.getTimeSeries).toHaveBeenCalled();
       });
 
       const select = screen.getByRole('combobox');
       fireEvent.change(select, { target: { value: '7' } });
 
       await waitFor(() => {
-        expect(mockAdminApi.analytics.getTimeSeriesAnalytics).toHaveBeenCalledWith(7);
+        expect(mockAdminApi.analytics.getTimeSeries).toHaveBeenCalledWith({ days: 7 });
       });
     });
 
@@ -430,7 +445,7 @@ describe('AdminDashboard', () => {
 
       await waitFor(() => {
         // Should now be on users tab and loading users
-        expect(mockAdminApi.users.listUsers).toHaveBeenCalled();
+        expect(mockAdminApi.users.list).toHaveBeenCalled();
       });
     });
 
@@ -445,7 +460,7 @@ describe('AdminDashboard', () => {
       fireEvent.click(projectStatCard);
 
       await waitFor(() => {
-        expect(mockAdminApi.projects.listProjects).toHaveBeenCalled();
+        expect(mockAdminApi.projects.list).toHaveBeenCalled();
       });
     });
   });
@@ -507,7 +522,7 @@ describe('AdminDashboard', () => {
     });
 
     it('shows empty state when no users', async () => {
-      mockAdminApi.users.listUsers.mockResolvedValueOnce({
+      mockAdminApi.users.list.mockResolvedValueOnce({
         users: [],
         total: 0,
         page: 1,
@@ -566,12 +581,13 @@ describe('AdminDashboard', () => {
     });
 
     it('displays projects with status column', async () => {
-      mockAdminApi.projects.listProjects.mockResolvedValue({
+      mockAdminApi.projects.list.mockResolvedValue({
         projects: [{
           id: 'proj-1',
           name: 'Test Project',
           description: 'A test project',
-          owner_id: 'user-1',
+          user_id: 'user-1',
+          user_email: 'test@example.com',
           owner_email: 'test@example.com',
           is_public: true,
           design_count: 5,
@@ -661,7 +677,7 @@ describe('AdminDashboard', () => {
     });
 
     it('displays template tier column', async () => {
-      mockAdminApi.templates.listTemplates.mockResolvedValue({
+      mockAdminApi.templates.list.mockResolvedValue({
         templates: [{
           id: 'tmpl-1',
           name: 'Test Template',
@@ -669,13 +685,12 @@ describe('AdminDashboard', () => {
           description: 'A test template',
           category: 'enclosure',
           min_tier: 'professional',
-          created_by: 'user-1',
           creator_email: 'admin@example.com',
           is_active: true,
-          is_enabled: true,
           is_featured: false,
           use_count: 10,
           parameter_schema: {},
+          preview_url: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }],

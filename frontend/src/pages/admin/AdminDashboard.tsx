@@ -53,7 +53,16 @@ import {
   FileText,
   Key,
   Server,
+  Tag,
+  MessageSquare,
+  Package,
 } from 'lucide-react';
+import { CouponsTab } from './CouponsTab';
+import { ContentManagementTab } from './ContentManagementTab';
+import { AssembliesTab } from './AssembliesTab';
+import { ConversationsTab } from './ConversationsTab';
+import { TrashTab } from './TrashTab';
+import { SecurityDashboardTab } from './SecurityDashboardTab';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -110,12 +119,19 @@ type AdminTabType =
   | 'storage'
   | 'audit'
   | 'apikeys'
-  | 'system';
+  | 'system'
+  | 'coupons'
+  | 'content'
+  | 'assemblies'
+  | 'conversations'
+  | 'trash'
+  | 'security';
 
 const VALID_TABS: AdminTabType[] = [
   'analytics', 'users', 'projects', 'designs', 'templates', 'jobs',
   'moderation', 'subscriptions', 'organizations', 'components',
-  'notifications', 'storage', 'audit', 'apikeys', 'system'
+  'notifications', 'storage', 'audit', 'apikeys', 'system',
+  'coupons', 'content', 'assemblies', 'conversations', 'trash', 'security'
 ];
 
 // =============================================================================
@@ -243,6 +259,42 @@ export function AdminDashboard() {
             icon={<Server className="w-4 h-4" />}
             label="System"
           />
+          <TabButton
+            active={activeTab === 'coupons'}
+            onClick={() => setActiveTab('coupons')}
+            icon={<Tag className="w-4 h-4" />}
+            label="Coupons"
+          />
+          <TabButton
+            active={activeTab === 'content'}
+            onClick={() => setActiveTab('content')}
+            icon={<FileText className="w-4 h-4" />}
+            label="Content"
+          />
+          <TabButton
+            active={activeTab === 'assemblies'}
+            onClick={() => setActiveTab('assemblies')}
+            icon={<Package className="w-4 h-4" />}
+            label="Assemblies"
+          />
+          <TabButton
+            active={activeTab === 'conversations'}
+            onClick={() => setActiveTab('conversations')}
+            icon={<MessageSquare className="w-4 h-4" />}
+            label="Conversations"
+          />
+          <TabButton
+            active={activeTab === 'trash'}
+            onClick={() => setActiveTab('trash')}
+            icon={<Trash2 className="w-4 h-4" />}
+            label="Trash"
+          />
+          <TabButton
+            active={activeTab === 'security'}
+            onClick={() => setActiveTab('security')}
+            icon={<Shield className="w-4 h-4" />}
+            label="Security"
+          />
         </div>
       </div>
 
@@ -263,6 +315,12 @@ export function AdminDashboard() {
         {activeTab === 'audit' && <AuditTab />}
         {activeTab === 'apikeys' && <APIKeysTab />}
         {activeTab === 'system' && <SystemTab />}
+        {activeTab === 'coupons' && <CouponsTab />}
+        {activeTab === 'content' && <ContentManagementTab />}
+        {activeTab === 'assemblies' && <AssembliesTab />}
+        {activeTab === 'conversations' && <ConversationsTab />}
+        {activeTab === 'trash' && <TrashTab />}
+        {activeTab === 'security' && <SecurityDashboardTab />}
       </div>
     </div>
   );
@@ -325,7 +383,7 @@ function AnalyticsTab() {
     try {
       const [overviewData, timeSeriesResult] = await Promise.all([
         adminApi.analytics.getOverview(),
-        adminApi.analytics.getTimeSeriesAnalytics(dateRange),
+        adminApi.analytics.getTimeSeries({ days: dateRange }),
       ]);
       setOverview(overviewData);
       setTimeSeriesData(timeSeriesResult);
@@ -458,19 +516,19 @@ function AnalyticsTab() {
         />
         <StatCard
           label="Active Today"
-          value={overview?.active_users_today ?? 0}
+          value={overview?.active_users_daily ?? 0}
           icon={<Activity className="w-5 h-5" />}
           color="green"
         />
         <StatCard
           label="Active This Week"
-          value={overview?.active_users_week ?? 0}
+          value={overview?.active_users_weekly ?? 0}
           icon={<TrendingUp className="w-5 h-5" />}
           color="purple"
         />
         <StatCard
           label="Active This Month"
-          value={overview?.active_users_month ?? 0}
+          value={overview?.active_users_monthly ?? 0}
           icon={<BarChart3 className="w-5 h-5" />}
           color="yellow"
         />
@@ -531,7 +589,7 @@ function AnalyticsTab() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600 dark:text-gray-400">Failed Jobs</span>
-              <span className="text-xl font-bold text-red-600">{overview?.failed_jobs ?? 0}</span>
+              <span className="text-xl font-bold text-red-600">{overview?.failed_jobs_today ?? 0}</span>
             </div>
           </div>
         </div>
@@ -684,7 +742,7 @@ function UsersTab() {
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await adminApi.users.listUsers({
+      const response = await adminApi.users.list({
         search: searchQuery || undefined,
         role: roleFilter || undefined,
         is_active: statusFilter === 'active' ? true : statusFilter === 'inactive' ? false : undefined,
@@ -737,7 +795,7 @@ function UsersTab() {
     if (!reason) return;
 
     try {
-      await adminApi.users.suspendUser(userId, reason);
+      await adminApi.users.suspend(userId, { reason });
       fetchUsers();
     } catch (err) {
       console.error('Failed to suspend user:', err);
@@ -747,7 +805,7 @@ function UsersTab() {
 
   const handleUnsuspend = async (userId: string) => {
     try {
-      await adminApi.users.unsuspendUser(userId);
+      await adminApi.users.unsuspend(userId);
       fetchUsers();
     } catch (err) {
       console.error('Failed to unsuspend user:', err);
@@ -760,7 +818,7 @@ function UsersTab() {
       return;
     }
     try {
-      await adminApi.users.deleteUser(userId);
+      await adminApi.users.delete(userId);
       fetchUsers();
     } catch (err) {
       console.error('Failed to delete user:', err);
@@ -773,7 +831,7 @@ function UsersTab() {
     if (!reason) return;
 
     try {
-      await adminApi.users.warnUser(userId, reason, 'medium');
+      await adminApi.users.warn(userId, { message: reason, category: 'general', severity: 'medium' });
       fetchUsers();
     } catch (err) {
       console.error('Failed to warn user:', err);
@@ -792,7 +850,7 @@ function UsersTab() {
     if (!confirm(confirmMessage)) return;
 
     try {
-      await adminApi.users.updateUser(userId, { role: newRole });
+      await adminApi.users.update(userId, { role: newRole });
       fetchUsers();
     } catch (err) {
       console.error('Failed to change user role:', err);
@@ -908,8 +966,8 @@ function UsersTab() {
                   <td className="px-4 py-3">
                     <div>
                       <p className="font-medium dark:text-gray-100">{user.email}</p>
-                      {user.full_name && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{user.full_name}</p>
+                      {user.display_name && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{user.display_name}</p>
                       )}
                     </div>
                   </td>
@@ -1047,7 +1105,7 @@ function ProjectsTab() {
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await adminApi.projects.listProjects({
+      const response = await adminApi.projects.list({
         search: searchQuery || undefined,
         is_public: visibilityFilter === 'public' ? true : visibilityFilter === 'private' ? false : undefined,
         page,
@@ -1095,7 +1153,7 @@ function ProjectsTab() {
     const reason = prompt('Enter suspension reason:');
     if (!reason) return;
     try {
-      await adminApi.projects.suspendProject(projectId, reason);
+      await adminApi.projects.suspend(projectId, { reason });
       fetchProjects();
     } catch (err) {
       console.error('Failed to suspend project:', err);
@@ -1106,7 +1164,7 @@ function ProjectsTab() {
 
   const handleUnsuspend = async (projectId: string) => {
     try {
-      await adminApi.projects.unsuspendProject(projectId);
+      await adminApi.projects.unsuspend(projectId);
       fetchProjects();
     } catch (err) {
       console.error('Failed to unsuspend project:', err);
@@ -1120,7 +1178,7 @@ function ProjectsTab() {
       return;
     }
     try {
-      await adminApi.projects.deleteProject(projectId);
+      await adminApi.projects.delete(projectId);
       fetchProjects();
     } catch (err) {
       console.error('Failed to delete project:', err);
@@ -1353,7 +1411,7 @@ function DesignsTab() {
   const fetchDesigns = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await adminApi.designs.listDesigns({
+      const response = await adminApi.designs.list({
         search: searchQuery || undefined,
         is_public: visibilityFilter === 'public' ? true : visibilityFilter === 'private' ? false : undefined,
         is_deleted: showDeleted ? true : undefined,
@@ -1378,7 +1436,7 @@ function DesignsTab() {
       return;
     }
     try {
-      await adminApi.designs.deleteDesign(designId);
+      await adminApi.designs.delete(designId);
       fetchDesigns();
     } catch (err) {
       console.error('Failed to delete design:', err);
@@ -1387,7 +1445,7 @@ function DesignsTab() {
 
   const handleRestore = async (designId: string) => {
     try {
-      await adminApi.designs.restoreDesign(designId);
+      await adminApi.designs.restore(designId);
       fetchDesigns();
     } catch (err) {
       console.error('Failed to restore design:', err);
@@ -1396,7 +1454,7 @@ function DesignsTab() {
 
   const handleToggleVisibility = async (designId: string, currentVisibility: boolean) => {
     try {
-      await adminApi.designs.setVisibility(designId, !currentVisibility);
+      await adminApi.designs.changeVisibility(designId, { is_public: !currentVisibility });
       fetchDesigns();
     } catch (err) {
       console.error('Failed to update visibility:', err);
@@ -1791,7 +1849,7 @@ function TemplatesTab() {
   const fetchTemplates = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await adminApi.templates.listTemplates({
+      const response = await adminApi.templates.list({
         search: searchQuery || undefined,
         category: categoryFilter || undefined,
         is_enabled: statusFilter === 'enabled' ? true : statusFilter === 'disabled' ? false : undefined,
@@ -1815,9 +1873,9 @@ function TemplatesTab() {
   const handleToggleEnabled = async (templateId: string, isEnabled: boolean) => {
     try {
       if (isEnabled) {
-        await adminApi.templates.disableTemplate(templateId);
+        await adminApi.templates.disable(templateId);
       } else {
-        await adminApi.templates.enableTemplate(templateId);
+        await adminApi.templates.enable(templateId);
       }
       fetchTemplates();
     } catch (err) {
@@ -1828,9 +1886,9 @@ function TemplatesTab() {
   const handleToggleFeatured = async (templateId: string, isFeatured: boolean) => {
     try {
       if (isFeatured) {
-        await adminApi.templates.unfeatureTemplate(templateId);
+        await adminApi.templates.unfeature(templateId);
       } else {
-        await adminApi.templates.featureTemplate(templateId);
+        await adminApi.templates.feature(templateId);
       }
       fetchTemplates();
     } catch (err) {
@@ -1842,7 +1900,7 @@ function TemplatesTab() {
     const newName = prompt('Enter name for cloned template:', `${name} (Copy)`);
     if (!newName) return;
     try {
-      await adminApi.templates.cloneTemplate(templateId, newName);
+      await adminApi.templates.clone(templateId);
       fetchTemplates();
     } catch (err) {
       console.error('Failed to clone template:', err);
@@ -1854,7 +1912,7 @@ function TemplatesTab() {
       return;
     }
     try {
-      await adminApi.templates.deleteTemplate(templateId);
+      await adminApi.templates.delete(templateId);
       fetchTemplates();
     } catch (err) {
       console.error('Failed to delete template:', err);
@@ -1866,7 +1924,7 @@ function TemplatesTab() {
       // Generate a slug from the name
       const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       
-      await adminApi.templates.createTemplate({
+      await adminApi.templates.create({
         name: data.name,
         slug: slug,
         description: data.description,
@@ -1889,7 +1947,7 @@ function TemplatesTab() {
   const handleUpdateTemplate = async (data: TemplateFormData) => {
     if (!editingTemplate) return;
     try {
-      await adminApi.templates.updateTemplate(editingTemplate.id, {
+      await adminApi.templates.update(editingTemplate.id, {
         name: data.name,
         description: data.description,
         category: data.category,
@@ -2357,7 +2415,7 @@ function JobsTab() {
   const fetchJobs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await adminApi.jobs.listJobs({
+      const response = await adminApi.jobs.list({
         status: (statusFilter as AdminJobStatus) || undefined,
         type: typeFilter as 'cad_generation' | 'export' | 'ai_processing' | 'file_conversion' || undefined,
         page,
@@ -2392,7 +2450,7 @@ function JobsTab() {
       return;
     }
     try {
-      await adminApi.jobs.cancelJob(jobId);
+      await adminApi.jobs.cancel(jobId);
       fetchJobs();
     } catch (err) {
       console.error('Failed to cancel job:', err);
@@ -2401,7 +2459,7 @@ function JobsTab() {
 
   const handleRetry = async (jobId: string) => {
     try {
-      await adminApi.jobs.retryJob(jobId);
+      await adminApi.jobs.retry(jobId);
       fetchJobs();
     } catch (err) {
       console.error('Failed to retry job:', err);
@@ -2521,7 +2579,7 @@ function JobsTab() {
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                      {job.type.replace(/_/g, ' ')}
+                      {job.job_type.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-3">{getStatusBadge(job.status)}</td>
@@ -2600,7 +2658,7 @@ function ModerationTab() {
 
     try {
       const [queueData, statsData] = await Promise.all([
-        adminApi.moderation.getQueue(filter),
+        adminApi.moderation.getQueue({ status: filter }),
         adminApi.moderation.getStats(),
       ]);
       setItems(queueData.items);
@@ -2618,7 +2676,7 @@ function ModerationTab() {
 
   const handleApprove = async (itemId: string) => {
     try {
-      await adminApi.moderation.approveItem(itemId);
+      await adminApi.moderation.approve(itemId);
       fetchData();
       setSelectedItem(null);
     } catch (error) {
@@ -2628,7 +2686,7 @@ function ModerationTab() {
 
   const handleReject = async (itemId: string, reason: string) => {
     try {
-      await adminApi.moderation.rejectItem(itemId, reason);
+      await adminApi.moderation.reject(itemId, { reason });
       fetchData();
       setSelectedItem(null);
     } catch (error) {
@@ -2964,7 +3022,7 @@ function StatCard({ label, value, icon, color }: StatCardProps) {
 }
 
 interface RoleBadgeProps {
-  role: 'user' | 'admin' | 'super_admin';
+  role: string;
 }
 
 function RoleBadge({ role }: RoleBadgeProps) {
@@ -3165,8 +3223,8 @@ function UserDetailsModal({ user, onClose }: UserDetailsModalProps) {
                 <dd className="font-medium dark:text-gray-100">{user.email}</dd>
               </div>
               <div>
-                <dt className="text-sm text-gray-500 dark:text-gray-400">Full Name</dt>
-                <dd className="font-medium dark:text-gray-100">{user.full_name || '-'}</dd>
+                <dt className="text-sm text-gray-500 dark:text-gray-400">Display Name</dt>
+                <dd className="font-medium dark:text-gray-100">{user.display_name || '-'}</dd>
               </div>
               <div>
                 <dt className="text-sm text-gray-500 dark:text-gray-400">Role</dt>
@@ -3278,7 +3336,7 @@ function SubscriptionsTab() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await adminApi.subscriptions.listSubscriptions({
+      const data = await adminApi.subscriptions.list({
         page,
         page_size: pageSize,
         status_filter: statusFilter || undefined,
@@ -3308,7 +3366,7 @@ function SubscriptionsTab() {
   const handleChangeTier = async () => {
     if (!selectedSubscription || !newTier) return;
     try {
-      await adminApi.subscriptions.changeTier(selectedSubscription.id, newTier, actionReason);
+      await adminApi.subscriptions.changeTier(selectedSubscription.id, { tier: newTier });
       setSuccessMessage(`Subscription tier changed to ${newTier}`);
       setShowChangeTierModal(false);
       setSelectedSubscription(null);
@@ -3324,7 +3382,7 @@ function SubscriptionsTab() {
   const handleExtend = async () => {
     if (!selectedSubscription || extendDays <= 0) return;
     try {
-      await adminApi.subscriptions.extendSubscription(selectedSubscription.id, extendDays, actionReason);
+      await adminApi.subscriptions.extend(selectedSubscription.id, { days: extendDays });
       setSuccessMessage(`Subscription extended by ${extendDays} days`);
       setShowExtendModal(false);
       setSelectedSubscription(null);
@@ -3340,7 +3398,7 @@ function SubscriptionsTab() {
   const handleCancel = async (sub: AdminSubscription) => {
     if (!confirm('Are you sure you want to cancel this subscription?')) return;
     try {
-      await adminApi.subscriptions.cancelSubscription(sub.id);
+      await adminApi.subscriptions.cancel(sub.id);
       setSuccessMessage('Subscription cancelled');
       fetchData();
     } catch (err) {
@@ -3669,7 +3727,7 @@ function OrganizationsTab() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await adminApi.organizations.listOrganizations({ page, page_size: pageSize });
+      const data = await adminApi.organizations.list({ page, page_size: pageSize });
       setOrganizations(data.items);
       setTotal(data.total);
     } catch (err) {
@@ -3756,7 +3814,7 @@ function ComponentsTab() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await adminApi.components.listComponents({ page, page_size: pageSize });
+      const data = await adminApi.components.list({ page, page_size: pageSize });
       setComponents(data.items);
       setTotal(data.total);
     } catch (err) {
@@ -3773,7 +3831,7 @@ function ComponentsTab() {
 
   const handleVerify = async (componentId: string) => {
     try {
-      await adminApi.components.verifyComponent(componentId);
+      await adminApi.components.verify(componentId);
       fetchData();
     } catch (err) {
       console.error('Failed to verify component:', err);
@@ -3782,7 +3840,7 @@ function ComponentsTab() {
 
   const handleFeature = async (componentId: string) => {
     try {
-      await adminApi.components.featureComponent(componentId);
+      await adminApi.components.feature(componentId);
       fetchData();
     } catch (err) {
       console.error('Failed to feature component:', err);
@@ -3899,8 +3957,8 @@ function NotificationsTab() {
     setError(null);
     try {
       const [notifData, orgsData] = await Promise.all([
-        adminApi.notifications.listNotifications({ page, page_size: pageSize }),
-        adminApi.organizations.listOrganizations({ page: 1, page_size: 100 }),
+        adminApi.notifications.list({ page, page_size: pageSize }),
+        adminApi.organizations.list({ page: 1, page_size: 100 }),
       ]);
       setNotifications(notifData.items);
       setTotal(notifData.total);
@@ -3967,7 +4025,7 @@ function NotificationsTab() {
         request.target_user_ids = targetUserEmails.split(',').map((e) => e.trim());
       }
 
-      const result = await adminApi.notifications.createAnnouncement(request);
+      const result = await adminApi.notifications.sendAnnouncement(request);
       setSuccessMessage(result.message);
       resetForm();
       fetchData();
@@ -4323,7 +4381,7 @@ function StorageTab() {
     try {
       const [statsData, filesData] = await Promise.all([
         adminApi.storage.getStats(),
-        adminApi.storage.listFiles({ page, page_size: pageSize }),
+        adminApi.files.list({ page, page_size: pageSize }),
       ]);
       setStats(statsData);
       setFiles(filesData.items);
@@ -4454,7 +4512,7 @@ function AuditTab() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await adminApi.audit.getLogs({
+      const data = await adminApi.auditLogs.list({
         page,
         page_size: pageSize,
         action: actionFilter || undefined,
@@ -4756,7 +4814,7 @@ function APIKeysTab() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await adminApi.apiKeys.listKeys({ page, page_size: pageSize });
+      const data = await adminApi.apiKeys.list({ page, page_size: pageSize });
       setKeys(data.items);
       setTotal(data.total);
     } catch (err) {
@@ -4774,7 +4832,7 @@ function APIKeysTab() {
   const handleRevoke = async (keyId: string) => {
     if (!confirm('Are you sure you want to revoke this API key?')) return;
     try {
-      await adminApi.apiKeys.revokeKey(keyId);
+      await adminApi.apiKeys.revoke(keyId);
       fetchData();
     } catch (err) {
       console.error('Failed to revoke API key:', err);

@@ -20,12 +20,18 @@ from app.models.assembly import (
 )
 from app.models.audit import AuditLog
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.models.content import ContentCategory, ContentItem, ContentStatus, ContentType
 from app.models.conversation import (
     Conversation,
     ConversationMessage,
     ConversationStatus,
     MessageRole,
     MessageType,
+)
+from app.models.coupon import (
+    Coupon,
+    CouponRedemption,
+    CouponType,
 )
 from app.models.design import Design, DesignShare, DesignVersion
 from app.models.design_context import (
@@ -125,9 +131,17 @@ __all__ = [
     "ComponentLibrary",
     "ComponentPlacement",
     "ComponentRelationship",
+    "ContentCategory",
+    "ContentItem",
     "ContentReport",
+    "ContentStatus",
+    "ContentType",
     # Conversation
     "Conversation",
+    # Coupon
+    "Coupon",
+    "CouponRedemption",
+    "CouponType",
     "ConversationMessage",
     "ConversationStatus",
     "CreditBalance",
