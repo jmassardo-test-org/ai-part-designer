@@ -293,7 +293,7 @@ pdf2image==1.17.0
     # via ai-part-designer (pyproject.toml)
 pexpect==4.9.0
     # via ipython
-pillow==12.1.1
+pillow==12.2.0
     # via
     #   ai-part-designer (pyproject.toml)
     #   matplotlib
