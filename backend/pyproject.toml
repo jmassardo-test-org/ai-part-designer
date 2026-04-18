@@ -15,7 +15,7 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
-    "python-multipart>=0.0.6",
+    "python-multipart>=0.0.26",
     "email-validator>=2.0.0",
     
     # Database
@@ -35,10 +35,10 @@ dependencies = [
     "anthropic>=0.40.0",
     
     # Authentication & Security
-    "PyJWT[crypto]>=2.8.0",  # Replaced python-jose to avoid ecdsa vulnerability
+    "PyJWT[crypto]>=2.12.0",  # Replaced python-jose to avoid ecdsa vulnerability
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.0,<4.1.0",  # Pin bcrypt < 4.1 for passlib compatibility
-    "cryptography>=42.0.0",
+    "cryptography>=46.0.7",
     "pyotp>=2.9.0",
     
     # Key Management (Cloud KMS) - Updated for protobuf 5.x support
@@ -55,7 +55,7 @@ dependencies = [
     "stripe>=8.0.0",
     
     # OAuth
-    "authlib>=1.3.0",
+    "authlib>=1.6.11",
     "itsdangerous>=2.1.0",
     
     # PDF Processing
@@ -63,7 +63,7 @@ dependencies = [
     "pdf2image>=1.16.0",
     
     # Image Processing
-    "pillow>=10.0.0",
+    "pillow>=12.2.0",
     "numpy>=1.26.0",
     
     # MFA/QR Code
@@ -92,6 +92,12 @@ dependencies = [
     
     # Security: Fix CVE-2026-0994 by upgrading to protobuf 5.x
     "protobuf>=5.29.6,<6.0.0",
+
+    # Security: minimum versions for transitive dependencies with known CVEs
+    "aiohttp>=3.13.4",
+    "requests>=2.33.0",
+    "pyasn1>=0.6.3",
+    "pygments>=2.20.0",
 ]
 
 [project.optional-dependencies]
