@@ -363,7 +363,7 @@ class PaymentService:
         Creates or updates the user's subscription.
         """
         metadata: dict[str, str] = (
-            cast(dict[str, str], session.metadata) if session.metadata else {}
+            cast("dict[str, str]", session.metadata) if session.metadata else {}
         )
         user_id = metadata.get("user_id")
         if not user_id:
