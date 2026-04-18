@@ -336,7 +336,9 @@ jobs:
       - name: Run migrations (first pass)
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_migrations
         run: |
           uv run alembic upgrade head
           echo "✅ First migration pass successful"
@@ -344,7 +346,9 @@ jobs:
       - name: Run migrations (idempotency check)
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_migrations
         run: |
           uv run alembic downgrade -1
           uv run alembic upgrade head
@@ -353,7 +357,9 @@ jobs:
       - name: Verify migration history
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test_migrations
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_migrations
         run: |
           uv run alembic current
           uv run alembic history --verbose | head -20
