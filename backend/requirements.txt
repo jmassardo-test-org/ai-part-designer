@@ -372,7 +372,7 @@ python-dotenv==1.2.1
     #   ai-part-designer (pyproject.toml)
     #   pydantic-settings
     #   uvicorn
-python-multipart==0.0.22
+python-multipart==0.0.26
     # via ai-part-designer (pyproject.toml)
 pyyaml==6.0.3
     # via uvicorn
