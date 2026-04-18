@@ -262,8 +262,10 @@ class GenerationResult:
     # Export files
     step_data: bytes | None = None
     stl_data: bytes | None = None
+    solidworks_data: bytes | None = None
     step_path: Path | None = None
     stl_path: Path | None = None
+    solidworks_path: Path | None = None
 
     # Timing
     reasoning_time_ms: float = 0.0
@@ -287,7 +289,11 @@ class GenerationResult:
     @property
     def is_successful(self) -> bool:
         """Check if generation completed successfully."""
-        return self.shape is not None and (self.step_data is not None or self.stl_data is not None)
+        return self.shape is not None and (
+            self.step_data is not None
+            or self.stl_data is not None
+            or self.solidworks_data is not None
+        )
 
     def get_stats(self) -> dict[str, Any]:
         """Get generation statistics."""
@@ -302,6 +308,7 @@ class GenerationResult:
             "total_time_ms": round(self.total_time_ms, 1),
             "has_step": self.step_data is not None,
             "has_stl": self.stl_data is not None,
+            "has_solidworks": self.solidworks_data is not None,
             "warnings": self.warnings,
         }
 
@@ -321,6 +328,7 @@ async def generate_from_description(
     output_dir: Path | str | None = None,
     export_step: bool = True,
     export_stl: bool = True,
+    export_solidworks: bool = False,
     stl_quality: ExportQuality | str = ExportQuality.STANDARD,
     job_id: str | None = None,
     use_reasoning: bool = True,
@@ -340,6 +348,7 @@ async def generate_from_description(
         output_dir: Directory for output files (default: temp dir)
         export_step: Whether to export STEP file
         export_stl: Whether to export STL file
+        export_solidworks: Whether to export SolidWorks-compatible STEP AP214 file
         stl_quality: Quality preset for STL export
         job_id: Optional job ID for tracking
         use_reasoning: Use reasoning pipeline (default True)
@@ -452,8 +461,10 @@ async def generate_from_description(
 
     step_data = None
     stl_data = None
+    solidworks_data = None
     step_path = None
     stl_path = None
+    solidworks_path = None
 
     if export_step:
         from app.cad.export import export_step as do_export_step
@@ -468,6 +479,13 @@ async def generate_from_description(
         stl_data = do_export_stl(shape, quality=stl_quality)
         stl_path = output_path / f"{base_name}.stl"
         stl_path.write_bytes(stl_data)
+
+    if export_solidworks:
+        from app.cad.export import export_solidworks as do_export_solidworks
+
+        solidworks_data = do_export_solidworks(shape, product_name=description[:50])
+        solidworks_path = output_path / f"{base_name}_solidworks.step"
+        solidworks_path.write_bytes(solidworks_data)
 
     export_time_ms = (time.monotonic() - export_start) * 1000
     total_time_ms = (time.monotonic() - total_start) * 1000
@@ -493,8 +511,10 @@ async def generate_from_description(
         build_plan=build_plan,
         step_data=step_data,
         stl_data=stl_data,
+        solidworks_data=solidworks_data,
         step_path=step_path,
         stl_path=stl_path,
+        solidworks_path=solidworks_path,
         reasoning_time_ms=reasoning_time_ms,
         generation_time_ms=generation_time_ms,
         execution_time_ms=execution_time_ms,

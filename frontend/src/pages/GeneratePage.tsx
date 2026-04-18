@@ -72,6 +72,7 @@ export function GeneratePage() {
   const [stlQuality, setStlQuality] = useState<'draft' | 'standard' | 'high' | 'ultra'>('standard');
   const [exportStep, setExportStep] = useState(true);
   const [exportStl, setExportStl] = useState(true);
+  const [exportSolidworks, setExportSolidworks] = useState(false);
   
   // Generation state
   const [generating, setGenerating] = useState(false);
@@ -81,7 +82,7 @@ export function GeneratePage() {
   
   // UI state
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [downloading, setDownloading] = useState<'step' | 'stl' | null>(null);
+  const [downloading, setDownloading] = useState<'step' | 'stl' | 'solidworks' | null>(null);
 
   // Pre-fill description from template context
   useEffect(() => {
@@ -107,6 +108,7 @@ export function GeneratePage() {
         description: description.trim(),
         export_step: exportStep,
         export_stl: exportStl,
+        export_solidworks: exportSolidworks,
         stl_quality: stlQuality,
       }, token || undefined);
 
@@ -130,7 +132,7 @@ export function GeneratePage() {
   }, [description, exportStep, exportStl, stlQuality, token]);
 
   // Handle file download
-  const handleDownload = useCallback(async (format: 'step' | 'stl') => {
+  const handleDownload = useCallback(async (format: 'step' | 'stl' | 'solidworks') => {
     if (!result) return;
 
     setDownloading(format);
@@ -139,7 +141,8 @@ export function GeneratePage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `generated-part.${format}`;
+      const ext = format === 'solidworks' ? 'step' : format;
+      a.download = format === 'solidworks' ? `generated-part-solidworks.${ext}` : `generated-part.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -338,6 +341,15 @@ export function GeneratePage() {
                         className="h-4 w-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded"
                       />
                       <span className="text-sm text-gray-700 dark:text-gray-300">STL</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={exportSolidworks}
+                        onChange={(e) => setExportSolidworks(e.target.checked)}
+                        className="h-4 w-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">SolidWorks</span>
                     </label>
                   </div>
                 </div>
@@ -575,6 +587,20 @@ export function GeneratePage() {
                         <Download className="h-4 w-4" />
                       )}
                       Download STL
+                    </button>
+                  )}
+                  {result.downloads.solidworks && (
+                    <button
+                      onClick={() => handleDownload('solidworks')}
+                      disabled={downloading === 'solidworks'}
+                      className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                    >
+                      {downloading === 'solidworks' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      Download SolidWorks
                     </button>
                   )}
                 </div>

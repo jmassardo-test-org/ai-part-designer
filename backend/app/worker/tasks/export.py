@@ -92,6 +92,8 @@ def convert_format(
                         "obj": "model/obj",
                         "3mf": "model/3mf",
                         "iges": "application/iges",
+                        "solidworks": "application/step",
+                        "sldprt": "application/step",
                     }.get(target_format.lower(), "application/octet-stream")
 
                     await storage_client.upload_file(

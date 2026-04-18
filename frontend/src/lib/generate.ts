@@ -30,7 +30,7 @@ export interface GenerateResponse {
   }>;
   warnings: string[];
   timing: { parse_ms: number; generate_ms: number; export_ms: number; total_ms: number };
-  downloads: { step?: string; stl?: string };
+  downloads: { step?: string; stl?: string; solidworks?: string };
   [key: string]: unknown;
 }
 

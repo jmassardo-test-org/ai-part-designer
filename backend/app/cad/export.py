@@ -1,5 +1,5 @@
 """
-CAD geometry export to STEP and STL formats.
+CAD geometry export to STEP, STL, and SolidWorks-compatible formats.
 
 Provides high-quality export with configurable precision for
 manufacturing and 3D printing workflows. Uses Build123d as the
@@ -7,11 +7,12 @@ CAD engine.
 
 Example:
     >>> from build123d import Box, BuildPart
-    >>> from app.cad.export import export_step, export_stl
+    >>> from app.cad.export import export_step, export_stl, export_solidworks
     >>> with BuildPart() as part:
     ...     Box(50, 50, 25)
     >>> step_data = export_step(part.part)
     >>> stl_data = export_stl(part.part, quality="high")
+    >>> sw_data = export_solidworks(part.part, product_name="Bracket")
 """
 
 from __future__ import annotations
@@ -83,6 +84,7 @@ class ExportFormat(StrEnum):
 
     STEP = "STEP"
     STL = "STL"
+    SOLIDWORKS = "SOLIDWORKS"
 
 
 # Quality preset configurations (angular_tolerance, linear_tolerance)
@@ -249,6 +251,78 @@ def export_stl(
         raise ExportError(f"STL export failed: {e}", details={"format": "STL"})
 
 
+def export_solidworks(
+    shape: ShapeType,
+    *,
+    author: str | None = None,
+    organization: str | None = None,
+    product_name: str = "CAD Export",
+) -> bytes:
+    """
+    Export shape to a SolidWorks-compatible STEP file (AP214).
+
+    Produces a STEP AP214 file that can be imported directly into SolidWorks
+    via File → Open. The AP214 schema is SolidWorks's preferred interchange
+    format and preserves exact solid geometry with no tessellation loss.
+
+    Args:
+        shape: Build123d shape to export
+        author: Author metadata (optional)
+        organization: Organization metadata (optional)
+        product_name: Product name embedded in STEP header
+
+    Returns:
+        STEP AP214 file content as bytes (import into SolidWorks via File → Open)
+
+    Raises:
+        ExportError: If export fails
+
+    Example:
+        >>> box = create_box(100, 50, 25)
+        >>> sw_bytes = export_solidworks(box, product_name="Bracket")
+        >>> Path("bracket_for_solidworks.step").write_bytes(sw_bytes)
+    """
+    try:
+        # Set STEP schema to AP214 (SolidWorks preferred interchange format)
+        Interface_Static.SetCVal_s("write.step.schema", "AP214IS")
+
+        # Set STEP metadata
+        if author:
+            Interface_Static.SetCVal_s("write.step.product.context", author)
+        if organization:
+            Interface_Static.SetCVal_s("write.step.assembly", organization)
+        if product_name:
+            Interface_Static.SetCVal_s("write.step.product.name", product_name)
+
+        # Create writer and transfer shape
+        writer = STEPControl_Writer()
+        ocp_shape = _get_ocp_shape(shape)
+        writer.Transfer(ocp_shape, STEPControl_AsIs)
+
+        # Write to temp file (OCP doesn't support direct bytes output)
+        with tempfile.NamedTemporaryFile(suffix=".step", delete=False) as f:
+            temp_path = f.name
+
+        try:
+            status = writer.Write(temp_path)
+            if status != 1:  # IFSelect_RetDone = 1
+                raise ExportError(
+                    "SolidWorks STEP write failed",
+                    details={"format": "STEP AP214", "status_code": status},
+                )
+
+            return Path(temp_path).read_bytes()
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    except ExportError:
+        raise
+    except Exception as e:
+        raise ExportError(
+            f"SolidWorks export failed: {e}", details={"format": "STEP AP214"}
+        )
+
+
 def export_to_file(
     shape: ShapeType,
     path: str | Path,
@@ -290,10 +364,12 @@ def export_to_file(
         data = export_step(shape, **kwargs)
     elif extension == ".stl":
         data = export_stl(shape, quality=quality, **kwargs)
+    elif extension == ".sldprt":
+        data = export_solidworks(shape, **kwargs)
     else:
         raise ValidationError(
             f"Unsupported file extension: {extension}",
-            details={"supported": [".step", ".stp", ".stl"]},
+            details={"supported": [".step", ".stp", ".stl", ".sldprt"]},
         )
 
     path.write_bytes(data)
@@ -330,8 +406,10 @@ def export_to_format(
         return export_step(shape, **kwargs)
     if format == ExportFormat.STL:
         return export_stl(shape, quality=quality, **kwargs)
+    if format == ExportFormat.SOLIDWORKS:
+        return export_solidworks(shape, **kwargs)
     raise ValidationError(
-        f"Unsupported export format: {format}", details={"supported": ["STEP", "STL"]}
+        f"Unsupported export format: {format}", details={"supported": ["STEP", "STL", "SOLIDWORKS"]}
     )
 
 
@@ -452,13 +530,15 @@ def export_model(
         "stp": "step",
         "step": "step",
         "stl": "stl",
+        "solidworks": "solidworks",
+        "sldprt": "solidworks",
     }
 
     normalized_format = format_map.get(export_format)
     if not normalized_format:
         raise ValidationError(
             f"Unsupported export format: {export_format}",
-            details={"supported": ["step", "stp", "stl"]},
+            details={"supported": ["step", "stp", "stl", "solidworks", "sldprt"]},
         )
 
     # Ensure parent directory exists
@@ -469,6 +549,10 @@ def export_model(
         data = export_step(shape, **kwargs)
     elif normalized_format == "stl":
         data = export_stl(shape, quality=quality, **kwargs)
+    elif normalized_format == "solidworks":
+        data = export_solidworks(shape, **kwargs)
+        if not path.suffix:
+            path = path.with_suffix(".step")
     else:
         raise ValidationError(f"Unsupported format: {normalized_format}")
 
@@ -487,12 +571,12 @@ def convert_cad_format(
     Convert CAD file from one format to another.
 
     Loads a CAD file and re-exports it in the target format.
-    Currently supports STEP input and STEP/STL output.
+    Currently supports STEP input and STEP/STL/SolidWorks output.
 
     Args:
         source_path: Path to source CAD file
         output_path: Path for output file
-        target_format: Target format (step, stl)
+        target_format: Target format (step, stl, solidworks, sldprt)
         quality: Quality preset for STL output
 
     Returns:
@@ -505,6 +589,7 @@ def convert_cad_format(
     Example:
         >>> convert_cad_format("model.step", "model.stl", "stl")
         >>> convert_cad_format("input.step", "output.step", "step")
+        >>> convert_cad_format("input.step", "output.step", "solidworks")
     """
     source_path = Path(source_path)
     output_path = Path(output_path)
@@ -555,10 +640,14 @@ def convert_cad_format(
             data = export_stl(shape, quality=quality)
             if not output_path.suffix:
                 output_path = output_path.with_suffix(".stl")
+        elif target_format in ("solidworks", "sldprt"):
+            data = export_solidworks(shape)
+            if not output_path.suffix:
+                output_path = output_path.with_suffix(".step")
         else:
             raise ValidationError(
                 f"Unsupported target format: {target_format}",
-                details={"supported_output": ["step", "stp", "stl"]},
+                details={"supported_output": ["step", "stp", "stl", "solidworks", "sldprt"]},
             )
 
         output_path.write_bytes(data)

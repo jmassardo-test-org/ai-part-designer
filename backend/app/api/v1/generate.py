@@ -93,6 +93,10 @@ class GenerateRequest(BaseModel):
         default=True,
         description="Whether to export STL file",
     )
+    export_solidworks: bool = Field(
+        default=False,
+        description="Whether to export SolidWorks-compatible STEP AP214 file",
+    )
     stl_quality: str = Field(
         default="standard",
         description="STL quality: draft, standard, high, ultra",
@@ -355,6 +359,7 @@ async def _generate_via_v1(
             request.description,
             export_step=request.export_step,
             export_stl=request.export_stl,
+            export_solidworks=request.export_solidworks,
             stl_quality=stl_quality,
         )
 
@@ -367,6 +372,8 @@ async def _generate_via_v1(
             downloads["step"] = f"/api/v1/generate/{result.job_id}/download/step"
         if result.stl_path:
             downloads["stl"] = f"/api/v1/generate/{result.job_id}/download/stl"
+        if result.solidworks_path:
+            downloads["solidworks"] = f"/api/v1/generate/{result.job_id}/download/solidworks"
 
         return GenerateResponse(
             job_id=result.job_id,
@@ -429,7 +436,7 @@ async def _generate_via_v1(
 )
 async def download_generated_file(
     job_id: str,
-    file_format: Literal["step", "stl"],
+    file_format: Literal["step", "stl", "solidworks"],
     current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
@@ -483,13 +490,22 @@ async def download_generated_file(
     # Fallback: Find the file in the temp export directory
     output_path = Path(tempfile.gettempdir()) / "cad_exports"
 
+    # For solidworks, the actual file extension is .step
+    search_ext = "step" if file_format == "solidworks" else file_format
+
     # Search for file matching the job_id pattern
     # Try multiple patterns to handle different naming conventions
-    patterns = [
-        f"*_{job_id[:8]}.{file_format}",
-        f"*{job_id[:8]}*.{file_format}",
-        f"part_{job_id[:8]}.{file_format}",
-    ]
+    if file_format == "solidworks":
+        patterns = [
+            f"*{job_id[:8]}*solidworks.step",
+            f"*_{job_id[:8]}_solidworks.step",
+        ]
+    else:
+        patterns = [
+            f"*_{job_id[:8]}.{search_ext}",
+            f"*{job_id[:8]}*.{search_ext}",
+            f"part_{job_id[:8]}.{search_ext}",
+        ]
 
     matching_files: list[Path] = []
     for pattern in patterns:
@@ -518,6 +534,9 @@ def _create_file_response(file_path: Path, file_format: str, job_id: str) -> Res
     if file_format == "step":
         media_type = "application/STEP"
         filename = f"part_{job_id[:8]}.step"
+    elif file_format == "solidworks":
+        media_type = "application/STEP"
+        filename = f"part_{job_id[:8]}_solidworks.step"
     else:
         media_type = "application/sla"
         filename = f"part_{job_id[:8]}.stl"
