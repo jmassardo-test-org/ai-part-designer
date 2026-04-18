@@ -42,7 +42,7 @@ asyncpg==0.31.0
     # via ai-part-designer (pyproject.toml)
 attrs==25.4.0
     # via aiohttp
-authlib==1.6.7
+authlib==1.6.11
     # via ai-part-designer (pyproject.toml)
 bcrypt==5.0.0
     # via passlib
