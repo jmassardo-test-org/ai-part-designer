@@ -19,7 +19,6 @@ import {
   Settings2,
   History,
   MessageSquare,
-  Trash2,
   GitFork,
   Save,
   Check,
@@ -31,12 +30,13 @@ import { useSearchParams, useLocation } from 'react-router-dom';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { UnderstandingSidebar } from '@/components/chat/UnderstandingSidebar';
+import { HistoryPanel } from '@/components/history';
 import { ModelViewer } from '@/components/viewer';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHistoryPanel } from '@/hooks/useHistoryPanel';
 import { useSlashCommands, type CommandHandlerContext } from '@/hooks/useSlashCommands';
 import {
   createConversation,
-  deleteConversation,
   getConversation,
   listConversations,
   sendMessage,
@@ -122,9 +122,7 @@ export function CreatePage() {
   // Conversation state
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [conversationHistory, setConversationHistory] = useState<ConversationListItem[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { isOpen: showHistory, toggle: toggleHistory, close: closeHistory } = useHistoryPanel({ enableShortcut: true });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -342,9 +340,9 @@ export function CreatePage() {
   // Load a conversation from history
   const loadFromHistory = useCallback(async (id: string) => {
     if (!token) return;
-    
+
     setLoading(true);
-    setShowHistory(false);
+    closeHistory();
     
     try {
       const convo = await getConversation(id, token);
@@ -366,32 +364,7 @@ export function CreatePage() {
     } finally {
       setLoading(false);
     }
-  }, [token, setSearchParams]);
-  
-  // Delete a conversation from history
-  const handleDeleteConversation = useCallback(async (id: string) => {
-    if (!token) return;
-    
-    setIsDeleting(true);
-    try {
-      await deleteConversation(id, token);
-      setConversationHistory((prev) => prev.filter((c) => c.id !== id));
-      setConfirmDeleteId(null);
-      
-      // If the deleted conversation is currently loaded, clear it
-      if (conversation?.id === id) {
-        setConversation(null);
-        setSearchParams({});
-        setView('prompts');
-        setUnderstanding(null);
-        setPreviewData(null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete conversation');
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [token, conversation, setSearchParams]);
+  }, [token, setSearchParams, closeHistory]);
   
   // Handle initial prompt submit
   const handleInitialSubmit = useCallback(() => {
@@ -601,97 +574,51 @@ export function CreatePage() {
     return result;
   }, [executeCommand]);
 
+  // Map conversation history to HistoryPanel format (US-16005)
+  const historyPreviews = useMemo(
+    () =>
+      conversationHistory.map((c) => ({
+        id: c.id,
+        title: c.title || 'Untitled Design',
+        preview: `${c.message_count} messages`,
+        timestamp: new Date(c.created_at),
+        designCount: c.status === 'completed' ? 1 : 0,
+      })),
+    [conversationHistory]
+  );
+
+  const handleNewConversation = useCallback(() => {
+    setConversation(null);
+    setSearchParams({});
+    setView('prompts');
+    setUnderstanding(null);
+    setPreviewData(null);
+    setInitialPrompt('');
+    closeHistory();
+  }, [setSearchParams, closeHistory]);
+
   return (
     <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-8 relative h-[calc(100vh-64px)] overflow-hidden bg-gray-50 dark:bg-gray-900">
-      {/* History Button - Fixed position */}
-      {conversationHistory.length > 0 && (
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm"
-        >
-          <History className="h-4 w-4" />
-          History
-        </button>
-      )}
-      
-      {/* History Panel */}
-      {showHistory && (
-        <div className="absolute top-12 right-3 z-20 w-80 max-h-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Recent Designs</h3>
-          </div>
-          <div className="overflow-y-auto max-h-80">
-            {conversationHistory.map((convo) => (
-              <div
-                key={convo.id}
-                className="relative border-b border-gray-100 dark:border-gray-700 last:border-0"
-              >
-                {confirmDeleteId === convo.id ? (
-                  // Confirmation view
-                  <div className="px-3 py-2 bg-red-50 dark:bg-red-900/20">
-                    <p className="text-sm text-red-700 dark:text-red-400 mb-2">
-                      Delete this design?
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleDeleteConversation(convo.id)}
-                        disabled={isDeleting}
-                        className="flex-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {isDeleting ? 'Deleting...' : 'Delete'}
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(null)}
-                        disabled={isDeleting}
-                        className="flex-1 px-2 py-1 text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // Normal view
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => loadFromHistory(convo.id)}
-                      className="flex-1 text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <div className="flex items-start gap-2">
-                        <MessageSquare className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
-                            {convo.title || 'Untitled Design'}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(convo.created_at).toLocaleDateString()} · {convo.message_count} messages
-                          </p>
-                        </div>
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${
-                          convo.status === 'completed' ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400' :
-                          convo.status === 'failed' ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400' :
-                          'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                        }`}>
-                          {convo.status}
-                        </span>
-                      </div>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDeleteId(convo.id);
-                      }}
-                      className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      title="Delete design"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* History Button - Left side (US-16005) */}
+      <button
+        onClick={toggleHistory}
+        className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm"
+        aria-label="Open history panel"
+      >
+        <History className="h-4 w-4" />
+        History
+      </button>
+
+      {/* Slide-out History Panel (US-16005) */}
+      <HistoryPanel
+        isOpen={showHistory}
+        onClose={closeHistory}
+        conversations={historyPreviews}
+        activeConversationId={conversation?.id}
+        onSelectConversation={loadFromHistory}
+        onNewConversation={handleNewConversation}
+        isLoading={false}
+      />
       
       {/* Prompts View */}
       <div 

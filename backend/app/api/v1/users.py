@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -23,7 +23,7 @@ from app.core.audit import audit_log
 from app.core.database import get_db
 from app.core.rate_limit import rate_limit
 from app.models.audit import AuditActions, AuditLog
-from app.models.user import User
+from app.models.user import User, UserSettings
 
 logger = get_logger(__name__)
 
@@ -63,9 +63,93 @@ class AuditLogListResponse(BaseModel):
     limit: int = Field(description="Maximum number of entries returned")
 
 
+class UserPreferencesResponse(BaseModel):
+    """Response schema for user preferences (US-16003)."""
+
+    theme: str = Field(
+        default="system",
+        description="Theme preference: light, dark, or system",
+    )
+
+
+class UpdateUserPreferencesRequest(BaseModel):
+    """Request schema for updating user preferences."""
+
+    theme: str | None = Field(
+        default=None,
+        description="Theme preference: light, dark, or system",
+    )
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
+
+
+@router.get("/users/me/preferences", response_model=UserPreferencesResponse)
+async def get_user_preferences(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserPreferencesResponse:
+    """
+    Get current user's preferences (theme, etc.).
+
+    Used for syncing theme preference across devices when logged in (US-16003).
+    """
+    # Ensure UserSettings exists
+    if current_user.settings is None:
+        settings = UserSettings(
+            user_id=current_user.id,
+            preferences={"theme": "system"},
+        )
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
+    else:
+        settings = current_user.settings
+
+    theme = settings.preferences.get("theme", "system")
+    if theme not in ("light", "dark", "system"):
+        theme = "system"
+
+    return UserPreferencesResponse(theme=theme)
+
+
+@router.patch("/users/me/preferences", response_model=UserPreferencesResponse)
+async def update_user_preferences(
+    request: UpdateUserPreferencesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserPreferencesResponse:
+    """
+    Update current user's preferences.
+
+    Persists theme preference to user profile for cross-device sync (US-16003).
+    """
+    # Ensure UserSettings exists
+    if current_user.settings is None:
+        settings = UserSettings(
+            user_id=current_user.id,
+            preferences={"theme": "system"},
+        )
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
+    else:
+        settings = current_user.settings
+
+    if request.theme is not None:
+        if request.theme not in ("light", "dark", "system"):
+            raise HTTPException(
+                status_code=422,
+                detail="theme must be one of: light, dark, system",
+            )
+        settings.preferences = {**settings.preferences, "theme": request.theme}
+        await db.commit()
+        await db.refresh(settings)
+
+    theme = settings.preferences.get("theme", "system")
+    return UserPreferencesResponse(theme=theme)
 
 
 @router.get("/users/me/audit-logs", response_model=AuditLogListResponse)

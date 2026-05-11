@@ -12,8 +12,9 @@ export default {
         industrial: {
           bg: {
             primary: '#0E1A26',    // Deep navy - main background
-            secondary: '#132738',  // Slightly lighter for cards
-            elevated: '#1A3348',   // Elevated surfaces
+            secondary: '#132738',   // Slightly lighter for cards
+            surface: '#123A5F',    // Surface/Cards - elevated UI (US-16001 spec)
+            elevated: '#1A3348',    // Elevated surfaces
             hover: '#1F3D52',      // Hover states
           },
           text: {

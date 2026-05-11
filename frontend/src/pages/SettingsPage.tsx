@@ -20,10 +20,12 @@ import {
   Unlink,
   BellOff,
   FileText,
+  Palette,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import AuditLogViewer from '@/components/settings/AuditLogViewer';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getNotificationPreferences, updateNotificationPreference } from '@/lib/api/notifications';
@@ -501,7 +503,7 @@ export function SettingsPage() {
   const location = useLocation();
 
   // Determine initial section from URL path or search params
-  type SectionId = 'profile' | 'password' | 'connected' | 'notifications' | 'billing' | 'audit' | 'account';
+  type SectionId = 'profile' | 'password' | 'connected' | 'appearance' | 'notifications' | 'billing' | 'audit' | 'account';
   
   const getInitialSection = (): SectionId => {
     // Check if path is /settings/notifications
@@ -757,6 +759,7 @@ export function SettingsPage() {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'password', label: 'Password', icon: Lock },
     { id: 'connected', label: 'Connected Accounts', icon: Link2 },
+    { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'audit', label: 'Audit Log', icon: FileText },
@@ -989,6 +992,30 @@ export function SettingsPage() {
                   )}
                   Update Password
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Appearance Section (US-16003) */}
+          {activeSection === 'appearance' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Appearance</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  Customize how the app looks. Your preference is saved and will persist across sessions.
+                </p>
+              </div>
+
+              <div className="border dark:border-gray-600 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">Theme</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      Choose light, dark, or match your system preference
+                    </p>
+                  </div>
+                  <ThemeToggle showDropdown size="md" />
+                </div>
               </div>
             </div>
           )}

@@ -65,8 +65,8 @@
   --color-warning: #F59E0B;
   --color-error: #E53935;
   
-  /* Surface for cards/modals */
-  --color-surface: #132738;
+  /* Surface for cards/modals (US-16001 spec: #123A5F) */
+  --color-surface: #123A5F;
   --color-surface-hover: #1A3348;
   
   color-scheme: dark;

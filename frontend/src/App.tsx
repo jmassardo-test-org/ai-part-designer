@@ -3,6 +3,7 @@ import { AdminRoute } from './components/auth/AdminRoute';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { OnboardingProvider } from './components/onboarding';
 import { ErrorBoundary, NotFoundPage, OfflineIndicator } from './components/ui';
+import { ThemeSync } from './components/theme/ThemeSync';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { AuthLayout } from './layouts/AuthLayout';
@@ -47,6 +48,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
+        <ThemeSync />
         <WebSocketProvider>
           <OnboardingProvider>
             <OfflineIndicator />

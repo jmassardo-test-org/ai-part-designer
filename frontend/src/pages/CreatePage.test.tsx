@@ -238,7 +238,7 @@ describe('CreatePage', () => {
   });
 
   describe('History Management', () => {
-    it('shows delete button on history items', async () => {
+    it('shows history panel with conversation items', async () => {
       const mockHistory = [
         {
           id: 'conv-1',
@@ -250,32 +250,28 @@ describe('CreatePage', () => {
         },
       ];
       mockListConversations.mockResolvedValue(mockHistory);
-      
-      const { getByText, getByTitle } = render(
+
+      const { getByRole, getByText } = render(
         <BrowserRouter>
           <CreatePage />
         </BrowserRouter>
       );
-      
-      // Wait for history to load and click history button
-      await waitFor(() => {
-        expect(getByText('History')).toBeInTheDocument();
-      });
-      
-      getByText('History').click();
-      
-      // Should show the history item with delete button
+
+      const historyButton = await waitFor(() =>
+        getByRole('button', { name: /open history panel/i })
+      );
+      historyButton.click();
+
       await waitFor(() => {
         expect(getByText('Test Design 1')).toBeInTheDocument();
-        expect(getByTitle('Delete design')).toBeInTheDocument();
       });
     });
 
-    it('shows confirmation dialog when delete is clicked', async () => {
+    it('loads conversation when clicking history item', async () => {
       const mockHistory = [
         {
           id: 'conv-1',
-          title: 'Test Design',
+          title: 'Past Design',
           status: 'completed',
           message_count: 3,
           created_at: '2026-01-25T10:00:00Z',
@@ -283,127 +279,35 @@ describe('CreatePage', () => {
         },
       ];
       mockListConversations.mockResolvedValue(mockHistory);
-      
-      const { getByText, getByTitle } = render(
-        <BrowserRouter>
-          <CreatePage />
-        </BrowserRouter>
-      );
-      
-      await waitFor(() => {
-        expect(getByText('History')).toBeInTheDocument();
+      mockGetConversation.mockResolvedValue({
+        id: 'conv-1',
+        title: 'Past Design',
+        status: 'completed',
+        messages: [],
+        created_at: '2026-01-25T10:00:00Z',
+        updated_at: '2026-01-25T10:30:00Z',
       });
-      
-      getByText('History').click();
-      
-      await waitFor(() => {
-        expect(getByTitle('Delete design')).toBeInTheDocument();
-      });
-      
-      getByTitle('Delete design').click();
-      
-      // Should show confirmation dialog
-      await waitFor(() => {
-        expect(getByText('Delete this design?')).toBeInTheDocument();
-        expect(getByText('Delete')).toBeInTheDocument();
-        expect(getByText('Cancel')).toBeInTheDocument();
-      });
-    });
 
-    it('deletes conversation when confirmed', async () => {
-      const mockHistory = [
-        {
-          id: 'conv-1',
-          title: 'Design to Delete',
-          status: 'completed',
-          message_count: 3,
-          created_at: '2026-01-25T10:00:00Z',
-          updated_at: '2026-01-25T10:30:00Z',
-        },
-      ];
-      mockListConversations.mockResolvedValue(mockHistory);
-      mockDeleteConversation.mockResolvedValue(undefined);
-      
-      const { getByText, getByTitle, queryByText } = render(
+      const { getByRole, getByText } = render(
         <BrowserRouter>
           <CreatePage />
         </BrowserRouter>
       );
-      
-      await waitFor(() => {
-        expect(getByText('History')).toBeInTheDocument();
-      });
-      
-      getByText('History').click();
-      
-      await waitFor(() => {
-        expect(getByTitle('Delete design')).toBeInTheDocument();
-      });
-      
-      getByTitle('Delete design').click();
-      
-      await waitFor(() => {
-        expect(getByText('Delete this design?')).toBeInTheDocument();
-      });
-      
-      // Click the Delete button in the confirmation
-      getByText('Delete').click();
-      
-      await waitFor(() => {
-        expect(mockDeleteConversation).toHaveBeenCalledWith('conv-1', mockToken);
-      });
-      
-      // Item should be removed from the list
-      await waitFor(() => {
-        expect(queryByText('Design to Delete')).not.toBeInTheDocument();
-      });
-    });
 
-    it('cancels delete when cancel is clicked', async () => {
-      const mockHistory = [
-        {
-          id: 'conv-1',
-          title: 'Keep This Design',
-          status: 'completed',
-          message_count: 3,
-          created_at: '2026-01-25T10:00:00Z',
-          updated_at: '2026-01-25T10:30:00Z',
-        },
-      ];
-      mockListConversations.mockResolvedValue(mockHistory);
-      
-      const { getByText, getByTitle } = render(
-        <BrowserRouter>
-          <CreatePage />
-        </BrowserRouter>
+      const historyButton = await waitFor(() =>
+        getByRole('button', { name: /open history panel/i })
       );
-      
+      historyButton.click();
+
       await waitFor(() => {
-        expect(getByText('History')).toBeInTheDocument();
+        expect(getByText('Past Design')).toBeInTheDocument();
       });
-      
-      getByText('History').click();
-      
+
+      getByText('Past Design').click();
+
       await waitFor(() => {
-        expect(getByTitle('Delete design')).toBeInTheDocument();
+        expect(mockGetConversation).toHaveBeenCalledWith('conv-1', mockToken);
       });
-      
-      getByTitle('Delete design').click();
-      
-      await waitFor(() => {
-        expect(getByText('Delete this design?')).toBeInTheDocument();
-      });
-      
-      // Click Cancel
-      getByText('Cancel').click();
-      
-      // Should return to normal view with the design still present
-      await waitFor(() => {
-        expect(getByText('Keep This Design')).toBeInTheDocument();
-      });
-      
-      // Delete should not have been called
-      expect(mockDeleteConversation).not.toHaveBeenCalled();
     });
   });
 

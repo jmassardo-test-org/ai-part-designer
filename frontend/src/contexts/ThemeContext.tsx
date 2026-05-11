@@ -123,7 +123,7 @@ export function ThemeProvider({
     (newTheme: Theme) => {
       setThemeState(newTheme);
       localStorage.setItem(storageKey, newTheme);
-      
+
       const resolved = resolveTheme(newTheme);
       setResolvedTheme(resolved);
       applyTheme(resolved);
