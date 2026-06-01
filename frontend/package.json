@@ -67,7 +67,7 @@
     "@types/react-dom": "^18.2.19",
     "@types/three": "^0.161.2",
     "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^4.1.8",
     "autoprefixer": "^10.4.17",
     "eslint": "^9.39.0",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -83,7 +83,7 @@
     "terser": "^5.46.0",
     "typescript": "^5.3.3",
     "vite": "^6.4.2",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.8"
   },
   "overrides": {
     "three-mesh-bvh": "^0.8.0"
